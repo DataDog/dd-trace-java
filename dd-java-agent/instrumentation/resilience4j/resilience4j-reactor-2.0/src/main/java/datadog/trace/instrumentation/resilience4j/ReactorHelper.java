@@ -32,13 +32,13 @@ public class ReactorHelper {
 
   public static BiConsumer<Publisher<?>, AgentSpan> putIfAbsentInto(
       final ContextStore<Publisher, HandoffContext> store) {
-    return (publisher, span) -> store.putIfAbsent(publisher, HandoffContext.anyThread(span));
+    return (publisher, span) -> store.getOrPut(publisher, HandoffContext.anyThread(span));
   }
 
   public static Function<Publisher<?>, Publisher<?>> wrapFunction(
       Function<Publisher<?>, Publisher<?>> operator,
       BiConsumer<Publisher<?>, AgentSpan> attachContext) {
-    return (value) -> {
+    return value -> {
       AgentSpan current = Resilience4jSpan.current();
       AgentSpan owned = current == null ? Resilience4jSpan.start() : null;
       Resilience4jSpanDecorator<Void> spanDecorator = Resilience4jSpanDecorator.DECORATE;

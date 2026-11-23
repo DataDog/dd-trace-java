@@ -16,11 +16,6 @@ import java.util.concurrent.TimeUnit
 
 class VertxHttpClientForkedTest extends HttpClientTest implements TestingNettyHttpNamingConventions.ClientV0 {
 
-  @Override
-  boolean useStrictTraceWrites() {
-    return false
-  }
-
   @AutoCleanup
   @Shared
   def vertx = Vertx.vertx(new VertxOptions())

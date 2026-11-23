@@ -1,7 +1,10 @@
 package com.datadog.debugger.el;
 
 import static com.datadog.debugger.el.EvalContextHelper.createEvalContext;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.el.values.BooleanValue;

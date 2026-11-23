@@ -26,12 +26,8 @@ spotless {
 // Ensure the common project is evaluated before we access its source sets
 evaluationDependsOn(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common')
 
-addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteForDir('latestDepTest', 'test', false) // latestDepForkedTest is declared below from other sources
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'forkedTest')
-
-tasks.named("latestDepTest", Test) {
-  finalizedBy 'latestDepForkedTest'
-}
 
 sourceSets {
   test.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.groovy
@@ -60,11 +56,9 @@ tasks.named("compileLatestDepForkedTestGroovy", GroovyCompile) {
 }
 
 tasks.withType(ScalaCompile).configureEach {
-  // Despite the compatibility matrix, scala compiler doesn't properly
-  // get the right compiler flags with JDK11 toolchain. Using 8 works.
+  // Scala compilers here can't run on modern JDKs; pinned to JDK 8.
   // * https://docs.scala-lang.org/overviews/jdk-compatibility/overview.html
-  // * https://github.com/gradle/gradle/issues/19456
-  configureCompiler(it, 8)
+  configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Scala compilers here do not run on modern JDKs")
 }
 
 

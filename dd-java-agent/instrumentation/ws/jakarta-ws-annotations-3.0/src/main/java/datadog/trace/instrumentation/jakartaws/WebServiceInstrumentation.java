@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ha
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.jakartaws.WebServiceDecorator.DECORATE;
 import static datadog.trace.instrumentation.jakartaws.WebServiceDecorator.JAKARTA_WS_REQUEST;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
@@ -15,10 +16,10 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import jakarta.jws.WebService;
 import net.bytebuddy.asm.Advice;
@@ -47,13 +48,6 @@ public final class WebServiceInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".WebServiceDecorator",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
@@ -68,7 +62,7 @@ public final class WebServiceInstrumentation extends InstrumenterModule.Tracing
   public static final class InvokeAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope beginRequest(
+    public static ContextScope beginRequest(
         @Advice.This Object thiz, @Advice.Origin("#m") String method) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(WebService.class);
       if (callDepth > 0) {
@@ -84,14 +78,14 @@ public final class WebServiceInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void finishRequest(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable error) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable error) {
       if (null == scope) {
         return;
       }
 
       CallDepthThreadLocalMap.reset(WebService.class);
 
-      AgentSpan span = scope.span();
+      AgentSpan span = spanFromScope(scope);
       if (null != error) {
         DECORATE.onError(span, error);
       }

@@ -44,6 +44,7 @@ public class JUnit5SpockParameterizedExecutionInstrumentation
   public String[] helperClassNames() {
     return new String[] {
       parentPackageName + ".JUnitPlatformUtils",
+      parentPackageName + ".TestDataFactory",
       packageName + ".SpockParameterizedExecutionListener",
     };
   }

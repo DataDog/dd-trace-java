@@ -37,13 +37,6 @@ public final class SqsClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SqsInterceptor", packageName + ".MessageAttributeInjector"
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
         "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context");

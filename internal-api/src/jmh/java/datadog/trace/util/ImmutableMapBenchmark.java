@@ -33,11 +33,61 @@ import org.openjdk.jmh.infra.Blackhole;
  * 10+, falls back to the input map pre-10). {@code Map.copyOf}/{@code MapN} is the honest
  * immutable-map baseline, not {@code HashMap}.
  *
+ * <p>Also compared: {@link StringIndex} used as a string-&gt;int map — an open-addressed index plus
+ * a slot-aligned {@code int[]} of values ({@code SI_VALUES[indexOf(key)]}). {@code
+ * stringIndex_get*} goes through the instance wrapper; {@code stringIndex_embedded_get*} reads via
+ * {@code static final} arrays (the JIT folds the refs). No {@code iterate} arm — StringIndex is a
+ * lookup index, not an iteration structure; its map use case is the {@code
+ * indexOf}-&gt;parallel-array read.
+ *
  * <p>Lookups use {@code EQUAL_KEYS} (distinct String instances) to exercise {@code equals()};
  * {@code *_sameKey} variants reuse the original interned key instances to show the identity fast
  * path — which is the common tracer case, since map keys are typically interned tag-name constants.
- * (Results pending a fresh multi-JVM run — {@code Map.copyOf} only materializes the compact form on
- * Java 10+.)
+ *
+ * <p>{@link BenchmarkUtils#warmUpHashDispatch} prepares shared {@code hashCode()} and {@code
+ * equals()} call sites before measurement. This avoids giving hash-based structures an
+ * unrealistically monomorphic type profile.
+ *
+ * <p>A virtual call site is <i>monomorphic</i> when it has observed one receiver class,
+ * <i>polymorphic</i> when it has observed a small set, and <i>megamorphic</i> when no small, stable
+ * set dominates. HotSpot keeps one such profile per bytecode index, shared across every inlining
+ * context, and consults it as a fallback: the profile says what to speculate when the receiver type
+ * cannot be deduced. A megamorphic profile therefore does not always imply virtual dispatch in
+ * compiled code. Wherever a particular context yields a proof of the receiver type — a final class,
+ * an exact type from an allocation or a constant, or an argument sharpened by inlining — C2
+ * devirtualizes and inlines regardless of how polluted the profile is. Pollution only reaches the
+ * contexts that have no such proof.
+ *
+ * <p>Java 17 results on an Apple M1 with the front-loaded {@link BenchmarkUtils#warmUpHashDispatch}
+ * pollution design, {@code @Fork(5)}, {@code @Threads(8)} (M ops/s):
+ *
+ * <pre>{@code
+ * Structure                get sameKey iterate iterate_forEach
+ * hashMap                1240.9  1827.4  109.95        -
+ * linkedHashMap          1259.5     -    139.86        -
+ * treeMap                 665.0     -    139.49        -
+ * tagMap                 1200.3  1420.9  100.66     146.69
+ * tracerImmutableMap     1067.3  1395.9  137.93        -   (MapN)
+ * stringIndex             1452.4  1864.8       -        -
+ * stringIndex_embedded    1605.2  2063.5       -        -
+ * }</pre>
+ *
+ * <p>In this run:
+ *
+ * <ul>
+ *   <li>The embedded StringIndex has the fastest {@code get}; the instance wrapper is second — both
+ *       StringIndex variants outperform the map-based alternatives for distinct and identical key
+ *       instances.
+ *   <li>{@code stringIndex} is also slightly better than {@code hashMap} when used as an immutable
+ *       map (1452.4 vs 1240.9 on {@code get}).
+ *   <li>{@code TagMap.forEach} is about 46% faster than its iterator (146.69 vs. 100.66 M ops/s),
+ *       and {@code -prof gc} supplies the mechanism: {@code iterate_tagMap} allocates 40 B/op while
+ *       {@code iterate_tagMap_forEach} allocates ≈0. {@code iterate_hashMap} is also 40 B/op,
+ *       whereas {@code iterate_linkedHashMap}, {@code iterate_treeMap} and {@code
+ *       iterate_tracerImmutableMap} allocate nothing. Every {@code get} arm is allocation-free,
+ *       including the distinct-key variants. Allocation was profiled in a later run than the
+ *       throughput table above, so the two are not a matched pair on absolute numbers.
+ * </ul>
  */
 // @Fork(5): get_tracerImmutableMap* (MapN reached via interface dispatch) is JIT-bimodal at fewer
 // forks — 5
@@ -71,12 +121,32 @@ public class ImmutableMapBenchmark {
     }
   }
 
+  // StringIndex as a string->int map: an open-addressed index plus a slot-aligned int[] of values
+  // (VALUES[indexOf(key)]). stringIndex_embedded_* reads via static final arrays (JIT folds the
+  // refs to constants); stringIndex_* goes through the instance wrapper. Both share one placement
+  // -- StringIndex.of and EmbeddingSupport.create place identically -- so SI_VALUES aligns with
+  // either.
+  static final int[] SI_HASHES;
+  static final String[] SI_NAMES;
+  static final int[] SI_VALUES;
+
+  static {
+    StringIndex.Data data = StringIndex.EmbeddingSupport.create(INSERTION_KEYS);
+    SI_HASHES = data.hashes;
+    SI_NAMES = data.names;
+    SI_VALUES = new int[SI_HASHES.length];
+    for (int i = 0; i < INSERTION_KEYS.length; ++i) {
+      SI_VALUES[StringIndex.EmbeddingSupport.indexOf(SI_HASHES, SI_NAMES, INSERTION_KEYS[i])] = i;
+    }
+  }
+
   // Built once, never mutated -- safe to share across the reader threads.
   HashMap<String, Integer> hashMap;
   LinkedHashMap<String, Integer> linkedHashMap;
   TreeMap<String, Integer> treeMap;
   TagMap tagMap;
   Map<String, Integer> tracerImmutableMap;
+  StringIndex stringIndex;
 
   @Setup(Level.Trial)
   public void setUp() {
@@ -92,12 +162,21 @@ public class ImmutableMapBenchmark {
     }
     // JDK compact immutable map (MapN on Java 10+); the agent's actual fixed-map representation.
     tracerImmutableMap = CollectionUtils.tryMakeImmutableMap(hashMap);
+    stringIndex = StringIndex.of(INSERTION_KEYS);
   }
 
   /** Per-thread lookup cursor so each reader thread cycles keys independently. */
   @State(Scope.Thread)
   public static class Cursor {
     int index = 0;
+
+    // Front-load pollution once per trial, entirely before JMH's warmup starts: JMH
+    // injects the Blackhole straight into this setup method, so no per-benchmark
+    // scratch state is needed.
+    @Setup(Level.Trial)
+    public void warmUpPollution(Blackhole bh) {
+      BenchmarkUtils.warmUpHashDispatch(bh);
+    }
 
     String nextKey() {
       return nextKey(EQUAL_KEYS);
@@ -198,5 +277,26 @@ public class ImmutableMapBenchmark {
       blackhole.consume(entry.getKey());
       blackhole.consume(entry.getValue());
     }
+  }
+
+  @Benchmark
+  public int stringIndex_get(Cursor cursor) {
+    return SI_VALUES[stringIndex.indexOf(cursor.nextKey())];
+  }
+
+  @Benchmark
+  public int stringIndex_get_sameKey(Cursor cursor) {
+    return SI_VALUES[stringIndex.indexOf(cursor.nextKey(INSERTION_KEYS))];
+  }
+
+  @Benchmark
+  public int stringIndex_embedded_get(Cursor cursor) {
+    return SI_VALUES[StringIndex.EmbeddingSupport.indexOf(SI_HASHES, SI_NAMES, cursor.nextKey())];
+  }
+
+  @Benchmark
+  public int stringIndex_embedded_get_sameKey(Cursor cursor) {
+    return SI_VALUES[
+        StringIndex.EmbeddingSupport.indexOf(SI_HASHES, SI_NAMES, cursor.nextKey(INSERTION_KEYS))];
   }
 }

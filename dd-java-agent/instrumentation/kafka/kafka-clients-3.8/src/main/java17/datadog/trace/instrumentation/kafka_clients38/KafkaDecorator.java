@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.CONSUMER_GROUP;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_CLUSTER_ID;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.MESSAGING_DESTINATION_NAME;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.OFFSET;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PARTITION;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
+import static datadog.trace.api.KnownTags.KAFKA_GROUP;
+import static datadog.trace.api.KnownTags.MESSAGING_DESTINATION_NAME;
+import static datadog.trace.api.KnownTags.MESSAGING_KAFKA_BOOTSTRAP_SERVERS;
+import static datadog.trace.api.KnownTags.MESSAGING_KAFKA_CLUSTER_ID;
+import static datadog.trace.api.KnownTags.OFFSET;
+import static datadog.trace.api.KnownTags.PARTITION;
+import static datadog.trace.api.KnownTags.RECORD_QUEUE_TIME_MS;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
@@ -127,13 +127,13 @@ public class KafkaDecorator extends MessagingClientDecorator {
       span.setTag(OFFSET, record.offset());
       span.setTag(MESSAGING_DESTINATION_NAME, topic);
       if (consumerGroup != null) {
-        span.setTag(CONSUMER_GROUP, consumerGroup);
+        span.setTag(KAFKA_GROUP, consumerGroup);
       }
       if (clusterId != null) {
-        span.setTag(KAFKA_CLUSTER_ID, clusterId);
+        span.setTag(MESSAGING_KAFKA_CLUSTER_ID, clusterId);
       }
       if (bootstrapServers != null) {
-        span.setTag(KAFKA_BOOTSTRAP_SERVERS, bootstrapServers);
+        span.setTag(MESSAGING_KAFKA_BOOTSTRAP_SERVERS, bootstrapServers);
       }
       // TODO - do we really need both? This mechanism already adds a lot of... baggage.
       // check to not record a duration if the message was sent from an old Kafka client
@@ -166,12 +166,12 @@ public class KafkaDecorator extends MessagingClientDecorator {
       }
       if (producerConfig != null) {
         span.setTag(
-            KAFKA_BOOTSTRAP_SERVERS,
+            MESSAGING_KAFKA_BOOTSTRAP_SERVERS,
             PRODUCER_BOOSTRAP_SERVERS_CACHE.computeIfAbsent(
                 producerConfig, BOOTSTRAP_SERVERS_JOINER));
       }
       if (clusterId != null) {
-        span.setTag(KAFKA_CLUSTER_ID, clusterId);
+        span.setTag(MESSAGING_KAFKA_CLUSTER_ID, clusterId);
       }
       final String topic = record.topic() == null ? "kafka" : record.topic();
       span.setResourceName(PRODUCER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, PRODUCER_PREFIX));

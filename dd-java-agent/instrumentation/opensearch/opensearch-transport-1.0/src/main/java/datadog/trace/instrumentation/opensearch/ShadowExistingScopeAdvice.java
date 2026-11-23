@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.opensearch;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -13,12 +13,12 @@ import net.bytebuddy.asm.Advice;
 public class ShadowExistingScopeAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope enter() {
+  public static ContextScope enter() {
     return activateSpan(noopSpan());
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void exit(@Advice.Enter final AgentScope scope) {
+  public static void exit(@Advice.Enter final ContextScope scope) {
     scope.close();
   }
 }

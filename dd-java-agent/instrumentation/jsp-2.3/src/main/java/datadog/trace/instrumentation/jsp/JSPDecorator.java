@@ -1,6 +1,13 @@
 package datadog.trace.instrumentation.jsp;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import static datadog.trace.api.KnownTags.JSP_CLASSFQCN;
+import static datadog.trace.api.KnownTags.JSP_COMPILER;
+import static datadog.trace.api.KnownTags.JSP_FORWARDORIGIN;
+import static datadog.trace.api.KnownTags.JSP_REQUESTURL;
+import static datadog.trace.api.KnownTags.SERVLET_CONTEXT;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
+
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
@@ -30,19 +37,20 @@ public class JSPDecorator extends BaseDecorator {
     return JSP_HTTP_SERVLET;
   }
 
-  public void onCompile(final AgentScope scope, final JspCompilationContext jspCompilationContext) {
+  public void onCompile(
+      final ContextScope scope, final JspCompilationContext jspCompilationContext) {
     if (jspCompilationContext != null) {
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromScope(scope);
       span.setResourceName(jspCompilationContext.getJspFile());
 
       if (jspCompilationContext.getServletContext() != null) {
-        span.setTag("servlet.context", jspCompilationContext.getServletContext().getContextPath());
+        span.setTag(SERVLET_CONTEXT, jspCompilationContext.getServletContext().getContextPath());
       }
 
       if (jspCompilationContext.getCompiler() != null) {
-        span.setTag("jsp.compiler", jspCompilationContext.getCompiler().getClass().getName());
+        span.setTag(JSP_COMPILER, jspCompilationContext.getCompiler().getClass().getName());
       }
-      span.setTag("jsp.classFQCN", jspCompilationContext.getFQCN());
+      span.setTag(JSP_CLASSFQCN, jspCompilationContext.getFQCN());
     }
   }
 
@@ -57,7 +65,7 @@ public class JSPDecorator extends BaseDecorator {
 
     final Object forwardOrigin = req.getAttribute(RequestDispatcher.FORWARD_SERVLET_PATH);
     if (forwardOrigin instanceof String) {
-      span.setTag("jsp.forwardOrigin", forwardOrigin.toString());
+      span.setTag(JSP_FORWARDORIGIN, forwardOrigin.toString());
     }
 
     // add the request URL as a tag to provide better context when looking at spans produced by
@@ -69,7 +77,7 @@ public class JSPDecorator extends BaseDecorator {
       // and we never know if ever this can happen
       final StringBuffer requestURL = req.getRequestURL();
       if (requestURL != null && requestURL.length() > 0) {
-        span.setTag("jsp.requestURL", (new URI(requestURL.toString())).normalize().toString());
+        span.setTag(JSP_REQUESTURL, (new URI(requestURL.toString())).normalize().toString());
       }
     } catch (final Throwable ignored) {
       // logging here will be too verbose

@@ -35,12 +35,13 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
       packageName + ".ExtractAdapter$Request",
       packageName + ".ExtractAdapter$Response",
       packageName + ".JettyDecorator",
+      packageName + ".JettyBlockResponseFunction",
+      packageName + ".JettyDeferredCompletion",
+      packageName + ".JettyBlockResponseHelper",
       packageName + ".RequestURIDataAdapter",
-      packageName + ".JettyServerAdvice",
-      packageName + ".JettyServerAdvice$ContextTrackingAdvice",
-      packageName + ".JettyServerAdvice$HandleAdvice",
-      packageName + ".JettyServerAdvice$ResetAdvice",
-      packageName + ".JettyRunnableWrapper"
+      packageName + ".JettyRunnableWrapper",
+      packageName + ".JettyStreamFailureWrapper",
+      packageName + ".JettyBlockingExceptions"
     };
   }
 

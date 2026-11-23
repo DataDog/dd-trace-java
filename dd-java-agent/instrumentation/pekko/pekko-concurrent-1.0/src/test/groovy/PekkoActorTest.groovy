@@ -4,7 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 
-class PekkoActorTest extends InstrumentationSpecification {
+abstract class AbstractPekkoActorTest extends InstrumentationSpecification {
 
   @Shared
   @AutoCleanup
@@ -94,8 +94,10 @@ class PekkoActorTest extends InstrumentationSpecification {
       }
     }
   }
+}
 
-  def "actor message handling should close leaked scopes"() {
+class PekkoActorTest extends AbstractPekkoActorTest {
+  def "legacy actor message handling should close leaked scopes"() {
     when:
     pekkoTester.leak("Leaker", "drip")
 
@@ -124,7 +126,7 @@ class PekkoActorTest extends InstrumentationSpecification {
   }
 }
 
-class PekkoActorContextSwapForkedTest extends PekkoActorTest {
+class PekkoActorContextSwapForkedTest extends AbstractPekkoActorTest {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()

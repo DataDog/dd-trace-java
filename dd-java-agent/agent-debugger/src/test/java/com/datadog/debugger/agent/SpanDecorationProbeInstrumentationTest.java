@@ -65,12 +65,15 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   private static final ProbeId PROBE_ID4 = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f9", 0);
   private static final ProbeId LINE_PROBE_ID1 =
       new ProbeId("beae1817-f3b0-4ea8-a74f-000000000001", 0);
+  private static final ProbeId LINE_PROBE_ID3 =
+      new ProbeId("beae1817-f3b0-4ea8-a74f-000000000003", 0);
 
   private TestTraceInterceptor traceInterceptor = new TestTraceInterceptor();
+  private CoreTracer tracer;
 
   @BeforeEach
   public void setUp() {
-    CoreTracer tracer = CoreTracer.builder().build();
+    tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     tracer.addTraceInterceptor(traceInterceptor);
   }
@@ -79,6 +82,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
   @AfterEach
   public void after() {
     super.after();
+    tracer.close();
     Redaction.clearUserDefinedTypes();
     ProbeRateLimiter.resetGlobalRate();
   }
@@ -288,9 +292,9 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
     SpanDecorationProbe.Decoration deco1 = createDecoration("tag1", "{arg}");
     SpanDecorationProbe.Decoration deco2 = createDecoration("tag2", "{this.intField}");
     SpanDecorationProbe.Decoration deco3 = createDecoration("tag3", "{strField}");
-    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID3);
     installSingleSpanDecoration(
-        LINE_PROBE_ID1,
+        LINE_PROBE_ID3,
         CLASS_NAME,
         ROOT,
         asList(deco1, deco2, deco3),
@@ -598,23 +602,23 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
 
   @Test
   public void ensureCallingSamplingTagEvalError() throws IOException, URISyntaxException {
-    doSamplingTest(this::methodTagEvalError, 1, 1);
+    doSamplingTest(this::methodTagEvalError, 0, 1);
   }
 
   @Test
   public void ensureCallingSamplingMethodInvalidCondition() throws IOException, URISyntaxException {
-    doSamplingTest(this::methodActiveSpanInvalidCondition, 1, 1);
+    doSamplingTest(this::methodActiveSpanInvalidCondition, 0, 1);
   }
 
   @Test
   public void ensureCallingSamplingLineInvalidCondition() throws IOException, URISyntaxException {
-    doSamplingTest(this::lineActiveSpanInvalidCondition, 1, 1);
+    doSamplingTest(this::lineActiveSpanInvalidCondition, 0, 1);
   }
 
   @Test
   public void ensureCallingSamplingKeywordRedactionConditions()
       throws IOException, URISyntaxException {
-    doSamplingTest(this::keywordRedactionConditions, 1, 1);
+    doSamplingTest(this::keywordRedactionConditions, 0, 1);
   }
 
   private void doSamplingTest(

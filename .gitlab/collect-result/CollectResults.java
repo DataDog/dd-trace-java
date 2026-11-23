@@ -10,7 +10,7 @@ class CollectResults {
         new ResultCollector(
             Path.of("results"),
             Path.of("workspace"),
-            List.of(Path.of("workspace"), Path.of("buildSrc")),
+            List.of(Path.of("workspace"), Path.of("buildSrc"), Path.of("build-logic")),
             continueOnFailure);
     collector.collect();
   }

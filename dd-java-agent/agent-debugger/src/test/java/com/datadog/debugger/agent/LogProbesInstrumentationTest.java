@@ -601,7 +601,7 @@ public class LogProbesInstrumentationTest {
   }
 
   private Snapshot assertOneSnapshot(ProbeId probeId, TestSnapshotListener listener) {
-    Assertions.assertFalse(listener.skipped, "Snapshot skipped because " + listener.cause);
+    Assertions.assertFalse(listener.skipped, "Snapshot skipped because " + listener.reason);
     Assertions.assertEquals(1, listener.snapshots.size());
     Snapshot snapshot = listener.snapshots.get(0);
     Assertions.assertEquals(probeId.getId(), snapshot.getProbe().getId());

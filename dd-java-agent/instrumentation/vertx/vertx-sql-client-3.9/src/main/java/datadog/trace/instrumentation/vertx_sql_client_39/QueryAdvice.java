@@ -2,14 +2,13 @@ package datadog.trace.instrumentation.vertx_sql_client_39;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.instrumentation.vertx_sql_client_39.VertxSqlClientDecorator.DECORATE;
 
 import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -30,7 +29,7 @@ public class QueryAdvice {
 
   public static class Execute {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static <T, R extends SqlResult<T>> AgentScope beforeExecute(
+    public static <T, R extends SqlResult<T>> ContextScope beforeExecute(
         @Advice.This final Query<?> zis,
         @Advice.Argument(
                 value = 0,
@@ -44,7 +43,7 @@ public class QueryAdvice {
 
       final AgentSpan parentSpan = activeSpan();
       final ContextContinuation parentContinuation =
-          null == parentSpan ? null : captureSpan(parentSpan);
+          null == parentSpan ? null : parentSpan.captureWithContext();
       final AgentSpan clientSpan =
           DECORATE.startAndDecorateSpanForStatement(
               zis, InstrumentationContext.get(Query.class, Pair.class), prepared);
@@ -63,7 +62,7 @@ public class QueryAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterExecute(
-        @Advice.Thrown final Throwable throwable, @Advice.Enter final AgentScope clientScope) {
+        @Advice.Thrown final Throwable throwable, @Advice.Enter final ContextScope clientScope) {
       if (null != clientScope) {
         clientScope.close();
       }

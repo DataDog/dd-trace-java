@@ -11,9 +11,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.netty41.AttributeKeys;
 import io.vertx.core.http.impl.HttpClientStream;
@@ -63,7 +63,7 @@ public class HttpClientRequestBaseInstrumentation extends InstrumenterModule.Tra
             stream.connection().channel().attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY).get();
         AgentSpan nettySpan = spanFromContext(storedContext);
         if (nettySpan != null) {
-          try (final AgentScope scope = activateSpan(nettySpan)) {
+          try (final ContextScope scope = activateSpan(nettySpan)) {
             DECORATE.onError(scope, cause);
           }
         }

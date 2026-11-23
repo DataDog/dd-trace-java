@@ -29,7 +29,7 @@ public class SnapshotSink {
   public static final int LOW_RATE_CAPACITY = 1024;
   static final int HIGH_RATE_MIN_FLUSH_INTERVAL_MS = 1;
   static final int HIGH_RATE_MAX_FLUSH_INTERVAL_MS = 100;
-  private static final int HIGH_RATE_CAPACITY = 1024;
+  public static final int HIGH_RATE_CAPACITY = 1024;
   private static final int HIGH_RATE_10_PERCENT_CAPACITY = HIGH_RATE_CAPACITY / 10;
   private static final int HIGH_RATE_25_PERCENT_CAPACITY = HIGH_RATE_CAPACITY / 4;
   private static final int HIGH_RATE_75_PERCENT_CAPACITY = HIGH_RATE_CAPACITY * 3 / 4;

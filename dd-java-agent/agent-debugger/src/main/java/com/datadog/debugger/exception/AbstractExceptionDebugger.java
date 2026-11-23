@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.AgentTaskScheduler;
+import datadog.trace.util.Strings;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -55,11 +56,10 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
   public void handleException(Throwable t, AgentSpan span) {
     if (!shouldHandleException(t, span)) {
       if (LOGGER.isDebugEnabled()) {
-        LOGGER.debug("Skip handling error: {}", t.toString());
+        LOGGER.debug("Skip handling exception: {}", t.getClass().getTypeName());
       }
       return;
     }
-
     String fingerprint = Fingerprinter.fingerprint(t, classNameFiltering);
     if (fingerprint == null) {
       LOGGER.debug("Unable to fingerprint exception", t);
@@ -76,20 +76,30 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
       ExceptionProbeManager.ThrowableState state =
           exceptionProbeManager.getStateByThrowable(innerMostException);
       if (state == null) {
-        LOGGER.debug("Unable to find state for throwable: {}", innerMostException.toString());
+        LOGGER.debug(
+            "Unable to find state for throwable: {}", innerMostException.getClass().getTypeName());
         return;
       }
       processSnapshotsAndSetTags(
-          t, span, state, chainedExceptionsList, fingerprint, maxCapturedFrames);
+          t,
+          innerMostException,
+          span,
+          state,
+          chainedExceptionsList,
+          fingerprint,
+          maxCapturedFrames);
       exceptionProbeManager.updateLastCapture(fingerprint);
     } else {
       // climb up the exception chain to find the first exception that has instrumented frames
       Throwable throwable;
       int chainedExceptionIdx = 0;
       while ((throwable = chainedExceptions.pollFirst()) != null) {
+        StackTraceElement[] stackTrace = throwable.getStackTrace();
+        if (stackTrace == null || stackTrace.length == 0) {
+          continue;
+        }
         ExceptionProbeManager.CreationResult creationResult =
-            exceptionProbeManager.createProbesForException(
-                throwable.getStackTrace(), chainedExceptionIdx);
+            exceptionProbeManager.createProbesForException(stackTrace, chainedExceptionIdx);
         if (creationResult.probesCreated > 0) {
           if (!applyConfigAsync) {
             applyExceptionConfiguration(fingerprint);
@@ -119,13 +129,14 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
 
   protected void addStackFrameTags(
       AgentSpan span, Snapshot snapshot, int frameIndex, StackTraceElement stackFrame) {
-    String tagName = String.format(SNAPSHOT_ID_TAG_FMT, frameIndex);
+    String tagName = Strings.format(SNAPSHOT_ID_TAG_FMT, frameIndex);
     span.setTag(tagName, snapshot.getId());
     LOGGER.debug("add tag to span[{}]: {}: {}", span.getSpanId(), tagName, snapshot.getId());
   }
 
   private void processSnapshotsAndSetTags(
       Throwable t,
+      Throwable innerMostException,
       AgentSpan span,
       ExceptionProbeManager.ThrowableState state,
       List<Throwable> chainedExceptions,
@@ -135,12 +146,11 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
       LOGGER.debug("Clear previous frame tags");
       // already set for this span, clear the frame tags
       span.getTags()
-          .forEach(
-              (k, v) -> {
-                if (k.startsWith(DD_DEBUG_ERROR_PREFIX)) {
-                  span.setTag(k, (String) null);
-                }
-              });
+          .forEach((k, v) -> {
+            if (k.startsWith(DD_DEBUG_ERROR_PREFIX)) {
+              span.setTag(k, (String) null);
+            }
+          });
     }
     boolean snapshotAssigned = false;
     List<Snapshot> snapshots = state.getSnapshots();
@@ -190,6 +200,9 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
           state.getExceptionId());
       span.setTag(Tags.ERROR_DEBUG_INFO_CAPTURED, true);
       span.setTag(DD_DEBUG_ERROR_EXCEPTION_HASH, fingerprint);
+      // Remove ThrowableState to avoid growing indefinitely for singleton exception instances
+      // like ones generated for FastThrow optimization (OmitStackTraceInFastThrow)
+      exceptionProbeManager.removeThrowableState(innerMostException);
     }
   }
 

@@ -51,6 +51,7 @@ public class JUnit5TestOrderInstrumentation extends InstrumenterModule.CiVisibil
   public String[] helperClassNames() {
     return new String[] {
       parentPackageName + ".JUnitPlatformUtils",
+      parentPackageName + ".TestDataFactory",
       parentPackageName + ".TestEventsHandlerHolder",
       packageName + ".JUnit5OrderUtils",
       packageName + ".FailFastClassOrderer",

@@ -15,7 +15,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
 
 @AutoService(InstrumenterModule.class)
-public class IastHttpUriRequestBaseInstrumentation extends InstrumenterModule.Iast
+public class IastHttpUriRequestBaseInstrumentation extends InstrumenterModule.TaintableIast
     implements Instrumenter.ForSingleType,
         Instrumenter.HasTypeAdvice,
         Instrumenter.HasMethodAdvice {
@@ -42,7 +42,7 @@ public class IastHttpUriRequestBaseInstrumentation extends InstrumenterModule.Ia
   }
 
   public static class CtorAdvice {
-    @Advice.OnMethodExit()
+    @Advice.OnMethodExit
     @Propagation
     public static void afterCtor(
         @Advice.This final HttpUriRequestBase self, @Advice.Argument(1) final URI uri) {

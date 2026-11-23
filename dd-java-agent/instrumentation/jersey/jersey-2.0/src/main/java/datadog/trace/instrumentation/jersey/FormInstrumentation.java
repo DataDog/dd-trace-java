@@ -41,13 +41,6 @@ public class FormInstrumentation extends InstrumenterModule.Iast
     return new String[] {"jakarta.ws.rs.core.Form", "javax.ws.rs.core.Form"};
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JerseyTaintHelper",
-    };
-  }
-
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class AsMapAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)

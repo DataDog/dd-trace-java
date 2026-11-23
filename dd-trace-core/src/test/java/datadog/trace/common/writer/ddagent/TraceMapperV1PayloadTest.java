@@ -1,9 +1,11 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.trace.api.DDTags.PROCESS_TAGS;
+import static datadog.trace.api.DDTags.SDK_OTLP_EXPORT;
 import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.DDTags.THREAD_ID;
 import static datadog.trace.api.DDTags.THREAD_NAME;
+import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.ENV;
@@ -12,6 +14,8 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.VERSION;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces;
 import static datadog.trace.common.writer.ddagent.PayloadVerifiers.assertEqualsWithNullAsEmpty;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.newStringTable;
@@ -19,12 +23,14 @@ import static datadog.trace.common.writer.ddagent.V1PayloadReader.readAttributes
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.readBinary;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.readFirstChunk;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.readFirstSpan;
+import static datadog.trace.common.writer.ddagent.V1PayloadReader.readPayloadAttributes;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.readStreamingString;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.skipChunkField;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.skipPayloadField;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.skipSpanField;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.traceIdBytes;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.unpackUnsignedLong;
+import static datadog.trace.core.TestSpanEvents.typedAttributes;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
@@ -37,6 +43,8 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.FlushingBuffer;
@@ -45,11 +53,13 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.cache.RadixTreeCache;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.TraceGenerator.PojoSpan;
 import datadog.trace.common.writer.ddagent.V1PayloadReader.ChunkField;
@@ -57,7 +67,9 @@ import datadog.trace.common.writer.ddagent.V1PayloadReader.PayloadField;
 import datadog.trace.common.writer.ddagent.V1PayloadReader.SpanField;
 import datadog.trace.common.writer.ddagent.V1PayloadReader.V1SpanEvent;
 import datadog.trace.common.writer.ddagent.V1PayloadReader.V1SpanLink;
+import datadog.trace.core.DDSpanEvent;
 import datadog.trace.core.MetadataConsumer;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -149,7 +161,6 @@ class TraceMapperV1PayloadTest {
       if (!packer.format(trace, traceMapper)) {
         verifier.skipLargeTrace();
         tracesFitInBuffer = false;
-        traceMapper.reset();
       }
     }
     packer.flush();
@@ -177,6 +188,63 @@ class TraceMapperV1PayloadTest {
   })
   void spanKindValueConversion(String scenario, String spanKind, int expectedKind) {
     assertEquals(expectedKind, TraceMapperV1.getSpanKindValue(spanKind));
+  }
+
+  @Test
+  void preEncodedAttributeUsesItsUtf8Bytes() throws IOException {
+    UTF8BytesString url = UTF8BytesString.create("http://localhost/é/東京");
+    SpiedSerialization serialized = serializeV1PayloadWithSpy(span(singletonMap(HTTP_URL, url)));
+
+    verify(serialized.packer).writeUTF8(url);
+    assertEquals(url.toString(), readFirstSpan(serialized.payload).getAttributes().get(HTTP_URL));
+  }
+
+  @Test
+  void preEncodedEventAttributeUsesItsUtf8Bytes() throws IOException {
+    UTF8BytesString value = UTF8BytesString.create("event-value-é");
+    UTF8BytesString item = UTF8BytesString.create("event-item-東京");
+    Map<String, Object> attributes = new HashMap<>();
+    attributes.put("str", value);
+    attributes.put("arr", singletonList(item));
+    List<DDSpanEvent> spanEvents = singletonList(new DDSpanEvent("event", 5L, attributes));
+
+    SpiedSerialization serialized = serializeV1PayloadWithSpy(spanWithEvents(spanEvents));
+
+    verify(serialized.packer).writeUTF8(value);
+    verify(serialized.packer).writeUTF8(item);
+    Map<String, Object> decoded =
+        readFirstSpan(serialized.payload).getEvents().get(0).getAttributes();
+    assertEquals(value.toString(), decoded.get("str"));
+    assertEquals(singletonList(item.toString()), decoded.get("arr"));
+  }
+
+  @Test
+  void httpStatusAttributeUsesCachedUtf8Bytes() throws IOException {
+    UTF8BytesString status = RadixTreeCache.HTTP_STATUSES.get(404);
+    SpiedSerialization serialized = serializeV1PayloadWithSpy(span(emptyMap(), 404));
+
+    verify(serialized.packer).writeUTF8(status);
+    assertEquals("404", readFirstSpan(serialized.payload).getAttributes().get(HTTP_STATUS));
+  }
+
+  @Test
+  void explicitHttpStatusTagOverridesInterceptedStatus() throws IOException {
+    PojoSpan span = span(singletonMap(HTTP_STATUS, 503), 200);
+
+    Map<String, Object> attributes = readFirstSpan(serializeV1Payload(span)).getAttributes();
+
+    assertAttributeValueEquals(503, attributes.get(HTTP_STATUS), HTTP_STATUS);
+    assertEquals(3, attributes.size(), "Only thread metadata and one HTTP status should remain");
+  }
+
+  @Test
+  void nullHttpStatusTagDoesNotSuppressInterceptedStatus() throws IOException {
+    PojoSpan span = span(singletonMap(HTTP_STATUS, null), 200);
+
+    Map<String, Object> attributes = readFirstSpan(serializeV1Payload(span)).getAttributes();
+
+    assertEquals("200", attributes.get(HTTP_STATUS));
+    assertEquals(3, attributes.size(), "Only thread metadata and one HTTP status should remain");
   }
 
   @Test
@@ -235,14 +303,31 @@ class TraceMapperV1PayloadTest {
       assertEquals(EXPECTED_PAYLOAD_FIELD_IDS, payloadFieldsSeen);
       assertEquals(1, chunkCount);
       assertNotNull(payloadAttributes);
+      // The export-mode marker is payload-scoped and always written; process tags are conditional.
+      assertEquals("false", payloadAttributes.get(SDK_OTLP_EXPORT));
       CharSequence processTags = ProcessTags.getTagsForSerialization();
       if (processTags == null) {
-        assertEquals(0, payloadAttributes.size());
-      } else {
         assertEquals(1, payloadAttributes.size());
+      } else {
+        assertEquals(2, payloadAttributes.size());
         assertEquals(processTags.toString(), payloadAttributes.get(PROCESS_TAGS));
       }
     }
+  }
+
+  /**
+   * v1 has a payload-level attribute map, so the export-mode marker lives there rather than on the
+   * first span the way v0.4/v0.5 must place it. The {@code "false"} default is covered by {@link
+   * #payloadContainsExpectedHeaderAndChunkFields()}, which also pins the attribute-map size.
+   */
+  @Test
+  @WithConfig(
+      key = WRITER_TYPE,
+      value = MULTI_WRITER_TYPE + ":" + OTLP_WRITER_TYPE + ",DDAgentWriter")
+  void otlpExportMarkerIsTrueWhenAlsoExportingOverOtlp() throws IOException {
+    Map<String, Object> attributes = readPayloadAttributes(serializeV1Payload(span(emptyMap())));
+
+    assertEquals("true", attributes.get(SDK_OTLP_EXPORT));
   }
 
   // expectedSamplingMechanism 0 is SamplingMechanism.DEFAULT.
@@ -376,30 +461,30 @@ class TraceMapperV1PayloadTest {
   }
 
   @Test
-  void spanEventsAreEncodedFromEventsTag() throws IOException {
-    Map<String, Object> firstEventAttributes = new HashMap<>();
-    firstEventAttributes.put("str", "v");
-    firstEventAttributes.put("int", 42L);
-    firstEventAttributes.put("double", 12.5d);
-    firstEventAttributes.put("bool", true);
-    firstEventAttributes.put("arr", asList("x", 7L, 2.5d, false));
-    Map<String, Object> firstEvent = new HashMap<>();
-    firstEvent.put("time_unix_nano", 1234567890L);
-    firstEvent.put("name", "event.one");
-    firstEvent.put("attributes", firstEventAttributes);
-    Map<String, Object> secondEvent = new HashMap<>();
-    secondEvent.put("time_unix_nano", 1234567891L);
-    secondEvent.put("name", "event.two");
-    PojoSpan span = span(singletonMap(SPAN_EVENTS, asList(firstEvent, secondEvent)));
+  void legacySpanEventsTagIsExcludedFromAttributes() throws IOException {
+    PojoSpan span = span(singletonMap(SPAN_EVENTS, "legacy-events"), 0);
 
-    List<V1SpanEvent> events = readFirstSpan(serializeV1Payload(span)).getEvents();
+    Map<String, Object> attributes = readFirstSpan(serializeV1Payload(span)).getAttributes();
+
+    assertFalse(attributes.containsKey(SPAN_EVENTS));
+    assertEquals(2, attributes.size(), "Only thread metadata should remain");
+  }
+
+  @Test
+  void spanEventsAreEncodedFromStructuredSpanEvents() throws IOException {
+    List<DDSpanEvent> spanEvents = new ArrayList<>();
+    spanEvents.add(new DDSpanEvent("event.one", 1234567890L, typedAttributes()));
+    spanEvents.add(new DDSpanEvent("event.two", 1234567891L, emptyMap()));
+
+    List<V1SpanEvent> events =
+        readFirstSpan(serializeV1Payload(spanWithEvents(spanEvents))).getEvents();
 
     assertEquals(2, events.size());
     V1SpanEvent firstDecodedEvent = events.get(0);
     assertEquals(1234567890L, firstDecodedEvent.getTimeUnixNano());
     assertEquals("event.one", firstDecodedEvent.getName());
     Map<String, Object> firstDecodedAttributes = firstDecodedEvent.getAttributes();
-    assertEquals("v", firstDecodedAttributes.get("str"));
+    assertEquals("value", firstDecodedAttributes.get("str"));
     assertEquals(42L, firstDecodedAttributes.get("int"));
     assertAttributeValueEquals(12.5d, firstDecodedAttributes.get("double"), "double");
     assertEquals(true, firstDecodedAttributes.get("bool"));
@@ -412,11 +497,31 @@ class TraceMapperV1PayloadTest {
   }
 
   @Test
-  void malformedSpanEventsFallBackToEmptyEvents() throws IOException {
-    // a map instead of the expected list of events
-    PojoSpan span = span(singletonMap(SPAN_EVENTS, singletonMap("foo", "bar")));
+  void unsupportedSpanEventAttributeValuesAreSkipped() throws IOException {
+    Map<String, Object> attributes = new HashMap<>();
+    attributes.put("keep.str", "v");
+    attributes.put("keep.bool", true);
+    attributes.put("drop.null", null);
+    attributes.put("drop.map", singletonMap("nested", "x"));
+    attributes.put("arr.mixed", asList("ok", null, singletonMap("nested", "x"), 3L));
+    List<DDSpanEvent> spanEvents = singletonList(new DDSpanEvent("event", 5L, attributes));
 
-    assertTrue(readFirstSpan(serializeV1Payload(span)).getEvents().isEmpty());
+    List<V1SpanEvent> events =
+        readFirstSpan(serializeV1Payload(spanWithEvents(spanEvents))).getEvents();
+
+    assertEquals(1, events.size());
+    Map<String, Object> decodedAttributes = events.get(0).getAttributes();
+    assertEquals(3, decodedAttributes.size());
+    assertEquals("v", decodedAttributes.get("keep.str"));
+    assertEquals(true, decodedAttributes.get("keep.bool"));
+    assertEquals(asList("ok", 3L), decodedAttributes.get("arr.mixed"));
+  }
+
+  @Test
+  void missingSpanEventsEncodeEmptyEvents() throws IOException {
+    byte[] encoded = serializeV1Payload(span(emptyMap()));
+
+    assertTrue(readFirstSpan(encoded).getEvents().isEmpty());
   }
 
   @Test
@@ -772,9 +877,6 @@ class TraceMapperV1PayloadTest {
     expectedAttributes.put(THREAD_ID, expectedSpan.getTag(THREAD_ID));
     expectedAttributes.put(THREAD_NAME, expectedSpan.getTag(THREAD_NAME));
     for (Map.Entry<String, Object> entry : expectedSpan.getTags().entrySet()) {
-      if (SPAN_EVENTS.equals(entry.getKey())) {
-        continue;
-      }
       addFlattenedExpectedAttribute(expectedAttributes, entry.getKey(), entry.getValue());
     }
     if (shouldContainHttpStatus) {
@@ -862,24 +964,54 @@ class TraceMapperV1PayloadTest {
     return capturedBody.payloadBytes;
   }
 
+  /**
+   * Exposes writer calls alongside payload bytes: round-trip assertions alone cannot detect
+   * redundant UTF-8 encoding.
+   */
+  private static SpiedSerialization serializeV1PayloadWithSpy(PojoSpan span) {
+    TraceMapperV1 mapper = new TraceMapperV1();
+    CapturedBody capturedBody = new CapturedBody(mapper);
+    MsgPackWriter packer = spy(new MsgPackWriter(new FlushingBuffer(2 << 20, capturedBody)));
+
+    assertTrue(packer.format(singletonList(span), mapper));
+    packer.flush();
+
+    assertNotNull(capturedBody.payloadBytes);
+    return new SpiedSerialization(packer, capturedBody.payloadBytes);
+  }
+
+  private static final class SpiedSerialization {
+    private final MsgPackWriter packer;
+    private final byte[] payload;
+
+    private SpiedSerialization(MsgPackWriter packer, byte[] payload) {
+      this.packer = packer;
+      this.payload = payload;
+    }
+  }
+
   private static PojoSpan span(Map<String, Object> tags) {
-    return span(123L, 0L, emptyMap(), tags, 200, emptyList());
+    return span(123L, 0L, emptyMap(), tags, 200, emptyList(), emptyList());
   }
 
   private static PojoSpan span(Map<String, Object> tags, int statusCode) {
-    return span(123L, 0L, emptyMap(), tags, statusCode, emptyList());
+    return span(123L, 0L, emptyMap(), tags, statusCode, emptyList(), emptyList());
   }
 
   private static PojoSpan spanWithBaggage(Map<String, String> baggage) {
-    return span(123L, 0L, baggage, emptyMap(), 200, emptyList());
+    return span(123L, 0L, baggage, emptyMap(), 200, emptyList(), emptyList());
   }
 
   private static PojoSpan spanWithIds(long spanId, long parentId) {
-    return span(spanId, parentId, emptyMap(), emptyMap(), 200, emptyList());
+    return span(spanId, parentId, emptyMap(), emptyMap(), 200, emptyList(), emptyList());
   }
 
   private static PojoSpan spanWithLinks(List<AgentSpanLink> spanLinks) {
-    return span(123L, 0L, emptyMap(), emptyMap(), 200, spanLinks);
+    return span(123L, 0L, emptyMap(), emptyMap(), 200, spanLinks, emptyList());
+  }
+
+  private static PojoSpan spanWithEvents(List<DDSpanEvent> spanEvents) {
+    return span(123L, 0L, emptyMap(), emptyMap(), 200, emptyList(), spanEvents);
   }
 
   /** A span carrying the fields shared by most tests; only the varying pieces are parameters. */
@@ -889,7 +1021,8 @@ class TraceMapperV1PayloadTest {
       Map<String, String> baggage,
       Map<String, Object> tags,
       int statusCode,
-      List<AgentSpanLink> spanLinks) {
+      List<AgentSpanLink> spanLinks,
+      List<DDSpanEvent> spanEvents) {
     return new PojoSpan(
         "service-a",
         "operation-a",
@@ -907,7 +1040,8 @@ class TraceMapperV1PayloadTest {
         SAMPLER_KEEP,
         statusCode,
         null,
-        spanLinks);
+        spanLinks,
+        spanEvents);
   }
 
   private static final class CapturedBody implements ByteBufferConsumer {
@@ -959,9 +1093,9 @@ class TraceMapperV1PayloadTest {
     }
 
     @Override
-    public void processTagsAndBaggage(MetadataConsumer consumer) {
+    public void processTagsAndBaggage(MetadataConsumer consumer, int options) {
       processTagsAndBaggageCount++;
-      super.processTagsAndBaggage(consumer);
+      super.processTagsAndBaggage(consumer, options);
     }
   }
 

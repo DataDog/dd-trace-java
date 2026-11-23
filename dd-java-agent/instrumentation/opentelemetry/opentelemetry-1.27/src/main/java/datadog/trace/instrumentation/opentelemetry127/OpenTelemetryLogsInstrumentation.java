@@ -59,16 +59,6 @@ public class OpenTelemetryLogsInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.opentelemetry.shim.logs.OtelLogger",
-      "datadog.opentelemetry.shim.logs.OtelLoggerBuilder",
-      "datadog.opentelemetry.shim.logs.OtelLoggerProvider",
-      "datadog.opentelemetry.shim.logs.OtelLogRecordBuilder",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     // LoggerProvider OpenTelemetry.getLogsBridge()
     transformer.applyAdvice(

@@ -13,9 +13,11 @@ import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.atomic.AtomicBoolean;
 import net.bytebuddy.asm.Advice;
@@ -127,6 +129,11 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
           if (res && _committed.get()) {
             requestContext.getTraceSegment().effectivelyBlocked();
             return true;
+          } else {
+            Object rawAppSecCtx = requestContext.getData(RequestContextSlot.APPSEC);
+            if (rawAppSecCtx instanceof AppSecContext) {
+              ((AppSecContext) rawAppSecCtx).reportBlockFailure();
+            }
           }
         }
       }

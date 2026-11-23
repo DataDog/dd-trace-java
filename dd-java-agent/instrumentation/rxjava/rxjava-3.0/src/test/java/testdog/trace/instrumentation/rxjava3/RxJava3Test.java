@@ -15,11 +15,11 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.assertions.SpanMatcher;
 import datadog.trace.agent.test.assertions.TagsMatcher;
 import datadog.trace.api.Trace;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.reactivex.rxjava3.core.BackpressureStrategy;
@@ -83,7 +83,7 @@ class RxJava3Test extends AbstractInstrumentationTest {
       traceParentId = activeSpan().getSpanId();
       AgentSpan span = startSpan("test", "publisher-parent");
       publisherParentId = span.getSpanId();
-      AgentScope scope = activateSpan(span);
+      ContextScope scope = activateSpan(span);
 
       Object publisher = publisherSupplier.get();
       try {
@@ -105,7 +105,7 @@ class RxJava3Test extends AbstractInstrumentationTest {
       traceParentId = activeSpan().getSpanId();
       AgentSpan span = startSpan("test", "publisher-parent");
       publisherParentId = span.getSpanId();
-      AgentScope scope = activateSpan(span);
+      ContextScope scope = activateSpan(span);
 
       // Normalize every reactive type to a Flowable so a single Subscriber can cancel the
       // subscription right away, exercising the cancellation path of each instrumentation.
@@ -453,11 +453,10 @@ class RxJava3Test extends AbstractInstrumentationTest {
   void correctParentsFromSubscriptionTimeBlockingGet() {
     Maybe<Integer> maybe = Maybe.just(42).map(Worker::addOne).map(Worker::addTwo);
 
-    Worker.runUnderTraceParent(
-        () -> {
-          maybe.blockingGet();
-          return null;
-        });
+    Worker.runUnderTraceParent(() -> {
+      maybe.blockingGet();
+      return null;
+    });
 
     assertTraces(
         trace(
@@ -490,29 +489,28 @@ class RxJava3Test extends AbstractInstrumentationTest {
   @MethodSource("subscriptionTimeIntermediateArgs")
   @SuppressWarnings("unchecked")
   void correctParentsFromSubscriptionTime(String name, int workItems, Supplier<Object> supplier) {
-    Worker.assemblePublisherUnderTrace(
-        () -> {
-          // The "add one" operations are assembled under publisher-parent and stay its children.
-          // The "add two" operations are assembled under intermediate, but intermediate is finished
-          // before subscription, so re-activating its context at delivery time is a no-op and
-          // addTwo falls back to the still-active publisher-parent as well.
-          Object publisher = supplier.get();
+    Worker.assemblePublisherUnderTrace(() -> {
+      // The "add one" operations are assembled under publisher-parent and stay its children.
+      // The "add two" operations are assembled under intermediate, but intermediate is finished
+      // before subscription, so re-activating its context at delivery time is a no-op and
+      // addTwo falls back to the still-active publisher-parent as well.
+      Object publisher = supplier.get();
 
-          AgentSpan intermediate = startSpan("test", "intermediate");
-          Worker.intermediateId = intermediate.getSpanId();
-          AgentScope scope = activateSpan(intermediate);
-          try {
-            if (publisher instanceof Maybe) {
-              return ((Maybe<Integer>) publisher).map(Worker::addTwo);
-            } else if (publisher instanceof Flowable) {
-              return ((Flowable<Integer>) publisher).map(Worker::addTwo);
-            }
-            throw new IllegalStateException("Unknown publisher type");
-          } finally {
-            scope.close();
-            intermediate.finish();
-          }
-        });
+      AgentSpan intermediate = startSpan("test", "intermediate");
+      Worker.intermediateId = intermediate.getSpanId();
+      ContextScope scope = activateSpan(intermediate);
+      try {
+        if (publisher instanceof Maybe) {
+          return ((Maybe<Integer>) publisher).map(Worker::addTwo);
+        } else if (publisher instanceof Flowable) {
+          return ((Flowable<Integer>) publisher).map(Worker::addTwo);
+        }
+        throw new IllegalStateException("Unknown publisher type");
+      } finally {
+        scope.close();
+        intermediate.finish();
+      }
+    });
 
     SpanMatcher[] matchers = new SpanMatcher[3 + 2 * workItems];
     matchers[0] =
@@ -568,10 +566,8 @@ class RxJava3Test extends AbstractInstrumentationTest {
         Flowable.fromIterable(Arrays.asList(1, 2, 3, 4))
             .parallel()
             .runOn(scheduler)
-            .flatMap(
-                num ->
-                    Maybe.just(num.toString() + " on " + Thread.currentThread().getName())
-                        .toFlowable())
+            .flatMap(num ->
+                Maybe.just(num.toString() + " on " + Thread.currentThread().getName()).toFlowable())
             .sequential()
             .toList()
             .blockingGet();
@@ -592,13 +588,12 @@ class RxJava3Test extends AbstractInstrumentationTest {
   @ParameterizedTest(name = "Flowable propagates context on ''{0}'' scheduler")
   @MethodSource("schedulerArgs")
   void flowableParallelContextPropagation(String schedulerName, Scheduler scheduler) {
-    Worker.assemblePublisherUnderTrace(
-        () ->
-            Flowable.fromIterable(Arrays.asList(1, 2, 3, 4))
-                .parallel()
-                .runOn(scheduler)
-                .flatMap(num -> Maybe.just(num).map(Worker::addOne).toFlowable())
-                .sequential());
+    Worker.assemblePublisherUnderTrace(() ->
+        Flowable.fromIterable(Arrays.asList(1, 2, 3, 4))
+            .parallel()
+            .runOn(scheduler)
+            .flatMap(num -> Maybe.just(num).map(Worker::addOne).toFlowable())
+            .sequential());
 
     SpanMatcher[] matchers = new SpanMatcher[6];
     matchers[0] =

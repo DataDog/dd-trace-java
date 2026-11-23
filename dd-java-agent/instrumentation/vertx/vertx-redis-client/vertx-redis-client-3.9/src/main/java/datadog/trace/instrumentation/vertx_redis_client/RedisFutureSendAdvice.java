@@ -2,16 +2,16 @@ package datadog.trace.instrumentation.vertx_redis_client;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.REDIS_COMMAND;
 
 import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import io.vertx.core.Future;
@@ -27,7 +27,7 @@ import net.bytebuddy.asm.Advice;
 
 public class RedisFutureSendAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope beforeSend(
+  public static ContextScope beforeSend(
       @Advice.Argument(value = 0, readOnly = false) Request request,
       @Advice.Local("ddParentContinuation") ContextContinuation parentContinuation)
       throws Throwable {
@@ -60,7 +60,8 @@ public class RedisFutureSendAdvice {
       return null;
     }
 
-    parentContinuation = null == parentSpan ? captureSpan(noopSpan()) : captureSpan(parentSpan);
+    parentContinuation =
+        null == parentSpan ? noopSpan().captureWithContext() : parentSpan.captureWithContext();
 
     final AgentSpan clientSpan =
         DECORATE.startAndDecorateSpan(
@@ -73,14 +74,14 @@ public class RedisFutureSendAdvice {
   public static void afterSend(
       @Advice.Return(readOnly = false) Future<Response> responseFuture,
       @Advice.Local("ddParentContinuation") ContextContinuation parentContinuation,
-      @Advice.Enter final AgentScope clientScope,
+      @Advice.Enter final ContextScope clientScope,
       @Advice.This final Object thiz) {
     CallDepthThreadLocalMap.decrementCallDepth(RedisAPI.class);
     if (thiz instanceof RedisConnection) {
       final SocketAddress socketAddress =
           InstrumentationContext.get(RedisConnection.class, SocketAddress.class)
               .get((RedisConnection) thiz);
-      final AgentSpan span = clientScope != null ? clientScope.span() : activeSpan();
+      final AgentSpan span = clientScope != null ? spanFromScope(clientScope) : activeSpan();
       // Verify the activeSpan() fallback is actually a REDIS_COMMAND span
       if (socketAddress != null && span != null && REDIS_COMMAND.equals(span.getOperationName())) {
         DECORATE.onConnection(span, socketAddress);
@@ -90,7 +91,7 @@ public class RedisFutureSendAdvice {
     if (clientScope != null) {
       Promise<Response> promise = Promise.promise();
       responseFuture.onComplete(
-          new ResponseHandler(promise, clientScope.span(), parentContinuation));
+          new ResponseHandler(promise, spanFromScope(clientScope), parentContinuation));
       responseFuture = promise.future();
       clientScope.close();
     }

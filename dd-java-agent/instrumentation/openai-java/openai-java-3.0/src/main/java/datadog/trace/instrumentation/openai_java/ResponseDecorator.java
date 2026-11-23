@@ -20,6 +20,7 @@ import com.openai.models.responses.ResponseOutputMessage;
 import com.openai.models.responses.ResponsePrompt;
 import com.openai.models.responses.ResponseReasoningItem;
 import com.openai.models.responses.ResponseStreamEvent;
+import com.openai.models.responses.ResponseUsage;
 import com.openai.models.responses.Tool;
 import datadog.json.JsonWriter;
 import datadog.trace.api.Config;
@@ -32,6 +33,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -74,10 +76,9 @@ public class ResponseDecorator {
     params
         ._instructions()
         .asString()
-        .ifPresent(
-            instructions -> {
-              inputMessages.add(LLMObs.LLMMessage.from("system", instructions));
-            });
+        .ifPresent(instructions -> {
+          inputMessages.add(LLMObs.LLMMessage.from("system", instructions));
+        });
 
     Optional<String> textOpt = params._input().asString();
     if (textOpt.isPresent()) {
@@ -181,9 +182,8 @@ public class ResponseDecorator {
     functionTool.description().ifPresent(desc -> toolDef.put("description", desc));
     functionTool
         .parameters()
-        .ifPresent(
-            parameters ->
-                toolDef.put("schema", jsonValueMapToObject(parameters._additionalProperties())));
+        .ifPresent(parameters ->
+            toolDef.put("schema", jsonValueMapToObject(parameters._additionalProperties())));
     return toolDef;
   }
 
@@ -279,7 +279,7 @@ public class ResponseDecorator {
     Optional<ResponseInputItem.FunctionCallOutput> functionCallOutput = item.functionCallOutput();
     if (functionCallOutput.isPresent()) {
       ResponseInputItem.FunctionCallOutput output = functionCallOutput.get();
-      String callId = output.callId();
+      String callId = FunctionCallOutputExtractor.getCallIdAsString(output);
       String result = FunctionCallOutputExtractor.getOutputAsString(output);
       LLMObs.ToolResult toolResult =
           LLMObs.ToolResult.from("", "function_call_output", callId, result);
@@ -511,6 +511,8 @@ public class ResponseDecorator {
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
 
+    response._usage().asKnown().ifPresent(usage -> withUsage(span, usage));
+
     if (!llmObsEnabled) {
       return;
     }
@@ -537,22 +539,21 @@ public class ResponseDecorator {
     response
         ._toolChoice()
         .asKnown()
-        .ifPresent(
-            toolChoice -> {
-              toolChoice
-                  .options()
-                  .flatMap(v -> v._value().asString())
-                  .ifPresent(v -> metadata.put("tool_choice", v));
-              if (!metadata.containsKey("tool_choice")) {
-                toolChoice
-                    .types()
-                    .map(v -> v.type().toString().toLowerCase())
-                    .ifPresent(v -> metadata.put("tool_choice", v));
-              }
-              if (!metadata.containsKey("tool_choice") && toolChoice.function().isPresent()) {
-                metadata.put("tool_choice", "function");
-              }
-            });
+        .ifPresent(toolChoice -> {
+          toolChoice
+              .options()
+              .flatMap(v -> v._value().asString())
+              .ifPresent(v -> metadata.put("tool_choice", v));
+          if (!metadata.containsKey("tool_choice")) {
+            toolChoice
+                .types()
+                .map(v -> v.type().toString().toLowerCase(Locale.ROOT))
+                .ifPresent(v -> metadata.put("tool_choice", v));
+          }
+          if (!metadata.containsKey("tool_choice") && toolChoice.function().isPresent()) {
+            metadata.put("tool_choice", "function");
+          }
+        });
 
     response
         ._truncation()
@@ -564,29 +565,27 @@ public class ResponseDecorator {
     response
         ._text()
         .asKnown()
-        .ifPresent(
-            textConfig -> {
-              textConfig
-                  ._format()
-                  .asKnown()
-                  .ifPresent(
-                      format -> {
-                        Map<String, String> formatMap = new HashMap<>();
-                        if (format.text().isPresent()) {
-                          formatMap.put("type", "text");
-                        } else if (format.jsonSchema().isPresent()) {
-                          formatMap.put("type", "json_schema");
-                        } else if (format.jsonObject().isPresent()) {
-                          formatMap.put("type", "json_object");
-                        }
-                        textMap.put("format", formatMap);
-                      });
-              textConfig
-                  ._verbosity()
-                  .asKnown()
-                  .flatMap(verbosity -> verbosity._value().asString())
-                  .ifPresent(verbosity -> textMap.put("verbosity", verbosity));
-            });
+        .ifPresent(textConfig -> {
+          textConfig
+              ._format()
+              .asKnown()
+              .ifPresent(format -> {
+                Map<String, String> formatMap = new HashMap<>();
+                if (format.text().isPresent()) {
+                  formatMap.put("type", "text");
+                } else if (format.jsonSchema().isPresent()) {
+                  formatMap.put("type", "json_schema");
+                } else if (format.jsonObject().isPresent()) {
+                  formatMap.put("type", "json_object");
+                }
+                textMap.put("format", formatMap);
+              });
+          textConfig
+              ._verbosity()
+              .asKnown()
+              .flatMap(verbosity -> verbosity._value().asString())
+              .ifPresent(verbosity -> textMap.put("verbosity", verbosity));
+        });
     if (!textMap.isEmpty()) {
       metadata.put("text", textMap);
     }
@@ -594,21 +593,16 @@ public class ResponseDecorator {
     metadata.put("stream", stream);
 
     span.setTag(CommonTags.METADATA, metadata);
+  }
 
-    response
-        ._usage()
-        .asKnown()
-        .ifPresent(
-            usage -> {
-              span.setTag(CommonTags.INPUT_TOKENS, usage.inputTokens());
-              span.setTag(CommonTags.OUTPUT_TOKENS, usage.outputTokens());
-              span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
-              span.setTag(
-                  CommonTags.CACHE_READ_INPUT_TOKENS, usage.inputTokensDetails().cachedTokens());
-              span.setTag(
-                  CommonTags.REASONING_OUTPUT_TOKENS,
-                  usage.outputTokensDetails().reasoningTokens());
-            });
+  private static void withUsage(AgentSpan span, ResponseUsage usage) {
+    TokenUsage.set(span, CommonTags.INPUT_TOKENS, usage.inputTokens());
+    TokenUsage.set(span, CommonTags.OUTPUT_TOKENS, usage.outputTokens());
+    TokenUsage.set(span, CommonTags.TOTAL_TOKENS, usage.totalTokens());
+    TokenUsage.set(
+        span, CommonTags.CACHE_READ_INPUT_TOKENS, usage.inputTokensDetails().cachedTokens());
+    TokenUsage.set(
+        span, CommonTags.REASONING_OUTPUT_TOKENS, usage.outputTokensDetails().reasoningTokens());
   }
 
   private void enrichInputWithPromptTracking(AgentSpan span, Response response) {
@@ -692,16 +686,15 @@ public class ResponseDecorator {
     response
         ._instructions()
         .asKnown()
-        .ifPresent(
-            instructions -> {
-              for (ResponseInputItem item :
-                  instructions.inputItemList().orElse(Collections.emptyList())) {
-                LLMObs.LLMMessage message = extractInputItemMessage(item);
-                if (message != null) {
-                  messages.add(message);
-                }
-              }
-            });
+        .ifPresent(instructions -> {
+          for (ResponseInputItem item :
+              instructions.inputItemList().orElse(Collections.emptyList())) {
+            LLMObs.LLMMessage message = extractInputItemMessage(item);
+            if (message != null) {
+              messages.add(message);
+            }
+          }
+        });
     return messages;
   }
 

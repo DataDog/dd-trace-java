@@ -42,11 +42,6 @@ public class ThreadContextInstrumentation extends InstrumenterModule.Tracing
     return "default";
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {"datadog.trace.instrumentation.log4j2.ThreadContextUpdater"};
-  }
-
   public static class ThreadContextAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void mdcClassInitialized() {

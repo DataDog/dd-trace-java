@@ -186,7 +186,7 @@ public class ProbeStatusSink {
       return;
     }
     ProbeId probeId = message.getDiagnostics().getProbeId();
-    TimedMessage current = probeStatuses.get(probeId.getId());
+    TimedMessage current = probeStatuses.get(probeId.getEncodedId());
     if (current == null || shouldOverwrite(current.getMessage(), message)) {
       TimedMessage newMessage = new TimedMessage(message);
       probeStatuses.put(probeId.getEncodedId(), newMessage);

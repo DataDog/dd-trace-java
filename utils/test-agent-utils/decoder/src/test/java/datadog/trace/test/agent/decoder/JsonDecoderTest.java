@@ -1,5 +1,6 @@
 package datadog.trace.test.agent.decoder;
 
+import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -10,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.math.BigInteger;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -25,6 +27,12 @@ class JsonDecoderTest {
   // as a resource file rather than an inline literal for readability (folding, syntax
   // highlighting).
   private static final String TWO_TRACES = loadJson("/two-traces.json");
+
+  // A span with three events, as the agent returned it for a v1.0 tracer payload.
+  private static final String SPAN_EVENTS_V1 = loadJson("/span-events-v1.json");
+
+  private static final String REQUIRED_FIELDS =
+      "\"name\":\"n\",\"trace_id\":1,\"span_id\":1,\"start\":0,\"duration\":0,";
 
   @Test
   void decodesTraceAndSpanStructure() {
@@ -274,6 +282,88 @@ class JsonDecoderTest {
     assertEquals("x", list.get(2), "string in array preserved");
     assertEquals(Boolean.TRUE, list.get(3), "boolean in array preserved");
     assertNull(list.get(4), "null leaf preserved");
+  }
+
+  @Test
+  void decodesStructuredSpanEventsFromV1Payload() {
+    DecodedSpan span = Decoder.decodeJson(SPAN_EVENTS_V1).getTraces().get(0).getSpans().get(0);
+    List<DecodedSpanEvent> events = span.getEvents();
+
+    assertEquals(3, events.size());
+    DecodedSpanEvent plain = events.get(0);
+    assertEquals("plain", plain.getName());
+    assertEquals(1792414083896152583L, plain.getTimeUnixNano());
+    assertTrue(plain.getAttributes().isEmpty());
+
+    DecodedSpanEvent typed = events.get(1);
+    assertEquals("typed", typed.getName());
+    Map<String, Object> expected = new LinkedHashMap<>();
+    expected.put("str", "value");
+    expected.put("int", 42L);
+    expected.put("double", 12.5d);
+    expected.put("whole", 2.0d);
+    expected.put("bool", true);
+    expected.put("strs", asList("a", "b"));
+    expected.put("longs", asList(1L, 2L));
+    expected.put("doubles", asList(1.5d, 2.5d));
+    expected.put("bools", asList(true, false));
+    assertEquals(expected, typed.getAttributes());
+
+    DecodedSpanEvent exception = events.get(2);
+    assertEquals("exception", exception.getName());
+    assertEquals("boom", exception.getAttributes().get("exception.message"));
+    assertEquals(
+        "java.lang.IllegalStateException", exception.getAttributes().get("exception.type"));
+  }
+
+  @Test
+  void decodesSpanEventsFromMetaTagWithoutStructuredField() {
+    String json =
+        oneSpan(
+            REQUIRED_FIELDS
+                + "\"meta\": {\"events\": "
+                + "\"[{\\\"time_unix_nano\\\":1,\\\"name\\\":\\\"event\\\"}]\"}");
+    DecodedSpan span = Decoder.decodeJson(json).getTraces().get(0).getSpans().get(0);
+
+    assertEquals(1, span.getEvents().size());
+    assertEquals("event", span.getEvents().get(0).getName());
+  }
+
+  @Test
+  void rejectsMalformedStructuredSpanEvents() {
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            Decoder.decodeJson(
+                oneSpan(REQUIRED_FIELDS + "\"span_events\": [{\"name\": \"event\"}]")),
+        "missing time");
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            Decoder.decodeJson(
+                oneSpan(
+                    REQUIRED_FIELDS
+                        + "\"span_events\": [{\"name\": \"e\", \"time_unix_nano\": 1,"
+                        + " \"attributes\": {\"k\": {\"type\": 9}}}]")),
+        "unknown attribute type");
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            Decoder.decodeJson(
+                oneSpan(
+                    REQUIRED_FIELDS
+                        + "\"span_events\": [{\"name\": \"e\", \"time_unix_nano\": 1,"
+                        + " \"attributes\": {\"k\": {\"string_value\": \"v\"}}}]")),
+        "untyped attribute");
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            Decoder.decodeJson(
+                oneSpan(
+                    REQUIRED_FIELDS
+                        + "\"span_events\": [{\"name\": \"e\", \"time_unix_nano\": 1,"
+                        + " \"attributes\": {\"k\": {\"type\": 2}}}]")),
+        "attribute missing its typed value");
   }
 
   @Test

@@ -1,0 +1,34 @@
+{
+  "createdAt": "2024-04-17T19:40:53.716Z",
+  "format": "SERVER",
+  "environment": {
+    "name": "Test"
+  },
+  "flags": {
+    "null-flag": null,
+    "valid-flag": {
+      "key": "valid-flag",
+      "enabled": true,
+      "variationType": "STRING",
+      "variations": {
+        "expected": {
+          "key": "expected",
+          "value": "expected"
+        }
+      },
+      "allocations": [
+        {
+          "key": "default-allocation",
+          "rules": [],
+          "splits": [
+            {
+              "variationKey": "expected",
+              "shards": []
+            }
+          ],
+          "doLog": true
+        }
+      ]
+    }
+  }
+}

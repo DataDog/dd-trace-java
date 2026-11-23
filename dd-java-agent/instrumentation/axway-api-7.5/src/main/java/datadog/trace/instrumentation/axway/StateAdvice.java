@@ -2,11 +2,12 @@ package datadog.trace.instrumentation.axway;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.AXWAY_TRY_TRANSACTION;
 import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.DECORATE;
 
 import datadog.context.Context;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
@@ -19,9 +20,9 @@ import net.bytebuddy.asm.Advice;
  */
 public class StateAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope onEnter(@Advice.This final Object stateInstance) {
+  public static ContextScope onEnter(@Advice.This final Object stateInstance) {
     final AgentSpan span = startSpan("axway-http", AXWAY_TRY_TRANSACTION);
-    final AgentScope scope = activateSpan(span);
+    final ContextScope scope = activateSpan(span);
     span.setMeasured(true);
     DECORATE.onTransaction(span, stateInstance);
     DECORATE.afterStart(span);
@@ -30,11 +31,11 @@ public class StateAdvice {
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void onExit(
-      @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+      @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
     if (scope == null) {
       return;
     }
-    final AgentSpan span = scope.span();
+    final AgentSpan span = spanFromScope(scope);
     final Context context = scope.context();
     DECORATE.onError(span, throwable);
     DECORATE.beforeFinish(context);

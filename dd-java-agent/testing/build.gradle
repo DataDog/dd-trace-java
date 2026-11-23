@@ -5,10 +5,6 @@ plugins {
   id 'dd-trace-java.module.testing-support'
 }
 
-tasks.withType(JavaCompile).configureEach {
-  configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Need access to sun.misc package")
-}
-
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.5
 excludedClassesCoverage += [
@@ -47,7 +43,7 @@ dependencies {
   // Since jetty-server is shadowed, it is needed to exports the servlet api as well.
   api group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
 
-  api group: 'com.squareup.okhttp3', name: 'logging-interceptor', version: libs.versions.okhttp.legacy.get()
+  api group: 'com.squareup.okhttp3', name: 'logging-interceptor', version: libs.versions.okhttp3.testing.get()
 
   api project(':dd-java-agent:agent-tooling')
   api project(':dd-java-agent:agent-installer')
@@ -57,6 +53,9 @@ dependencies {
 
   implementation "org.junit.platform:junit-platform-runner:${libs.versions.junit.platform.get()}"
   implementation project(':dd-java-agent:appsec')
+
+  // OtelMetricCollector fixture; tests that use it put otel-bootstrap on their own classpath
+  compileOnly project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
 
   compileOnly(libs.bundles.groovy)
   compileOnly(libs.bundles.spock)
@@ -93,8 +92,4 @@ configurations {
     exclude group: 'org.eclipse.jetty'
     exclude group: 'org.eclipse.jetty.http2'
   }
-}
-
-tasks.withType(Test).configureEach {
-  useJUnitPlatform()
 }

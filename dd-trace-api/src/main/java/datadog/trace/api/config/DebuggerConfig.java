@@ -69,6 +69,8 @@ public final class DebuggerConfig {
   public static final String DISTRIBUTED_DEBUGGER_ENABLED = "distributed.debugger.enabled";
   public static final String DEBUGGER_SOURCE_FILE_TRACKING_ENABLED =
       "dynamic.instrumentation.source.file.tracking.enabled";
+  public static final String DEBUGGER_SYNCHRONOUS_SOURCE_FILE_TRACKING_ENABLED =
+      "internal.dynamic.instrumentation.synchronous.source.file.tracking.enabled";
   public static final String THIRD_PARTY_INCLUDES = "third.party.includes";
   public static final String THIRD_PARTY_EXCLUDES = "third.party.excludes";
   public static final String THIRD_PARTY_DETECTION_INCLUDES = "third.party.detection.includes";

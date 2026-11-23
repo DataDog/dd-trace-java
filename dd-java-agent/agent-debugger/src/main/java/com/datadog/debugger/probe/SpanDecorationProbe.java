@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.util.Strings;
 import datadog.trace.util.TagsHelper;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -80,6 +81,21 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
     @Override
     public String toString() {
       return "TagValue{" + "template='" + template + '\'' + ", segments=" + segments + '}';
+    }
+
+    @Generated
+    @Override
+    public boolean equals(Object o) {
+      if (o == null || getClass() != o.getClass()) return false;
+      TagValue tagValue = (TagValue) o;
+      return Objects.equals(template, tagValue.template)
+          && Objects.equals(segments, tagValue.segments);
+    }
+
+    @Generated
+    @Override
+    public int hashCode() {
+      return Objects.hash(template, segments);
     }
   }
 
@@ -253,13 +269,13 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
           status.getErrors().addAll(logStatus.getErrors());
           if (logStatus.getErrors().size() > 0) {
             spanStatus.addTag(
-                String.format(EVALERROR_DD_TAGS_FORMAT, tagName),
+                Strings.format(EVALERROR_DD_TAGS_FORMAT, tagName),
                 logStatus.getErrors().get(0).getMessage());
           }
         } else {
           spanStatus.addTag(tagName, tagValue);
         }
-        spanStatus.addTag(String.format(PROBEID_DD_TAGS_FORMAT, tagName), getProbeId().getId());
+        spanStatus.addTag(Strings.format(PROBEID_DD_TAGS_FORMAT, tagName), getProbeId().getId());
       }
     }
   }
@@ -273,10 +289,11 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
       CapturedContext entryContext,
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions) {
+    String probeEncodedId = getProbeId().getEncodedId();
     CapturedContext.Status status =
         evaluateAt == MethodLocation.EXIT
-            ? exitContext.getStatus(probeId.getEncodedId())
-            : entryContext.getStatus(probeId.getEncodedId());
+            ? exitContext.getStatus(probeEncodedId)
+            : entryContext.getStatus(probeEncodedId);
     if (status == null) {
       return;
     }
@@ -287,7 +304,7 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
 
   @Override
   public void commit(CapturedContext lineContext, int line) {
-    CapturedContext.Status status = lineContext.getStatus(probeId.getEncodedId());
+    CapturedContext.Status status = lineContext.getStatus(getProbeId().getEncodedId());
     if (status == null) {
       return;
     }
@@ -319,7 +336,7 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
     }
     if (!tagsToDecorate.isEmpty()) {
       // only send EMITTING status if we set at least one tag
-      DebuggerAgent.getSink().getProbeStatusSink().addEmitting(probeId);
+      DebuggerAgent.getSink().getProbeStatusSink().addEmitting(getProbeId());
     }
   }
 
@@ -327,8 +344,9 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
     if (status.getErrors().isEmpty()) {
       return;
     }
-    boolean sampled = ProbeRateLimiter.tryProbe(errorSampler, true);
-    if (!sampled) {
+    // evaluation errors are reported with a dedicated sampler (1 per probe per 5 minutes),
+    // bypassing the global samplers so failing probes do not take budget from healthy ones
+    if (!errorSampler.sample()) {
       return;
     }
     Snapshot snapshot = new Snapshot(Thread.currentThread(), this, -1);
@@ -351,7 +369,7 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
 
   @Override
   public void initSamplers() {
-    errorSampler = ProbeRateLimiter.createSampler(1.0);
+    errorSampler = ProbeRateLimiter.createSampler(ProbeRateLimiter.DEFAULT_EVALUATION_ERROR_RATE);
   }
 
   @Generated

@@ -57,7 +57,7 @@ public final class SessionFactoryInstrumentation extends AbstractHibernateInstru
 
       final ContextStore<SharedSessionContract, SessionState> contextStore =
           InstrumentationContext.get(SharedSessionContract.class, SessionState.class);
-      contextStore.putIfAbsent(session, new SessionState(span));
+      contextStore.getOrPut(session, new SessionState(span));
     }
 
     /**

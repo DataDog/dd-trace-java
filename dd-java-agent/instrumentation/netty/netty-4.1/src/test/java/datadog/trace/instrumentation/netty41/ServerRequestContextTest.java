@@ -8,12 +8,33 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.Context;
+import datadog.context.ContextKey;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
+import io.netty.util.Attribute;
 import io.netty.util.DefaultAttributeMap;
 import org.junit.jupiter.api.Test;
 
 class ServerRequestContextTest {
   private static final int PIPELINING_LIMIT = 1000;
+
+  @Test
+  void clearsRequestContextAndReusesAttributeAcrossRequests() {
+    DefaultAttributeMap attributes = new DefaultAttributeMap();
+    ContextKey<String> key = ContextKey.named("request");
+    Attribute<Context> attribute = attributes.attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY);
+
+    for (String value : new String[] {"first", "second"}) {
+      Context context = Context.root().with(key, value);
+      ServerRequestContext request = ServerRequestContext.add(attributes, context, null);
+
+      assertSame(context, attribute.get());
+      ServerRequestContext.remove(attributes, request);
+
+      assertNull(attribute.get());
+      assertSame(attribute, attributes.attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY));
+      assertNull(ServerRequestContext.nextResponse(attributes));
+    }
+  }
 
   @Test
   void disablesTrackingWhenPipeliningLimitIsExceeded() {

@@ -42,7 +42,9 @@ public class JsonRendererAdvice {
       BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
       if (brf != null) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+        // effectivelyBlocked() is intentionally absent: Ratpack blocks through Netty's
+        // BlockResponseFunction, whose BlockingResponseHandler already marks the segment.
+        brf.tryCommitBlockingResponse(reqCtx, rba);
 
         throw new BlockingException("Blocked request (for JsonRenderer/render)");
       }

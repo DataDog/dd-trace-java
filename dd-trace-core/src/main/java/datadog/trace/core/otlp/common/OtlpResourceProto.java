@@ -31,19 +31,32 @@ public final class OtlpResourceProto {
   public static final byte[] RESOURCE_MESSAGE_WITH_DATADOG_ATTRS =
       buildResourceMessage(Config.get(), datadogResourceAttributes(Config.get()));
 
+  private static final Map<String, Object> TRACE_RESOURCE_ATTRIBUTES =
+      traceResourceAttributes(Config.get());
+
   /**
-   * Resource used by the OTLP trace export. Identical to {@link #RESOURCE_MESSAGE} but adds the
-   * {@code _dd.stats_computed} marker when the SDK is computing OTLP span metrics, so a downstream
-   * Agent does not recompute them from the exported spans.
+   * Builds the resource used by the OTLP trace export, carrying the trace's {@code globalTags}.
+   * Like {@link #RESOURCE_MESSAGE} but adds the {@code _dd.stats_computed} marker when the SDK is
+   * computing OTLP span metrics, so a downstream Agent does not recompute them from the exported
+   * spans.
    */
-  public static final byte[] TRACE_RESOURCE_MESSAGE =
-      buildResourceMessage(Config.get(), traceResourceAttributes(Config.get()));
+  public static byte[] buildTraceResourceMessage(Map<String, ?> globalTags) {
+    return buildResourceMessage(Config.get(), globalTags, TRACE_RESOURCE_ATTRIBUTES);
+  }
 
   static byte[] buildResourceMessage(Config config, Map<String, Object> extraAttributes) {
+    return buildResourceMessage(config, config.getGlobalTags(), extraAttributes);
+  }
+
+  static byte[] buildResourceMessage(
+      Config config, Map<String, ?> globalTags, Map<String, Object> extraAttributes) {
     GrowableBuffer buf = new GrowableBuffer(512);
 
     visitResourceAttributes(
-        config, extraAttributes, (key, value) -> writeResourceAttribute(buf, key, value));
+        config,
+        globalTags,
+        extraAttributes,
+        (key, value) -> writeResourceAttribute(buf, key, value));
 
     OtlpProtoBuffer protobuf = new OtlpProtoBuffer(buf.capacity());
     int numBytes = protobuf.recordMessage(buf, 1);

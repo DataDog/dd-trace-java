@@ -2,6 +2,10 @@ package example
 
 import example.Person
 
+declare GeneratedFact
+    value : String
+end
+
 rule "Mark person as adult"
 when
     $p : Person(age >= 18, adult == false)

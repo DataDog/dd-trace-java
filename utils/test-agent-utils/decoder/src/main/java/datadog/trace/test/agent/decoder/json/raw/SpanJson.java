@@ -1,10 +1,17 @@
 package datadog.trace.test.agent.decoder.json.raw;
 
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableMap;
 
 import com.squareup.moshi.Json;
 import datadog.trace.test.agent.decoder.DecodedSpan;
+import datadog.trace.test.agent.decoder.DecodedSpanEvent;
+import datadog.trace.test.agent.decoder.DecodedSpanEvents;
+import datadog.trace.test.agent.decoder.DecodedSpanLink;
+import datadog.trace.test.agent.decoder.DecodedSpanLinks;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -43,6 +50,22 @@ public final class SpanJson implements DecodedSpan {
   Map<String, Object> metaStruct;
 
   Map<String, Number> metrics;
+
+  // Ony present in V1 payload. Decoded from meta by #resolveLinks otherwise
+  @Json(name = "span_links")
+  List<SpanLinkJson> spanLinks;
+
+  // Decoded from span links meta tag or #spanLinks
+  // transient so Moshi does not try to decode it
+  transient List<DecodedSpanLink> links;
+
+  // Ony present in V1 payload. Decoded from meta by #resolveEvents otherwise
+  @Json(name = "span_events")
+  List<SpanEventJson> spanEvents;
+
+  // Decoded from span events meta tag or #spanEvents
+  // transient so Moshi does not try to decode it
+  transient List<DecodedSpanEvent> events;
 
   @Override
   public String getService() {
@@ -107,6 +130,54 @@ public final class SpanJson implements DecodedSpan {
   @Override
   public String getType() {
     return this.type;
+  }
+
+  @Override
+  public List<DecodedSpanLink> getLinks() {
+    return this.links;
+  }
+
+  @Override
+  public List<DecodedSpanEvent> getEvents() {
+    return this.events;
+  }
+
+  /**
+   * Decodes the span links, from the {@code span_links} field when the agent filled it (the tracer
+   * submitted a {@code v1.0} payload) and from the meta tag otherwise.
+   */
+  void resolveLinks() {
+    if (this.spanLinks == null) {
+      this.links = DecodedSpanLinks.fromMeta(getMeta());
+      return;
+    }
+    List<DecodedSpanLink> decoded = new ArrayList<>(this.spanLinks.size());
+    for (SpanLinkJson spanLink : this.spanLinks) {
+      if (spanLink == null) {
+        throw new IllegalStateException("Malformed span_links with a null link: " + this);
+      }
+      decoded.add(spanLink.toDecodedSpanLink());
+    }
+    this.links = unmodifiableList(decoded);
+  }
+
+  /**
+   * Decodes the span events, from the {@code span_events} field when the agent filled it (the
+   * tracer submitted a {@code v1.0} payload) and from the meta tag otherwise.
+   */
+  void resolveEvents() {
+    if (this.spanEvents == null) {
+      this.events = DecodedSpanEvents.fromMeta(getMeta());
+      return;
+    }
+    List<DecodedSpanEvent> decoded = new ArrayList<>(this.spanEvents.size());
+    for (SpanEventJson spanEvent : this.spanEvents) {
+      if (spanEvent == null) {
+        throw new IllegalStateException("Malformed span_events with a null event: " + this);
+      }
+      decoded.add(spanEvent.toDecodedSpanEvent());
+    }
+    this.events = unmodifiableList(decoded);
   }
 
   @Override

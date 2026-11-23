@@ -17,8 +17,8 @@ import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.util.Strings;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,7 +75,7 @@ class XRayHttpCodec {
           new StringBuilder()
               .append(ROOT_PREFIX)
               .append(
-                  String.format(
+                  Strings.format(
                       "%08x",
                       e2eStart > 0
                           ? NANOSECONDS.toSeconds(e2eStart)
@@ -157,35 +157,22 @@ class XRayHttpCodec {
           case 'x':
             if (X_AMZN_TRACE_ID.equalsIgnoreCase(key)) {
               handleXRayTraceHeader(this, value);
-              return true;
-            } else if (handledXForwarding(key, value)) {
-              return true;
+            } else {
+              handledXForwarding(key, value);
             }
             break;
           case 'f':
-            if (handledForwarding(key, value)) {
-              return true;
-            }
+            handledForwarding(key, value);
             break;
           case 'u':
-            if (handledUserAgent(key, value)) {
-              return true;
-            }
+            handledUserAgent(key, value);
             break;
           default:
         }
 
-        if (handledIpHeaders(key, value)) {
-          return true;
-        } else {
-          handleTags(key, value);
-        }
-
-        if (!baggageMapping.isEmpty()) {
-          String mappedKey = baggageMapping.get(toLowerCase(key));
-          if (null != mappedKey) {
-            addBaggageItem(this, mappedKey, HttpCodec.decode(value));
-          }
+        handledIpHeaders(key, value);
+        if (!handleTags(key, value)) {
+          handleMappedBaggage(key, value);
         }
         return true;
       } catch (RuntimeException e) {
@@ -235,7 +222,7 @@ class XRayHttpCodec {
           } else {
             int eqIndex = part.indexOf('=');
             if (eqIndex > 0) {
-              addBaggageItem(interpreter, part.substring(0, eqIndex), part.substring(eqIndex + 1));
+              interpreter.addBaggageItem(part.substring(0, eqIndex), part.substring(eqIndex + 1));
             }
           }
           startPart = endPart + 1;
@@ -254,13 +241,6 @@ class XRayHttpCodec {
 
     private static int convertSamplingPriority(char samplingPriority) {
       return '1' == samplingPriority ? SAMPLER_KEEP : SAMPLER_DROP;
-    }
-
-    private static void addBaggageItem(ContextInterpreter interpreter, String key, String value) {
-      if (interpreter.baggage.isEmpty()) {
-        interpreter.baggage = new TreeMap<>();
-      }
-      interpreter.baggage.put(key, HttpCodec.decode(value));
     }
   }
 }

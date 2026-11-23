@@ -28,13 +28,6 @@ public abstract class AbstractRequestContextInstrumentation extends Instrumenter
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JakartaRsAnnotationsDecorator", packageName + ".RequestFilterHelper",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()

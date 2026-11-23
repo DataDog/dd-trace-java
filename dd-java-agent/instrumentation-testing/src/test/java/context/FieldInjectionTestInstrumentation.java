@@ -82,7 +82,7 @@ public class FieldInjectionTestInstrumentation extends InstrumenterModule.Tracin
         @Advice.This final KeyClass thiz, @Advice.Return(readOnly = false) int contextCount) {
       final ContextStore<KeyClass, Context> contextStore =
           InstrumentationContext.get(KeyClass.class, Context.class);
-      final Context context = contextStore.putIfAbsent(thiz, new Context());
+      final Context context = contextStore.getOrPut(thiz, new Context());
       contextCount = ++context.count;
     }
   }
@@ -93,7 +93,7 @@ public class FieldInjectionTestInstrumentation extends InstrumenterModule.Tracin
         @Advice.This final KeyClass thiz, @Advice.Return(readOnly = false) int contextCount) {
       final ContextStore<KeyClass, Context> contextStore =
           InstrumentationContext.get(KeyClass.class, Context.class);
-      final Context context = contextStore.putIfAbsent(thiz, Context::new);
+      final Context context = contextStore.getOrCreate(thiz, Context::new);
       contextCount = ++context.count;
     }
   }

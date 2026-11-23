@@ -34,15 +34,6 @@ public class RedisInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ResponseHandlerWrapper",
-      packageName + ".ResponseHandler",
-      packageName + ".VertxRedisClientDecorator",
-    };
-  }
-
-  @Override
   public String[] knownMatchingTypes() {
     return new String[] {
       "io.vertx.redis.client.Redis",

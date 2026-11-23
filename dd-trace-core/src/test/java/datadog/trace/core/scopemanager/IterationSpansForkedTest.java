@@ -7,8 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
+import datadog.context.ContextScope;
 import datadog.metrics.api.statsd.StatsDClient;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
@@ -44,32 +44,32 @@ class IterationSpansForkedTest extends DDCoreJavaSpecification {
   void rootIterationScopeLifecycle() throws Exception {
     tracer.closePrevious(true);
     AgentSpan span1 = tracer.buildSpan("datadog", "next1").start();
-    AgentScope scope1 = tracer.activateNext(span1);
+    ContextScope scope1 = tracer.activateNext(span1);
 
     assertTrue(writer.isEmpty());
-    assertSame(span1, scope1.span());
+    assertSame(span1, AgentSpan.fromScope(scope1));
     assertSame(span1, tracer.activeSpan());
     assertFalse(spanFinished(span1));
 
     tracer.closePrevious(true);
     AgentSpan span2 = tracer.buildSpan("datadog", "next2").start();
-    AgentScope scope2 = tracer.activateNext(span2);
+    ContextScope scope2 = tracer.activateNext(span2);
 
     assertTrue(spanFinished(span1));
     assertEquals(1, writer.size());
     assertSame(span1, writer.get(0).get(0));
-    assertSame(span2, scope2.span());
+    assertSame(span2, AgentSpan.fromScope(scope2));
     assertSame(span2, tracer.activeSpan());
     assertFalse(spanFinished(span2));
 
     tracer.closePrevious(true);
     AgentSpan span3 = tracer.buildSpan("datadog", "next3").start();
-    AgentScope scope3 = tracer.activateNext(span3);
+    ContextScope scope3 = tracer.activateNext(span3);
     writer.waitForTraces(2);
 
     assertTrue(spanFinished(span2));
     assertEquals(2, writer.size());
-    assertSame(span3, scope3.span());
+    assertSame(span3, AgentSpan.fromScope(scope3));
     assertSame(span3, tracer.activeSpan());
     assertFalse(spanFinished(span3));
 
@@ -84,34 +84,34 @@ class IterationSpansForkedTest extends DDCoreJavaSpecification {
   @Test
   void nonRootIterationScopeLifecycle() throws Exception {
     AgentSpan span0 = tracer.buildSpan("datadog", "parent").start();
-    AgentScope scope0 = tracer.activateSpan(span0);
+    ContextScope scope0 = tracer.activateSpan(span0);
 
     tracer.closePrevious(true);
     AgentSpan span1 = tracer.buildSpan("datadog", "next1").start();
-    AgentScope scope1 = tracer.activateNext(span1);
+    ContextScope scope1 = tracer.activateNext(span1);
 
     assertTrue(writer.isEmpty());
-    assertSame(span1, scope1.span());
+    assertSame(span1, AgentSpan.fromScope(scope1));
     assertSame(span1, tracer.activeSpan());
     assertFalse(spanFinished(span1));
 
     tracer.closePrevious(true);
     AgentSpan span2 = tracer.buildSpan("datadog", "next2").start();
-    AgentScope scope2 = tracer.activateNext(span2);
+    ContextScope scope2 = tracer.activateNext(span2);
 
     assertTrue(spanFinished(span1));
     assertTrue(writer.isEmpty());
-    assertSame(span2, scope2.span());
+    assertSame(span2, AgentSpan.fromScope(scope2));
     assertSame(span2, tracer.activeSpan());
     assertFalse(spanFinished(span2));
 
     tracer.closePrevious(true);
     AgentSpan span3 = tracer.buildSpan("datadog", "next3").start();
-    AgentScope scope3 = tracer.activateNext(span3);
+    ContextScope scope3 = tracer.activateNext(span3);
 
     assertTrue(spanFinished(span2));
     assertTrue(writer.isEmpty());
-    assertSame(span3, scope3.span());
+    assertSame(span3, AgentSpan.fromScope(scope3));
     assertSame(span3, tracer.activeSpan());
     assertFalse(spanFinished(span3));
 
@@ -136,33 +136,33 @@ class IterationSpansForkedTest extends DDCoreJavaSpecification {
   void nestedIterationScopeLifecycle() throws Exception {
     tracer.closePrevious(true);
     AgentSpan span1 = tracer.buildSpan("datadog", "next").start();
-    AgentScope scope1 = tracer.activateNext(span1);
+    ContextScope scope1 = tracer.activateNext(span1);
 
     assertTrue(writer.isEmpty());
-    assertSame(span1, scope1.span());
+    assertSame(span1, AgentSpan.fromScope(scope1));
     assertSame(span1, tracer.activeSpan());
     assertFalse(spanFinished(span1));
 
     AgentSpan span1A = tracer.buildSpan("datadog", "method").start();
-    AgentScope scope1A = tracer.activateSpan(span1A);
+    ContextScope scope1A = tracer.activateSpan(span1A);
 
     tracer.closePrevious(true);
     AgentSpan span1A1 = tracer.buildSpan("datadog", "next").start();
-    AgentScope scope1A1 = tracer.activateNext(span1A1);
+    ContextScope scope1A1 = tracer.activateNext(span1A1);
 
     assertFalse(spanFinished(span1));
     assertTrue(writer.isEmpty());
-    assertSame(span1A1, scope1A1.span());
+    assertSame(span1A1, AgentSpan.fromScope(scope1A1));
     assertSame(span1A1, tracer.activeSpan());
     assertFalse(spanFinished(span1A1));
 
     tracer.closePrevious(true);
     AgentSpan span1A2 = tracer.buildSpan("datadog", "next").start();
-    AgentScope scope1A2 = tracer.activateNext(span1A2);
+    ContextScope scope1A2 = tracer.activateNext(span1A2);
 
     assertTrue(spanFinished(span1A1));
     assertTrue(writer.isEmpty());
-    assertSame(span1A2, scope1A2.span());
+    assertSame(span1A2, AgentSpan.fromScope(scope1A2));
     assertSame(span1A2, tracer.activeSpan());
     assertFalse(spanFinished(span1A2));
 

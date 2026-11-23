@@ -28,6 +28,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.bootstrap.config.provider.MapConfigSource",
   // tested in internal-api
   "datadog.trace.bootstrap.config.provider.OtelEnvironmentConfigSource",
+  "datadog.trace.bootstrap.config.provider.OtelEnvironmentConfigSource.Exporter",
   "datadog.trace.bootstrap.config.provider.stableconfig.Selector",
   // tested in internal-api
   "datadog.trace.bootstrap.config.provider.StableConfigParser",
@@ -60,5 +61,5 @@ dependencies {
 
   testImplementation(project(":utils:test-utils"))
   testImplementation("org.snakeyaml:snakeyaml-engine:2.9")
-  testImplementation("com.squareup.okhttp3:mockwebserver:${libs.versions.okhttp.legacy.get()}")
+  testImplementation(libs.okhttp3.mockwebserver)
 }

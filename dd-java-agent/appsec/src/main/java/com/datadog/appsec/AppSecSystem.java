@@ -43,6 +43,7 @@ public class AppSecSystem {
   private static ReplaceableEventProducerService REPLACEABLE_EVENT_PRODUCER; // testing
   private static Runnable STOP_SUBSCRIPTION_SERVICE;
   private static Runnable RESET_SUBSCRIPTION_SERVICE;
+  private static volatile GatewayBridge GATEWAY_BRIDGE;
   private static final AtomicBoolean API_SECURITY_INITIALIZED = new AtomicBoolean(false);
   private static volatile ApiSecuritySampler API_SECURITY_SAMPLER = new ApiSecuritySampler.NoOp();
 
@@ -92,6 +93,7 @@ public class AppSecSystem {
         eventDispatcher, sco.monitoring, appSecEnabledConfig == ProductActivation.FULLY_ENABLED);
 
     gatewayBridge.init();
+    GATEWAY_BRIDGE = gatewayBridge;
     STOP_SUBSCRIPTION_SERVICE = gatewayBridge::stop;
     RESET_SUBSCRIPTION_SERVICE = gatewayBridge::reset;
 
@@ -137,6 +139,7 @@ public class AppSecSystem {
       STOP_SUBSCRIPTION_SERVICE = null;
       RESET_SUBSCRIPTION_SERVICE = null;
     }
+    GATEWAY_BRIDGE = null;
     Blocking.setBlockingService(BlockingService.NOOP);
     APP_SEC_CONFIG_SERVICE.close();
   }
@@ -190,6 +193,21 @@ public class AppSecSystem {
     newEd.subscribeDataAvailable(dataSubscriptionSet);
 
     replaceableEventProducerService.replaceEventProducerService(newEd);
+
+    // The new ruleset may require IG events that were not needed when the bridge was initialized,
+    // so the conditionally registered callbacks have to be re-evaluated against the new state.
+    // Kept in its own try/catch so a failure here cannot prevent the rest of the reload from
+    // completing.
+    final GatewayBridge gatewayBridge = GATEWAY_BRIDGE;
+    if (gatewayBridge != null) {
+      try {
+        gatewayBridge.registerAdditionalIGCallbacksIfNeeded(
+            GatewayBridge.additionalIGEventTypes(
+                replaceableEventProducerService.allSubscribedDataAddresses()));
+      } catch (RuntimeException e) {
+        log.warn("Error registering additional instrumentation gateway callbacks", e);
+      }
+    }
 
     final Runnable reset = RESET_SUBSCRIPTION_SERVICE;
     if (reset != null) {

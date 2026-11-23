@@ -122,6 +122,94 @@ class DatadogProfilerTest {
   }
 
   @Test
+  void testStartCmdExperimentalOptionsExtendAndOverrideDerivedOptions() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_OPTIONS, "cpu=7m,nativemem=131072");
+    // wall clock is disabled by default on J9, so opt in explicitly to keep the derived-option
+    // assertions JVM-independent
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED, "true");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_LOG_LEVEL, "DEBUG");
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+
+    Path targetFile = Paths.get("/tmp/target.jfr");
+    String cmd = profiler.cmdStartProfiling(targetFile);
+    assertTrue(cmd.startsWith("start,jfr,file=" + targetFile.toAbsolutePath()));
+    int explicitCpuOption = cmd.lastIndexOf(",cpu=7m");
+    assertTrue(explicitCpuOption >= 0);
+    assertEquals(explicitCpuOption, cmd.indexOf(",cpu="));
+    assertTrue(cmd.contains(",wall="));
+    assertTrue(cmd.contains(",loglevel=DEBUG"));
+    assertTrue(cmd.endsWith(",cpu=7m,nativemem=131072"));
+    assertTrue(profiler.enabledModes().contains(ProfilingMode.NATIVEMEM));
+  }
+
+  @Test
+  void testExperimentalEventOptionOverridesDerivedCpuOption() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_OPTIONS, "event=cycles");
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+
+    String cmd = startCmd(profiler);
+    assertFalse(cmd.contains(",cpu="), cmd);
+    assertTrue(cmd.endsWith(",event=cycles"), cmd);
+    assertTrue(profiler.enabledModes().contains(ProfilingMode.CPU));
+  }
+
+  @Test
+  void testExperimentalNoopEventDisablesCpuMode() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT, "cycles");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_OPTIONS, "event=noop");
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+
+    String cmd = startCmd(profiler);
+    assertFalse(cmd.contains(",event=cycles"), cmd);
+    assertTrue(cmd.endsWith(",event=noop"), cmd);
+    assertFalse(profiler.enabledModes().contains(ProfilingMode.CPU));
+  }
+
+  @Test
+  void testExperimentalMemoryOptionUpdatesEnabledModes() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_ALLOCATION_ENABLED, "false");
+    props.put(ProfilingConfig.PROFILING_HEAP_ENABLED, "false");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_OPTIONS, "memory=262144b:a");
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+
+    assertTrue(profiler.enabledModes().contains(ProfilingMode.ALLOCATION));
+    assertFalse(profiler.enabledModes().contains(ProfilingMode.MEMLEAK));
+    String cmd = startCmd(profiler);
+    assertTrue(cmd.endsWith(",memory=262144b:a"), cmd);
+    assertEquals(cmd.indexOf(",memory="), cmd.lastIndexOf(",memory="), cmd);
+
+    props.put(ProfilingConfig.PROFILING_ALLOCATION_ENABLED, "true");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_OPTIONS, "memory=262144b:l:0.1");
+    profiler = DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+
+    assertFalse(profiler.enabledModes().contains(ProfilingMode.ALLOCATION));
+    assertTrue(profiler.enabledModes().contains(ProfilingMode.MEMLEAK));
+    cmd = startCmd(profiler);
+    assertTrue(cmd.endsWith(",memory=262144b:l:0.1"), cmd);
+    assertEquals(cmd.indexOf(",memory="), cmd.lastIndexOf(",memory="), cmd);
+  }
+
+  @Test
   void testStartCmdNativeMemDisabledByDefault() throws Exception {
     assertDoesNotThrow(
         () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");

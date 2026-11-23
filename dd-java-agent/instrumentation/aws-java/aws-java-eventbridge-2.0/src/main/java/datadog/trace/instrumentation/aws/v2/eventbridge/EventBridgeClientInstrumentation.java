@@ -29,13 +29,6 @@ public final class EventBridgeClientInstrumentation extends InstrumenterModule.T
         EventBridgeClientInstrumentation.class.getName() + "$AwsEventBridgeBuilderAdvice");
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".EventBridgeInterceptor", packageName + ".TextMapInjectAdapter"
-    };
-  }
-
   public static class AwsEventBridgeBuilderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addHandler(@Advice.Return final List<ExecutionInterceptor> interceptors) {

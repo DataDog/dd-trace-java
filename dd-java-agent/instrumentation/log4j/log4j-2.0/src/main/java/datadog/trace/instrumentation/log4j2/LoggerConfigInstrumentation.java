@@ -43,11 +43,6 @@ public class LoggerConfigInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".DatadogAppender"};
-  }
-
-  @Override
   public String muzzleDirective() {
     return "logs-intake";
   }

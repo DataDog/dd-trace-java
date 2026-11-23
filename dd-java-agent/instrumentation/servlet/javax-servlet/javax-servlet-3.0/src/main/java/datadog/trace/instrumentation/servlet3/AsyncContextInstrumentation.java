@@ -2,10 +2,10 @@ package datadog.trace.instrumentation.servlet3;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.api.KnownTags.SERVLET_CONTEXT;
+import static datadog.trace.api.KnownTags.SERVLET_PATH;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_DISPATCH;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_PATH;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
@@ -49,19 +49,6 @@ public final class AsyncContextInstrumentation extends InstrumenterModule.Tracin
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AsyncDispatcherDecorator",
-      packageName + ".FinishAsyncDispatchListener",
-      packageName + ".HttpServletExtractAdapter",
-      packageName + ".HttpServletExtractAdapter$Request",
-      packageName + ".HttpServletExtractAdapter$Response",
-      packageName + ".Servlet3Decorator",
-      packageName + ".ServletRequestURIAdapter",
-    };
   }
 
   @Override

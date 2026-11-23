@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.reactivestreams;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -26,7 +27,9 @@ import org.reactivestreams.Subscriber;
  * eventually propagate on the downstream signals.
  */
 public class PublisherInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+        Instrumenter.WithTypeStructure,
+        Instrumenter.HasMethodAdvice {
 
   @Override
   public String hierarchyMarkerType() {
@@ -36,6 +39,11 @@ public class PublisherInstrumentation
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named("org.reactivestreams.Publisher"));
+  }
+
+  @Override
+  public ElementMatcher<TypeDescription> structureMatcher() {
+    return declaresMethod(isMethod().and(named("subscribe")));
   }
 
   @Override

@@ -16,16 +16,6 @@ public class BaseRequestInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".CouchbaseClientDecorator",
-      packageName + ".DatadogRequestSpan",
-      packageName + ".DatadogRequestSpan$1",
-      packageName + ".DatadogRequestTracer",
-    };
-  }
-
-  @Override
   public String instrumentedType() {
     return "com.couchbase.client.core.msg.BaseRequest";
   }

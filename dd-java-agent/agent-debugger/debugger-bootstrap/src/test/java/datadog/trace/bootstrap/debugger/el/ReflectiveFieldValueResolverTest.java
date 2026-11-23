@@ -2,7 +2,8 @@ package datadog.trace.bootstrap.debugger.el;
 
 import static datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver.getFieldAsCapturedValue;
 import static datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver.resolve;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import java.util.ArrayList;

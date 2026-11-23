@@ -12,7 +12,6 @@ import com.intuit.karate.core.Tag;
 import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.events.TestDescriptor;
-import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.util.ComparableVersion;
 import datadog.trace.util.MethodHandles;
 import datadog.trace.util.Strings;
@@ -36,8 +35,6 @@ public abstract class KarateUtils {
       METHOD_HANDLES.privateFieldGetter(FeatureRuntime.class, "featureCall");
   private static final MethodHandle FEATURE_RUNTIME_BEFORE_HOOK_DONE_GETTER =
       METHOD_HANDLES.privateFieldGetter(FeatureRuntime.class, "beforeHookDone");
-  private static final MethodHandle FEATURE_RUNTIME_BEFORE_HOOK_DONE_SETTER =
-      METHOD_HANDLES.privateFieldSetter(FeatureRuntime.class, "beforeHookDone");
   private static final MethodHandle FEATURE_CALL_FEATURE_GETTER =
       METHOD_HANDLES.privateFieldGetter("com.intuit.karate.core.FeatureCall", "feature");
   private static final MethodHandle ABORTED_RESULT_DURATION_NANOS =
@@ -123,11 +120,6 @@ public abstract class KarateUtils {
     return new TestDescriptor(featureName, null, scenarioName, parameters, scenarioRuntime);
   }
 
-  public static TestSuiteDescriptor toSuiteDescriptor(FeatureRuntime featureRuntime) {
-    String featureName = KarateUtils.getFeature(featureRuntime).getNameForReport();
-    return new TestSuiteDescriptor(featureName, null);
-  }
-
   public static Result abortedResult() {
     if (ABORTED_RESULT_STARTTIME_DURATION_NANOS != null) {
       long startTime = System.currentTimeMillis();
@@ -144,10 +136,6 @@ public abstract class KarateUtils {
     Boolean beforeHookDone =
         METHOD_HANDLES.invoke(FEATURE_RUNTIME_BEFORE_HOOK_DONE_GETTER, featureRuntime);
     return beforeHookDone != null ? beforeHookDone : true;
-  }
-
-  public static void resetBeforeHook(FeatureRuntime featureRuntime) {
-    METHOD_HANDLES.invoke(FEATURE_RUNTIME_BEFORE_HOOK_DONE_SETTER, featureRuntime, false);
   }
 
   public static String getKarateVersion() {

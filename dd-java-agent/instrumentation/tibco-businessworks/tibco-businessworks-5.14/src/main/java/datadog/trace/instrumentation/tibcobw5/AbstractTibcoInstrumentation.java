@@ -13,14 +13,4 @@ public abstract class AbstractTibcoInstrumentation extends InstrumenterModule.Tr
   public Map<String, String> contextStore() {
     return Collections.singletonMap("com.tibco.pe.plugin.ProcessContext", Map.class.getName());
   }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TibcoDecorator",
-      packageName + ".ActivityHelper",
-      packageName + ".ActivityHelper$ActivityInfo",
-      "com.tibco.pe.core.DDJobMate",
-    };
-  }
 }

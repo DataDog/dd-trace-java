@@ -31,14 +31,24 @@ class SetupSpecHelper {
     ss.registerCallback(uriEvent, new TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>>() {
         @Override
         Flow<Void> apply(RequestContext requestContext, String s, URIDataAdapter uriDataAdapter) {
-          requestContext.setBlockResponseFunction(TestSpringBlockResponseFunction.INSTANCE)
+          BlockResponseFunction original = requestContext.getBlockResponseFunction()
+          requestContext.setBlockResponseFunction(new TestSpringBlockResponseFunction(original))
           origUriCallback.apply(requestContext, s, uriDataAdapter)
         }
       })
   }
 
-  enum TestSpringBlockResponseFunction implements BlockResponseFunction {
-    INSTANCE
+  /**
+   * Commits the blocking response through Spring's request attributes when they are available,
+   * falling back to the block response function the server instrumentation had already registered
+   * (e.g. Tomcat's) for block points that happen before Spring populates RequestContextHolder.
+   */
+  static class TestSpringBlockResponseFunction implements BlockResponseFunction {
+    private final BlockResponseFunction original
+
+    TestSpringBlockResponseFunction(BlockResponseFunction original) {
+      this.original = original
+    }
 
     @Override
     boolean tryCommitBlockingResponse(TraceSegment segment, int statusCode, BlockingContentType templateType, Map<String, String> extraHeaders, String securityResponseId) {
@@ -46,8 +56,9 @@ class SetupSpecHelper {
       if (attributes) {
         JakartaServletBlockingHelper
           .commitBlockingResponse(segment, attributes.request, attributes.response, statusCode, templateType, extraHeaders, securityResponseId)
+        return true
       }
-      true
+      original != null && original.tryCommitBlockingResponse(segment, statusCode, templateType, extraHeaders, securityResponseId)
     }
   }
 }

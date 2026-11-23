@@ -44,13 +44,13 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
       return;
     }
     if (!ServerRequestContext.canTrackRequest(channel)) {
-      channel.attr(PARENT_CONTEXT_ATTRIBUTE_KEY).remove();
+      channel.attr(PARENT_CONTEXT_ATTRIBUTE_KEY).set(null);
       ctx.fireChannelRead(msg);
       return;
     }
 
     final HttpHeaders headers = request.headers();
-    final Context storedParentContext = channel.attr(PARENT_CONTEXT_ATTRIBUTE_KEY).getAndRemove();
+    final Context storedParentContext = channel.attr(PARENT_CONTEXT_ATTRIBUTE_KEY).getAndSet(null);
     final Context parentContext =
         storedParentContext != null ? storedParentContext : DECORATE.extract(headers);
     final Context context = DECORATE.startSpan(headers, parentContext);

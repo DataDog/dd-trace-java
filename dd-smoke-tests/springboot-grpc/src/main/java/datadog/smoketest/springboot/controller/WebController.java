@@ -6,6 +6,7 @@ import datadog.smoketest.springboot.spanner.SpannerTask;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -46,7 +47,22 @@ public class WebController {
           CompletableFuture.supplyAsync(() -> "something", pool)
               .thenApplyAsync(x -> asyncGreeter.greet(decodedMsg), pool);
     }
-    return CompletableFuture.allOf(cfs).thenApply(x -> "bye").join();
+    // Join the calls directly to avoid competing activations of allOf's internal relay nodes.
+    CompletionException failure = null;
+    for (CompletableFuture<String> cf : cfs) {
+      try {
+        cf.join();
+      } catch (CompletionException e) {
+        // Wait for every call before propagating a failure, as allOf does.
+        if (failure == null) {
+          failure = e;
+        }
+      }
+    }
+    if (failure != null) {
+      throw failure;
+    }
+    return "bye";
   }
 
   @RequestMapping("/async_concurrent_greeting")

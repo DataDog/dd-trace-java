@@ -76,6 +76,15 @@ public abstract class HandlerContext {
       return msgSizeCalculator != null ? msgSizeCalculator.getFormat() : null;
     }
 
+    @Override
+    public void reset() {
+      super.reset();
+      // a long-lived receiver (e.g. one per JSR356 MessageHandler) can see text and binary
+      // messages, so the size calculator must be chosen per message
+      msgSizeExtractorInitialized = false;
+      msgSizeCalculator = null;
+    }
+
     public void recordChunkData(Object data, boolean partialDelivery) {
       if (msgChunks++ == 0 && partialDelivery) {
         firstFrameTimestamp = SystemTimeSource.INSTANCE.getCurrentTimeNanos();

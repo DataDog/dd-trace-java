@@ -1,6 +1,9 @@
 package com.datadog.debugger.trigger;
 
-import static com.datadog.debugger.el.DSL.*;
+import static com.datadog.debugger.el.DSL.lt;
+import static com.datadog.debugger.el.DSL.ref;
+import static com.datadog.debugger.el.DSL.value;
+import static com.datadog.debugger.el.DSL.when;
 import static java.lang.String.format;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -46,7 +49,7 @@ public class TriggerProbeTest extends CapturingTestBase {
     super.before();
     traceInterceptor = new TestTraceInterceptor();
 
-    CoreTracer tracer = CoreTracer.builder().build();
+    tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     tracer.addTraceInterceptor(traceInterceptor);
 
@@ -76,12 +79,11 @@ public class TriggerProbeTest extends CapturingTestBase {
     long count =
         allTraces.stream()
             .map(span -> span.get(0))
-            .filter(
-                span -> {
-                  DDSpan ddSpan = (DDSpan) span;
-                  PropagationTags tags = ddSpan.spanContext().getPropagationTags();
-                  return (TRIGGER_PROBE_SESSION_ID + ":1").equals(tags.getDebugPropagation());
-                })
+            .filter(span -> {
+              DDSpan ddSpan = (DDSpan) span;
+              PropagationTags tags = ddSpan.spanContext().getPropagationTags();
+              return (TRIGGER_PROBE_SESSION_ID + ":1").equals(tags.getDebugPropagation());
+            })
             .count();
     assertEquals(100, allTraces.size(), "actual traces: " + allTraces.size());
     assertTrue(count <= 25, "Should have at most 25 debug sessions.  found: " + count);
@@ -134,21 +136,19 @@ public class TriggerProbeTest extends CapturingTestBase {
       long debugSessions =
           allTraces.stream()
               .map(span -> span.get(0))
-              .filter(
-                  span -> {
-                    DDSpan ddSpan = (DDSpan) span;
-                    PropagationTags tags = ddSpan.spanContext().getPropagationTags();
-                    return (TRIGGER_PROBE_SESSION_ID + ":1").equals(tags.getDebugPropagation());
-                  })
+              .filter(span -> {
+                DDSpan ddSpan = (DDSpan) span;
+                PropagationTags tags = ddSpan.spanContext().getPropagationTags();
+                return (TRIGGER_PROBE_SESSION_ID + ":1").equals(tags.getDebugPropagation());
+              })
               .count();
       assertEquals(1, debugSessions, "Should only have 1 debug session.  found: " + debugSessions);
 
       long tagged =
           allTraces.stream()
               .flatMap(Collection::stream)
-              .filter(
-                  span ->
-                      span.getTag(format("_dd.ld.probe_id.%s", TRIGGER_PROBE_ID1.getId())) != null)
+              .filter(span ->
+                  span.getTag(format("_dd.ld.probe_id.%s", TRIGGER_PROBE_ID1.getId())) != null)
               .count();
       assertEquals(1, tagged, "Should only have 1 tagged span.  found: " + tagged);
     } finally {

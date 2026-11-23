@@ -41,6 +41,21 @@ class Jetty12Test extends HttpServerTest<Server> implements TestingGenericHttpNa
   }
 
   @Override
+  boolean testBlocking() {
+    true
+  }
+
+  @Override
+  boolean testBlockFailure() {
+    true
+  }
+
+  @Override
+  boolean testBlockingOnResponse() {
+    true
+  }
+
+  @Override
   boolean hasExtraErrorInformation() {
     true
   }

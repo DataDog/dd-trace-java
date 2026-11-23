@@ -27,16 +27,6 @@ public class WeaverInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".WeaverUtils",
-      packageName + ".DatadogWeaverReporter",
-      packageName + ".TaskDefAwareLinkedBlockingQueueProxy",
-      packageName + ".TaskDefAwareConcurrentLinkedQueueProxy",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     // disneystreaming/weaver-test (0.8.4+) uses a ConcurrentLinkedQueue
     transformer.applyAdvice(

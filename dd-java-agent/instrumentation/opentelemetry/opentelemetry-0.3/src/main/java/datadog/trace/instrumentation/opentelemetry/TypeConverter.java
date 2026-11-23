@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.opentelemetry;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpanContext;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
@@ -48,7 +48,7 @@ public class TypeConverter {
     return new OtelSpan(agentSpan, this);
   }
 
-  public Scope toScope(final AgentScope scope) {
+  public Scope toScope(final ContextScope scope) {
     if (scope == null) {
       return null;
     }

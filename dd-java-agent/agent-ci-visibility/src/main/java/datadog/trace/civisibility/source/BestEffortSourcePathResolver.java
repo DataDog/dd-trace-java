@@ -32,6 +32,6 @@ public class BestEffortSourcePathResolver implements SourcePathResolver {
         return resourcePath;
       }
     }
-    return null;
+    return Collections.emptyList();
   }
 }

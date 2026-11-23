@@ -47,7 +47,6 @@ public class JettyClientInstrumentation extends InstrumenterModule.Tracing
     return new String[] {
       packageName + ".JettyClientDecorator",
       "datadog.trace.instrumentation.jetty_client.HeadersInjectAdapter",
-      "datadog.trace.instrumentation.jetty_client.CallbackWrapper",
       packageName + ".SpanFinishingCompleteListener"
     };
   }

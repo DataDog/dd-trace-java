@@ -26,9 +26,23 @@ public class OpenFeatureController {
   private static final Logger LOGGER = LoggerFactory.getLogger(OpenFeatureController.class);
 
   private final Client client;
+  private final ProviderRegistration providerRegistration;
 
-  public OpenFeatureController(final Client client) {
+  public OpenFeatureController(
+      final Client client, final ProviderRegistration providerRegistration) {
     this.client = client;
+    this.providerRegistration = providerRegistration;
+  }
+
+  /**
+   * Registers the provider without waiting for its initialization.
+   *
+   * @return an accepted response.
+   */
+  @PostMapping("/provider")
+  public ResponseEntity<?> registerProvider() {
+    this.providerRegistration.request();
+    return ResponseEntity.accepted().build();
   }
 
   @PostMapping(
@@ -88,24 +102,23 @@ public class OpenFeatureController {
     final MutableContext context = new MutableContext();
     context.setTargetingKey(request.getTargetingKey());
     if (request.attributes != null) {
-      request.attributes.forEach(
-          (key, value) -> {
-            if (value instanceof Boolean) {
-              context.add(key, (Boolean) value);
-            } else if (value instanceof Integer) {
-              context.add(key, (Integer) value);
-            } else if (value instanceof Double) {
-              context.add(key, (Double) value);
-            } else if (value instanceof String) {
-              context.add(key, (String) value);
-            } else if (value instanceof Map) {
-              context.add(key, Value.objectToValue(value).asStructure());
-            } else if (value instanceof List) {
-              context.add(key, Value.objectToValue(value).asList());
-            } else {
-              context.add(key, (Structure) null);
-            }
-          });
+      request.attributes.forEach((key, value) -> {
+        if (value instanceof Boolean) {
+          context.add(key, (Boolean) value);
+        } else if (value instanceof Integer) {
+          context.add(key, (Integer) value);
+        } else if (value instanceof Double) {
+          context.add(key, (Double) value);
+        } else if (value instanceof String) {
+          context.add(key, (String) value);
+        } else if (value instanceof Map) {
+          context.add(key, Value.objectToValue(value).asStructure());
+        } else if (value instanceof List) {
+          context.add(key, Value.objectToValue(value).asList());
+        } else {
+          context.add(key, (Structure) null);
+        }
+      });
     }
     return context;
   }

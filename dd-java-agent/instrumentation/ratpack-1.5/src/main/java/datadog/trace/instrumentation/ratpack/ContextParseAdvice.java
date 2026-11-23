@@ -45,7 +45,9 @@ public class ContextParseAdvice {
       BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
       if (brf != null) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+        // effectivelyBlocked() is intentionally absent: Ratpack blocks through Netty's
+        // BlockResponseFunction, whose BlockingResponseHandler already marks the segment.
+        brf.tryCommitBlockingResponse(reqCtx, rba);
 
         t = new BlockingException("Blocked request (for DefaultContext/parse)");
       }

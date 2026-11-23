@@ -17,20 +17,6 @@ public final class SqsModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.aws.v2.sqs.SqsInterceptor",
-      "datadog.trace.instrumentation.aws.v2.sqs.MessageAttributeInjector",
-      "datadog.trace.instrumentation.aws.v2.sqs.MessageExtractAdapter",
-      "datadog.trace.instrumentation.aws.v2.sqs.SqsDecorator",
-      "datadog.trace.instrumentation.aws.v2.sqs.SqsReceiveResponseInternalAccess",
-      "datadog.trace.instrumentation.aws.v2.sqs.TracingIterator",
-      "datadog.trace.instrumentation.aws.v2.sqs.TracingList",
-      "datadog.trace.instrumentation.aws.v2.sqs.TracingListIterator"
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStore = new java.util.HashMap<>();
     contextStore.put(

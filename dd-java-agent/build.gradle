@@ -7,11 +7,12 @@ import java.util.jar.JarFile
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.conventions.java'
+  id 'dd-trace-java.conventions.testing.groovy'
 }
 
 description = 'dd-java-agent'
 
-apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/publish.gradle"
 
 configurations {
@@ -53,11 +54,11 @@ sourceSets {
 }
 
 def java6CompileTask = tasks.named("compileMain_java6Java") {
-  configureCompiler(it, 8, JavaVersion.VERSION_1_6)
+  configureCompiler(it, 8, JavaVersion.VERSION_1_6, "Java 6 premain pre-check must load on any JVM")
 }
 
 def java11CompileTask = tasks.named("compileMain_java11Java") {
-  configureCompiler(it, 11)
+  configureCompiler(it, JavaVersion.VERSION_11)
 }
 
 tasks.named("compileJava") {
@@ -155,8 +156,10 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
 
     // Minimize JNA, removing native libraries for unsupported environments
     exclude '**/com/sun/jna/aix-*/**'
+    exclude '**/com/sun/jna/dragonflybsd-*/**'
     exclude '**/com/sun/jna/freebsd-*/**'
     exclude '**/com/sun/jna/linux-armel/**'
+    exclude '**/com/sun/jna/linux-loongarch64/**'
     exclude '**/com/sun/jna/linux-mips64el/**'
     exclude '**/com/sun/jna/linux-ppc/**'
     exclude '**/com/sun/jna/linux-ppc64le/**'
@@ -165,7 +168,7 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     exclude '**/com/sun/jna/openbsd-*/**'
     exclude '**/com/sun/jna/sunos-*/**'
 
-    // Minimize JFFI, removing native libraries for unsupported environments
+    // Minimize JNR/JFFI for unsupported environments
     exclude '**/jni/*-AIX/**'
     exclude '**/jni/*-DragonFlyBSD/**'
     exclude '**/jni/*-FreeBSD/**'
@@ -177,6 +180,26 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     exclude '**/jni/sparcv9-Linux/**'
     exclude '**/jni/*-OpenBSD/**'
     exclude '**/jni/*-SunOS/**'
+    exclude '**/jnr/constants/platform/aix/**'
+    exclude '**/jnr/constants/platform/dragonflybsd/**'
+    exclude '**/jnr/constants/platform/freebsd/**'
+    exclude '**/jnr/constants/platform/linux/loongarch64/**'
+    exclude '**/jnr/constants/platform/linux/mips64el/**'
+    exclude '**/jnr/constants/platform/linux/powerpc64/**'
+    exclude '**/jnr/constants/platform/linux/s390x/**'
+    exclude '**/jnr/constants/platform/openbsd/**'
+    exclude '**/jnr/constants/platform/solaris/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/*/aix/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/*/dragonfly/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/*/freebsd/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/*/ibmi/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/*/openbsd/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/*/solaris/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/loongarch64/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/mips*/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/ppc*/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/s390*/**'
+    exclude '**/jnr/ffi/provider/jffi/platform/sparc*/**'
 
     final String projectName = "${project.name}"
 
@@ -309,6 +332,15 @@ def traceShadowJar = tasks.register('traceShadowJar', ShadowJar) {
 }
 includeShadowJar(traceShadowJar, 'trace', includedJarFileTree)
 
+['sharedShadowJar', 'traceShadowJar'].each { taskName ->
+  tasks.named(taskName, ShadowJar).configure {
+    // Track packaged bytes, including version files ignored by classpath normalization.
+    inputs.files(includedDependencies)
+      .withPropertyName('packagedDependencies')
+      .withPathSensitivity(PathSensitivity.NONE)
+  }
+}
+
 tasks.named("shadowJar", ShadowJar) {
   // Include AgentPreCheck compiled with Java 6.
   from sourceSets.main_java6.output
@@ -408,12 +440,14 @@ dependencies {
   testImplementation project(':dd-trace-core')
   testImplementation project(':utils:test-utils')
 
-  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
+  testImplementation libs.okhttp3.mockwebserver
   testImplementation project(':utils:test-agent-utils:decoder')
 
   testImplementation libs.bundles.test.logging
+  testImplementation libs.bundles.mockito
+  testImplementation libs.json.unit.assertj
   testImplementation libs.guava
-  testImplementation libs.okhttp
+  testImplementation libs.datadog.okhttp
   testImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
 
   // Includes for the top level shadow jar
