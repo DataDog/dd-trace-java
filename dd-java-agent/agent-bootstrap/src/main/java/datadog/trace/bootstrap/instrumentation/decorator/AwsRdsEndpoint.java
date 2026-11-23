@@ -42,16 +42,16 @@ public final class AwsRdsEndpoint implements TagContributor {
     /** {@code <endpoint-name>.cluster-custom-<hash>.<region>.rds.amazonaws.com}. */
     CLUSTER_CUSTOM("cluster-custom", AWS_RDS_IDENTIFIER),
     /**
+     * {@code <db-cluster-identifier>.limitless-<hash>.<region>.rds.amazonaws.com}, the endpoint of
+     * an Aurora Limitless Database DB cluster. Its leading label is the DB cluster identifier.
+     */
+    LIMITLESS("limitless", DBCLUSTERIDENTIFIER),
+    /**
      * {@code <proxy-name>.proxy-<hash>.<region>.rds.amazonaws.com}, or a user-defined proxy
      * endpoint {@code <endpoint-name>.endpoint.proxy-<hash>.<region>.rds.amazonaws.com}.
      */
     PROXY("proxy", AWS_RDS_IDENTIFIER),
-    /**
-     * An Aurora Limitless DB shard group endpoint, {@code
-     * <name>.shardgrp-<hash>.<region>.rds.amazonaws.com} or {@code
-     * <name>.limitless-<hash>.<region>.rds.amazonaws.com}. AWS documents both prefixes for this
-     * endpoint, so both map here.
-     */
+    /** {@code <shard-group-name>.shardgrp-<hash>.<region>.rds.amazonaws.com} (Aurora Limitless). */
     SHARD_GROUP("shardgrp", AWS_RDS_IDENTIFIER),
     /**
      * {@code <global-cluster-id>.global-<hash>.global.rds.amazonaws.com}, the Aurora Global
@@ -137,8 +137,8 @@ public final class AwsRdsEndpoint implements TagContributor {
   /**
    * Tags the span with the endpoint type, the Region when the hostname has one, and the identifier.
    * The identifier goes under {@code dbinstanceidentifier} for instance endpoints, {@code
-   * dbclusteridentifier} for cluster and cluster reader endpoints, and {@code aws.rds.identifier}
-   * otherwise.
+   * dbclusteridentifier} for cluster, cluster reader and Aurora Limitless endpoints, and {@code
+   * aws.rds.identifier} otherwise.
    */
   @Override
   public void addTo(final AgentSpan span) {
@@ -314,15 +314,15 @@ public final class AwsRdsEndpoint implements TagContributor {
     } else if (hash.startsWith("cluster-")) {
       type = Type.CLUSTER;
       suffix = hash.substring("cluster-".length());
+    } else if (hash.startsWith("limitless-")) {
+      type = Type.LIMITLESS;
+      suffix = hash.substring("limitless-".length());
     } else if (hash.startsWith("proxy-")) {
       type = Type.PROXY;
       suffix = hash.substring("proxy-".length());
     } else if (hash.startsWith("shardgrp-")) {
       type = Type.SHARD_GROUP;
       suffix = hash.substring("shardgrp-".length());
-    } else if (hash.startsWith("limitless-")) {
-      type = Type.SHARD_GROUP;
-      suffix = hash.substring("limitless-".length());
     } else {
       type = Type.INSTANCE;
       suffix = hash;

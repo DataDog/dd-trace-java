@@ -238,9 +238,10 @@ span_types:
       - { dd-name: db.schema,    type: string, required: optional }
       - { dd-name: db.warehouse, type: string, required: optional }
       # Identity encoded in an Amazon RDS endpoint hostname. The identifier goes under
-      # dbinstanceidentifier (instance endpoints) or dbclusteridentifier (cluster and cluster reader
-      # endpoints), the dimension tags on the aws.rds.* integration metrics, so a span and the RDS
-      # integration join on the same keys. Other endpoint types use aws.rds.identifier.
+      # dbinstanceidentifier (instance endpoints) or dbclusteridentifier (cluster, cluster reader and
+      # Aurora Limitless endpoints), the dimension tags on the aws.rds.* integration metrics, so a
+      # span and the RDS integration join on the same keys. Other endpoint types use
+      # aws.rds.identifier.
       - { dd-name: aws.region,            type: string, required: optional }
       - { dd-name: aws.rds.identifier,    type: string, required: optional }
       - { dd-name: aws.rds.endpoint_type, type: string, required: optional }

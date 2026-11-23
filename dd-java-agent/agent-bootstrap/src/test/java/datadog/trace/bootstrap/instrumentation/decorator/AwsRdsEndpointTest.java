@@ -52,12 +52,12 @@ class AwsRdsEndpointTest {
     "custom proxy                    | orders-ro.endpoint.proxy-c9akciq32bzq.us-east-1.rds.amazonaws.com       | orders-ro            | PROXY          | us-east-1      ",
     "ISO custom proxy                | orders-ro.endpoint.proxy-c9akciq32bzq.us-iso-east-1.rds.c2s.ic.gov      | orders-ro            | PROXY          | us-iso-east-1  ",
     "China custom proxy              | orders-ro.endpoint.proxy-c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn   | orders-ro            | PROXY          | cn-north-1     ",
+    "Limitless cluster               | my-limitless-cluster.limitless-ccetp2abcdef.us-east-1.rds.amazonaws.com | my-limitless-cluster | LIMITLESS      | us-east-1      ",
     "shard group                     | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com                | orders               | SHARD_GROUP    | us-east-1      ",
     "uppercase shard group           | ORDERS.SHARDGRP-C9AKCIQ32BZQ.US-EAST-1.RDS.AMAZONAWS.COM                | orders               | SHARD_GROUP    | us-east-1      ",
     "shard group trailing dot        | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com.               | orders               | SHARD_GROUP    | us-east-1      ",
     "shard group port                | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com:5432           | orders               | SHARD_GROUP    | us-east-1      ",
-    "limitless shard group           | my-limitless-cluster.limitless-ccetp2abcdef.us-east-1.rds.amazonaws.com | my-limitless-cluster | SHARD_GROUP    | us-east-1      ",
-    "uppercase limitless shard group | MY-LIMITLESS-CLUSTER.LIMITLESS-CCETP2ABCDEF.US-EAST-1.RDS.AMAZONAWS.COM | my-limitless-cluster | SHARD_GROUP    | us-east-1      ",
+    "uppercase Limitless cluster     | MY-LIMITLESS-CLUSTER.LIMITLESS-CCETP2ABCDEF.US-EAST-1.RDS.AMAZONAWS.COM | my-limitless-cluster | LIMITLESS      | us-east-1      ",
     "GovCloud shard group            | orders.shardgrp-c9akciq32bzq.us-gov-west-1.rds.amazonaws.com            | orders               | SHARD_GROUP    | us-gov-west-1  ",
     "China shard group service first | orders.shardgrp-c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn            | orders               | SHARD_GROUP    | cn-north-1     ",
     "China shard group region first  | orders.shardgrp-c9akciq32bzq.cn-north-1.rds.amazonaws.com.cn            | orders               | SHARD_GROUP    | cn-north-1     "
@@ -86,6 +86,9 @@ class AwsRdsEndpointTest {
         "orders-db.c9akciq32bzq.us-east.rds.amazonaws.com",
         ".c9akciq32bzq.us-east-1.rds.amazonaws.com",
         "orders-db.cluster-.us-east-1.rds.amazonaws.com",
+        "my-limitless-cluster.limitless-.us-east-1.rds.amazonaws.com",
+        "my-limitless-cluster.limitless-ccet.us-east-1.rds.amazonaws.com",
+        "my-limitless-cluster.limitless-ccetp2abcdef!.us-east-1.rds.amazonaws.com",
         // shard group endpoints still need a valid hash after the prefix
         "orders.shardgrp-.us-east-1.rds.amazonaws.com",
         "orders.shardgrp-c9ak.us-east-1.rds.amazonaws.com",
@@ -115,7 +118,7 @@ class AwsRdsEndpointTest {
     "custom cluster | reports.cluster-custom-c9akciq32bzq.us-east-1.rds.amazonaws.com | aws.rds.identifier   | reports    | cluster-custom",
     "proxy          | orders.proxy-c9akciq32bzq.us-east-1.rds.amazonaws.com           | aws.rds.identifier   | orders     | proxy         ",
     "shard group    | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com        | aws.rds.identifier   | orders     | shardgrp      ",
-    "limitless      | orders.limitless-c9akciq32bzq.us-east-1.rds.amazonaws.com       | aws.rds.identifier   | orders     | shardgrp      "
+    "limitless      | orders.limitless-c9akciq32bzq.us-east-1.rds.amazonaws.com       | dbclusteridentifier  | orders     | limitless     "
   })
   void addsIdentityTagsToSpan(
       String hostname, String identifierTag, String identifier, String endpointType) {
