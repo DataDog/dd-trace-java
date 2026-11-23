@@ -375,6 +375,14 @@ In priority order:
    - Presizing tolerates an approximate mask (the store must still grow). Skipping interceptors needs the verified, sound mask.
      Validate with a sink assertion mode across the instrumentation tests.
    - Migration: direct `setTag` call sites keep the item-3 rewrite; new instrumentation uses contributors.
+- **Prototype results so far (2026-11-23, branch `dougqh/settag-intercept-specialize`):** "already compiled into a
+  big method" on `setTag` call sites depends on **compile order** (the check only sees the callee's existing C2 code), so it varies
+  run to run and JDK to JDK. Skipping interception saves only about 2% (dense) to 8% (hash) of the standalone setter's C2 size.
+  **The store dominates:** `DenseIdStore.storeLocal` alone is about 3.2 KB of C2 code (limit 2.5 KB); `HashIdStore` is bigger
+  (collision chains, entry construction). The deterministic goal is every setter's own C2 code under `InlineSmallCode`.
+  Candidate: a rank-indexed dense layout (`bitCount(occupancy & (bit-1))`, a serial check, a lazily created eviction area
+  for slot collisions; unslotted tags sent straight to the eviction area). Slots come from graph coloring, at most 63 global, so plain
+  `values[slot]` would be too big. **On hold (Doug): design it together with FrozenTags rather than as a standalone store change.**
 - **Validation for 3:** differential instrumentation tests (rewrite on/off); a benchmark with JFR `jdk.CompilerInlining`
   confirming "already compiled into a big method" disappears for `setTag` call sites.
 - Compiler-control notes: negative (`inline:-`) directives for our cold helpers are low-risk. Forced inlining can abort the
