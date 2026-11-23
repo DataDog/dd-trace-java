@@ -156,6 +156,33 @@ public interface AgentSpan
     return setTag(tagId, value);
   }
 
+  /*
+   * Prototype: the bulk setters a build-time fusion of adjacent constant-id setTag calls would
+   * target, for ids classified as never intercepted. Behaviorally identical to the setTag calls
+   * they replace, in order; the core span overrides them to take its tag lock once per run.
+   */
+  default AgentSpan setTagsNoIntercept(
+      long k1,
+      CharSequence v1,
+      long k2,
+      CharSequence v2,
+      long k3,
+      CharSequence v3,
+      long k4,
+      CharSequence v4) {
+    setTag(k1, v1);
+    setTag(k2, v2);
+    setTag(k3, v3);
+    return setTag(k4, v4);
+  }
+
+  default AgentSpan setTagsNoIntercept(
+      long k1, CharSequence v1, long k2, CharSequence v2, long k3, CharSequence v3) {
+    setTag(k1, v1);
+    setTag(k2, v2);
+    return setTag(k3, v3);
+  }
+
   /** entry may be null - in which case the tags remained unchanged */
   AgentSpan setTag(TagMap.EntryReader entry);
 

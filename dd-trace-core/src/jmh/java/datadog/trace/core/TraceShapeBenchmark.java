@@ -317,6 +317,94 @@ public class TraceShapeBenchmark {
     server.finish();
   }
 
+  // ---- newApiFused*: newApi as a build-time fusion of adjacent setTag calls would emit it ----
+
+  /**
+   * Prototype: conservative fusion. Only setTag calls that are literally adjacent, on ids never
+   * intercepted, become one bulk call: here just the jdbc span's run of four. Everything else is
+   * newApi unchanged.
+   */
+  @Benchmark
+  public void newApiFusedConservative() {
+    AgentSpan server = tracer.startSpan(serverProto, SERVER_OPERATION);
+    server.setTag(KnownTags.HTTP_USERAGENT, USER_AGENT);
+    server.setTag(KnownTags.HTTP_METHOD, METHOD);
+    server.setTag(KnownTags.HTTP_URL, URL);
+    server.setTag(KnownTags.HTTP_HOSTNAME, HOSTNAME);
+    server.setResourceName(SERVER_RESOURCE);
+    server.setTag(KnownTags.PEER_IPV4, CLIENT_IP);
+    server.setTag(KnownTags.PEER_PORT, CLIENT_PORT);
+    server.setTag(KnownTags.HTTP_ROUTE, ROUTE);
+    try (ContextScope scope = tracer.activateSpan(server)) {
+      for (int i = 0; i < children; ++i) {
+        AgentSpan jdbc = tracer.startSpan(jdbcProto, JDBC_OPERATION);
+        jdbc.setTag(KnownTags.DB_TYPE, DB_TYPE);
+        jdbc.setServiceName(DB_SERVICE, JAVA_JDBC);
+        jdbc.setOperationName(JDBC_RENAMED_OPERATION);
+        jdbc.setTagsNoIntercept(
+            KnownTags.DB_POOL_NAME, DB_POOL,
+            KnownTags.DB_USER, DB_USER,
+            KnownTags.DB_INSTANCE, DB_INSTANCE,
+            KnownTags.PEER_HOSTNAME, DB_HOST);
+        jdbc.setResourceName(STATEMENT);
+        jdbc.setTag(KnownTags.DB_OPERATION, DB_OPERATION);
+        jdbc.spanContext().setIntegrationName(JDBC_PREPARED_STATEMENT);
+        jdbc.setTag(KnownTags.COMPONENT, JDBC_PREPARED_STATEMENT);
+        finishScoped(jdbc);
+      }
+      AgentSpan internal = tracer.startSpan(traceProto, TRACE_OPERATION);
+      internal.setResourceName(TRACE_RESOURCE);
+      finishScoped(internal);
+    }
+    server.setHttpStatusCode(STATUS);
+    server.finish();
+  }
+
+  /**
+   * Prototype: commuting fusion. Every never-intercepted constant-id store on a span sinks to one
+   * bulk call at the position of the last one. That is valid only because nothing in between reads
+   * those tags: the http.method / http.url interceptors read only each other and set the resource
+   * name, and the name / service / resource / integration setters don't read tags. A real fusion
+   * pass would need that "reads nothing" knowledge declared per interceptor and setter.
+   */
+  @Benchmark
+  public void newApiFused() {
+    AgentSpan server = tracer.startSpan(serverProto, SERVER_OPERATION);
+    server.setTag(KnownTags.HTTP_METHOD, METHOD);
+    server.setTag(KnownTags.HTTP_URL, URL);
+    server.setResourceName(SERVER_RESOURCE);
+    server.setTag(KnownTags.PEER_PORT, CLIENT_PORT);
+    server.setTagsNoIntercept(
+        KnownTags.HTTP_USERAGENT, USER_AGENT,
+        KnownTags.HTTP_HOSTNAME, HOSTNAME,
+        KnownTags.PEER_IPV4, CLIENT_IP,
+        KnownTags.HTTP_ROUTE, ROUTE);
+    try (ContextScope scope = tracer.activateSpan(server)) {
+      for (int i = 0; i < children; ++i) {
+        AgentSpan jdbc = tracer.startSpan(jdbcProto, JDBC_OPERATION);
+        jdbc.setServiceName(DB_SERVICE, JAVA_JDBC);
+        jdbc.setOperationName(JDBC_RENAMED_OPERATION);
+        jdbc.setResourceName(STATEMENT);
+        jdbc.spanContext().setIntegrationName(JDBC_PREPARED_STATEMENT);
+        jdbc.setTagsNoIntercept(
+            KnownTags.DB_TYPE, DB_TYPE,
+            KnownTags.DB_POOL_NAME, DB_POOL,
+            KnownTags.DB_USER, DB_USER,
+            KnownTags.DB_INSTANCE, DB_INSTANCE);
+        jdbc.setTagsNoIntercept(
+            KnownTags.PEER_HOSTNAME, DB_HOST,
+            KnownTags.DB_OPERATION, DB_OPERATION,
+            KnownTags.COMPONENT, JDBC_PREPARED_STATEMENT);
+        finishScoped(jdbc);
+      }
+      AgentSpan internal = tracer.startSpan(traceProto, TRACE_OPERATION);
+      internal.setResourceName(TRACE_RESOURCE);
+      finishScoped(internal);
+    }
+    server.setHttpStatusCode(STATUS);
+    server.finish();
+  }
+
   /** The advice's exit: activate around the call, then close and finish. */
   void finishScoped(AgentSpan span) {
     ContextScope scope = tracer.activateSpan(span);

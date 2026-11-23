@@ -565,6 +565,55 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
     return this;
   }
 
+  /**
+   * Prototype: four fused {@link #setTag(long, CharSequence)} calls for ids classified as never
+   * intercepted. An empty value removes its tag, as setTag does, so a run holding one takes the
+   * per-tag path.
+   */
+  @Override
+  public DDSpan setTagsNoIntercept(
+      final long k1,
+      final CharSequence v1,
+      final long k2,
+      final CharSequence v2,
+      final long k3,
+      final CharSequence v3,
+      final long k4,
+      final CharSequence v4) {
+    if (isEmpty(v1) || isEmpty(v2) || isEmpty(v3) || isEmpty(v4)) {
+      setTag(k1, v1);
+      setTag(k2, v2);
+      setTag(k3, v3);
+      setTag(k4, v4);
+    } else {
+      context.setTagsNoIntercept(k1, v1, k2, v2, k3, v3, k4, v4);
+    }
+    return this;
+  }
+
+  /** Prototype: {@link #setTagsNoIntercept} for a run of three. */
+  @Override
+  public DDSpan setTagsNoIntercept(
+      final long k1,
+      final CharSequence v1,
+      final long k2,
+      final CharSequence v2,
+      final long k3,
+      final CharSequence v3) {
+    if (isEmpty(v1) || isEmpty(v2) || isEmpty(v3)) {
+      setTag(k1, v1);
+      setTag(k2, v2);
+      setTag(k3, v3);
+    } else {
+      context.setTagsNoIntercept(k1, v1, k2, v2, k3, v3);
+    }
+    return this;
+  }
+
+  private static boolean isEmpty(final CharSequence value) {
+    return value == null || value.length() == 0;
+  }
+
   @Override
   public DDSpan setTag(final long tagId, final boolean value) {
     context.setTag(tagId, value);
