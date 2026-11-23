@@ -254,43 +254,13 @@ public class LongStringUtils {
    * has no range-based {@code CharSequence} overload.
    */
   public static int parseInt(CharSequence s, int start, int end) throws NumberFormatException {
-    if (s == null) {
-      throw new NumberFormatException("s can't be null");
+    // Integer.parseInt accepts exactly the chars Long.parseLong accepts with a value in int range,
+    // and rejects them with the same message
+    long value = parseLong(s, start, end);
+    if (value != (int) value) {
+      throw forInput(s, start, end);
     }
-    if (start >= end) {
-      throw new NumberFormatException("Empty input string");
-    }
-    boolean negative = false;
-    int limit = -Integer.MAX_VALUE;
-    int i = start;
-    char firstChar = s.charAt(i);
-    if (firstChar < '0') { // possible leading "+" or "-"
-      if (firstChar == '-') {
-        negative = true;
-        limit = Integer.MIN_VALUE;
-      } else if (firstChar != '+') {
-        throw forInput(s, start, end);
-      }
-      if (end - start == 1) { // a lone "+" or "-"
-        throw forInput(s, start, end);
-      }
-      i++;
-    }
-    int multmin = limit / 10;
-    int result = 0;
-    while (i < end) {
-      // Accumulating negatively avoids surprises near MAX_VALUE
-      int digit = Character.digit(s.charAt(i++), 10);
-      if (digit < 0 || result < multmin) {
-        throw forInput(s, start, end);
-      }
-      result *= 10;
-      if (result < limit + digit) {
-        throw forInput(s, start, end);
-      }
-      result -= digit;
-    }
-    return negative ? result : -result;
+    return (int) value;
   }
 
   private static NumberFormatException forInput(CharSequence s, int start, int end) {
