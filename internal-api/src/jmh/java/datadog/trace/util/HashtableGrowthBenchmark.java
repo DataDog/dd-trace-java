@@ -53,8 +53,10 @@ public class HashtableGrowthBenchmark {
   public Hashtable.D1<String, HashtableD1Benchmark.D1Counter> buildTable() {
     final Hashtable.D1<String, HashtableD1Benchmark.D1Counter> table =
         Hashtable.D1.createBounded(HashtableD1Benchmark.D1Counter.class, bound);
-    // The entries are relinked into each new table; the previous table is garbage by then.
+    // The entries are reused across tables: detach each from the previous table's chain, which
+    // insert expects, before linking it into this one.
     for (final HashtableD1Benchmark.D1Counter entry : entries) {
+      entry.setNext(null);
       table.insert(entry);
     }
     return table;
