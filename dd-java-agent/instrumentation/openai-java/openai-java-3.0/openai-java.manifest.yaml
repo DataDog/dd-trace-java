@@ -1,8 +1,8 @@
 _v: 1
 name: openai-java
 display_name: OpenAI API
-description: Instruments OpenAI Java chat completions, text completions, response creation, and embeddings, including
-  streaming and asynchronous calls, with LLM Observability input, output, and token usage capture.
+description: Instruments OpenAI Java SDK chat completion, completion, embedding, and response API calls, including asynchronous
+  and streaming calls.
 packages:
 - name: com.openai:openai-java
 category:
