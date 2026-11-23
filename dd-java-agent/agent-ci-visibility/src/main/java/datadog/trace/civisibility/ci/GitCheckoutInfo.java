@@ -1,11 +1,15 @@
 package datadog.trace.civisibility.ci;
 
+import static datadog.trace.api.git.GitUtils.isFullLengthCommitSha;
+import static datadog.trace.civisibility.ci.AppVeyorInfo.APPVEYOR_PR_HEAD_COMMIT;
+import static datadog.trace.civisibility.ci.AppVeyorInfo.APPVEYOR_PR_NUMBER;
+import static datadog.trace.civisibility.ci.AppVeyorInfo.APPVEYOR_REPO_COMMIT;
+import static datadog.trace.civisibility.ci.AppVeyorInfo.APPVEYOR_REPO_PROVIDER;
 import static datadog.trace.util.Strings.isBlank;
 import static datadog.trace.util.Strings.isNotBlank;
 
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.GitInfo;
-import datadog.trace.api.git.GitUtils;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,20 +41,22 @@ public final class GitCheckoutInfo {
   }
 
   public static boolean sameRevision(String left, String right) {
-    return isFullSha(left) && isFullSha(right) && left.equalsIgnoreCase(right);
+    return isFullLengthCommitSha(left)
+        && isFullLengthCommitSha(right)
+        && left.equalsIgnoreCase(right);
   }
 
   public static String mergeCommitSha(Provider provider, CiEnvironment env) {
     String sha = null;
     switch (provider) {
       case APPVEYOR:
-        String number = env.get("APPVEYOR_PULL_REQUEST_NUMBER");
-        String head = env.get("APPVEYOR_PULL_REQUEST_HEAD_COMMIT");
-        String build = env.get("APPVEYOR_REPO_COMMIT");
-        if ("github".equals(env.get("APPVEYOR_REPO_PROVIDER"))
+        String number = env.get(APPVEYOR_PR_NUMBER);
+        String head = env.get(APPVEYOR_PR_HEAD_COMMIT);
+        String build = env.get(APPVEYOR_REPO_COMMIT);
+        if ("github".equals(env.get(APPVEYOR_REPO_PROVIDER))
             && number != null
             && number.matches("[0-9]+")
-            && isFullSha(head)
+            && isFullLengthCommitSha(head)
             && !head.equalsIgnoreCase(build)) {
           sha = build;
         }
@@ -84,13 +90,7 @@ public final class GitCheckoutInfo {
       default:
         break;
     }
-    return isFullSha(sha) ? sha.toLowerCase(Locale.ROOT) : null;
-  }
-
-  private static boolean isFullSha(String sha) {
-    return sha != null
-        && (sha.length() == 40 || sha.length() == 64)
-        && GitUtils.isValidCommitShaFull(sha);
+    return isFullLengthCommitSha(sha) ? sha.toLowerCase(Locale.ROOT) : null;
   }
 
   private static boolean isMergeRef(String ref) {

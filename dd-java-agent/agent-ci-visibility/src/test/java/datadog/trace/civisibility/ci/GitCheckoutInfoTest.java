@@ -1,5 +1,9 @@
 package datadog.trace.civisibility.ci;
 
+import static datadog.trace.civisibility.ci.AppVeyorInfo.APPVEYOR_PR_HEAD_COMMIT;
+import static datadog.trace.civisibility.ci.AppVeyorInfo.APPVEYOR_PR_NUMBER;
+import static datadog.trace.civisibility.ci.AppVeyorInfo.APPVEYOR_REPO_COMMIT;
+import static datadog.trace.civisibility.ci.AppVeyorInfo.APPVEYOR_REPO_PROVIDER;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -22,6 +26,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.tabletest.junit.TableTest;
 
 class GitCheckoutInfoTest {
+  private static final String APPVEYOR_BUILD_SHA = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
   private static final String SHA = "abcdef0123456789abcdef0123456789abcdef01";
 
   @TableTest({
@@ -68,19 +73,19 @@ class GitCheckoutInfoTest {
   void appveyorRequiresDistinctFullPrAndBuildRevisions(
       String repoProvider, String number, String head, String build, boolean merge) {
     Map<String, String> values = new HashMap<>();
-    values.put("APPVEYOR_REPO_PROVIDER", repoProvider);
-    values.put("APPVEYOR_PULL_REQUEST_NUMBER", number);
-    values.put("APPVEYOR_PULL_REQUEST_HEAD_COMMIT", appveyorSha(head));
-    values.put("APPVEYOR_REPO_COMMIT", appveyorSha(build));
+    values.put(APPVEYOR_REPO_PROVIDER, repoProvider);
+    values.put(APPVEYOR_PR_NUMBER, number);
+    values.put(APPVEYOR_PR_HEAD_COMMIT, appveyorSha(head));
+    values.put(APPVEYOR_REPO_COMMIT, appveyorSha(build));
     assertEquals(
-        merge ? "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" : null,
+        merge ? APPVEYOR_BUILD_SHA : null,
         new AppVeyorInfo(new CiEnvironmentImpl(values)).getMergeCommitSha());
   }
 
   private static String appveyorSha(String value) {
     if ("head".equals(value)) return SHA;
     if ("upper".equals(value)) return SHA.toUpperCase(java.util.Locale.ROOT);
-    if ("build".equals(value)) return "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    if ("build".equals(value)) return APPVEYOR_BUILD_SHA;
     return value;
   }
 

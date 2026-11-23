@@ -330,13 +330,16 @@ public class GitUtils {
     return isValidCommitSha(commitSha, FULL_SHA_LENGTH);
   }
 
+  /** Checks whether a value is a full hexadecimal SHA-1 or SHA-256 object ID. */
+  public static boolean isFullLengthCommitSha(@Nullable String sha) {
+    return sha != null && (sha.length() == 40 || sha.length() == 64) && isValidCommitShaFull(sha);
+  }
+
   /**
    * Canonicalizes full SHA-1 and SHA-256 object IDs without changing invalid or abbreviated input.
    */
   public static String normalizeCommitSha(@Nullable String sha) {
-    return sha != null && (sha.length() == 40 || sha.length() == 64) && isValidCommitShaFull(sha)
-        ? sha.toLowerCase(Locale.ROOT)
-        : sha;
+    return isFullLengthCommitSha(sha) ? sha.toLowerCase(Locale.ROOT) : sha;
   }
 
   private static boolean isValidCommitSha(final String commitSha, final int minLength) {
