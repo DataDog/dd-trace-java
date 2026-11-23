@@ -339,6 +339,19 @@ the verification harness (differential tests, fuzzing against the reference impl
 declared-then-verified contracts, `DISCARDED.md`). It also answers the proposal's "is this even possible?" on our own code first,
 where the POC found the bigger lever: the tracer's overhead.
 
+## Lessons from the crawl stage (experimenting on ourselves first)
+
+The setTag experiments are a testbed for bytecode optimization in general. What carries over to customer-code rewrites:
+1. **Inlining decisions depend on compile order** ("already compiled into a big method" only looks at the callee's existing C2 code), so a
+   rewrite whose payoff depends on a call being inlined varies run to run, unless the target's own C2 code stays under `InlineSmallCode`.
+2. **Rule for every substituted helper** (regex helpers, `computeIfAbsent` get-first, …): a small fast path, heavy paths out of line.
+   Otherwise the helper becomes a new big callee and spreads the same refusals to every site that calls it.
+3. **Measure compiled size before throughput:** the standalone C2 code size (JFR, `research/settag/inlining-summary.py` on the
+   prototype branch) is deterministic and cheap, and predicts whether a rewrite can work before any benchmark hours are spent.
+4. **Find out where the size goes before choosing the rewrite:** we targeted interception (~5%); the store dominated.
+5. **Peepholes across statements** (fusing adjacent calls, with knowledge of what commutes) are a different class from call-for-call
+   substitution. If fusion pays off, the machinery (detecting runs, delaying stores safely, emitting helpers) is reusable beyond tags.
+
 ## Tracer-side track: setTag shaping (2026-11-23)
 
 The problem: `setTag`/`setTagsFrom` are built to fold with constant keys, but they still hit "already
