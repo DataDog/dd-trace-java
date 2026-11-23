@@ -1,0 +1,11 @@
+_v: 1
+name: spark-exit
+display_name: Apache Spark Exit
+description: Instruments JVM exits to finish and flush Apache Spark application traces with their exit status.
+packages:
+- name: org.apache.spark:spark-sql_2.12
+- name: org.apache.spark:spark-sql_2.13
+category:
+- other
+systems: []
+creation_date: '2025-04-01'
