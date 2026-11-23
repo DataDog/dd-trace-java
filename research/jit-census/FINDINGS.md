@@ -383,6 +383,12 @@ In priority order:
   Candidate: a rank-indexed dense layout (`bitCount(occupancy & (bit-1))`, a serial check, a lazily created eviction area
   for slot collisions; unslotted tags sent straight to the eviction area). Slots come from graph coloring, at most 63 global, so plain
   `values[slot]` would be too big. **On hold (Doug): still working out how FrozenTags, contributor masks and the store fit together; whether exact positioning is the right move is undecided, and no more churn to the dense store for now.**
+- **Benchmark results (Bits, Temurin 17, TraceShapeBenchmark, 2026-11-23):** the no-intercept specialization is
+  within noise in both stores (hash +4.0% / +1.9%, dense +3.0% / +0.6% at 5 / 20 children, CIs overlapping, B/op unchanged), so drop it
+  as a lever on its own. **Dense vs hash (`newApi`): +9.1% / +9.5% throughput (the 20-child CIs are disjoint), B/op −16% / −22%.** The dense store
+  goes on by default in #13514, so **dense-on is the baseline for future experiments.** The fused-run prototype (`setTagsNoIntercept`, one lock
+  per run) overlaps with #13030's lock coarsening in `setTagsFrom`. If fusion pays off, its target can be `setTagsFrom`'s path rather than
+  a separate bulk API, so plain `setTag` runs and contributors share one path.
 - **Validation for 3:** differential instrumentation tests (rewrite on/off); a benchmark with JFR `jdk.CompilerInlining`
   confirming "already compiled into a big method" disappears for `setTag` call sites.
 - Compiler-control notes: negative (`inline:-`) directives for our cold helpers are low-risk. Forced inlining can abort the
