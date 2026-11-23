@@ -1055,26 +1055,51 @@ public final class Hashtable {
   /**
    * Doubles {@code buckets} and relinks every entry into the new array, which the caller stores
    * back; {@code buckets} must not be used afterwards. The new array has the same component type,
-   * and it is the only allocation: entries move, they are not copied. For callers that own a bucket
-   * array and drive the static building blocks, whose array never grows on its own. If a {@link
-   * SizeManager} tracks the array, use {@link #resize(SizeManager, Hashtable.Entry[])}.
+   * and it is the only allocation: entries move, they are not copied, and each chain keeps its
+   * relative order. For callers that own a bucket array and drive the static building blocks, whose
+   * array never grows on its own. If a {@link SizeManager} tracks the array, use {@link
+   * #resize(SizeManager, Hashtable.Entry[])}.
    *
    * @throws IllegalStateException if {@code buckets} is already {@link #MAX_BUCKETS} long
    */
   @SuppressWarnings("unchecked")
   @Nonnull
   public static <TEntry extends Entry> TEntry[] resize(@Nonnull TEntry[] buckets) {
+    int oldLength = buckets.length;
     TEntry[] grown =
-        (TEntry[])
-            Array.newInstance(buckets.getClass().getComponentType(), grownLength(buckets.length));
-    for (TEntry head : buckets) {
-      Entry entry = head;
-      while (entry != null) {
-        // Read next before relinking: insertion overwrites it with the new bucket's chain.
-        Entry next = entry.next();
-        entry.setNext(null);
-        insertHeadEntryFor(grown, entry.keyHash, entry);
-        entry = next;
+        (TEntry[]) Array.newInstance(buckets.getClass().getComponentType(), grownLength(oldLength));
+    // Doubling a power-of-two array sends each entry of old bucket i to i (its hash bit for
+    // oldLength is 0) or i + oldLength (it is 1). Splitting every chain into those two keeps its
+    // order and writes the new array in sequence, instead of inserting each entry at a random head.
+    for (int i = 0; i < oldLength; i++) {
+      Entry loHead = null;
+      Entry loTail = null;
+      Entry hiHead = null;
+      Entry hiTail = null;
+      for (Entry entry = buckets[i]; entry != null; entry = entry.next()) {
+        if ((entry.keyHash & oldLength) == 0) {
+          if (loTail == null) {
+            loHead = entry;
+          } else {
+            loTail.setNext(entry);
+          }
+          loTail = entry;
+        } else {
+          if (hiTail == null) {
+            hiHead = entry;
+          } else {
+            hiTail.setNext(entry);
+          }
+          hiTail = entry;
+        }
+      }
+      if (loTail != null) {
+        loTail.setNext(null);
+        grown[i] = (TEntry) loHead;
+      }
+      if (hiTail != null) {
+        hiTail.setNext(null);
+        grown[i + oldLength] = (TEntry) hiHead;
       }
     }
     return grown;

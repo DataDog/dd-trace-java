@@ -471,6 +471,37 @@ class HashtableGrowthTest {
     }
 
     @Test
+    void resizeSplitsEachChainKeepingItsOrder() {
+      // At length 4, hashes 1, 5, 9, 13, 17, 21 share bucket 1. At length 8 they split: 1, 9, 17
+      // stay in bucket 1 and 5, 13, 21 move to bucket 5, each in the order the old chain had.
+      Hashtable.Entry[] buckets = Hashtable.create(4);
+      int[] hashes = {1, 5, 9, 13, 17, 21};
+      for (int h : hashes) {
+        CollidingKeyEntry e = new CollidingKeyEntry(new CollidingKey("h" + h, h), h);
+        Hashtable.insertHeadEntryFor(buckets, e.keyHash, e);
+      }
+      List<Integer> oldChain = chainValues(buckets[1]);
+      assertEquals(asList(21, 17, 13, 9, 5, 1), oldChain);
+
+      Hashtable.Entry[] grown = Hashtable.resize(buckets);
+      assertEquals(asList(17, 9, 1), chainValues(grown[1]));
+      assertEquals(asList(21, 13, 5), chainValues(grown[5]));
+      for (int i = 0; i < grown.length; i++) {
+        if (i != 1 && i != 5) {
+          assertNull(grown[i], "bucket " + i);
+        }
+      }
+    }
+
+    private List<Integer> chainValues(Hashtable.Entry head) {
+      List<Integer> values = new ArrayList<>();
+      for (Hashtable.Entry e = head; e != null; e = e.next()) {
+        values.add(((CollidingKeyEntry) e).value);
+      }
+      return values;
+    }
+
+    @Test
     void resizeKeepsATypedComponentType() {
       StringIntEntry[] buckets = Hashtable.create(StringIntEntry.class, 2);
       StringIntEntry a = new StringIntEntry("a", 1);
