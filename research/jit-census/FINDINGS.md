@@ -412,7 +412,9 @@ In priority order:
   The build checks that the run's keys have distinct slots; there's one capacity check for `used + n` (or a presize via the hint) and one mask OR; interception is
   `runMask & interceptedMask` (the bits fixed at build time fold away; split-by-tags is one runtime AND). The result is a loop-free bulk store path with a single growth check.
   It's the same mask contributor analysis produces, so fused runs and contributors share one bulk path. It needs a bulk append entry point on the store
-  (e.g. `storeAllAbsent`); the current fused benchmark measures only the setter side (one lock, one call per run).
+  (confirmed by Doug). Minimal sketch: `int reserveAbsent(long runMask, int level, int n)` (one presence test, one capacity check, OR the mask in, return
+  the start index or −1 on overlap so the caller falls back) plus `void appendAt(int index, char serial, Object value)`, an unchecked write made n times under the tag lock; no
+  varargs or `Object[]`, and the run's mask and serials fold as constants; the current fused benchmark measures only the setter side (one lock, one call per run).
 - **Validation for 3:** differential instrumentation tests (rewrite on/off); a benchmark with JFR `jdk.CompilerInlining`
   confirming "already compiled into a big method" disappears for `setTag` call sites.
 - Compiler-control notes: negative (`inline:-`) directives for our cold helpers are low-risk. Forced inlining can abort the
