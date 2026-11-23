@@ -1,9 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.api.KnownTags.AWS_RDS_ENDPOINT_TYPE;
-import static datadog.trace.api.KnownTags.AWS_RDS_IDENTIFIER;
-import static datadog.trace.api.KnownTags.AWS_REGION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RDS_TAGS_ENABLED;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -12,8 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import org.junit.jupiter.api.Test;
@@ -30,50 +28,47 @@ class AwsRdsEndpointTest {
 
   @TableTest({
     "scenario                        | hostname                                                                | identifier           | type           | region         ",
-    "instance                        | orders-db.c9akciq32bzq.us-east-1.rds.amazonaws.com                      | orders-db            | instance       | us-east-1      ",
-    "mixed case                      | Orders-DB.C9AKCIQ32BZQ.US-EAST-1.RDS.AMAZONAWS.COM                      | orders-db            | instance       | us-east-1      ",
-    "trailing dot                    | orders-db.c9akciq32bzq.us-east-1.rds.amazonaws.com.                     | orders-db            | instance       | us-east-1      ",
-    "port                            | orders-db.c9akciq32bzq.us-east-1.rds.amazonaws.com:5432                 | orders-db            | instance       | us-east-1      ",
-    "FQDN with port                  | orders-db.c9akciq32bzq.us-east-1.rds.amazonaws.com.:5432                | orders-db            | instance       | us-east-1      ",
-    "port with trailing dot          | orders-db.c9akciq32bzq.us-east-1.rds.amazonaws.com:5432.                | orders-db            | instance       | us-east-1      ",
-    "GovCloud instance               | orders-db.c9akciq32bzq.us-gov-west-1.rds.amazonaws.com                  | orders-db            | instance       | us-gov-west-1  ",
-    "ISO-E instance                  | orders-db.c9akciq32bzq.eu-isoe-west-1.rds.cloud.adc-e.uk                | orders-db            | instance       | eu-isoe-west-1 ",
-    "ISO-F instance                  | orders-db.c9akciq32bzq.us-isof-east-1.rds.csp.hci.ic.gov                | orders-db            | instance       | us-isof-east-1 ",
-    "ISO-F proxy                     | orders-proxy.proxy-c9akciq32bzq.us-isof-south-1.rds.csp.hci.ic.gov      | orders-proxy         | proxy          | us-isof-south-1",
-    "European sovereign instance     | orders-db.c9akciq32bzq.eusc-de-east-1.rds.amazonaws.eu                  | orders-db            | instance       | eusc-de-east-1 ",
-    "China service before region     | orders-db.c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn                  | orders-db            | instance       | cn-north-1     ",
-    "China region before service     | orders-db.c9akciq32bzq.cn-north-1.rds.amazonaws.com.cn                  | orders-db            | instance       | cn-north-1     ",
-    "China cluster                   | orders-aurora.cluster-c9akciq32bzq.cn-northwest-1.rds.amazonaws.com.cn  | orders-aurora        | cluster        | cn-northwest-1 ",
-    "ISO instance                    | orders-db.c9akciq32bzq.us-iso-east-1.rds.c2s.ic.gov                     | orders-db            | instance       | us-iso-east-1  ",
-    "ISO cluster reader              | orders-aurora.cluster-ro-c9akciq32bzq.us-iso-west-1.rds.c2s.ic.gov      | orders-aurora        | cluster-ro     | us-iso-west-1  ",
-    "ISO-B instance                  | orders-db.c9akciq32bzq.us-isob-east-1.rds.sc2s.sgov.gov                 | orders-db            | instance       | us-isob-east-1 ",
-    "ISO-B proxy                     | orders-proxy.proxy-c9akciq32bzq.us-isob-east-1.rds.sc2s.sgov.gov        | orders-proxy         | proxy          | us-isob-east-1 ",
-    "cluster                         | orders-aurora.cluster-c9akciq32bzq.us-west-2.rds.amazonaws.com          | orders-aurora        | cluster        | us-west-2      ",
-    "cluster reader                  | orders-aurora.cluster-ro-c9akciq32bzq.us-west-2.rds.amazonaws.com       | orders-aurora        | cluster-ro     | us-west-2      ",
-    "custom cluster                  | reporting.cluster-custom-c9akciq32bzq.us-west-2.rds.amazonaws.com       | reporting            | cluster-custom | us-west-2      ",
-    "proxy                           | orders-proxy.proxy-c9akciq32bzq.ap-southeast-2.rds.amazonaws.com        | orders-proxy         | proxy          | ap-southeast-2 ",
-    "custom proxy                    | orders-ro.endpoint.proxy-c9akciq32bzq.us-east-1.rds.amazonaws.com       | orders-ro            | proxy          | us-east-1      ",
-    "ISO custom proxy                | orders-ro.endpoint.proxy-c9akciq32bzq.us-iso-east-1.rds.c2s.ic.gov      | orders-ro            | proxy          | us-iso-east-1  ",
-    "China custom proxy              | orders-ro.endpoint.proxy-c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn   | orders-ro            | proxy          | cn-north-1     ",
-    "Limitless cluster               | my-limitless-cluster.limitless-ccetp2abcdef.us-east-1.rds.amazonaws.com | my-limitless-cluster | limitless      | us-east-1      ",
-    "shard group                     | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com                | orders               | shardgrp       | us-east-1      ",
-    "uppercase shard group           | ORDERS.SHARDGRP-C9AKCIQ32BZQ.US-EAST-1.RDS.AMAZONAWS.COM                | orders               | shardgrp       | us-east-1      ",
-    "shard group trailing dot        | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com.               | orders               | shardgrp       | us-east-1      ",
-    "shard group port                | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com:5432           | orders               | shardgrp       | us-east-1      ",
-    "GovCloud shard group            | orders.shardgrp-c9akciq32bzq.us-gov-west-1.rds.amazonaws.com            | orders               | shardgrp       | us-gov-west-1  ",
-    "China shard group service first | orders.shardgrp-c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn            | orders               | shardgrp       | cn-north-1     ",
-    "China shard group region first  | orders.shardgrp-c9akciq32bzq.cn-north-1.rds.amazonaws.com.cn            | orders               | shardgrp       | cn-north-1     "
+    "instance                        | orders-db.c9akciq32bzq.us-east-1.rds.amazonaws.com                      | orders-db            | INSTANCE       | us-east-1      ",
+    "mixed case                      | Orders-DB.C9AKCIQ32BZQ.US-EAST-1.RDS.AMAZONAWS.COM                      | orders-db            | INSTANCE       | us-east-1      ",
+    "trailing dot                    | orders-db.c9akciq32bzq.us-east-1.rds.amazonaws.com.                     | orders-db            | INSTANCE       | us-east-1      ",
+    "port                            | orders-db.c9akciq32bzq.us-east-1.rds.amazonaws.com:5432                 | orders-db            | INSTANCE       | us-east-1      ",
+    "trailing dot and port           | orders-db.c9akciq32bzq.us-east-1.rds.amazonaws.com.:5432                | orders-db            | INSTANCE       | us-east-1      ",
+    "GovCloud instance               | orders-db.c9akciq32bzq.us-gov-west-1.rds.amazonaws.com                  | orders-db            | INSTANCE       | us-gov-west-1  ",
+    "ISO-E instance                  | orders-db.c9akciq32bzq.eu-isoe-west-1.rds.cloud.adc-e.uk                | orders-db            | INSTANCE       | eu-isoe-west-1 ",
+    "ISO-F instance                  | orders-db.c9akciq32bzq.us-isof-east-1.rds.csp.hci.ic.gov                | orders-db            | INSTANCE       | us-isof-east-1 ",
+    "ISO-F proxy                     | orders-proxy.proxy-c9akciq32bzq.us-isof-south-1.rds.csp.hci.ic.gov      | orders-proxy         | PROXY          | us-isof-south-1",
+    "European sovereign instance     | orders-db.c9akciq32bzq.eusc-de-east-1.rds.amazonaws.eu                  | orders-db            | INSTANCE       | eusc-de-east-1 ",
+    "China service before region     | orders-db.c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn                  | orders-db            | INSTANCE       | cn-north-1     ",
+    "China region before service     | orders-db.c9akciq32bzq.cn-north-1.rds.amazonaws.com.cn                  | orders-db            | INSTANCE       | cn-north-1     ",
+    "China cluster                   | orders-aurora.cluster-c9akciq32bzq.cn-northwest-1.rds.amazonaws.com.cn  | orders-aurora        | CLUSTER        | cn-northwest-1 ",
+    "ISO instance                    | orders-db.c9akciq32bzq.us-iso-east-1.rds.c2s.ic.gov                     | orders-db            | INSTANCE       | us-iso-east-1  ",
+    "ISO cluster reader              | orders-aurora.cluster-ro-c9akciq32bzq.us-iso-west-1.rds.c2s.ic.gov      | orders-aurora        | CLUSTER_READER | us-iso-west-1  ",
+    "ISO-B instance                  | orders-db.c9akciq32bzq.us-isob-east-1.rds.sc2s.sgov.gov                 | orders-db            | INSTANCE       | us-isob-east-1 ",
+    "ISO-B proxy                     | orders-proxy.proxy-c9akciq32bzq.us-isob-east-1.rds.sc2s.sgov.gov        | orders-proxy         | PROXY          | us-isob-east-1 ",
+    "cluster                         | orders-aurora.cluster-c9akciq32bzq.us-west-2.rds.amazonaws.com          | orders-aurora        | CLUSTER        | us-west-2      ",
+    "cluster reader                  | orders-aurora.cluster-ro-c9akciq32bzq.us-west-2.rds.amazonaws.com       | orders-aurora        | CLUSTER_READER | us-west-2      ",
+    "custom cluster                  | reporting.cluster-custom-c9akciq32bzq.us-west-2.rds.amazonaws.com       | reporting            | CLUSTER_CUSTOM | us-west-2      ",
+    "proxy                           | orders-proxy.proxy-c9akciq32bzq.ap-southeast-2.rds.amazonaws.com        | orders-proxy         | PROXY          | ap-southeast-2 ",
+    "custom proxy                    | orders-ro.endpoint.proxy-c9akciq32bzq.us-east-1.rds.amazonaws.com       | orders-ro            | PROXY          | us-east-1      ",
+    "ISO custom proxy                | orders-ro.endpoint.proxy-c9akciq32bzq.us-iso-east-1.rds.c2s.ic.gov      | orders-ro            | PROXY          | us-iso-east-1  ",
+    "China custom proxy              | orders-ro.endpoint.proxy-c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn   | orders-ro            | PROXY          | cn-north-1     ",
+    "Limitless cluster               | my-limitless-cluster.limitless-ccetp2abcdef.us-east-1.rds.amazonaws.com | my-limitless-cluster | LIMITLESS      | us-east-1      ",
+    "shard group                     | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com                | orders               | SHARD_GROUP    | us-east-1      ",
+    "uppercase shard group           | ORDERS.SHARDGRP-C9AKCIQ32BZQ.US-EAST-1.RDS.AMAZONAWS.COM                | orders               | SHARD_GROUP    | us-east-1      ",
+    "shard group trailing dot        | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com.               | orders               | SHARD_GROUP    | us-east-1      ",
+    "shard group port                | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com:5432           | orders               | SHARD_GROUP    | us-east-1      ",
+    "uppercase Limitless cluster     | MY-LIMITLESS-CLUSTER.LIMITLESS-CCETP2ABCDEF.US-EAST-1.RDS.AMAZONAWS.COM | my-limitless-cluster | LIMITLESS      | us-east-1      ",
+    "GovCloud shard group            | orders.shardgrp-c9akciq32bzq.us-gov-west-1.rds.amazonaws.com            | orders               | SHARD_GROUP    | us-gov-west-1  ",
+    "China shard group service first | orders.shardgrp-c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn            | orders               | SHARD_GROUP    | cn-north-1     ",
+    "China shard group region first  | orders.shardgrp-c9akciq32bzq.cn-north-1.rds.amazonaws.com.cn            | orders               | SHARD_GROUP    | cn-north-1     "
   })
-  void parsesRdsEndpoint(String hostname, String identifier, String type, String region) {
+  void parsesRdsEndpoint(
+      String hostname, String identifier, AwsRdsEndpoint.Type type, String region) {
     AwsRdsEndpoint endpoint = AwsRdsEndpoint.parse(hostname);
     assertNotNull(endpoint);
-    AgentSpan span = mock(AgentSpan.class);
-
-    endpoint.addTo(span);
-
-    verify(span).setTag(AWS_RDS_IDENTIFIER, identifier);
-    verify(span).setTag(AWS_RDS_ENDPOINT_TYPE, type);
-    verify(span).setTag(AWS_REGION, region);
+    assertEquals(identifier, endpoint.identifier());
+    assertEquals(type, endpoint.type());
+    assertEquals(region, endpoint.region());
   }
 
   @ParameterizedTest(name = "rejects {0}")
@@ -86,8 +81,6 @@ class AwsRdsEndpointTest {
         "orders-db.rds.amazonaws.com",
         "c9akciq32bzq.us-east-1.rds.amazonaws.com",
         "orders-db.c9akciq32bzq.us-east-1.rds.amazonaws.com.evil.example",
-        RDS + "..",
-        RDS + "..:5432",
         "orders-db.not_a_hash!.us-east-1.rds.amazonaws.com",
         "orders-db.c9akciq32bzq.useast1.rds.amazonaws.com",
         "orders-db.c9akciq32bzq.us-east.rds.amazonaws.com",
@@ -117,6 +110,76 @@ class AwsRdsEndpointTest {
     assertNull(AwsRdsEndpoint.parse(hostname));
   }
 
+  @TableTest({
+    "scenario       | hostname                                                        | identifierTag        | identifier | endpointType  ",
+    "instance       | orders.c9akciq32bzq.us-east-1.rds.amazonaws.com                 | dbinstanceidentifier | orders     | instance      ",
+    "cluster        | orders.cluster-c9akciq32bzq.us-east-1.rds.amazonaws.com         | dbclusteridentifier  | orders     | cluster       ",
+    "cluster reader | orders.cluster-ro-c9akciq32bzq.us-east-1.rds.amazonaws.com      | dbclusteridentifier  | orders     | cluster-ro    ",
+    "custom cluster | reports.cluster-custom-c9akciq32bzq.us-east-1.rds.amazonaws.com | aws.rds.identifier   | reports    | cluster-custom",
+    "proxy          | orders.proxy-c9akciq32bzq.us-east-1.rds.amazonaws.com           | aws.rds.identifier   | orders     | proxy         ",
+    "shard group    | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com        | aws.rds.identifier   | orders     | shardgrp      ",
+    "limitless      | orders.limitless-c9akciq32bzq.us-east-1.rds.amazonaws.com       | dbclusteridentifier  | orders     | limitless     "
+  })
+  void addsIdentityTagsToSpan(
+      String hostname, String identifierTag, String identifier, String endpointType) {
+    NameKeyedAgentSpan span = mock(NameKeyedAgentSpan.class);
+
+    span.setTagsFrom(AwsRdsEndpoint.parse(hostname));
+
+    verify(span).setTag(identifierTag, identifier);
+    verify(span).setTag("aws.rds.endpoint_type", endpointType);
+    verify(span).setTag("aws.region", "us-east-1");
+    verifyNoMoreInteractions(span);
+  }
+
+  @TableTest({
+    "scenario     | hostname                                                ",
+    "global       | orders.global-g2zn7e8kp7h0.global.rds.amazonaws.com     ",
+    "upper case   | ORDERS.GLOBAL-G2ZN7E8KP7H0.GLOBAL.RDS.AMAZONAWS.COM     ",
+    "trailing dot | orders.global-g2zn7e8kp7h0.global.rds.amazonaws.com.    ",
+    "port         | orders.global-g2zn7e8kp7h0.global.rds.amazonaws.com:5432"
+  })
+  void parsesGlobalWriterEndpointWithoutRegion(String hostname) {
+    AwsRdsEndpoint endpoint = AwsRdsEndpoint.parse(hostname);
+
+    assertNotNull(endpoint);
+    assertEquals("orders", endpoint.identifier());
+    assertEquals(AwsRdsEndpoint.Type.GLOBAL_WRITER, endpoint.type());
+    assertNull(endpoint.region());
+  }
+
+  @ParameterizedTest(name = "rejects global-like {0}")
+  @ValueSource(
+      strings = {
+        "orders.global-ab.global.rds.amazonaws.com",
+        "orders.g2zn7e8kp7h0.global.rds.amazonaws.com",
+        ".global-g2zn7e8kp7h0.global.rds.amazonaws.com",
+        "orders.global-g2zn7e8kp7h0.global.rds.amazonaws.com.cn.example"
+      })
+  void rejectsMalformedGlobalWriterEndpoints(String hostname) {
+    assertNull(AwsRdsEndpoint.parse(hostname));
+  }
+
+  @Test
+  void globalWriterEndpointOmitsRegionTag() {
+    NameKeyedAgentSpan span = mock(NameKeyedAgentSpan.class);
+
+    span.setTagsFrom(AwsRdsEndpoint.parse("orders.global-g2zn7e8kp7h0.global.rds.amazonaws.com"));
+
+    verify(span).setTag("aws.rds.identifier", "orders");
+    verify(span).setTag("aws.rds.endpoint_type", "global");
+    verifyNoMoreInteractions(span);
+  }
+
+  @Test
+  void addsNothingForNonRdsHostnames() {
+    NameKeyedAgentSpan span = mock(NameKeyedAgentSpan.class);
+
+    span.setTagsFrom(AwsRdsEndpoint.parse("db.internal.example.com"));
+
+    verifyNoMoreInteractions(span);
+  }
+
   @Test
   void cachesParsedEndpointsPerHostname() {
     assertSame(AwsRdsEndpoint.parse(RDS), AwsRdsEndpoint.parse(RDS));
@@ -138,8 +201,8 @@ class AwsRdsEndpointTest {
         RDS,
         RDS + ".",
         RDS + ":5432",
-        RDS + ".:5432",
         RDS + ":5432.",
+        RDS + ".:5432",
         "orders-db.c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn",
         "orders-db.c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn.",
         "orders-db.c9akciq32bzq.rds.cn-north-1.amazonaws.com.cn:3306",
@@ -170,15 +233,15 @@ class AwsRdsEndpointTest {
         // ".amazonaws.com" present but not the suffix: rejected before the cache
         "orders-db.c9akciq32bzq.us-east-1.rds.amazonaws.com.evil.example",
         "orders-db.c9akciq32bzq.us-east-1.rds.amazonaws.com.cn.evil.example",
-        RDS + "..",
-        RDS + "..:5432",
-        ":5432",
         // ISO suffixes present but followed by further labels: rejected before the cache
         "orders-db.c9akciq32bzq.us-iso-east-1.rds.c2s.ic.gov.evil.example",
         "orders-db.c9akciq32bzq.us-isob-east-1.rds.sc2s.sgov.gov.evil.example",
         "orders-db.c9akciq32bzq.eu-isoe-west-1.rds.cloud.adc-e.uk.evil.example",
         "orders-db.c9akciq32bzq.us-isof-east-1.rds.csp.hci.ic.gov.evil.example",
         "orders-db.c9akciq32bzq.eusc-de-east-1.rds.amazonaws.eu.evil.example",
+        // one trailing dot at most, on either side of the port
+        RDS + "..",
+        RDS + "..:5432",
         // port must be all digits and at most five of them
         RDS + ":54x2",
         RDS + ":543210",

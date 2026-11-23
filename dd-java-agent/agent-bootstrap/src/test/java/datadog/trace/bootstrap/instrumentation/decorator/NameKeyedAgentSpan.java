@@ -13,13 +13,13 @@ import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
  */
 public abstract class NameKeyedAgentSpan implements AgentSpan {
   @Override
-  public final AgentSpan setTagsFrom(TagContributor contributor) {
-    return AgentSpan.super.setTagsFrom(contributor);
+  public final <T> AgentSpan setTagsFrom(T source, TagExtractor<T> extractor) {
+    return AgentSpan.super.setTagsFrom(source, extractor);
   }
 
   @Override
-  public final <T> AgentSpan setTagsFrom(T source, TagExtractor<T> extractor) {
-    return AgentSpan.super.setTagsFrom(source, extractor);
+  public final AgentSpan setTagsFrom(TagContributor contributor) {
+    return AgentSpan.super.setTagsFrom(contributor);
   }
 
   @Override

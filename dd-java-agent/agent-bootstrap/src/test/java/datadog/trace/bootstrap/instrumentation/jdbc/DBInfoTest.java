@@ -1,6 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.jdbc;
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.RDS_TAGS_ENABLED;
+import static datadog.trace.bootstrap.instrumentation.decorator.AwsRdsEndpoint.Type.CLUSTER;
+import static datadog.trace.bootstrap.instrumentation.decorator.AwsRdsEndpoint.Type.INSTANCE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -25,7 +27,9 @@ class DBInfoTest {
 
     AwsRdsEndpoint endpoint = info.getRdsEndpoint();
     assertNotNull(endpoint);
-    assertSame(AwsRdsEndpoint.parse(CLUSTER_HOST), endpoint);
+    assertEquals("orders", endpoint.identifier());
+    assertEquals(CLUSTER, endpoint.type());
+    assertEquals("us-east-1", endpoint.region());
     // resolved once at construction, so every read returns the same instance
     assertSame(endpoint, info.getRdsEndpoint());
   }
@@ -64,7 +68,8 @@ class DBInfoTest {
     DBInfo other = info.toBuilder().host("db.example.com").build();
 
     assertNotNull(instance.getRdsEndpoint());
-    assertSame(AwsRdsEndpoint.parse(INSTANCE_HOST), instance.getRdsEndpoint());
+    assertEquals("orders-1", instance.getRdsEndpoint().identifier());
+    assertEquals(INSTANCE, instance.getRdsEndpoint().type());
     assertNull(other.getRdsEndpoint());
   }
 

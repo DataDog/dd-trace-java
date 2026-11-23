@@ -76,21 +76,12 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
       CharSequence hostName = dbHostname(connection);
       if (hostName != null) {
         span.setTag(PEER_HOSTNAME, hostName);
-        span.setTagsFrom(rdsEndpoint(connection, hostName));
 
         if (Config.get().isDbClientSplitByHost()) {
           span.setServiceName(hostName.toString(), DB_CLIENT_SPLIT_BY_HOST);
         }
       }
     }
-  }
-
-  /**
-   * Returns the Amazon RDS endpoint for this connection, or {@code null} by default. SQL decorators
-   * opt in by parsing the hostname or returning an endpoint retained in connection metadata.
-   */
-  protected AwsRdsEndpoint rdsEndpoint(final CONNECTION connection, final CharSequence hostname) {
-    return null;
   }
 
   protected void onInstance(final AgentSpan span, final String dbInstance) {

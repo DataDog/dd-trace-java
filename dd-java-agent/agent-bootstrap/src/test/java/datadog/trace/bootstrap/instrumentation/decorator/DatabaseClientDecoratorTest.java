@@ -1,33 +1,23 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.appsec.api.blocking.BlockingContentType.AUTO;
-import static datadog.trace.api.KnownTags.AWS_RDS_ENDPOINT_TYPE_NAME;
-import static datadog.trace.api.KnownTags.AWS_RDS_IDENTIFIER_NAME;
-import static datadog.trace.api.KnownTags.AWS_REGION_NAME;
-import static datadog.trace.api.KnownTags.DBCLUSTERIDENTIFIER_NAME;
-import static datadog.trace.api.KnownTags.DBINSTANCEIDENTIFIER_NAME;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
-import static datadog.trace.api.config.TraceInstrumentationConfig.RDS_TAGS_ENABLED;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_INSTANCE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_USER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.PEER_HOSTNAME;
 import static datadog.trace.bootstrap.instrumentation.decorator.ExpectedSpanState.expectedSpan;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_MOCKS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
@@ -42,9 +32,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.test.junit.utils.config.WithConfig;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -156,146 +144,6 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
   }
 
   @TableTest({
-    "scenario          | hostname                                                                | identifier           | endpointType   | instanceIdentifier | clusterIdentifier   ",
-    "instance          | orders.c9akciq32bzq.us-east-1.rds.amazonaws.com                         | orders               | instance       | orders             |                     ",
-    "cluster           | orders.cluster-c9akciq32bzq.us-east-1.rds.amazonaws.com                 | orders               | cluster        |                    | orders              ",
-    "cluster reader    | orders.cluster-ro-c9akciq32bzq.us-east-1.rds.amazonaws.com              | orders               | cluster-ro     |                    | orders              ",
-    "cluster custom    | reports.cluster-custom-c9akciq32bzq.us-east-1.rds.amazonaws.com         | reports              | cluster-custom |                    |                     ",
-    "proxy             | orders.proxy-c9akciq32bzq.us-east-1.rds.amazonaws.com                   | orders               | proxy          |                    |                     ",
-    "shard group       | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com                | orders               | shardgrp       |                    |                     ",
-    "Limitless cluster | my-limitless-cluster.limitless-ccetp2abcdef.us-east-1.rds.amazonaws.com | my-limitless-cluster | limitless      |                    | my-limitless-cluster"
-  })
-  void testOnConnectionTagsRdsEndpointIdentity(
-      String hostname,
-      String identifier,
-      String endpointType,
-      String instanceIdentifier,
-      String clusterIdentifier) {
-    DatabaseClientDecorator<Map<String, String>> decorator = newRdsDecorator();
-    Map<String, String> session = new HashMap<>();
-    session.put("user", "test-user");
-    session.put("hostname", hostname);
-
-    // when
-    decorator.onConnection(span, session);
-
-    // then
-    verify(span).setTag(DB_USER, "test-user");
-    verify(span).setTag(PEER_HOSTNAME, (CharSequence) hostname);
-    verify(span).setTag(AWS_RDS_IDENTIFIER_NAME, identifier);
-    verify(span).setTag(AWS_RDS_ENDPOINT_TYPE_NAME, endpointType);
-    verify(span).setTag(AWS_REGION_NAME, "us-east-1");
-    if (instanceIdentifier != null) {
-      verify(span).setTag(DBINSTANCEIDENTIFIER_NAME, instanceIdentifier);
-    }
-    if (clusterIdentifier != null) {
-      verify(span).setTag(DBCLUSTERIDENTIFIER_NAME, clusterIdentifier);
-    }
-    verifyNoMoreInteractions(span);
-  }
-
-  @Test
-  void testOnConnectionLeavesNonRdsHostnameUntagged() {
-    DatabaseClientDecorator<Map<String, String>> decorator = newRdsDecorator();
-    Map<String, String> session = new HashMap<>();
-    session.put("user", "test-user");
-    session.put("hostname", "db.internal.example.com");
-
-    // when
-    decorator.onConnection(span, session);
-
-    // then
-    verify(span).setTag(DB_USER, "test-user");
-    verify(span).setTag(PEER_HOSTNAME, (CharSequence) "db.internal.example.com");
-    verifyNoMoreInteractions(span);
-  }
-
-  @Test
-  void testDefaultRdsLookupDoesNotInspectHostname() {
-    CharSequence hostname = mock(CharSequence.class);
-
-    assertNull(newDecorator().rdsEndpoint(new HashMap<>(), hostname));
-
-    verifyNoInteractions(hostname);
-  }
-
-  @Test
-  void testOnConnectionTagsEndpointFromLookupHook() {
-    AwsRdsEndpoint cached =
-        AwsRdsEndpoint.parse("orders.cluster-c9akciq32bzq.us-west-2.rds.amazonaws.com");
-    Map<String, String> session = new HashMap<>();
-    session.put("user", "test-user");
-    session.put("hostname", "db.internal.example.com");
-    AtomicReference<Map<String, String>> lookedUpConnection = new AtomicReference<>();
-    AtomicReference<CharSequence> lookedUpHostname = new AtomicReference<>();
-    DatabaseClientDecorator<Map<String, String>> decorator =
-        new TestDatabaseClientDecorator("test-service") {
-          @Override
-          protected AwsRdsEndpoint rdsEndpoint(
-              Map<String, String> connection, CharSequence hostname) {
-            lookedUpConnection.set(connection);
-            lookedUpHostname.set(hostname);
-            return cached;
-          }
-        };
-
-    // when
-    decorator.onConnection(span, session);
-
-    // then
-    assertSame(session, lookedUpConnection.get());
-    assertEquals("db.internal.example.com", lookedUpHostname.get());
-    verify(span).setTag(DB_USER, "test-user");
-    verify(span).setTag(PEER_HOSTNAME, (CharSequence) "db.internal.example.com");
-    verify(span).setTag(AWS_RDS_IDENTIFIER_NAME, "orders");
-    verify(span).setTag(AWS_RDS_ENDPOINT_TYPE_NAME, "cluster");
-    verify(span).setTag(AWS_REGION_NAME, "us-west-2");
-    verify(span).setTag(DBCLUSTERIDENTIFIER_NAME, "orders");
-    verifyNoMoreInteractions(span);
-  }
-
-  @Test
-  @WithConfig(key = RDS_TAGS_ENABLED, value = "false")
-  void testOnConnectionLeavesRdsHostnameUntaggedWhenDisabled() {
-    String hostname = "orders.c9akciq32bzq.us-east-1.rds.amazonaws.com";
-    Map<String, String> session = new HashMap<>();
-    session.put("user", "test-user");
-    session.put("instance", "test-instance");
-    session.put("hostname", hostname);
-
-    newRdsDecorator().onConnection(span, session);
-
-    verify(span).setTag(DB_USER, "test-user");
-    verify(span).setTag(DB_INSTANCE, "test-instance");
-    verify(span).setTag(PEER_HOSTNAME, (CharSequence) hostname);
-    verifyNoMoreInteractions(span);
-  }
-
-  @Test
-  void testOnConnectionSkipsRdsTagsWhenLookupHookFindsNone() {
-    String hostname = "orders.c9akciq32bzq.us-east-1.rds.amazonaws.com";
-    Map<String, String> session = new HashMap<>();
-    session.put("user", "test-user");
-    session.put("hostname", hostname);
-    DatabaseClientDecorator<Map<String, String>> decorator =
-        new TestDatabaseClientDecorator("test-service") {
-          @Override
-          protected AwsRdsEndpoint rdsEndpoint(
-              Map<String, String> connection, CharSequence hostname) {
-            return null;
-          }
-        };
-
-    // when
-    decorator.onConnection(span, session);
-
-    // then
-    verify(span).setTag(DB_USER, "test-user");
-    verify(span).setTag(PEER_HOSTNAME, (CharSequence) hostname);
-    verifyNoMoreInteractions(span);
-  }
-
-  @TableTest({
     "scenario  | statement   ",
     "null      |             ",
     "empty     | ''          ",
@@ -362,69 +210,51 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
 
   @Override
   protected DatabaseClientDecorator<Map<String, String>> newDecorator(String serviceName) {
-    return new TestDatabaseClientDecorator(serviceName);
-  }
-
-  private DatabaseClientDecorator<Map<String, String>> newRdsDecorator() {
-    return new TestDatabaseClientDecorator("test-service") {
+    return new DatabaseClientDecorator<Map<String, String>>() {
       @Override
-      protected AwsRdsEndpoint rdsEndpoint(Map<String, String> connection, CharSequence hostname) {
-        return AwsRdsEndpoint.parse(hostname);
+      protected String[] instrumentationNames() {
+        return new String[] {"test1", "test2"};
+      }
+
+      @Override
+      protected String service() {
+        return serviceName;
+      }
+
+      @Override
+      protected CharSequence component() {
+        return "test-component";
+      }
+
+      @Override
+      protected CharSequence spanType() {
+        return "test-type";
+      }
+
+      @Override
+      protected String dbType() {
+        return "test-db";
+      }
+
+      @Override
+      protected String dbUser(Map<String, String> map) {
+        return map.get("user");
+      }
+
+      @Override
+      protected String dbInstance(Map<String, String> map) {
+        return map.get("instance");
+      }
+
+      @Override
+      protected String dbHostname(Map<String, String> map) {
+        return map.get("hostname");
+      }
+
+      @Override
+      protected boolean traceAnalyticsDefault() {
+        return true;
       }
     };
-  }
-
-  private static class TestDatabaseClientDecorator
-      extends DatabaseClientDecorator<Map<String, String>> {
-    private final String serviceName;
-
-    TestDatabaseClientDecorator(String serviceName) {
-      this.serviceName = serviceName;
-    }
-
-    @Override
-    protected String[] instrumentationNames() {
-      return new String[] {"test1", "test2"};
-    }
-
-    @Override
-    protected String service() {
-      return serviceName;
-    }
-
-    @Override
-    protected CharSequence component() {
-      return "test-component";
-    }
-
-    @Override
-    protected CharSequence spanType() {
-      return "test-type";
-    }
-
-    @Override
-    protected String dbType() {
-      return "test-db";
-    }
-
-    @Override
-    protected String dbUser(Map<String, String> map) {
-      return map.get("user");
-    }
-
-    @Override
-    protected String dbInstance(Map<String, String> map) {
-      return map.get("instance");
-    }
-
-    @Override
-    protected String dbHostname(Map<String, String> map) {
-      return map.get("hostname");
-    }
-
-    @Override
-    protected boolean traceAnalyticsDefault() {
-      return true;
-    }
   }
 }
