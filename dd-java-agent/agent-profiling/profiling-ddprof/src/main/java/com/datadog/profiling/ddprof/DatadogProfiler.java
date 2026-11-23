@@ -49,8 +49,10 @@ import com.datadoghq.profiler.JavaProfiler;
 import com.datadoghq.profiler.TaskBlockBridge;
 import datadog.environment.JavaVirtualMachine;
 import datadog.libs.ddprof.DdprofLibraryLoader;
+import datadog.trace.api.Config;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.RecordingData;
+import datadog.trace.api.profiling.TaskBlockInstrumentationConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.TaskWrapper;
 import datadog.trace.util.Strings;
@@ -241,7 +243,8 @@ public final class DatadogProfiler {
     this.profilerOptions = getProfilerOptions(configProvider);
     warnIfProfilerOptionsConfigured(log, profilerOptions);
     this.profiler = DdprofLibraryLoader.javaProfiler().getComponent();
-    this.taskBlockBridge = new TaskBlockBridge(profiler);
+    this.taskBlockBridge =
+        new TaskBlockBridge(profiler, reason -> warnTaskBlockUnsupported(log, reason));
     this.detailedDebugLogging =
         configProvider.getBoolean(
             PROFILING_DETAILED_DEBUG_LOGGING, PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT);
@@ -249,6 +252,9 @@ public final class DatadogProfiler {
     if (reasonNotLoaded != null) {
       throw new UnsupportedOperationException(
           "Unable to instantiate datadog profiler", reasonNotLoaded);
+    }
+    if (TaskBlockInstrumentationConfig.isEnabled(Config.get(), configProvider)) {
+      taskBlockBridge.reportIfUnsupported();
     }
 
     // TODO enable/disable events by name (e.g. datadog.ExecutionSample), not flag, so configuration
@@ -596,6 +602,11 @@ public final class DatadogProfiler {
   private static String normalizeProfilerOption(String name, String option) {
     int equals = option.indexOf('=');
     return equals < 0 ? name : name + '=' + option.substring(equals + 1).trim();
+  }
+
+  /** Surfaces a disabled TaskBlock bridge locally and through telemetry logs. */
+  static void warnTaskBlockUnsupported(Logger logger, String reason) {
+    logger.warn(SEND_TELEMETRY, reason);
   }
 
   static void warnIfProfilerOptionsConfigured(Logger logger, String configuredOptions) {

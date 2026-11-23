@@ -27,6 +27,16 @@ if (ddprofVersion?.endsWith('-SNAPSHOT')) {
   }
 }
 
+// The last ddprof release without the TaskBlock API, resolved outside the locked and overridable
+// configurations so TaskBlockBridgeCompatibilityTest keeps exercising it after the pin moves.
+def legacyDdprof = configurations.detachedConfiguration(dependencies.create('com.datadoghq:ddprof:1.52.1'))
+legacyDdprof.transitive = false
+
+tasks.named("test", Test) {
+  inputs.files(legacyDdprof).withPropertyName('legacyDdprof').withNormalizer(ClasspathNormalizer)
+  jvmArgumentProviders.add({ ["-Dtest.ddprof.legacy.jar=${legacyDdprof.singleFile}"] } as CommandLineArgumentProvider)
+}
+
 tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
   exclude '**/*.debug'

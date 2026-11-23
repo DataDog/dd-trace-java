@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.datadog.profiling.utils.ProfilingMode;
+import com.datadoghq.profiler.TaskBlockBridge;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -148,6 +149,15 @@ class DatadogProfilerConfigTest {
     DatadogProfiler.warnIfProfilerOptionsConfigured(logger, "cpu=7m");
 
     verify(logger).warn(SEND_TELEMETRY, DatadogProfiler.PROFILER_OPTIONS_WARNING);
+  }
+
+  @Test
+  void taskBlockUnsupportedWarningIsMarkedForTelemetry() {
+    Logger logger = mock(Logger.class);
+
+    DatadogProfiler.warnTaskBlockUnsupported(logger, TaskBlockBridge.MISSING_HOOKS);
+
+    verify(logger).warn(SEND_TELEMETRY, TaskBlockBridge.MISSING_HOOKS);
   }
 
   private static Stream<Arguments> profilerOptionMergeCases() {

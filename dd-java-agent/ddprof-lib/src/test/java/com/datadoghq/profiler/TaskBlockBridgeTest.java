@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import datadog.libs.ddprof.DdprofLibraryLoader;
@@ -24,9 +25,11 @@ class TaskBlockBridgeTest {
     JavaProfiler profiler = DdprofLibraryLoader.javaProfiler().getComponent();
     assumeTrue(profiler != null, "Profiler native library not available");
 
-    TaskBlockBridge bridge = new TaskBlockBridge(profiler);
+    TaskBlockBridge bridge =
+        new TaskBlockBridge(profiler, reason -> fail("Unexpected TaskBlock report: " + reason));
     assertTrue(bridge.hasParkSupport());
     assertTrue(bridge.hasSynchronousTaskBlockSupport());
+    bridge.reportIfUnsupported();
     assertTrue(bridge.parkEnter());
     try {
       assertFalse(bridge.parkEnter());
