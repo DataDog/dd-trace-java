@@ -93,16 +93,28 @@ public class KafkaConfigHelper {
 
   /** Store a producer config to be reported once the cluster ID is known from metadata. */
   public static void storePendingProducerConfig(MetadataState state, Map<String, String> config) {
-    state.setPendingConfig(new PendingConfig("kafka_producer", "", config));
-    log.debug("Stored pending producer config (cluster ID not yet known)");
+    storePendingConfig(state, new PendingConfig("kafka_producer", "", config));
   }
 
   /** Store a consumer config to be reported once the cluster ID is known from metadata. */
   public static void storePendingConsumerConfig(
       MetadataState state, String consumerGroup, Map<String, String> config) {
-    state.setPendingConfig(
+    storePendingConfig(
+        state,
         new PendingConfig("kafka_consumer", consumerGroup != null ? consumerGroup : "", config));
-    log.debug("Stored pending consumer config (cluster ID not yet known)");
+  }
+
+  // The client's network thread starts inside its constructor, so a metadata update can record the
+  // cluster ID before the constructor advice stores the config. Report it right away then; the
+  // atomic take in reportPendingConfig makes sure only one of the two threads reports it.
+  private static void storePendingConfig(MetadataState state, PendingConfig config) {
+    state.setPendingConfig(config);
+    String clusterId = state.clusterId;
+    if (clusterId != null) {
+      reportPendingConfig(state, clusterId);
+    } else {
+      log.debug("Stored pending {} config (cluster ID not yet known)", config.type);
+    }
   }
 
   public static boolean reportConsumerGroupMember(
