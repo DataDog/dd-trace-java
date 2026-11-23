@@ -1,8 +1,8 @@
 _v: 1
 name: finatra
-display_name: finatra-http
-description: Instruments Finatra HTTP route handlers, including route attribution and asynchronous response completion
-  and errors.
+display_name: Finatra
+description: Instruments Finatra HTTP route handling by creating asynchronous controller spans and enriching enclosing server
+  request spans.
 packages:
 - name: com.twitter:finatra-http_2.11
 - name: com.twitter:finatra-http_2.12

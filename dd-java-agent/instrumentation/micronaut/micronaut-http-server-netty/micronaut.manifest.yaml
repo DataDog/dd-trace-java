@@ -1,8 +1,7 @@
 _v: 1
 name: micronaut
 display_name: Micronaut Framework
-description: Instruments Micronaut HTTP controller request handling, routing, response completion, and errors, with
-  controller code-origin capture.
+description: Instruments inbound HTTP requests handled by Micronaut Netty server routes.
 packages:
 - name: io.micronaut:micronaut-http-server-netty
 category:

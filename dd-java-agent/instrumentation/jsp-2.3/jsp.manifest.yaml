@@ -1,8 +1,7 @@
 _v: 1
 name: jsp
 display_name: Jasper
-description: Instruments JSP page rendering and Jasper template compilation, including template attribution and
-  errors.
+description: Instruments Jasper JSP rendering and compilation.
 packages:
 - name: org.apache.tomcat:tomcat-jasper
 category:
