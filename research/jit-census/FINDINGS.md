@@ -407,6 +407,12 @@ In priority order:
   Seed #13513's `SizingHint` with it via the `SpanPrototype` (e.g. `initExpectedTags(n)`, generated or declared), and let learning refine it.
   It fixes what learning can't: first spans, rare operations, and hints evicted from the size-limited table. Steady-state JMH won't show it; measure
   first-N-span cost or a scenario with many operations.
+- **Fused runs carry a precomputed tag set (Doug, 2026-11-23; store side, under the store hold):** the run's slot mask and serials are known
+  at build time. `occupancy & runMask == 0` means all appends, with no `indexOf` and no per-tag `mayHaveLocal`; only an overlapping run takes the per-tag path.
+  The build checks that the run's keys have distinct slots; there's one capacity check for `used + n` (or a presize via the hint) and one mask OR; interception is
+  `runMask & interceptedMask` (the bits fixed at build time fold away; split-by-tags is one runtime AND). The result is a loop-free bulk store path with a single growth check.
+  It's the same mask contributor analysis produces, so fused runs and contributors share one bulk path. It needs a bulk append entry point on the store
+  (e.g. `storeAllAbsent`); the current fused benchmark measures only the setter side (one lock, one call per run).
 - **Validation for 3:** differential instrumentation tests (rewrite on/off); a benchmark with JFR `jdk.CompilerInlining`
   confirming "already compiled into a big method" disappears for `setTag` call sites.
 - Compiler-control notes: negative (`inline:-`) directives for our cold helpers are low-risk. Forced inlining can abort the
