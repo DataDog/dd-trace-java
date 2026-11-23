@@ -6,6 +6,7 @@ import static datadog.trace.api.KnownTags.AWS_REGION;
 import static datadog.trace.api.KnownTags.DBCLUSTERIDENTIFIER;
 import static datadog.trace.api.KnownTags.DBINSTANCEIDENTIFIER;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -114,11 +115,13 @@ public final class AwsRdsEndpoint implements TagContributor {
   /**
    * Parses an RDS endpoint hostname.
    *
-   * @return the identity encoded in the hostname, or {@code null} when the hostname is not an RDS
-   *     endpoint.
+   * @return the identity encoded in the hostname, or {@code null} when RDS tagging is disabled or
+   *     the hostname is not an RDS endpoint.
    */
   public static AwsRdsEndpoint parse(final CharSequence hostname) {
-    if (hostname == null || hostname.length() < MIN_DNS_SUFFIX_LENGTH) {
+    if (!Config.get().isRdsTagsEnabled()
+        || hostname == null
+        || hostname.length() < MIN_DNS_SUFFIX_LENGTH) {
       return null;
     }
     String hostnameString = hostname.toString();

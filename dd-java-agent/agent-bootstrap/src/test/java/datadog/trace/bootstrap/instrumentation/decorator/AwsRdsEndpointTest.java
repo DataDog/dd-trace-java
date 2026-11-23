@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import static datadog.trace.api.config.TraceInstrumentationConfig.RDS_TAGS_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -8,14 +9,19 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
+import datadog.trace.test.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
+@ExtendWith(WithConfigExtension.class)
 class AwsRdsEndpointTest {
 
   private static final String RDS = "orders-db.c9akciq32bzq.us-east-1.rds.amazonaws.com";
@@ -174,6 +180,16 @@ class AwsRdsEndpointTest {
   @Test
   void cachesParsedEndpointsPerHostname() {
     assertSame(AwsRdsEndpoint.parse(RDS), AwsRdsEndpoint.parse(RDS));
+  }
+
+  @Test
+  @WithConfig(key = RDS_TAGS_ENABLED, value = "false")
+  void skipsParsingWhenDisabled() {
+    assertNull(AwsRdsEndpoint.parse(RDS));
+
+    CharSequence hostname = mock(CharSequence.class);
+    assertNull(AwsRdsEndpoint.parse(hostname));
+    verifyNoInteractions(hostname);
   }
 
   @ParameterizedTest(name = "gate accepts {0}")
