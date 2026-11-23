@@ -18,12 +18,13 @@ import javax.annotation.Nullable;
  * eviction.
  *
  * <p>The bucket array grows exactly as {@link Hashtable.D1}'s does, through {@link
- * Hashtable#resize(Hashtable.Entry[])}: it starts at {@link Hashtable#capacityFor(int)} of the
- * {@link Hashtable.Sizing}'s initial capacity (16 buckets by default, fewer for a small bound),
+ * Hashtable#resize(Hashtable.Entry[])}: it starts as {@link Hashtable.Sizing} describes, at a
+ * quarter of {@link Hashtable#capacityFor(int)} of the bound by default (at least 16 buckets),
  * doubles once an insert would take it past 3/4 full, and stops at {@code capacityFor} of the
- * bound: the size a fixed table would allocate up front. A table that never fills never pays for
- * its bound, and a full one ends up the same size as a fixed one. Growth relinks the bucket chains
- * only; the recency links are separate fields and stay as they are.
+ * bound: the size a fixed table would allocate up front. So it grows at most twice; a table that
+ * never fills pays for a quarter of its bound, and a full one ends up the same size as a fixed one.
+ * Growth relinks the bucket chains only; the recency links are separate fields and stay as they
+ * are.
  *
  * <p>This outer class is a namespace. Not thread-safe: guard a shared table with a lock.
  */

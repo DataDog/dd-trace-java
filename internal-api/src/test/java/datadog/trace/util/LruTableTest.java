@@ -138,7 +138,8 @@ class LruTableTest {
   void growsWithItsEntriesUpToTheFixedTableSize() {
     final int max = 10_000;
     final LruTable.D2<String, Integer, Pair> table = new LruTable.D2<>(max);
-    assertEquals(16, table.buckets.length);
+    // capacityFor(10,000) is 16,384 buckets; the table starts at a quarter and doubles twice.
+    assertEquals(Hashtable.capacityFor(max) / 4, table.buckets.length);
     final List<Pair> pairs = new ArrayList<>();
     for (int i = 0; i < max; i++) {
       final Pair pair = new Pair("flag-" + (i % 7), i);
@@ -163,9 +164,10 @@ class LruTableTest {
   }
 
   @Test
-  void startsAtSixteenBucketsOrFewerForASmallBound() {
+  void startsAtAQuarterOfTheFullSizeAndAtLeastSixteenBuckets() {
     for (final int max : new int[] {0, 1, 3, 11, 12, 13, 100, 10_000}) {
-      final int expected = Math.min(16, Hashtable.capacityFor(max));
+      final int full = Hashtable.capacityFor(max);
+      final int expected = Math.min(full, Math.max(16, full / 4));
       assertEquals(expected, new LruTable.D1<Object, Counter>(max).buckets.length, "max " + max);
       assertEquals(
           expected, new LruTable.D2<String, Integer, Pair>(max).buckets.length, "max " + max);
@@ -174,11 +176,12 @@ class LruTableTest {
 
   @Test
   void createStartsAtTheSizingsInitialCapacity() {
-    final Hashtable.Sizing sizing = Hashtable.Sizing.bounded(1000).initialCapacity(100);
+    // Above the quarter-size floor (512 of 2,048 buckets), so it sets the start: 1,024 buckets.
+    final Hashtable.Sizing sizing = Hashtable.Sizing.bounded(1000).initialCapacity(700);
     final LruTable.D1<Object, Counter> d1 = LruTable.D1.create(Counter.class, sizing);
     final LruTable.D2<String, Integer, Pair> d2 = LruTable.D2.create(Pair.class, sizing);
-    assertEquals(Hashtable.capacityFor(100), d1.buckets.length);
-    assertEquals(Hashtable.capacityFor(100), d2.buckets.length);
+    assertEquals(Hashtable.capacityFor(700), d1.buckets.length);
+    assertEquals(Hashtable.capacityFor(700), d2.buckets.length);
     assertEquals(1000, d1.maxSize());
     assertEquals(1000, d2.maxSize());
     for (int i = 0; i < 1000; i++) {
