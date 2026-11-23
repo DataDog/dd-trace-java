@@ -43,8 +43,6 @@ public final class DurableFunctionsUtils {
   }
 
   public static ContextScope startSpanScope(MiddlewareContext context, String trigger) {
-    // Like dd-trace-js and dd-trace-py, Cosmos DB trigger spans start a new trace: the host's
-    // trace context is usually not exported to Datadog and its sampled flag would drop the span.
     final AgentSpanContext parent =
         COSMOS_DB_TRIGGER.equals(trigger) ? null : extractParent(context.getTraceContext());
     return activateSpan(startInvocationSpan(context.getFunctionName(), trigger, parent, 0));

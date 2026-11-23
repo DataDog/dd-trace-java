@@ -26,5 +26,6 @@ for host configuration details.
 ## Cosmos DB trigger
 
 Functions with a `@CosmosDBTrigger` parameter get an `azure.functions.invoke` span with resource
-`CosmosDB <function name>` and the `aas.function.trigger:CosmosDB` tag. Like dd-trace-js and
-dd-trace-py, the span starts a new trace instead of continuing the host's trace context.
+`CosmosDB <function name>` and the `aas.function.trigger:CosmosDB` tag. The span starts a new
+trace instead of continuing the trace context the Functions host passes to the worker, so the
+host's sampled flag doesn't decide whether the span is kept.
