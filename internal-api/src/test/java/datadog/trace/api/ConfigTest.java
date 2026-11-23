@@ -3986,7 +3986,7 @@ class ConfigTest {
       System.setProperty(PREFIX + RDS_TAGS_ENABLED, sys);
     }
     if (env != null) {
-      setEnv("DD_RDS_TAGS_ENABLED", env);
+      setEnv("DD_TRACE_RDS_TAGS_ENABLED", env);
     }
 
     assertEquals(expected, newConfig().isRdsTagsEnabled());

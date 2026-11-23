@@ -3722,14 +3722,6 @@
         "aliases": []
       }
     ],
-    "DD_RDS_TAGS_ENABLED": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "true",
-        "aliases": []
-      }
-    ],
     "DD_REMOTE_CONFIGURATION_ENABLED": [
       {
         "version": "A",
@@ -9522,6 +9514,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_R2DBC_ENABLED", "DD_INTEGRATION_R2DBC_ENABLED"]
+      }
+    ],
+    "DD_TRACE_RDS_TAGS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
       }
     ],
     "DD_TRACE_REACTIVE_STREAMS_1_ENABLED": [
