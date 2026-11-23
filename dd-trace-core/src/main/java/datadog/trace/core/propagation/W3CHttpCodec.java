@@ -12,6 +12,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.HeaderSchema;
+import datadog.context.propagation.IndexedCarrier;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
@@ -160,6 +161,13 @@ class W3CHttpCodec {
     }
   }
 
+  /**
+   * {@link TraceContextExtractor#mergeFrom}: the carrier needs the full extraction instead (it has
+   * a trace context header without a header constant, or header names are being logged).
+   */
+  static final TraceContextMerge NEEDS_EXTRACTION =
+      new TraceContextMerge(0, 0, 0, null, PrioritySampling.UNSET);
+
   static final class TraceContextExtractor extends TagContextExtractor {
     private TraceContextExtractor(Supplier<TraceConfig> traceConfigSupplier, Config config) {
       super(traceConfigSupplier, () -> new W3CContextInterpreter(config));
@@ -172,6 +180,70 @@ class W3CHttpCodec {
     <C> TraceContextMerge extractForMerge(
         final C carrier, final AgentPropagation.ContextVisitor<C> getter) {
       return ((W3CContextInterpreter) interpret(carrier, getter)).buildForMerge();
+    }
+
+    /**
+     * {@link #extractForMerge} reading the two trace context headers straight from a carrier that
+     * knows each key's header constant, without running this style's interpreter over every key:
+     * the same result for the same headers. {@link #NEEDS_EXTRACTION} if this carrier can't be read
+     * that way; then use {@link #extractForMerge}, and {@link #extract} rather than {@link
+     * #completeExtraction} for the whole context.
+     */
+    TraceContextMerge mergeFrom(IndexedCarrier carrier) {
+      if (ContextInterpreter.LOG_EXTRACT_HEADER_NAMES) {
+        return NEEDS_EXTRACTION;
+      }
+      String traceparent = null;
+      String tracestate = null;
+      for (int i = 0, n = carrier.size(); i < n; i++) {
+        HeaderSchema header = carrier.header(i);
+        if (header == HeaderSchema.TRACEPARENT) {
+          String value = carrier.value(i);
+          if (value != null) {
+            if (traceparent != null) {
+              // as with the interpreter, multiple traceparent headers mean no context to merge
+              return null;
+            }
+            traceparent = W3CContextInterpreter.trim(value);
+          }
+        } else if (header == HeaderSchema.TRACESTATE) {
+          String value = carrier.value(i);
+          if (value != null) {
+            String trimmed = W3CContextInterpreter.trim(value);
+            if (!trimmed.isEmpty()) {
+              tracestate = tracestate == null ? trimmed : tracestate + "," + trimmed;
+            }
+          }
+        } else if (header == null) {
+          String key = carrier.key(i);
+          if (TRACE_PARENT_KEY.equalsIgnoreCase(key) || TRACE_STATE_KEY.equalsIgnoreCase(key)) {
+            return NEEDS_EXTRACTION;
+          }
+        }
+      }
+      if (traceparent == null) {
+        // no traceparent (with or without a tracestate): nothing to merge, as with the interpreter
+        return null;
+      }
+      // the interpreter's own no-throw parse; the trace id only needs comparing, so it's kept as
+      // its parts
+      W3CContextInterpreter parser = (W3CContextInterpreter) interpreter();
+      if (!parser.parseTraceParent(traceparent, false)) {
+        return null;
+      }
+      W3CTracestate parsed;
+      try {
+        parsed = W3CTracestate.parse(tracestate);
+      } catch (RuntimeException e) {
+        log.debug("Exception when building context", e);
+        return null;
+      }
+      int overridingPriority =
+          overridesTracestatePriority(parser.samplingPriority, parsed.getSamplingPriority())
+              ? parser.samplingPriority
+              : PrioritySampling.UNSET;
+      return new TraceContextMerge(
+          parser.traceIdHigh, parser.traceIdLow, parser.spanId, parsed, overridingPriority);
     }
 
     /** Builds the whole context that {@link #extractForMerge} last returned the merge parts of. */
