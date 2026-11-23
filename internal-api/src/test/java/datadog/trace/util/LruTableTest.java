@@ -137,8 +137,10 @@ class LruTableTest {
   @Test
   void growsWithItsEntriesUpToTheFixedTableSize() {
     final int max = 10_000;
-    final LruTable.D2<String, Integer, Pair> table = new LruTable.D2<>(max);
-    // capacityFor(10,000) is 16,384 buckets; the table starts at a quarter and doubles twice.
+    final LruTable.D2<String, Integer, Pair> table =
+        LruTable.D2.create(Pair.class, Hashtable.Sizing.bounded(max).initialCapacity(0));
+    // capacityFor(10,000) is 16,384 buckets; a growable table starts at a quarter and doubles
+    // twice.
     assertEquals(Hashtable.capacityFor(max) / 4, table.buckets.length);
     final List<Pair> pairs = new ArrayList<>();
     for (int i = 0; i < max; i++) {
@@ -164,13 +166,17 @@ class LruTableTest {
   }
 
   @Test
-  void startsAtAQuarterOfTheFullSizeAndAtLeastSixteenBuckets() {
+  void defaultIsFixedAndGrowableStartsAtAQuarter() {
     for (final int max : new int[] {0, 1, 3, 11, 12, 13, 100, 10_000}) {
       final int full = Hashtable.capacityFor(max);
-      final int expected = Math.min(full, Math.max(16, full / 4));
-      assertEquals(expected, new LruTable.D1<Object, Counter>(max).buckets.length, "max " + max);
+      assertEquals(full, new LruTable.D1<Object, Counter>(max).buckets.length, "max " + max);
+      assertEquals(full, new LruTable.D2<String, Integer, Pair>(max).buckets.length, "max " + max);
+
+      final Hashtable.Sizing growable = Hashtable.Sizing.bounded(max).initialCapacity(0);
+      final int quarter = Math.min(full, Math.max(16, full / 4));
       assertEquals(
-          expected, new LruTable.D2<String, Integer, Pair>(max).buckets.length, "max " + max);
+          quarter, LruTable.D1.create(Counter.class, growable).buckets.length, "max " + max);
+      assertEquals(quarter, LruTable.D2.create(Pair.class, growable).buckets.length, "max " + max);
     }
   }
 

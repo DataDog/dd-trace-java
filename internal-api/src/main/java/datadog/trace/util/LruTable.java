@@ -17,14 +17,13 @@ import javax.annotation.Nullable;
  * the least recently used entry and returns it, so a caller can release what it holds or count the
  * eviction.
  *
- * <p>The bucket array grows exactly as {@link Hashtable.D1}'s does, through {@link
- * Hashtable#resize(Hashtable.Entry[])}: it starts as {@link Hashtable.Sizing} describes, at a
- * quarter of {@link Hashtable#capacityFor(int)} of the bound by default (at least 16 buckets),
- * doubles once an insert would take it past 3/4 full, and stops at {@code capacityFor} of the
- * bound: the size a fixed table would allocate up front. So it grows at most twice; a table that
- * never fills pays for a quarter of its bound, and a full one ends up the same size as a fixed one.
- * Growth relinks the bucket chains only; the recency links are separate fields and stay as they
- * are.
+ * <p>The bucket array is sized exactly as {@link Hashtable.D1}'s is. By default it is allocated
+ * once, at {@link Hashtable#capacityFor(int)} of the bound. A {@link Hashtable.Sizing} with an
+ * initial capacity opts into growth through {@link Hashtable#resize(Hashtable.Entry[])}: the array
+ * starts at a quarter of that size at least, doubles once an insert would take it past 3/4 full,
+ * and stops at the full size, so it grows at most twice. Opt in for a long-lived table with a
+ * generous bound that may stay sparse. Growth relinks the bucket chains only; the recency links are
+ * separate fields and stay as they are.
  *
  * <p>This outer class is a namespace. Not thread-safe: guard a shared table with a lock.
  */
