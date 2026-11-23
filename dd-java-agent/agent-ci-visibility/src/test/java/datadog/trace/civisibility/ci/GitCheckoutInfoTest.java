@@ -83,9 +83,15 @@ class GitCheckoutInfoTest {
   }
 
   private static String appveyorSha(String value) {
-    if ("head".equals(value)) return SHA;
-    if ("upper".equals(value)) return SHA.toUpperCase(java.util.Locale.ROOT);
-    if ("build".equals(value)) return APPVEYOR_BUILD_SHA;
+    if ("head".equals(value)) {
+      return SHA;
+    }
+    if ("upper".equals(value)) {
+      return SHA.toUpperCase(java.util.Locale.ROOT);
+    }
+    if ("build".equals(value)) {
+      return APPVEYOR_BUILD_SHA;
+    }
     return value;
   }
 
