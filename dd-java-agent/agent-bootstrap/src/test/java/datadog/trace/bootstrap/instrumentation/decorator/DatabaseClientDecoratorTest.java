@@ -159,7 +159,8 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     "cluster reader | orders.cluster-ro-c9akciq32bzq.us-east-1.rds.amazonaws.com      | orders     | cluster-ro     |                    | orders           ",
     "cluster custom | reports.cluster-custom-c9akciq32bzq.us-east-1.rds.amazonaws.com | reports    | cluster-custom |                    |                  ",
     "proxy          | orders.proxy-c9akciq32bzq.us-east-1.rds.amazonaws.com           | orders     | proxy          |                    |                  ",
-    "shard group    | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com        | orders     | shardgrp       |                    |                  "
+    "shard group    | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com        | orders     | shardgrp       |                    |                  ",
+    "limitless      | orders.limitless-c9akciq32bzq.us-east-1.rds.amazonaws.com       | orders     | shardgrp       |                    |                  "
   })
   void testOnConnectionTagsRdsEndpointIdentity(
       String hostname,
@@ -167,7 +168,7 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
       String endpointType,
       String instanceIdentifier,
       String clusterIdentifier) {
-    DatabaseClientDecorator<Map<String, String>> decorator = newDecorator();
+    DatabaseClientDecorator<Map<String, String>> decorator = newRdsAwareDecorator();
     Map<String, String> session = new HashMap<>();
     session.put("user", "test-user");
     session.put("hostname", hostname);
@@ -192,7 +193,7 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
 
   @Test
   void testOnConnectionLeavesNonRdsHostnameUntagged() {
-    DatabaseClientDecorator<Map<String, String>> decorator = newDecorator();
+    DatabaseClientDecorator<Map<String, String>> decorator = newRdsAwareDecorator();
     Map<String, String> session = new HashMap<>();
     session.put("user", "test-user");
     session.put("hostname", "db.internal.example.com");
@@ -203,6 +204,23 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     // then
     verify(span).setTag(DB_USER, "test-user");
     verify(span).setTag(PEER_HOSTNAME, (CharSequence) "db.internal.example.com");
+    verifyNoMoreInteractions(span);
+  }
+
+  @Test
+  void testOnConnectionSkipsRdsTagsUnlessDecoratorOptsIn() {
+    String hostname = "orders.c9akciq32bzq.us-east-1.rds.amazonaws.com";
+    DatabaseClientDecorator<Map<String, String>> decorator = newDecorator();
+    Map<String, String> session = new HashMap<>();
+    session.put("user", "test-user");
+    session.put("hostname", hostname);
+
+    // when
+    decorator.onConnection(span, session);
+
+    // then
+    verify(span).setTag(DB_USER, "test-user");
+    verify(span).setTag(PEER_HOSTNAME, (CharSequence) hostname);
     verifyNoMoreInteractions(span);
   }
 
@@ -333,6 +351,15 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
   @Override
   protected DatabaseClientDecorator<Map<String, String>> newDecorator(String serviceName) {
     return new TestDatabaseClientDecorator(serviceName);
+  }
+
+  private static DatabaseClientDecorator<Map<String, String>> newRdsAwareDecorator() {
+    return new TestDatabaseClientDecorator("test-service") {
+      @Override
+      protected AwsRdsEndpoint rdsEndpoint(Map<String, String> connection, CharSequence hostname) {
+        return AwsRdsEndpoint.parse(hostname);
+      }
+    };
   }
 
   private static class TestDatabaseClientDecorator

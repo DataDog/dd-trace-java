@@ -32,7 +32,12 @@ public final class AwsRdsEndpoint {
      * {@code <endpoint-name>.endpoint.proxy-<hash>.<region>.rds.amazonaws.com}.
      */
     PROXY("proxy"),
-    /** {@code <shard-group-name>.shardgrp-<hash>.<region>.rds.amazonaws.com} (Aurora Limitless). */
+    /**
+     * An Aurora Limitless DB shard group endpoint, {@code
+     * <name>.shardgrp-<hash>.<region>.rds.amazonaws.com} or {@code
+     * <name>.limitless-<hash>.<region>.rds.amazonaws.com}. AWS documents both prefixes for the same
+     * endpoint, so both map here.
+     */
     SHARD_GROUP("shardgrp");
 
     private final String tagValue;
@@ -115,17 +120,28 @@ public final class AwsRdsEndpoint {
    * rejecting them early is safe: the gate never rejects a valid RDS endpoint.
    */
   static boolean isPlausibleRdsHostname(final String hostname) {
-    int end = hostname.length();
-    if (end > 0 && hostname.charAt(end - 1) == '.') {
-      end--;
-    }
-    end = stripPort(hostname, end);
+    int end = hostEnd(hostname);
     for (String suffix : DNS_SUFFIXES) {
       if (endsWithIgnoreCase(hostname, end, suffix)) {
         return true;
       }
     }
     return false;
+  }
+
+  /**
+   * Returns the end index of the host part, dropping a trailing {@code :port} and a trailing {@code
+   * .} on either side of it ({@code host.}, {@code host:5432}, {@code host.:5432} and {@code
+   * host:5432.} all end at {@code host}).
+   */
+  private static int hostEnd(final String hostname) {
+    int end = stripTrailingDot(hostname, hostname.length());
+    end = stripPort(hostname, end);
+    return stripTrailingDot(hostname, end);
+  }
+
+  private static int stripTrailingDot(final String hostname, final int end) {
+    return end > 0 && hostname.charAt(end - 1) == '.' ? end - 1 : end;
   }
 
   /** Returns the end index with a trailing {@code :port} removed. Bounded to 5 digits. */
@@ -168,15 +184,8 @@ public final class AwsRdsEndpoint {
 
   private static AwsRdsEndpoint doParse(final String rawHostname) {
     String hostname = rawHostname.toLowerCase(Locale.ROOT);
-    int end = hostname.length();
-    // Strip a trailing dot from a fully qualified name and a :port suffix if one leaked in.
-    if (end > 0 && hostname.charAt(end - 1) == '.') {
-      end--;
-    }
-    int colon = hostname.indexOf(':');
-    if (colon >= 0) {
-      end = Math.min(end, colon);
-    }
+    // Same host boundary as the gate: drop a :port and a trailing dot from a fully qualified name.
+    int end = hostEnd(hostname);
 
     // Strip the partition DNS suffix so the remaining labels are the same shape in every
     // partition.
@@ -250,6 +259,9 @@ public final class AwsRdsEndpoint {
     } else if (hash.startsWith("shardgrp-")) {
       type = Type.SHARD_GROUP;
       suffix = hash.substring("shardgrp-".length());
+    } else if (hash.startsWith("limitless-")) {
+      type = Type.SHARD_GROUP;
+      suffix = hash.substring("limitless-".length());
     } else {
       type = Type.INSTANCE;
       suffix = hash;
