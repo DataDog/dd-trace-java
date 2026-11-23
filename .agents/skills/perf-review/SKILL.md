@@ -50,7 +50,7 @@ Then read the check files that apply to the diff:
 | `references/checks/startup.md` | premain-reachable startup cost | always |
 | `references/checks/product-off.md` | J14 work for an optional product that's off | always |
 | `references/checks/dispatch.md` | #5 polymorphic dispatch, J2 megamorphic (**parked**) | always |
-| `references/checks/contracts.md` | #8 `@NoEscape`, #9 `@StaticLifetime`, #10 `@BackgroundOnly` | always — these fire on code that doesn't name the annotation |
+| `references/checks/contracts.md` | #8 `@NoEscape`, #9 `@StaticLifetime`, #10 `@BackgroundOnly` | always — these fire on code that doesn't name the annotation; check every line Step 1b lists |
 | `references/checks/advice.md` | ByteBuddy Advice idioms | diff touches `dd-java-agent/` or uses `@Advice` |
 | `references/checks/benchmarks.md` | J12 benchmark validity, EA claims over I/O | diff touches `src/jmh/`, or PR text / commits cite benchmark results |
 | `references/remedies.md` | J7, J9, J10, J11 fix routes + toolkit availability; also holds the J7 retention trap and the J9 trigger | always |
@@ -64,8 +64,9 @@ Apply a check only when its Flag line holds and no Not-when line does.
 ### Step 1 — Get the code to review
 
 **If the user points you at specific files or pasted code** ("review this class / this
-method for perf"), review those directly — skip the diff and go to Step 2 with the same
-hot-path mapping and checks.
+method for perf"), review those directly: skip the diff, run Step 1b with `--paths` set to the
+files, then go on to Step 2 with the same hot-path mapping and checks. Pasted code can't go
+through Step 1b, so say so in **Scope reviewed**.
 
 **Otherwise, review the branch changes.** Find the merge-base against the DataDog
 upstream `master` and diff against it:
@@ -95,6 +96,38 @@ content of the modified source files** (not just the hunks) — the interprocedu
 condition (who calls this, what a helper does, where a hook's sink lands) lives
 outside the diff window. Ignore the PR description if the user asks for an
 independent review, except to find performance claims.
+
+### Step 1b — Find code that uses the performance contracts
+
+The contract checks (#8–#10) fire on code that never names the annotation, so don't rely on
+spotting it while reading. Run the lookup, passing the merge base from Step 1:
+
+```bash
+python3 tooling/contract_lookup.py --diff-base <merge base>
+```
+
+It reads the working tree, including uncommitted edits, so it sees the same code as Step 1. Pass
+`--rev <commit>` to scan a commit instead, or `--paths <file> ...` for a direct review of files.
+
+It prints three lists:
+
+1. **Marked elements:** each contract annotation and the type, field or method it marks, plus the
+   types `@ImpliedFor` lists on `StaticLifetime` and their subtypes. A mark on a class covers its
+   methods.
+2. **One hop:** class-level fields and methods declared with a marked type, such as a
+   `static final` cache field.
+3. **Lines that use either list**, tagged with the name that matched: the diff's added lines, or
+   every line of `--paths`. In those files, a call through a local or parameter of a marked type
+   (`cache.getUtf8(...)`) counts too. Comment lines are skipped.
+
+Check every line in list 3 against `checks/contracts.md`, however large the diff is. A hit is a
+place to look, not a finding: it still has to pass the check's Flag line, and short names can match
+by accident. The lookup follows one hop only, so also apply the checks to anything else you notice
+while reading. Only files that import the contract annotations count, so other annotations with the
+same simple name (for example `javax.inject.Singleton`) are left out.
+
+If you can't run it (for example, you only have a diff), say in **Scope reviewed** that the contract
+checks ran without it.
 
 ### Step 2 — Map the changed code onto hot paths
 
