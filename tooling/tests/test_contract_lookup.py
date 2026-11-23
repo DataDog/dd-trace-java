@@ -125,6 +125,13 @@ class ContractLookupTest(unittest.TestCase):
         self.assertEqual(self.hits(rev="HEAD", paths=[f"{LIB}/Holder.java"]), [
             f"{LIB}/Holder.java:3: [Names]   private final Names names = null;"])
 
+    def test_a_user_diff_config_does_not_hide_hits(self):
+        self.git("config", "diff.noprefix", "true")
+        self.git("config", "color.diff", "always")
+        self.add_to_holder("private final Names names = null;")
+        self.assertEqual(self.hits(), [
+            f"{LIB}/Holder.java:3: [Names]   private final Names names = null;"])
+
     def test_tests_and_comments_are_skipped(self):
         self.write("lib/src/test/java/lib/HolderTest.java",
                    "package lib;\nclass HolderTest {\n  Names names;\n}\n")
