@@ -1,0 +1,12 @@
+_v: 1
+name: zio.experimental
+display_name: ZIO
+description: Instruments context propagation across ZIO fiber lifecycle events.
+packages:
+- name: dev.zio:zio_2.12
+- name: dev.zio:zio_2.13
+- name: dev.zio:zio_3
+category:
+- other
+systems: []
+creation_date: '2023-03-05'

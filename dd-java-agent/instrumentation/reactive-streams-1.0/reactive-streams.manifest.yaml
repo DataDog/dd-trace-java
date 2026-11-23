@@ -1,0 +1,11 @@
+_v: 1
+name: reactive-streams
+display_name: Reactive Streams
+description: Instruments Reactive Streams Publisher and Subscriber APIs to propagate trace context across subscriptions and
+  downstream signals and complete spans for Publisher-returning asynchronous results.
+packages:
+- name: org.reactivestreams:reactive-streams
+category:
+- other
+systems: []
+creation_date: '2023-08-29'

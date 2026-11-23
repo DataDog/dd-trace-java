@@ -1,0 +1,12 @@
+_v: 1
+name: rxjava
+display_name: RxJava
+description: Instruments RxJava reactive streams to propagate trace context across subscriptions and defer completion of spans
+  for asynchronous results.
+packages:
+- name: io.reactivex.rxjava2:rxjava
+- name: io.reactivex.rxjava3:rxjava
+category:
+- other
+systems: []
+creation_date: '2020-11-04'
