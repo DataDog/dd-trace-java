@@ -79,8 +79,10 @@ mechanism is certain or the severity is catastrophic.
   mechanism, such as a new data structure, a hand-rolled cache or manual object reuse, needs
   measured evidence that the toolbox can't do the job. Agents often apply the fix, and they
   follow the finding's suggestion closely, so the finding sets how complex the result gets.
-- **Triage by severity.** Flag P1 (unbounded memory / OOM, cardinality blowups)
-  *aggressively* — a false positive there is cheap insurance against a container kill.
+- **Triage by severity.** Flag unbounded memory and cardinality findings (OOM risk)
+  *aggressively* — a false positive there is cheap insurance against a container kill. This is
+  about the mechanism, not the level: other P1 findings, such as blocking critical-path work,
+  get the usual confidence bar.
   Flag low-severity CPU-micro *conservatively or not at all* — false positives there
   only erode trust.
 - **Never flag the *absence* of a cache on high-cardinality input.** Not caching is correct
@@ -124,13 +126,13 @@ Performance findings top out at `P1`; `P0` is not used for them. How the usual c
 | **P3** | CPU overhead | General tracer activity, background work |
 
 Each check gives one base level and says when it moves. One rule applies to every check: **raise
-one level when the cost is paid per span or per trace on the tracer's own core path** (span
+P3 to P2 when the cost is paid per span or per trace on the tracer's own core path** (span
 create / setTag / finish, tag-map ops, propagation, serialization), which every integration pays.
 A one-time cost in core code, such as startup work or a retained buffer, isn't raised. **The
-core raise is one level, however many core reasons apply** (propagation and serialization, say,
-still count once). It is separate from a check's own escalations: when a check sets a level for a
-condition, such as P1 when unbounded, that level applies as written. Findings top out at P1
-either way.
+core raise never reaches P1:** a P2 finding stays P2 on the core path, and it counts once however
+many core reasons apply (propagation and serialization, say). P1 comes only from a check's own
+escalations, such as P1 when unbounded, when it blocks, or when it pins a carrier thread; those
+apply as written. Findings top out at P1.
 
 CPU overhead alone is the lowest priority — it's a cost issue, not a correctness one, and
 escalates only when it causes latency.
