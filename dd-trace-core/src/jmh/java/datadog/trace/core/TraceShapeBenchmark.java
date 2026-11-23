@@ -275,6 +275,48 @@ public class TraceShapeBenchmark {
     server.finish();
   }
 
+  // ---- newApiSpecialized: newApi with the calls a build-time setTag rewrite would emit ----
+
+  /**
+   * Prototype: {@link #newApi} with every constant id the tag registry classifies as never
+   * intercepted routed to {@code setTagNoIntercept}. http.method and http.url are intercepted, and
+   * the int port already inlines, so those stay on setTag.
+   */
+  @Benchmark
+  public void newApiSpecialized() {
+    AgentSpan server = tracer.startSpan(serverProto, SERVER_OPERATION);
+    server.setTagNoIntercept(KnownTags.HTTP_USERAGENT, USER_AGENT);
+    server.setTag(KnownTags.HTTP_METHOD, METHOD);
+    server.setTag(KnownTags.HTTP_URL, URL);
+    server.setTagNoIntercept(KnownTags.HTTP_HOSTNAME, HOSTNAME);
+    server.setResourceName(SERVER_RESOURCE);
+    server.setTagNoIntercept(KnownTags.PEER_IPV4, CLIENT_IP);
+    server.setTag(KnownTags.PEER_PORT, CLIENT_PORT);
+    server.setTagNoIntercept(KnownTags.HTTP_ROUTE, ROUTE);
+    try (ContextScope scope = tracer.activateSpan(server)) {
+      for (int i = 0; i < children; ++i) {
+        AgentSpan jdbc = tracer.startSpan(jdbcProto, JDBC_OPERATION);
+        jdbc.setTagNoIntercept(KnownTags.DB_TYPE, DB_TYPE);
+        jdbc.setServiceName(DB_SERVICE, JAVA_JDBC);
+        jdbc.setOperationName(JDBC_RENAMED_OPERATION);
+        jdbc.setTagNoIntercept(KnownTags.DB_POOL_NAME, DB_POOL);
+        jdbc.setTagNoIntercept(KnownTags.DB_USER, DB_USER);
+        jdbc.setTagNoIntercept(KnownTags.DB_INSTANCE, DB_INSTANCE);
+        jdbc.setTagNoIntercept(KnownTags.PEER_HOSTNAME, DB_HOST);
+        jdbc.setResourceName(STATEMENT);
+        jdbc.setTagNoIntercept(KnownTags.DB_OPERATION, DB_OPERATION);
+        jdbc.spanContext().setIntegrationName(JDBC_PREPARED_STATEMENT);
+        jdbc.setTagNoIntercept(KnownTags.COMPONENT, JDBC_PREPARED_STATEMENT);
+        finishScoped(jdbc);
+      }
+      AgentSpan internal = tracer.startSpan(traceProto, TRACE_OPERATION);
+      internal.setResourceName(TRACE_RESOURCE);
+      finishScoped(internal);
+    }
+    server.setHttpStatusCode(STATUS);
+    server.finish();
+  }
+
   /** The advice's exit: activate around the call, then close and finish. */
   void finishScoped(AgentSpan span) {
     ContextScope scope = tracer.activateSpan(span);

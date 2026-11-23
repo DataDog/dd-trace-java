@@ -1407,6 +1407,23 @@ public class DDSpanContext
     }
   }
 
+  /**
+   * Prototype: the setter a build-time rewrite would target for a constant id that the tag registry
+   * classifies as never intercepted. The unknown-id check, removal and interception dispatch all
+   * sit behind one rarely taken branch to the generic {@link #setTag(long, CharSequence)}, so this
+   * method's own compiled code holds little more than the store. It is correct for any id: an
+   * intercepted, unknown or split-by-tags id simply takes the generic path.
+   */
+  public void setTagNoIntercept(final long tagId, final CharSequence value) {
+    if (null == value || !KnownTagCodec.isKnown(tagId) || tagInterceptor.needsIntercept(tagId)) {
+      setTag(tagId, value);
+      return;
+    }
+    synchronized (knownTags) {
+      knownTags.store(tagId, value);
+    }
+  }
+
   public void setTag(final long tagId, final boolean value) {
     if (!KnownTagCodec.isKnown(tagId)) {
       return;
