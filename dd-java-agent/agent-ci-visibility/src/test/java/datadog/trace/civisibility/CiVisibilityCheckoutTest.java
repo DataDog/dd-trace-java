@@ -3,6 +3,8 @@ package datadog.trace.civisibility;
 import static datadog.communication.util.IOUtils.copyFolder;
 import static datadog.trace.api.git.UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_SHA;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.GIT_COMMIT_SHA;
+import static datadog.trace.civisibility.CiVisibilityRepoServicesTestFixture.createServices;
+import static datadog.trace.civisibility.CiVisibilityRepoServicesTestFixture.settingsPullRequestInfo;
 import static datadog.trace.civisibility.ci.TeamcityInfo.TEAMCITY;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.GIT_COMMAND_TIMEOUT_MILLIS;
 import static java.util.Collections.emptyMap;
@@ -29,13 +31,11 @@ import datadog.trace.civisibility.ci.CIProviderInfoFactory;
 import datadog.trace.civisibility.ci.PullRequestInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
 import datadog.trace.civisibility.ci.env.CiEnvironmentImpl;
-import datadog.trace.civisibility.config.ExecutionSettingsFactoryImpl;
 import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.NoOpGitClient;
 import datadog.trace.civisibility.git.tree.ShellGitClient;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.test.junit.utils.config.WithConfig;
-import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -196,26 +196,10 @@ class CiVisibilityCheckoutTest {
     when(hierarchy.isHeadless()).thenReturn(true);
     RepoIndexProvider.Factory indexes = mock(RepoIndexProvider.Factory.class);
     when(indexes.create(checkout.toString())).thenReturn(mock(RepoIndexProvider.class));
-    CiVisibilityServices services = mock(CiVisibilityServices.class);
-    setServiceField(services, "config", config);
-    setServiceField(services, "environment", environment);
-    setServiceField(services, "ciProviderInfoFactory", providerFactory);
-    setServiceField(services, "gitClientFactory", clients);
-    setServiceField(services, "gitInfoProvider", selected);
-    setServiceField(services, "processHierarchy", hierarchy);
-    setServiceField(services, "repoIndexProviderFactory", indexes);
+    CiVisibilityServices services =
+        createServices(config, environment, providerFactory, clients, selected, hierarchy, indexes);
     CiVisibilityRepoServices repository = new CiVisibilityRepoServices(services, checkout);
-    Field field = ExecutionSettingsFactoryImpl.class.getDeclaredField("pullRequestInfo");
-    field.setAccessible(true);
-    PullRequestInfo passedToSettings =
-        (PullRequestInfo) field.get(repository.executionSettingsFactory);
-    assertEquals(useTarget ? "release/1.x" : null, passedToSettings.getBaseBranch());
-  }
-
-  private static void setServiceField(CiVisibilityServices services, String name, Object value)
-      throws Exception {
-    Field field = CiVisibilityServices.class.getDeclaredField(name);
-    field.setAccessible(true);
-    field.set(services, value);
+    assertEquals(
+        useTarget ? "release/1.x" : null, settingsPullRequestInfo(repository).getBaseBranch());
   }
 }

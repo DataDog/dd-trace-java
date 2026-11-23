@@ -1,6 +1,8 @@
 package datadog.trace.civisibility;
 
 import static datadog.trace.api.civisibility.telemetry.tag.Provider.GITHUBACTIONS;
+import static datadog.trace.civisibility.CiVisibilityRepoServicesTestFixture.createServices;
+import static datadog.trace.civisibility.CiVisibilityRepoServicesTestFixture.settingsPullRequestInfo;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -19,7 +21,6 @@ import datadog.trace.civisibility.ci.CIProviderInfo;
 import datadog.trace.civisibility.ci.CIProviderInfoFactory;
 import datadog.trace.civisibility.ci.PullRequestInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
-import datadog.trace.civisibility.config.ExecutionSettingsFactoryImpl;
 import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import java.lang.reflect.Field;
@@ -87,20 +88,10 @@ class CiVisibilityBazelCheckoutForkedTest {
       when(hierarchy.isHeadless()).thenReturn(true);
       RepoIndexProvider.Factory indexes = mock(RepoIndexProvider.Factory.class);
       when(indexes.create(anyString())).thenReturn(mock(RepoIndexProvider.class));
-      CiVisibilityServices services = mock(CiVisibilityServices.class);
-      setServiceField(services, "config", config);
-      setServiceField(services, "environment", environment);
-      setServiceField(services, "ciProviderInfoFactory", providers);
-      setServiceField(services, "gitClientFactory", clients);
-      setServiceField(services, "gitInfoProvider", selected);
-      setServiceField(services, "processHierarchy", hierarchy);
-      setServiceField(services, "repoIndexProviderFactory", indexes);
+      CiVisibilityServices services =
+          createServices(config, environment, providers, clients, selected, hierarchy, indexes);
       CiVisibilityRepoServices repository = new CiVisibilityRepoServices(services, tested);
       verify(indexes).create(("runfiles".equals(source) ? runfiles : checkout).toString());
-      Field prField = ExecutionSettingsFactoryImpl.class.getDeclaredField("pullRequestInfo");
-      prField.setAccessible(true);
-      PullRequestInfo passedToSettings =
-          (PullRequestInfo) prField.get(repository.executionSettingsFactory);
       assertAll(
           () ->
               assertEquals(
@@ -110,16 +101,11 @@ class CiVisibilityBazelCheckoutForkedTest {
               assertEquals(
                   customTag ? "true" : null, repository.ciTags.get("git.checkout.is_custom")),
           () -> assertEquals(ciWorkspace.toString(), repository.ciTags.get("ci.workspace_path")),
-          () -> assertEquals(ciTarget ? "main" : null, passedToSettings.getBaseBranch()));
+          () ->
+              assertEquals(
+                  ciTarget ? "main" : null, settingsPullRequestInfo(repository).getBaseBranch()));
     } finally {
       singleton.set(null, original);
     }
-  }
-
-  private static void setServiceField(CiVisibilityServices services, String name, Object value)
-      throws Exception {
-    Field field = CiVisibilityServices.class.getDeclaredField(name);
-    field.setAccessible(true);
-    field.set(services, value);
   }
 }
