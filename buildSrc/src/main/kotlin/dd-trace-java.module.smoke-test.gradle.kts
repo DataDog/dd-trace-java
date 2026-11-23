@@ -22,16 +22,18 @@ tasks.withType<Javadoc>().configureEach {
 // These agents are part of every smoke test's execution contract in this repository.
 // Temporary for the TaskBlock rollout: CI sets SMOKETEST_AGENT_JAR to the checksummed agent built
 // by the `build` job against the branch-built ddprof jar, so smoke tests do not rebuild it.
-val agentJar = providers.environmentVariable("SMOKETEST_AGENT_JAR")
-  .map { rootProject.layout.projectDirectory.file(it) }
-  .orElse(
-    smokeTestAgentFrom(
-      "smokeTestTracer",
-      ":dd-java-agent",
-      Bundling.BUNDLING_ATTRIBUTE,
-      Bundling.SHADOWED
-    )
+val prebuiltAgentJar = providers.environmentVariable("SMOKETEST_AGENT_JAR").orNull
+  ?.let { rootProject.layout.projectDirectory.file(it).asFile }
+val agentJar = if (prebuiltAgentJar != null) {
+  layout.file(provider { prebuiltAgentJar })
+} else {
+  smokeTestAgentFrom(
+    "smokeTestTracer",
+    ":dd-java-agent",
+    Bundling.BUNDLING_ATTRIBUTE,
+    Bundling.SHADOWED
   )
+}
 val diagnosticsAgentJar = smokeTestAgentFrom(
   "smokeTestDiagnostics",
   ":dd-java-agent:instrumentation-testing",
