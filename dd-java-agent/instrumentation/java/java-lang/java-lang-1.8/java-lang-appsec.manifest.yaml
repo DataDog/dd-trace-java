@@ -1,8 +1,8 @@
 _v: 1
 name: java-lang-appsec
-display_name: Java Language APIs (AppSec)
-description: Instruments Java subprocess execution with command and shell injection checks, recording process completion
-  and errors.
+display_name: Java Process Execution
+description: Instruments Java process-execution APIs to create subprocess spans and detect or block shell and command injection
+  attempts.
 packages: []
 category:
 - other

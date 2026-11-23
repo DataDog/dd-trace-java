@@ -1,8 +1,8 @@
 _v: 1
 name: java-lang
-display_name: Java Language APIs
-description: Instruments Java virtual-thread lifecycles and I/O poller startup to propagate tracing context and
-  maintain profiler context.
+display_name: Java Virtual Threads
+description: Instruments Java virtual-thread lifecycles to propagate tracing context across mounts and unmounts and prevents
+  JDK I/O pollers from retaining request context.
 packages: []
 category:
 - other
