@@ -52,7 +52,7 @@ public final class DatadogAttributeParser {
         // efficient representation.
         ByteBuffer decoded = Base64Decoding.decode(json);
         if (decoded == null) {
-          log.debug("_datadog context is neither JSON nor Base64");
+          log.debug("Problem decoding _datadog context");
           return;
         }
         jsonStr = UTF_8.decode(decoded).toString();
