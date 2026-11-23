@@ -41,6 +41,9 @@ val skipFlakyTestsProvider = rootProject.providers.gradleProperty("skipFlakyTest
 val runFlakyTestsProvider = rootProject.providers.gradleProperty("runFlakyTests")
 val rerunTestsProperty = "rerun.tests.${project.name}"
 val rerunTestsProvider = rootProject.providers.gradleProperty(rerunTestsProperty)
+val testcontainersMaxParallelForks = providers.gradleProperty("testcontainersMaxParallelForks")
+  .map(String::toInt)
+  .orElse(1)
 val isMasterBranch = providers.environmentVariable("CI_COMMIT_BRANCH")
   .map { it == "master" }
   .orElse(false)
@@ -82,6 +85,9 @@ tasks.withType<Test>().configureEach {
     exclude(GeneratedGroovyClosureSpec())
     setIncludes(listOf("**/*ForkedTest*"))
     forkEvery = 1
+    pluginManager.withPlugin("dd-trace-java.testcontainers") {
+      maxParallelForks = testcontainersMaxParallelForks.get()
+    }
     // Limit the number of concurrent forked tests
     usesService(forkedTestLimit)
     onlyIf("skipForkedTests are undefined or false") { !skipForkedTestsProvider.isPresent }

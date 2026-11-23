@@ -6,14 +6,29 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class UtilsTest {
+  @Test
+  void readsTransactionHeaderWithConfiguredJvmCharset() {
+    Charset charset = Charset.defaultCharset();
+    // Keep the fixture independent of the compiler JVM's charset.
+    String transactionId = "caf\u00e9";
+    assumeTrue(charset.newEncoder().canEncode(transactionId));
+    RecordHeaders headers = new RecordHeaders();
+    headers.add("transaction-id", transactionId.getBytes(charset));
+
+    assertEquals(
+        transactionId, Utils.DSM_TRANSACTION_SOURCE_READER.readHeader(headers, "transaction-id"));
+  }
+
   @ParameterizedTest
   @ValueSource(longs = {0L, 1L, 1_793_652_306_477L, -1L, Long.MAX_VALUE, Long.MIN_VALUE, 0x80L})
   void readsTheTimeAProducerWrote(long time) {
