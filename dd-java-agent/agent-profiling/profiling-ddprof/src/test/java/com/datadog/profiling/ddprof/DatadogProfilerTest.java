@@ -284,11 +284,8 @@ class DatadogProfilerTest {
 
   @ParameterizedTest
   @MethodSource("wallContextFilterModes")
-  void testWallScopeCompatibilityOptions(
-      boolean tracingEnabled,
-      boolean contextFilterEnabled,
-      String expectedFilter,
-      String expectedWallScope)
+  void testWallContextFilter(
+      boolean tracingEnabled, boolean contextFilterEnabled, String expectedFilter)
       throws Exception {
     // Skip test if profiler native library is not available (e.g., on macOS)
     try {
@@ -314,10 +311,9 @@ class DatadogProfilerTest {
     String cmd = profiler.cmdStartProfiling(targetFile);
 
     assertTrue(cmd.contains("wall="), "Command should contain wall profiling: " + cmd);
-    assertTrue(cmd.contains(",filter=" + expectedFilter + ",wallscope="), cmd);
-    assertTrue(cmd.contains(",wallscope=" + expectedWallScope), cmd);
     // Wall precheck is not enabled in this test, so it must reflect the disabled default.
-    assertTrue(cmd.contains(",wallprecheck=false"), cmd);
+    assertTrue(cmd.contains(",filter=" + expectedFilter + ",wallprecheck=false"), cmd);
+    assertFalse(cmd.contains("wallscope="), cmd);
   }
 
   @ParameterizedTest
@@ -350,10 +346,11 @@ class DatadogProfilerTest {
 
   private static Stream<Arguments> wallContextFilterModes() {
     return Stream.of(
-        Arguments.of(true, true, "0", "context"),
-        Arguments.of(true, false, "", "all"),
-        Arguments.of(false, true, "", "all"),
-        Arguments.of(false, false, "", "all"));
+        Arguments.of(true, true, "0"),
+        Arguments.of(true, false, ""),
+        // disabled tracing overrides the context filter
+        Arguments.of(false, true, ""),
+        Arguments.of(false, false, ""));
   }
 
   @Test
