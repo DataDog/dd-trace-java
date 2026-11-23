@@ -309,6 +309,12 @@ final class DenseIdStore extends IdStore {
     this.tombstoneLevels |= (byte) level;
   }
 
+  /** A dense store can seed in bulk; see {@link #seedAbsent}. */
+  @Override
+  public boolean supportsBulkSeed() {
+    return true;
+  }
+
   /**
    * The bulk seed: when {@code source} is a parentless dense store with no tombstones and its
    * occupancy words share no bit with this store's (live, tombstoned or inherited, per level), none
@@ -316,11 +322,6 @@ final class DenseIdStore extends IdStore {
    * and its occupancy ORed in. The occupancy words over-approximate presence, so a shared bit only
    * means "maybe present" and falls back to the caller's tag-by-tag seed.
    */
-  @Override
-  public boolean supportsBulkSeed() {
-    return true;
-  }
-
   @Override
   public boolean seedAbsent(IdStore source) {
     if (!(source instanceof DenseIdStore)) {
