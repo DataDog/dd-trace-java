@@ -39,10 +39,21 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      - name: Cache WASM remote-config toolchain
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .ci-wasm-toolchain
+            remote-config/remote-config-wasm/libdatadog/bindings/wasm/remote-config-poc/target
+          key: wasm-rc-toolchain-v1-${{ runner.arch }}-${{ hashFiles('.gitlab/setup-wasm-remote-config-toolchain.sh', 'remote-config/remote-config-wasm/libdatadog/bindings/wasm/remote-config-poc/Cargo.lock') }}
+
       - name: Build dd-trace-java
         env:
           ORG_GRADLE_PROJECT_akkaRepositoryToken: ${{ secrets.AKKA_REPO_TOKEN }}
         run: |
+          # Provision rustup/Binaryen/nightly-rustfmt for the wasm remote-config engine;
+          # must run in this step's shell so the exports reach Gradle
+          . .gitlab/setup-wasm-remote-config-toolchain.sh
           GRADLE_OPTS="-Xms2g -Xmx4g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC" \
           JAVA_HOME=$JAVA_HOME_8_X64 \
           JAVA_8_HOME=$JAVA_HOME_8_X64 \

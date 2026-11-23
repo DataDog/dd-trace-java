@@ -95,3 +95,6 @@ mise*.local.toml
 
 # Exclude kotlin build files
 .kotlin
+
+# WASM remote-config CI toolchain scratch (see .gitlab/setup-wasm-remote-config-toolchain.sh)
+.ci-wasm-toolchain/

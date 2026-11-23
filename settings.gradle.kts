@@ -173,6 +173,7 @@ include(
   ":telemetry",
   ":remote-config:remote-config-api",
   ":remote-config:remote-config-core",
+  ":remote-config:remote-config-wasm",
 )
 
 include(

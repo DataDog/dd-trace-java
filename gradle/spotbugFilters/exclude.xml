@@ -10,6 +10,8 @@
       <Package name="datadog.smoketest.appsec.springboot.service" />
       <!-- these are auto-generated -->
       <Package name="com.datadog.appsec.report.raw.contexts._definitions" />
+      <!-- vendored libdatadog wasm remote-config host library and generated AOT machine classes -->
+      <Package name="com.datadoghq.remoteconfig.poc" />
       <Package name="com.datadog.appsec.report.raw.contexts.actor" />
       <Package name="com.datadog.appsec.report.raw.contexts.agent" />
       <Package name="com.datadog.appsec.report.raw.contexts.code_location" />

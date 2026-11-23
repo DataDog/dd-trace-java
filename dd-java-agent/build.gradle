@@ -99,6 +99,8 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
         'META-INF/NOTICE*',
         'META-INF/AL2.0',
         'META-INF/LGPL2.1',
+        // vendored run.endive jars ship it at the jar root
+        'THIRD-PARTY.txt',
         )
     }
 
@@ -485,6 +487,14 @@ dependencies {
   sharedShadowInclude project(':remote-config:remote-config-core'), {
     transitive = false
   }
+  sharedShadowInclude project(':remote-config:remote-config-wasm'), {
+    transitive = false
+    // remote-config-core and the rest come from the bootstrap classloader
+  }
+  // vendored wasm remote-config engine runtime (Endive embedder + JSON)
+  sharedShadowInclude 'org.json:json:20250517'
+  sharedShadowInclude 'run.endive:runtime:1.0.1'
+  sharedShadowInclude 'run.endive:wasi:1.0.1'
 
   sharedShadowInclude project(':utils:container-utils'), {
     transitive = false

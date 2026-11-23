@@ -78,7 +78,11 @@ final class AgentBackendMessages {
     byte[] raw = config.getBytes(UTF_8);
     String quotedPath = '"' + path.replace("\\", "\\\\").replace("\"", "\\\"") + '"';
     String targets =
-        "{\"signed\":{\"expires\":\"9999-12-31T23:59:59Z\",\"spec_version\":\"1.0.0\",\"targets\":{"
+        "{\"signed\":{\"custom\":{\"opaque_backend_state\":\"mock-agent\","
+            // wasm-engine guests require agent_refresh_interval; 1s matches the poll rate the
+            // dynamic-config tests configure, so the Java engine's polling-rate hint is unchanged
+            + "\"agent_refresh_interval\":1},"
+            + "\"expires\":\"9999-12-31T23:59:59Z\",\"spec_version\":\"1.0.0\",\"targets\":{"
             + quotedPath
             + ":{\"custom\":{\"v\":1},\"hashes\":{\"sha256\":\""
             + sha256(config)
