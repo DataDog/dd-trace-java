@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import java.util.Locale;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -59,7 +60,7 @@ public class StringIndexKeyShapeBenchmark {
 
   private String name(final int i, final Random random) {
     if ("sequential".equals(keys)) {
-      return String.format("scale-bulk-%05d", i);
+      return String.format(Locale.ROOT, "scale-bulk-%05d", i);
     }
     final char[] chars = new char[16];
     for (int c = 0; c < chars.length; c++) {

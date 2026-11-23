@@ -294,7 +294,16 @@ public class HashingUtilsTest {
         distinct++;
       }
     }
-    // Consecutive hashes would fill 1,000 adjacent slots; spread, few of them share a slot.
+    // Spread, few of them share a slot.
     assertTrue(distinct > 800, "distinct slots " + distinct);
+    // Distinct slots alone don't rule out clustering: h ^ (h >>> 16) puts these 1,000 hashes in
+    // 1,000 distinct but adjacent slots, one run linear probing would walk. Check the runs too.
+    int longestRun = 0;
+    int run = 0;
+    for (final boolean occupied : used) {
+      run = occupied ? run + 1 : 0;
+      longestRun = Math.max(longestRun, run);
+    }
+    assertTrue(longestRun < 32, "longest occupied run " + longestRun);
   }
 }

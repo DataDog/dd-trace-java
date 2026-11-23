@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.util.StringIndex.Data;
 import datadog.trace.util.StringIndex.EmbeddingSupport;
+import java.util.Locale;
 import org.junit.jupiter.api.Test;
 
 class StringIndexTest {
@@ -239,7 +240,7 @@ class StringIndexTest {
     long probes = 0;
     int worst = 0;
     for (int i = 0; i < n; i++) {
-      final String name = String.format("scale-bulk-%05d", i);
+      final String name = String.format(Locale.ROOT, "scale-bulk-%05d", i);
       final int h = EmbeddingSupport.hash(name);
       final int distance = ((EmbeddingSupport.put(hashes, names, name, h) - h) & mask) + 1;
       probes += distance;
