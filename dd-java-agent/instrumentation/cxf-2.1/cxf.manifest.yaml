@@ -1,0 +1,12 @@
+_v: 1
+name: cxf
+display_name: Apache CXF
+description: Instruments Apache CXF service invocations to continue servlet request trace context during asynchronous request
+  resumption.
+packages:
+- name: org.apache.cxf:cxf-api
+- name: org.apache.cxf:cxf-core
+category:
+- other
+systems: []
+creation_date: '2023-12-08'

@@ -1,0 +1,11 @@
+_v: 1
+name: jakarta-rs
+display_name: Jakarta RESTful Web Services
+description: Instruments Jakarta REST resource methods to trace inbound HTTP request handling, including asynchronous and
+  aborted requests, and inspect JSON response bodies for AppSec blocking.
+packages:
+- name: jakarta.ws.rs:jakarta.ws.rs-api
+category:
+- http.server
+systems: []
+creation_date: '2021-11-16'

@@ -1,0 +1,12 @@
+_v: 1
+name: axis2
+display_name: Apache Axis2
+description: Instruments Apache Axis2 SOAP message processing and outbound transport calls, including asynchronous WebSphere
+  transport handling and outbound trace-context propagation.
+packages:
+- name: org.apache.axis2:axis2-kernel
+category:
+- rpc.client
+- rpc.server
+systems: []
+creation_date: '2021-02-11'

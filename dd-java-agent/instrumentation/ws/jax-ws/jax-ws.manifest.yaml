@@ -1,0 +1,11 @@
+_v: 1
+name: jax-ws
+display_name: JAX-WS
+description: Instruments JAX-WS WebService and WebServiceProvider service methods, creating SOAP spans for server-side requests.
+packages:
+- name: javax.jws:javax.jws-api
+- name: javax.xml.ws:jaxws-api
+category:
+- rpc.server
+systems: []
+creation_date: '2021-03-04'

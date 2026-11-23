@@ -1,0 +1,10 @@
+_v: 1
+name: jakarta-ws
+display_name: Jakarta Web Services Metadata API
+description: Traces invocations of public methods on Jakarta Web Services endpoint classes and interfaces annotated with @WebService.
+packages:
+- name: jakarta.jws:jakarta.jws-api
+category:
+- rpc.server
+systems: []
+creation_date: '2024-10-31'

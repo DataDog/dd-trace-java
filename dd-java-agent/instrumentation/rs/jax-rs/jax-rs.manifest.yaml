@@ -1,0 +1,19 @@
+_v: 1
+name: jax-rs
+display_name: JAX-RS
+description: Instruments JAX-RS server resource handlers and clients, creating HTTP server and client spans, propagating trace
+  context, and supplying JSON response bodies to AppSec.
+packages:
+- name: com.sun.jersey:jersey-client
+- name: io.dropwizard:dropwizard-client
+- name: javax.ws.rs:javax.ws.rs-api
+- name: javax.ws.rs:jsr311-api
+- name: org.glassfish.jersey.core:jersey-client
+- name: org.glassfish.jersey.core:jersey-server
+- name: org.jboss.resteasy:resteasy-client
+- name: org.jboss.resteasy:resteasy-jaxrs
+category:
+- http.client
+- http.server
+systems: []
+creation_date: '2018-02-12'

@@ -1,0 +1,14 @@
+_v: 1
+name: grpc
+display_name: gRPC
+description: Instruments gRPC and Armeria gRPC client and server calls, including per-message server spans and optional client
+  message spans, with trace propagation, Data Streams checkpoints, and server security callbacks.
+packages:
+- name: com.linecorp.armeria:armeria-grpc
+- name: io.grpc:grpc-core
+category:
+- rpc.client
+- rpc.server
+systems:
+- grpc
+creation_date: '2018-07-19'
