@@ -1,10 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.api.KnownTags.AWS_RDS_ENDPOINT_TYPE;
-import static datadog.trace.api.KnownTags.AWS_RDS_IDENTIFIER;
-import static datadog.trace.api.KnownTags.AWS_REGION;
-import static datadog.trace.api.KnownTags.DBCLUSTERIDENTIFIER;
-import static datadog.trace.api.KnownTags.DBINSTANCEIDENTIFIER;
 import static datadog.trace.api.KnownTags.DB_INSTANCE;
 import static datadog.trace.api.KnownTags.DB_TYPE;
 import static datadog.trace.api.KnownTags.DB_USER;
@@ -81,7 +76,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
       CharSequence hostName = dbHostname(connection);
       if (hostName != null) {
         span.setTag(PEER_HOSTNAME, hostName);
-        onRdsEndpoint(span, rdsEndpoint(connection, hostName));
+        span.setTagsFrom(rdsEndpoint(connection, hostName));
 
         if (Config.get().isDbClientSplitByHost()) {
           span.setServiceName(hostName.toString(), DB_CLIENT_SPLIT_BY_HOST);
@@ -96,32 +91,6 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
    */
   protected AwsRdsEndpoint rdsEndpoint(final CONNECTION connection, final CharSequence hostname) {
     return null;
-  }
-
-  /**
-   * Tags the identity an Amazon RDS endpoint hostname carries: the identifier, what kind of
-   * endpoint it is and its Region. The DB instance or cluster identifier is only claimed when the
-   * endpoint type proves it, since a cluster endpoint does not name the instance behind it.
-   */
-  protected void onRdsEndpoint(final AgentSpan span, final AwsRdsEndpoint endpoint) {
-    if (endpoint == null) {
-      return;
-    }
-    span.setTag(AWS_RDS_IDENTIFIER, endpoint.identifier());
-    span.setTag(AWS_RDS_ENDPOINT_TYPE, endpoint.type().tagValue());
-    span.setTag(AWS_REGION, endpoint.region());
-    switch (endpoint.type()) {
-      case INSTANCE:
-        span.setTag(DBINSTANCEIDENTIFIER, endpoint.identifier());
-        break;
-      case CLUSTER:
-      case CLUSTER_READER:
-      case LIMITLESS:
-        span.setTag(DBCLUSTERIDENTIFIER, endpoint.identifier());
-        break;
-      default:
-        break;
-    }
   }
 
   protected void onInstance(final AgentSpan span, final String dbInstance) {

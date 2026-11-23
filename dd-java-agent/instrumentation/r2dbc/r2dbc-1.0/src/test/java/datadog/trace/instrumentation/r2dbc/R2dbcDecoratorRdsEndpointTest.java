@@ -1,11 +1,10 @@
 package datadog.trace.instrumentation.r2dbc;
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.RDS_TAGS_ENABLED;
-import static datadog.trace.bootstrap.instrumentation.decorator.AwsRdsEndpoint.Type.CLUSTER_READER;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.DECORATE;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import datadog.trace.bootstrap.instrumentation.decorator.AwsRdsEndpoint;
 import datadog.trace.test.junit.utils.config.WithConfig;
@@ -27,9 +26,7 @@ class R2dbcDecoratorRdsEndpointTest {
     AwsRdsEndpoint endpoint = DECORATE.rdsEndpoint(options, DECORATE.dbHostname(options));
 
     assertNotNull(endpoint);
-    assertEquals("orders", endpoint.identifier());
-    assertEquals(CLUSTER_READER, endpoint.type());
-    assertEquals("us-east-1", endpoint.region());
+    assertSame(AwsRdsEndpoint.parse(RDS_HOST), endpoint);
   }
 
   @Test

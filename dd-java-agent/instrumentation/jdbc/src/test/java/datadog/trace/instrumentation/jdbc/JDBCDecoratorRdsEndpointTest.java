@@ -1,8 +1,6 @@
 package datadog.trace.instrumentation.jdbc;
 
-import static datadog.trace.bootstrap.instrumentation.decorator.AwsRdsEndpoint.Type.CLUSTER_READER;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -25,9 +23,6 @@ class JDBCDecoratorRdsEndpointTest {
 
     assertNotNull(endpoint);
     assertSame(info.getRdsEndpoint(), endpoint);
-    assertEquals("orders", endpoint.identifier());
-    assertEquals(CLUSTER_READER, endpoint.type());
-    assertEquals("us-east-1", endpoint.region());
   }
 
   @Test

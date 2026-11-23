@@ -1,8 +1,16 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import static datadog.trace.api.KnownTags.AWS_RDS_ENDPOINT_TYPE;
+import static datadog.trace.api.KnownTags.AWS_RDS_IDENTIFIER;
+import static datadog.trace.api.KnownTags.AWS_REGION;
+import static datadog.trace.api.KnownTags.DBCLUSTERIDENTIFIER;
+import static datadog.trace.api.KnownTags.DBINSTANCEIDENTIFIER;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.TagContributor;
 import java.util.Locale;
 
 /**
@@ -17,9 +25,9 @@ import java.util.Locale;
  * <p>A cluster endpoint identifies the cluster but not the writer instance behind it, so this class
  * never claims an instance identifier for a cluster endpoint.
  */
-public final class AwsRdsEndpoint {
+public final class AwsRdsEndpoint implements TagContributor {
 
-  public enum Type {
+  private enum Type {
     /** {@code <db-instance-identifier>.<hash>.<region>.rds.amazonaws.com}. */
     INSTANCE("instance"),
     /** {@code <db-cluster-identifier>.cluster-<hash>.<region>.rds.amazonaws.com}. */
@@ -42,10 +50,6 @@ public final class AwsRdsEndpoint {
 
     Type(String tagValue) {
       this.tagValue = tagValue;
-    }
-
-    public String tagValue() {
-      return tagValue;
     }
   }
 
@@ -154,21 +158,23 @@ public final class AwsRdsEndpoint {
     return end >= length && hostname.regionMatches(true, end - length, suffix, 0, length);
   }
 
-  /**
-   * The DB instance identifier, cluster identifier, custom endpoint name, proxy name or shard group
-   * name.
-   */
-  public String identifier() {
-    return identifier;
-  }
-
-  public Type type() {
-    return type;
-  }
-
-  /** The AWS Region the endpoint lives in, for example {@code us-east-1}. */
-  public String region() {
-    return region;
+  @Override
+  public void addTo(final AgentSpan span) {
+    span.setTag(AWS_RDS_IDENTIFIER, identifier);
+    span.setTag(AWS_RDS_ENDPOINT_TYPE, type.tagValue);
+    span.setTag(AWS_REGION, region);
+    switch (type) {
+      case INSTANCE:
+        span.setTag(DBINSTANCEIDENTIFIER, identifier);
+        break;
+      case CLUSTER:
+      case CLUSTER_READER:
+      case LIMITLESS:
+        span.setTag(DBCLUSTERIDENTIFIER, identifier);
+        break;
+      default:
+        break;
+    }
   }
 
   private static AwsRdsEndpoint doParse(final String rawHostname) {
