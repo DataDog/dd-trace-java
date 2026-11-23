@@ -6,7 +6,7 @@ This lens does not keep its own rubric. The tracer performance rubric is owned b
 
 **When planning:** take the `perf-review` rubric into account when designing the change.
 
-**When reviewing:** apply the `perf-review` rubric to the frozen diff, including its "assume hot" posture and its noise limits. Report a finding when the diff matches a rubric check on a hot, startup, or high-volume path. Cite the rubric check ID (or rule ID, if a rule is added below) and say which path it is on. Report in this skill's severity scale, not `perf-review`'s own format. The noise limits apply to rubric checks only: report a diff that matches a `PERF-*` rule's `Flag:` line, even when the cost looks small.
+**When reviewing:** apply the `perf-review` rubric to the frozen diff, including its "assume hot" posture and its noise limits. Report a finding when the diff matches a rubric check on a hot, startup, or high-volume path. Cite the rubric check ID (or rule ID, if a rule is added below) and say which path it is on. `perf-review` uses the same P0–P3 scale, so its levels carry over as they are; report in this skill's format, not `perf-review`'s report layout. The noise limits apply to rubric checks only: report a diff that matches a `PERF-*` rule's `Flag:` line, even when the cost looks small.
 
 ## 1. Allocation and retention
 
