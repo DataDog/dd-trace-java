@@ -1,0 +1,13 @@
+_v: 1
+name: spring-web
+display_name: Spring Web MVC
+description: Instruments Spring MVC controller and view-rendering spans for inbound HTTP requests and supplies request mapping,
+  body, path-variable, and response handling data to AppSec and IAST.
+packages:
+- name: org.jboss.resteasy:resteasy-spring
+- name: org.springframework:spring-webmvc
+category:
+- http.server
+- template.render
+systems: []
+creation_date: '2017-10-30'
