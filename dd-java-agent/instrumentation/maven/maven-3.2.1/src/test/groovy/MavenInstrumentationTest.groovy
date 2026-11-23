@@ -1,7 +1,10 @@
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import org.apache.maven.artifact.versioning.ComparableVersion
 import org.apache.maven.cli.MavenCli
 import org.codehaus.plexus.util.FileUtils
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.slf4j.MDC
 import spock.lang.TempDir
 
@@ -13,13 +16,25 @@ import static org.junit.jupiter.api.Assertions.assertEquals
 
 class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(MavenInstrumentationTest)
+
   private static final int DEPENDENCIES_DOWNLOAD_RETRIES = 3
 
-  // Versions Maven 3.2.5 picks when the POM omits them: the default binding for Surefire and the latest compatible release for Failsafe
-  private static final String MAVEN_3_2_5_SUREFIRE_VERSION = "2.12.4"
-  private static final String MAVEN_3_2_5_FAILSAFE_VERSION = "3.2.5"
+  private static final ComparableVersion LATEST_SUREFIRE_MIN_MAVEN_VERSION = new ComparableVersion("3.6.3")
 
-  private static final String LATEST_SUREFIRE_VERSION = getLatestMavenSurefireVersion()
+  private static final String SUREFIRE_VERSION
+  private static final String FAILSAFE_VERSION
+
+  static {
+    if (getCurrentMavenVersion() >= LATEST_SUREFIRE_MIN_MAVEN_VERSION) {
+      SUREFIRE_VERSION = getLatestMavenSurefireVersion()
+      FAILSAFE_VERSION = SUREFIRE_VERSION
+    } else {
+      // Versions Maven 3.2.5 picks when the POM omits them: the default binding for Surefire and the latest compatible release for Failsafe
+      SUREFIRE_VERSION = "2.12.4"
+      FAILSAFE_VERSION = "3.2.5"
+    }
+  }
 
   @TempDir
   Path projectFolder
@@ -197,8 +212,8 @@ class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
 
   private int executeMaven(List<String> args) {
     def arguments = new ArrayList<>(args)
-    arguments.add("-Dsurefire.version=${isLatestDepTest ? LATEST_SUREFIRE_VERSION : MAVEN_3_2_5_SUREFIRE_VERSION}".toString())
-    arguments.add("-Dfailsafe.version=${isLatestDepTest ? LATEST_SUREFIRE_VERSION : MAVEN_3_2_5_FAILSAFE_VERSION}".toString())
+    arguments.add("-Dsurefire.version=${SUREFIRE_VERSION}".toString())
+    arguments.add("-Dfailsafe.version=${FAILSAFE_VERSION}".toString())
     if (System.getenv("MAVEN_REPOSITORY_PROXY") != null) {
       def settingsFile = new File(getClass().getResource("/settings.mirror.xml").toURI())
       arguments.addAll(["-s", settingsFile.absolutePath])
@@ -206,12 +221,26 @@ class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
     return new MavenCli().doMain(arguments.toArray(new String[0]), projectFolder.toString(), null, null)
   }
 
+  private static ComparableVersion getCurrentMavenVersion() {
+    return new ComparableVersion(MavenCli.getPackage().getImplementationVersion())
+  }
+
   private static String getLatestMavenSurefireVersion() {
+    String version = loadLatestToolVersions().getProperty("maven-surefire.latest")
+    LOGGER.info("Will run the 'latest' tests with Maven Surefire version {}", version)
+    return version
+  }
+
+  private static Properties loadLatestToolVersions() {
+    def stream = MavenInstrumentationTest.classLoader.getResourceAsStream("latest-tool-versions.properties")
+    if (stream == null) {
+      throw new IllegalStateException("Could not find latest-tool-versions.properties on classpath")
+    }
     def properties = new Properties()
-    MavenInstrumentationTest.classLoader.getResourceAsStream("latest-tool-versions.properties").withCloseable {
+    stream.withCloseable {
       properties.load(it)
     }
-    return properties.getProperty("maven-surefire.latest")
+    return properties
   }
 
   @Override
