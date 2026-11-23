@@ -31,3 +31,13 @@ dependencies {
   // Looks like later versions on reactor need this dependency for some reason even though it is marked as optional.
   latestDepTestImplementation group: 'io.micrometer', name: 'micrometer-core', version: '1.+'
 }
+
+// Both modules have the same order(), so they are applied in the order their services entries are
+// read: the agent jar lists reactive-streams first, so on a subscribe its advice runs first. Tests
+// read the services files in classpath order, where this module's own classes come first, so put
+// the reactive-streams jar first to test the order that ships.
+tasks.withType(Test).configureEach {
+  def testClasspath = classpath
+  def isReactiveStreams = { File file -> file.name.startsWith('reactive-streams-1.0-') }
+  classpath = testClasspath.filter(isReactiveStreams) + testClasspath.filter { !isReactiveStreams(it) }
+}
