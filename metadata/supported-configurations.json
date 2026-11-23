@@ -797,7 +797,7 @@
     ],
     "DD_CIVISIBILITY_JACOCO_PLUGIN_VERSION": [
       {
-        "version": "B",
+        "version": "C",
         "type": "string",
         "default": "0.8.16",
         "aliases": []
