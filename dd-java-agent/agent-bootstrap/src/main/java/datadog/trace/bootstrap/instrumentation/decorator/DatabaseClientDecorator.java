@@ -118,6 +118,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
         break;
       case CLUSTER:
       case CLUSTER_READER:
+      case LIMITLESS:
         span.setTag(DBCLUSTERIDENTIFIER, endpoint.identifier());
         break;
       default:

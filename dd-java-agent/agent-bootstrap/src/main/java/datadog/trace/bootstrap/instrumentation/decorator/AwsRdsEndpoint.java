@@ -28,6 +28,8 @@ public final class AwsRdsEndpoint {
     CLUSTER_READER("cluster-ro"),
     /** {@code <endpoint-name>.cluster-custom-<hash>.<region>.rds.amazonaws.com}. */
     CLUSTER_CUSTOM("cluster-custom"),
+    /** {@code <db-cluster-identifier>.limitless-<hash>.<region>.rds.amazonaws.com}. */
+    LIMITLESS("limitless"),
     /**
      * {@code <proxy-name>.proxy-<hash>.<region>.rds.amazonaws.com}, or a user-defined endpoint
      * {@code <endpoint-name>.endpoint.proxy-<hash>.<region>.rds.amazonaws.com}.
@@ -247,6 +249,9 @@ public final class AwsRdsEndpoint {
     } else if (hash.startsWith("cluster-")) {
       type = Type.CLUSTER;
       suffix = hash.substring("cluster-".length());
+    } else if (hash.startsWith("limitless-")) {
+      type = Type.LIMITLESS;
+      suffix = hash.substring("limitless-".length());
     } else if (hash.startsWith("proxy-")) {
       type = Type.PROXY;
       suffix = hash.substring("proxy-".length());

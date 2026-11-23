@@ -154,13 +154,14 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
   }
 
   @TableTest({
-    "scenario       | hostname                                                        | identifier | endpointType   | instanceIdentifier | clusterIdentifier",
-    "instance       | orders.c9akciq32bzq.us-east-1.rds.amazonaws.com                 | orders     | instance       | orders             |                  ",
-    "cluster        | orders.cluster-c9akciq32bzq.us-east-1.rds.amazonaws.com         | orders     | cluster        |                    | orders           ",
-    "cluster reader | orders.cluster-ro-c9akciq32bzq.us-east-1.rds.amazonaws.com      | orders     | cluster-ro     |                    | orders           ",
-    "cluster custom | reports.cluster-custom-c9akciq32bzq.us-east-1.rds.amazonaws.com | reports    | cluster-custom |                    |                  ",
-    "proxy          | orders.proxy-c9akciq32bzq.us-east-1.rds.amazonaws.com           | orders     | proxy          |                    |                  ",
-    "shard group    | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com        | orders     | shardgrp       |                    |                  "
+    "scenario          | hostname                                                                | identifier           | endpointType   | instanceIdentifier | clusterIdentifier   ",
+    "instance          | orders.c9akciq32bzq.us-east-1.rds.amazonaws.com                         | orders               | instance       | orders             |                     ",
+    "cluster           | orders.cluster-c9akciq32bzq.us-east-1.rds.amazonaws.com                 | orders               | cluster        |                    | orders              ",
+    "cluster reader    | orders.cluster-ro-c9akciq32bzq.us-east-1.rds.amazonaws.com              | orders               | cluster-ro     |                    | orders              ",
+    "cluster custom    | reports.cluster-custom-c9akciq32bzq.us-east-1.rds.amazonaws.com         | reports              | cluster-custom |                    |                     ",
+    "proxy             | orders.proxy-c9akciq32bzq.us-east-1.rds.amazonaws.com                   | orders               | proxy          |                    |                     ",
+    "shard group       | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com                | orders               | shardgrp       |                    |                     ",
+    "Limitless cluster | my-limitless-cluster.limitless-ccetp2abcdef.us-east-1.rds.amazonaws.com | my-limitless-cluster | limitless      |                    | my-limitless-cluster"
   })
   void testOnConnectionTagsRdsEndpointIdentity(
       String hostname,
