@@ -299,8 +299,15 @@ public class HttpCodec {
           // Merging a trace context only needs a few of its parts, so skip building it whole
           W3CHttpCodec.TraceContextExtractor traceContextExtractor =
               (W3CHttpCodec.TraceContextExtractor) extractor;
+          // read the trace context headers straight from the cache when it knows their constants
           W3CHttpCodec.TraceContextMerge merge =
-              traceContextExtractor.extractForMerge(extractionCache, extractionCache);
+              extractionCache.indexed != null
+                  ? W3CHttpCodec.TraceContextExtractor.mergeFrom(extractionCache.indexed)
+                  : W3CHttpCodec.NEEDS_EXTRACTION;
+          boolean interpreted = merge == W3CHttpCodec.NEEDS_EXTRACTION;
+          if (interpreted) {
+            merge = traceContextExtractor.extractForMerge(extractionCache, extractionCache);
+          }
           if (merge == null) {
             continue;
           }
@@ -309,7 +316,10 @@ public class HttpCodec {
             continue;
           }
           // A mismatched trace context becomes a span link, which needs all of it
-          extracted = traceContextExtractor.completeExtraction();
+          extracted =
+              interpreted
+                  ? traceContextExtractor.completeExtraction()
+                  : traceContextExtractor.extract(extractionCache, extractionCache);
         } else {
           extracted = extractor.extract(extractionCache, extractionCache);
         }
