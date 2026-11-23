@@ -1,8 +1,8 @@
 _v: 1
 name: jboss-logmanager
 display_name: JBoss Log Manager
-description: Instruments JBoss Log Manager record publication and diagnostic context access to enrich application
-  logs with trace correlation and service metadata.
+description: Instruments JBoss Log Manager to inject trace correlation and service metadata into log records and, when enabled,
+  submit log events agentlessly.
 packages:
 - name: org.jboss.logmanager:jboss-logmanager
 category:

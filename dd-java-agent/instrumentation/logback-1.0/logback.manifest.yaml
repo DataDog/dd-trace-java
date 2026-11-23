@@ -1,8 +1,8 @@
 _v: 1
 name: logback
-display_name: Logback Classic Module
-description: Instruments Logback application logs for trace correlation and service metadata enrichment, with optional
-  log collection.
+display_name: Logback Classic
+description: Instruments Logback log record processing for trace correlation and configured log forwarding to Datadog Logs
+  Intake.
 packages:
 - name: ch.qos.logback:logback-classic
 category:

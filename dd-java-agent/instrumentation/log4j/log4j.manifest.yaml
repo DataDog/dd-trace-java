@@ -1,8 +1,8 @@
 _v: 1
 name: log4j
-display_name: Apache Log4j Core
-description: Instruments Log4j application logs for trace correlation and service metadata enrichment, with optional
-  log collection and direct submission.
+display_name: Apache Log4j
+description: Instruments Apache Log4j log records to add trace-correlation and service metadata and, when enabled, submit
+  them to Datadog log intake.
 packages:
 - name: log4j:log4j
 - name: org.apache.logging.log4j:log4j-api
