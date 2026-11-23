@@ -38,11 +38,14 @@ repeated work that allocates, not on pure CPU work like an extra `.equals()`.
 
 ## J8 Backtracking regex on external input
 
-- **Flag:** a `java.util.regex` pattern that is prone to backtracking (nested or overlapping
-  quantifiers such as `(a+)+`, or an unanchored `.*` around a quantified group) applied to input a
-  user or another external party controls. Both conditions must hold.
+- **Flag:** a `java.util.regex` pattern whose match or search can take superlinear time, applied
+  to input a user or another external party controls. Both conditions must hold. Superlinear
+  shapes include nested or overlapping quantifiers such as `(a+)+`, an unanchored `.*` around a
+  quantified group, and a single quantifier that `Matcher.find()` retries from every start
+  position, such as `\s+$` over a long run of spaces (quadratic).
 - **Not when:** the input is trusted (our own formatter's output, config written by the operator),
-  or the pattern has no nested or overlapping quantifiers.
+  the match is linear for this pattern and call (anchored with `^`, say, so `find()` fails at once
+  from every start but the first), or the input length is capped.
 - **Confidence / level:** flag-with-confidence. P2; P1 on a per-request AppSec or security-scan
   path (IAST Reporter, WAF), which runs regex on untrusted input on every request.
 - **Fix:** RE2J (`com.google.re2j`, guaranteed linear time, no backreferences or lookaround),
