@@ -35,49 +35,36 @@ public class TextMapExtractAdapter implements ContextVisitor<Headers> {
     }
   }
 
+  /**
+   * Hands each header with a value to {@code classifier}. A UTF-8 header the agent gave {@link
+   * BufferedHeaderFields} is read through {@link RecordHeaderAccess}, so known keys aren't decoded
+   * and values aren't copied before decoding; any other goes through {@code key()} and {@code
+   * value()}, decoded as UTF-8 or Base64.
+   */
   @Override
   public void forEachKey(Headers carrier, AgentPropagation.KeyClassifier classifier) {
-    if (decoder == null) {
-      forEachKeyFromBuffers(carrier, classifier);
-      return;
-    }
-    for (Header header : carrier) {
-      String key = header.key();
-      byte[] value = header.value();
-      if (null == value) {
-        continue;
-      }
-      String decoded = headerValueTransformer.apply(value);
-      if (decoded == null) {
-        log.debug(EXCLUDE_TELEMETRY, "Failed to Base64-decode Kafka header '{}', skipping", key);
-        continue;
-      }
-      if (!classifier.accept(key, decoded)) {
-        return;
-      }
-    }
-  }
-
-  /**
-   * {@link #forEachKey} for UTF-8 headers. A header the agent gave {@link BufferedHeaderFields} is
-   * read through {@link RecordHeaderAccess}, so known keys aren't decoded and values aren't copied
-   * before decoding; any other goes through {@code key()} and {@code value()}.
-   */
-  private void forEachKeyFromBuffers(Headers carrier, AgentPropagation.KeyClassifier classifier) {
     for (Header header : carrier) {
       String key;
       String value;
-      if (header instanceof BufferedHeaderFields) {
+      if (decoder == null && header instanceof BufferedHeaderFields) {
         BufferedHeaderFields fields = (BufferedHeaderFields) header;
         key = RecordHeaderAccess.key(header, fields);
         value = RecordHeaderAccess.utf8Value(header, fields);
+        if (value == null) {
+          continue;
+        }
       } else {
         key = header.key();
         byte[] bytes = header.value();
-        value = bytes == null ? null : UTF8_BYTES_TO_STRING.apply(bytes);
-      }
-      if (value == null) {
-        continue;
+        if (bytes == null) {
+          continue;
+        }
+        value = headerValueTransformer.apply(bytes);
+        if (value == null) {
+          // only the Base64 transformer returns null, for a value that doesn't decode
+          log.debug(EXCLUDE_TELEMETRY, "Failed to Base64-decode Kafka header '{}', skipping", key);
+          continue;
+        }
       }
       if (!classifier.accept(key, value)) {
         return;

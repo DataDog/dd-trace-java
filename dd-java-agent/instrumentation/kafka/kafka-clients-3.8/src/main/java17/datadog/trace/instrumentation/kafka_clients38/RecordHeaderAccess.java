@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.kafka_clients38;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.BufferedHeaderFields;
 import java.nio.ByteBuffer;
 import org.apache.kafka.common.header.Header;
@@ -22,7 +23,11 @@ import org.apache.kafka.common.header.Header;
  * buffer alive.
  */
 final class RecordHeaderAccess {
-  /** Header names the tracer reads on extraction, as written by tracers on inject. */
+  /**
+   * Header names the tracer reads on extraction, as written by tracers on inject. Only a fast path:
+   * a key not listed here is still read, through {@link Header#key()}, so a name missing from this
+   * list costs a decode, never correctness.
+   */
   private static final String[] KNOWN_KEYS = {
     "x-datadog-trace-id",
     "x-datadog-parent-id",
@@ -32,7 +37,7 @@ final class RecordHeaderAccess {
     "traceparent",
     "tracestate",
     "baggage",
-    "dd-pathway-ctx-base64",
+    PathwayContext.PROPAGATION_KEY_BASE64,
     KafkaDecorator.KAFKA_PRODUCED_KEY,
   };
 
