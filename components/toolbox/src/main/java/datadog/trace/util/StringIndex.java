@@ -169,10 +169,13 @@ public final class StringIndex {
   public static final class EmbeddingSupport {
     private EmbeddingSupport() {}
 
-    /** Spread of String.hashCode; 0 reserved as the empty sentinel. */
+    /**
+     * {@link HashingUtils#hashSpread} of String.hashCode, so sequential names don't cluster under
+     * linear probing; 0 reserved as the empty sentinel.
+     */
     public static int hash(String name) {
-      int h = name.hashCode(); // cached on String -> field load
-      return h == 0 ? 0xDD06 : h ^ (h >>> 16);
+      final int h = HashingUtils.hashSpread(name.hashCode()); // hashCode is cached on String
+      return h == 0 ? 0xDD06 : h;
     }
 
     /**

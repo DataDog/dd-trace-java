@@ -189,4 +189,12 @@ class LongHashingUtilsTest {
     int xHash = Objects.hashCode("x");
     assertEquals(31L * 0 + xHash, hash(null, "x"));
   }
+
+  @Test
+  void hashSpreadIsTheFibonacciMultiplyFoldedTo32Bits() {
+    for (final long hash : new long[] {0L, 1L, -1L, 42L, Long.MIN_VALUE, Long.MAX_VALUE}) {
+      final long z = hash * 0x9E3779B97F4A7C15L;
+      assertEquals((int) (z ^ (z >>> 32)), LongHashingUtils.hashSpread(hash));
+    }
+  }
 }
