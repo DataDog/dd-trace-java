@@ -7,6 +7,7 @@ import static datadog.trace.api.git.GitUtils.getFilesystemCharset;
 import static datadog.trace.api.git.GitUtils.isNotValidCommit;
 import static datadog.trace.api.git.GitUtils.isValidCommitSha;
 import static datadog.trace.civisibility.utils.ShellCommandExecutor.OutputParser.IGNORE;
+import static datadog.trace.util.Strings.isNotBlank;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.addAll;
@@ -35,6 +36,7 @@ import java.io.StringReader;
 import java.nio.charset.Charset;
 import java.nio.file.FileStore;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayDeque;
@@ -1459,13 +1461,19 @@ public class ShellGitClient implements GitClient {
     @Override
     public GitClient create(@Nullable String repoRoot) {
       long commandTimeoutMillis = config.getCiVisibilityGitCommandTimeoutMillis();
-      if (repoRoot != null && GitUtils.isValidPath(repoRoot)) {
-        return new ShellGitClient(
-            metricCollector, repoRoot, "1 month ago", 1000, commandTimeoutMillis);
-      } else {
-        LOGGER.debug("Could not determine repository root, using no-op git client");
-        return NoOpGitClient.INSTANCE;
+      if (isNotBlank(repoRoot)) {
+        try {
+          return new ShellGitClient(
+              metricCollector,
+              Paths.get(repoRoot).toString(),
+              "1 month ago",
+              1000,
+              commandTimeoutMillis);
+        } catch (InvalidPathException ignored) {
+        }
       }
+      LOGGER.debug("Could not determine repository root, using no-op git client");
+      return NoOpGitClient.INSTANCE;
     }
   }
 }

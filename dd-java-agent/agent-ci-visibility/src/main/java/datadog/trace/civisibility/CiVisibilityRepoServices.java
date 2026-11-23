@@ -1,5 +1,7 @@
 package datadog.trace.civisibility;
 
+import static datadog.trace.api.git.UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_SHA;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.GIT_COMMIT_SHA;
 import static datadog.trace.util.Strings.isBlank;
 import static datadog.trace.util.Strings.isNotBlank;
 
@@ -92,8 +94,8 @@ public class CiVisibilityRepoServices {
             && (GitCheckoutInfo.matchesRevision(selectedSha, providerGit, providerPr, mergeSha)
                 || GitCheckoutInfo.sameRevision(
                     selectedSha, services.environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA))
-                || isBlank(ConfigProvider.getInstance().getString("git.commit.sha"))
-                    && isBlank(services.config.getGlobalTags().get("git.commit.sha"))
+                || isBlank(ConfigProvider.getInstance().getString(DD_GIT_COMMIT_SHA))
+                    && isBlank(services.config.getGlobalTags().get(GIT_COMMIT_SHA))
                     && (isBlank(selectedSha)
                         || isBlank(providerGit.getCommit().getSha())
                             && isBlank(providerPr.getHeadCommit().getSha())
