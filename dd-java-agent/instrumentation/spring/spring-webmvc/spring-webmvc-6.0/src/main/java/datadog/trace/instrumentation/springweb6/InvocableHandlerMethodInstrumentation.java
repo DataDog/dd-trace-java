@@ -27,7 +27,9 @@ public class InvocableHandlerMethodInstrumentation extends InstrumenterModule.Tr
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SpringWebHttpServerDecorator", packageName + ".ServletRequestURIAdapter",
+      packageName + ".SpringWebHttpServerDecorator",
+      packageName + ".SpringWebHttpServerDecorator$PathMatcherHolder",
+      packageName + ".ServletRequestURIAdapter",
     };
   }
 }

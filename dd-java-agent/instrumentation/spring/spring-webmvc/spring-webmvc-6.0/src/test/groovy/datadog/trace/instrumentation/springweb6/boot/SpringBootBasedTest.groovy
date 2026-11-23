@@ -240,8 +240,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Override
   Serializable expectedNormalizedRoute(ServerEndpoint endpoint) {
-    // "server.context-path" is not a Boot 3 property, so the app runs at the root context
-    normalizedRouteOf(servletContext ? "/$servletContext" : '', expectedServerSpanRoute(endpoint))
+    // root prefix: "server.context-path" is not a Boot 3 property, so the app runs at the root context
+    normalizedRouteOf('', expectedServerSpanRoute(endpoint))
   }
 
   @Override

@@ -38,6 +38,7 @@ public final class ResourceNameFilterMappingInstrumentation extends Instrumenter
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".SpringWebHttpServerDecorator",
+      packageName + ".SpringWebHttpServerDecorator$PathMatcherHolder",
       packageName + ".ServletRequestURIAdapter",
       packageName + ".HandlerMappingResourceNameFilter",
       packageName + ".HandlerMappingResourceNameFilter$BeanDefinition",
