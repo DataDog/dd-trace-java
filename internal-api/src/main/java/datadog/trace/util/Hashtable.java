@@ -32,6 +32,12 @@ import javax.annotation.Nullable;
  * <p>Use {@code ConcurrentHashtable} for concurrent access. Otherwise use this class when entries
  * are removed independently, and {@code FlatHashtable} when the table is cleared as a unit.
  *
+ * <p>{@link D1} and {@link D2} grow their bucket array as they fill: it starts small, doubles once
+ * an insert takes the table past 3/4 full, and stops at the size a fixed table for the same bound
+ * would allocate ({@link #capacityFor(int)}). An almost-empty table no longer pays for its bound up
+ * front, and a full one ends exactly where it used to. A caller-owned array driven by the static
+ * building blocks stays fixed unless the caller calls {@link #resize(Hashtable.Entry[])}.
+ *
  * <p>This outer class is a pure namespace -- it can't be instantiated. The actual table types are
  * {@link D1}, {@link D2}, and (for higher-arity callers) custom tables driven by the static
  * building blocks on this class (see {@link #create(Class, int)}, {@link
@@ -79,11 +85,15 @@ public final class Hashtable {
    * fields. For counter-style workloads this can be several times faster than {@code HashMap<K,
    * Long>} and produces effectively zero GC pressure.
    *
-   * <p>The table holds at most the {@code maxCapacity} passed to {@link #createBounded} and never
-   * resizes, so choose a bound that fits the working set. At the bound, {@link #insert} returns
-   * {@code false} and {@link #tryGetOrCreateOrNull} returns {@code null}; lookup hits are still
-   * returned. For an eviction policy instead of a hard bound, drive the static building blocks with
-   * {@link Hashtable#createBounded(int)}, whose {@link SizeManager} both counts and evicts.
+   * <p>The table holds at most the {@code maxCapacity} passed to {@link #createBounded} (or the
+   * {@link TableSizing} passed to {@link #create}). Its bucket array starts small and doubles as it
+   * fills, up to the size {@link Hashtable#capacityFor(int)} gives for the bound, so a generous
+   * bound costs little until it is used. Inserting while iterating can now move entries to a new
+   * array, invalidating a {@link #cursor()} or {@link #forEach} in progress; that was never
+   * supported. At the bound, {@link #insert} returns {@code false} and {@link
+   * #tryGetOrCreateOrNull} returns {@code null}; lookup hits are still returned. For an eviction
+   * policy instead of a hard bound, drive the static building blocks with {@link
+   * Hashtable#createBounded(int)}, whose {@link SizeManager} both counts and evicts.
    *
    * <p>Null keys are permitted; they collapse to a single bucket via the sentinel hash {@link
    * Long#MIN_VALUE} defined in {@link D1.Entry#hash}.
@@ -137,28 +147,48 @@ public final class Hashtable {
     }
 
     // Package-private so iterator tests in the same package can drive the Hashtable static
-    // building blocks directly against the table's bucket array.
-    final Hashtable.Entry[] buckets;
+    // building blocks directly against the table's bucket array. Replaced as the table grows.
+    Hashtable.Entry[] buckets;
+    private final int maxBuckets;
     private final SizeManager sizeManager;
 
-    private D1(int maxCapacity) {
-      // Bucket array gets load-factor headroom over the strict entry cap below, so chains stay
+    private D1(TableSizing sizing) {
+      // The array grows up to load-factor headroom over the strict entry cap below, so chains stay
       // short even when the table is full; see Hashtable#capacityFor.
-      this.buckets = Hashtable.create(capacityFor(maxCapacity));
-      this.sizeManager = new SizeManager(maxCapacity);
+      this.maxBuckets = capacityFor(sizing.maxCapacity());
+      this.buckets = Hashtable.create(initialBucketsFor(sizing));
+      this.sizeManager = new SizeManager(sizing.maxCapacity());
     }
 
     /**
-     * Creates a single-key table bounded to {@code maxCapacity} live entries. At the bound, {@link
-     * #insert} returns {@code false} and {@link #tryGetOrCreateOrNull} returns {@code null} for an
-     * absent key; lookup hits and replacements still succeed.
+     * Creates a single-key table sized by {@code sizing}. At its max capacity, {@link #insert}
+     * returns {@code false} and {@link #tryGetOrCreateOrNull} returns {@code null} for an absent
+     * key; lookup hits and replacements still succeed.
      *
-     * <p>The bucket array is allocated once via {@link Hashtable#capacityFor(int)}. Callers that
+     * <p>The bucket array starts at {@link Hashtable#capacityFor(int)} of the initial capacity and
+     * doubles as the table fills, ending at {@code capacityFor} of the max capacity. Callers that
      * need an eviction policy can use {@link Hashtable#createBounded(int)} with its state-aware
      * reservation and eviction helpers.
      *
      * <p>{@code entryClass} is used only to infer {@code K} and {@code TEntry}; the backing array
      * remains a {@code Hashtable.Entry[]}.
+     *
+     * @param <K> key type
+     * @param <TEntry> entry type
+     * @param entryClass concrete entry type used for generic type inference
+     * @param sizing max and initial capacity, in live entries
+     * @return a bounded table
+     */
+    @Nonnull
+    public static <K, TEntry extends D1.Entry<K>> D1<K, TEntry> create(
+        @Nonnull Class<TEntry> entryClass, @Nonnull TableSizing sizing) {
+      return new D1<>(sizing);
+    }
+
+    /**
+     * Shorthand for {@link #create} with {@link TableSizing#bounded(int)
+     * TableSizing.bounded(maxCapacity)}: the bucket array starts at up to 16 buckets and grows to
+     * {@link Hashtable#capacityFor(int)} of {@code maxCapacity}.
      *
      * @param <K> key type
      * @param <TEntry> entry type
@@ -169,7 +199,12 @@ public final class Hashtable {
     @Nonnull
     public static <K, TEntry extends D1.Entry<K>> D1<K, TEntry> createBounded(
         @Nonnull Class<TEntry> entryClass, int maxCapacity) {
-      return new D1<>(maxCapacity);
+      return create(entryClass, TableSizing.bounded(maxCapacity));
+    }
+
+    /** Doubles the bucket array if one more entry would take it past 3/4 full. */
+    private void growIfNeeded() {
+      this.buckets = Hashtable.growIfNeeded(this.sizeManager, this.buckets, this.maxBuckets);
     }
 
     /**
@@ -180,7 +215,7 @@ public final class Hashtable {
       return this.sizeManager.estimateSize();
     }
 
-    /** {@code true} once {@link #size()} has reached this table's fixed capacity. */
+    /** {@code true} once {@link #size()} has reached this table's max capacity. */
     public boolean isFull() {
       return this.sizeManager.isFull();
     }
@@ -231,6 +266,7 @@ public final class Hashtable {
      * #insertHeadEntryAt(Hashtable.Entry[], int, Hashtable.Entry)}).
      */
     public boolean insert(@Nonnull TEntry newEntry) {
+      growIfNeeded();
       return insertHeadEntryFor(this.sizeManager, this.buckets, newEntry.keyHash, newEntry);
     }
 
@@ -261,6 +297,7 @@ public final class Hashtable {
         }
       }
 
+      growIfNeeded();
       return insertHeadEntryFor(this.sizeManager, this.buckets, newEntry.keyHash, newEntry);
     }
 
@@ -311,6 +348,7 @@ public final class Hashtable {
         return null;
       }
       TEntry newEntry = creator.apply(key);
+      growIfNeeded();
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
       this.sizeManager.increment();
       return newEntry;
@@ -358,6 +396,7 @@ public final class Hashtable {
         return null;
       }
       TEntry newEntry = creator.apply(key);
+      growIfNeeded();
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
       this.sizeManager.increment();
       return newEntry;
@@ -416,8 +455,9 @@ public final class Hashtable {
    * {@code D2} substantially less GC-intensive than the equivalent {@code HashMap<Pair, Long>} for
    * counter-style workloads.
    *
-   * <p>Capacity is fixed at construction; the table does not resize. Same strict-cap semantics as
-   * {@link D1} once {@link #size()} reaches capacity.
+   * <p>Same growth and strict-cap semantics as {@link D1}: the bucket array starts small, doubles
+   * as the table fills up to {@link Hashtable#capacityFor(int)} of the bound, and inserting while
+   * iterating is unsupported.
    *
    * <p>Key parts are combined into a 64-bit hash via {@link LongHashingUtils}; see {@link
    * D2.Entry#hash(Object, Object)}.
@@ -478,23 +518,41 @@ public final class Hashtable {
     }
 
     // Package-private to match D1.buckets -- available for iterator tests in the same package.
-    final Hashtable.Entry[] buckets;
+    Hashtable.Entry[] buckets;
+    private final int maxBuckets;
     private final SizeManager sizeManager;
 
-    private D2(int maxCapacity) {
-      // Bucket array gets load-factor headroom over the strict entry cap below, so chains stay
-      // short even when the table is full; see Hashtable#capacityFor.
-      this.buckets = Hashtable.create(capacityFor(maxCapacity));
-      this.sizeManager = new SizeManager(maxCapacity);
+    private D2(TableSizing sizing) {
+      // Grows up to load-factor headroom over the strict entry cap; see D1's constructor.
+      this.maxBuckets = capacityFor(sizing.maxCapacity());
+      this.buckets = Hashtable.create(initialBucketsFor(sizing));
+      this.sizeManager = new SizeManager(sizing.maxCapacity());
     }
 
     /**
-     * Creates a two-key table bounded to {@code maxCapacity} live entries. At the bound, {@link
-     * #insert} returns {@code false} and {@link #tryGetOrCreateOrNull} returns {@code null} for an
-     * absent key pair; lookup hits and replacements still succeed.
+     * Creates a two-key table sized by {@code sizing}, growing as {@link D1#create} describes. At
+     * its max capacity, {@link #insert} returns {@code false} and {@link #tryGetOrCreateOrNull}
+     * returns {@code null} for an absent key pair; lookup hits and replacements still succeed.
      *
      * <p>{@code entryClass} is used only to infer the key and entry types; the backing array
      * remains a {@code Hashtable.Entry[]}.
+     *
+     * @param <K1> first key type
+     * @param <K2> second key type
+     * @param <TEntry> entry type
+     * @param entryClass concrete entry type used for generic type inference
+     * @param sizing max and initial capacity, in live entries
+     * @return a bounded table
+     */
+    @Nonnull
+    public static <K1, K2, TEntry extends D2.Entry<K1, K2>> D2<K1, K2, TEntry> create(
+        @Nonnull Class<TEntry> entryClass, @Nonnull TableSizing sizing) {
+      return new D2<>(sizing);
+    }
+
+    /**
+     * Shorthand for {@link #create} with {@link TableSizing#bounded(int)
+     * TableSizing.bounded(maxCapacity)}.
      *
      * @param <K1> first key type
      * @param <K2> second key type
@@ -506,7 +564,12 @@ public final class Hashtable {
     @Nonnull
     public static <K1, K2, TEntry extends D2.Entry<K1, K2>> D2<K1, K2, TEntry> createBounded(
         @Nonnull Class<TEntry> entryClass, int maxCapacity) {
-      return new D2<>(maxCapacity);
+      return create(entryClass, TableSizing.bounded(maxCapacity));
+    }
+
+    /** Doubles the bucket array if one more entry would take it past 3/4 full. */
+    private void growIfNeeded() {
+      this.buckets = Hashtable.growIfNeeded(this.sizeManager, this.buckets, this.maxBuckets);
     }
 
     /**
@@ -517,7 +580,7 @@ public final class Hashtable {
       return this.sizeManager.estimateSize();
     }
 
-    /** {@code true} once {@link #size()} has reached this table's fixed capacity. */
+    /** {@code true} once {@link #size()} has reached this table's max capacity. */
     public boolean isFull() {
       return this.sizeManager.isFull();
     }
@@ -561,6 +624,7 @@ public final class Hashtable {
 
     /** Two-key analogue of {@link D1#insert}, with the same strict-cap refusal contract. */
     public boolean insert(@Nonnull TEntry newEntry) {
+      growIfNeeded();
       return insertHeadEntryFor(this.sizeManager, this.buckets, newEntry.keyHash, newEntry);
     }
 
@@ -578,6 +642,7 @@ public final class Hashtable {
         }
       }
 
+      growIfNeeded();
       return insertHeadEntryFor(this.sizeManager, this.buckets, newEntry.keyHash, newEntry);
     }
 
@@ -634,6 +699,7 @@ public final class Hashtable {
         return null;
       }
       TEntry newEntry = creator.apply(key1, key2);
+      growIfNeeded();
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
       this.sizeManager.increment();
       return newEntry;
@@ -685,6 +751,7 @@ public final class Hashtable {
         return null;
       }
       TEntry newEntry = creator.apply(key1, key2);
+      growIfNeeded();
       insertHeadEntryFor(this.buckets, newEntry.keyHash, newEntry);
       this.sizeManager.increment();
       return newEntry;
@@ -755,8 +822,9 @@ public final class Hashtable {
    * reflectively via {@link Array#newInstance}. That buys a real {@code TEntry} component type
    * rather than the base {@code Entry[]}: typed reads, real array-store checks, and a monomorphic
    * element type for the JIT. The one reflective call happens at construction, off any hot path.
-   * Capacity is fixed; the table does not resize. Use {@link #create(int)} when the spine is driven
-   * purely through the static building blocks and the base component type is enough.
+   * The array stays fixed unless the caller grows it with {@link #resize(Hashtable.Entry[])}. Use
+   * {@link #create(int)} when the spine is driven purely through the static building blocks and the
+   * base component type is enough.
    *
    * <p>{@code capacity} is a bucket count with no load-factor headroom. To size the array for a cap
    * on live entries, as {@link D1}, {@link D2}, and {@link #createBounded} do, pass {@link
@@ -778,7 +846,8 @@ public final class Hashtable {
    * allocate internally. Prefer {@link #create(Class, int)} when you own the array and want a real
    * {@code TEntry} component type (typed reads, array-store checks, a monomorphic element type for
    * the JIT); prefer this one when a typed spine would only buy you covariant array-store checks on
-   * every insert. Capacity is fixed; the table does not resize.
+   * every insert. The array stays fixed unless the caller grows it with {@link
+   * #resize(Hashtable.Entry[])}.
    *
    * <p>{@code buckets} is a bucket count, not an entry cap -- see {@link #capacityFor(int)} to
    * derive one from a target cap on live entries.
@@ -798,8 +867,8 @@ public final class Hashtable {
   /**
    * Bucket-array length for a strict cap of {@code cardinalityLimit} live entries at {@link
    * #DEFAULT_LOAD_FACTOR}: infers a reasonable bucket count from the entry cap you actually care
-   * about, rather than making every caller redo the headroom math ({@link D1}, {@link D2}, and
-   * {@link #createBounded} all size themselves this way). Pair with a {@link SizeManager} of {@code
+   * about, rather than making every caller redo the headroom math ({@link #createBounded} allocates
+   * this size, and {@link D1} and {@link D2} grow to it). Pair with a {@link SizeManager} of {@code
    * cardinalityLimit} for the matching strict cap; this method only sizes the array.
    */
   public static int capacityFor(int cardinalityLimit) {
@@ -838,6 +907,78 @@ public final class Hashtable {
       return 1;
     }
     return Integer.highestOneBit(requestedSize - 1) << 1;
+  }
+
+  /** Bucket count a {@link D1} or {@link D2} built from {@code sizing} starts with. */
+  static int initialBucketsFor(@Nonnull TableSizing sizing) {
+    // initialCapacity() is clamped to maxCapacity(), so this never exceeds the full-table size.
+    return capacityFor(sizing.initialCapacity());
+  }
+
+  /**
+   * Returns {@code buckets}, or a doubled replacement from {@link #resize(SizeManager,
+   * Hashtable.Entry[])} when one more entry would take it past 3/4 full and it is still shorter
+   * than {@code maxBuckets}. With power-of-two lengths and {@code maxBuckets} from {@link
+   * #capacityFor(int)} of the manager's capacity, a table filled to that capacity ends at exactly
+   * {@code maxBuckets}.
+   */
+  @Nonnull
+  static Hashtable.Entry[] growIfNeeded(
+      @Nonnull SizeManager sizeManager, @Nonnull Hashtable.Entry[] buckets, int maxBuckets) {
+    int length = buckets.length;
+    if (length < maxBuckets && sizeManager.estimateSize() >= (length >> 1) + (length >> 2)) {
+      return resize(sizeManager, buckets);
+    }
+    return buckets;
+  }
+
+  /**
+   * Doubles {@code buckets} and relinks every entry into the new array, which the caller stores
+   * back; {@code buckets} must not be used afterwards. The new array has the same component type,
+   * and it is the only allocation: entries move, they are not copied. For callers that own a bucket
+   * array and drive the static building blocks, whose array never grows on its own. If a {@link
+   * SizeManager} tracks the array, use {@link #resize(SizeManager, Hashtable.Entry[])}.
+   *
+   * @throws IllegalStateException if {@code buckets} is already {@link #MAX_BUCKETS} long
+   */
+  @SuppressWarnings("unchecked")
+  @Nonnull
+  public static <TEntry extends Entry> TEntry[] resize(@Nonnull TEntry[] buckets) {
+    TEntry[] grown =
+        (TEntry[])
+            Array.newInstance(buckets.getClass().getComponentType(), grownLength(buckets.length));
+    for (TEntry head : buckets) {
+      Entry entry = head;
+      while (entry != null) {
+        // Read next before relinking: insertion overwrites it with the new bucket's chain.
+        Entry next = entry.next();
+        entry.setNext(null);
+        insertHeadEntryFor(grown, entry.keyHash, entry);
+        entry = next;
+      }
+    }
+    return grown;
+  }
+
+  /**
+   * {@link #resize(Hashtable.Entry[])} for an array tracked by {@code sizeManager}: also restarts
+   * the eviction scan, whose saved bucket index and chain position refer to the old array. The
+   * count is unchanged, since every entry moves.
+   */
+  @Nonnull
+  public static <TEntry extends Entry> TEntry[] resize(
+      @Nonnull SizeManager sizeManager, @Nonnull TEntry[] buckets) {
+    sizeManager.clearCursor();
+    return resize(buckets);
+  }
+
+  /** {@code length << 1}, refusing to grow past {@link #MAX_BUCKETS}. */
+  static int grownLength(int length) {
+    if (length >= MAX_BUCKETS) {
+      throw new IllegalStateException(
+          "cannot grow a bucket array of length " + length + " past " + MAX_BUCKETS);
+    }
+    return length << 1;
   }
 
   public static int bucketIndex(@Nonnull Object[] buckets, long keyHash) {
