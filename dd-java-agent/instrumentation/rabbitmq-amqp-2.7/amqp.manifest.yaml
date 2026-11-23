@@ -1,0 +1,13 @@
+_v: 1
+name: amqp
+display_name: RabbitMQ Java Client
+description: Instruments RabbitMQ Java Client AMQP command execution and message publishing and consumption, including trace-context
+  propagation and Data Streams Monitoring checkpoints.
+packages:
+- name: com.rabbitmq:amqp-client
+category:
+- messaging.consumer
+- messaging.producer
+systems:
+- rabbitmq
+creation_date: '2018-10-12'

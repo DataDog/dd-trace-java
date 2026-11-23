@@ -1,0 +1,17 @@
+_v: 1
+name: kafka
+display_name: Apache Kafka
+description: Instruments Apache Kafka producer, consumer, and Streams message processing to trace message delivery and propagate
+  context, report Data Streams and Confluent Schema Registry usage, and mark Kafka message deserialization as an IAST source.
+packages:
+- name: io.confluent:kafka-schema-registry-client
+- name: org.apache.kafka:connect-runtime
+- name: org.apache.kafka:kafka-clients
+- name: org.apache.kafka:kafka-streams
+category:
+- messaging.consumer
+- messaging.producer
+- serialization
+systems:
+- kafka
+creation_date: '2018-01-30'

@@ -1,0 +1,16 @@
+_v: 1
+name: jms
+display_name: JMS
+description: Instruments Java Message Service (JMS) message production and consumption with trace-context propagation, message
+  time-in-queue tracking, and IBM MQ Data Streams Monitoring checkpoints.
+packages:
+- name: jakarta.jms:jakarta.jms-api
+- name: javax.jms:javax.jms-api
+- name: javax.jms:jms-api
+- name: org.springframework:spring-jms
+category:
+- messaging.consumer
+- messaging.producer
+systems:
+- jms
+creation_date: '2017-06-20'
