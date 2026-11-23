@@ -1,0 +1,10 @@
+_v: 1
+name: java-lang-appsec
+display_name: Java Process Execution
+description: Instruments Java process-execution APIs to create subprocess spans and detect or block shell and command injection
+  attempts.
+packages: []
+category:
+- other
+systems: []
+creation_date: '2022-10-25'
