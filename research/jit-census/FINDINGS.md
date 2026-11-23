@@ -322,6 +322,23 @@ Sites exclude the split fast path. "Per 1k" is all addressable sites per 1k clas
 - **Proposed shapes:** HEX_PAD (`format`) and CONTAINS_CLASS (`matches(".*[cls].*")`), under
   Changes to the rule catalog.
 
+## Roadmap: crawl, walk, run (Doug, 2026-11-23)
+
+The tracer-side build-time work is the set of building blocks for the runtime replacements: prove each piece on our own code
+(reviewable output, our tests, failures show up in CI) before touching customer code.
+
+| Stage | Where it runs | What it proves for the next stage |
+|---|---|---|
+| **Crawl:** build time, our code | Gradle step: `setTag` rewrites, contributor masks, intercept classification | the ASM rewrite engine (call-for-call, frames untouched), classifying at transform time, registry as source of truth, golden files, differential tests, JFR inlining checks, `@PerfContract` gates |
+| **Walk:** load time, customer code, report only | constant-pool pre-scan plus rule matching in real apps, sending telemetry and recommendations | the pre-scan's cost and soundness on real classpaths, rule hit rates, the hotness and cost model, the census confirmed in production |
+| **Walk+:** load time, free substitutions from a hot list | profiler hot list (remote config, keyed by deploy version), rewritten at load | the rewrite engine on customer bytes, with exposure limited to known-hot sites |
+| **Run:** runtime | self-switching call sites, rewrites that keep something alive, retransform plus directives with bailout checks | needs everything above: proven rules, a cost model, rollback, capability checks |
+
+Built once at the crawl stage and reused: the rewrite engine and constant-pool scanner; the classifiers (tag keys, regex shapes: decide once, at the earliest point);
+the verification harness (differential tests, fuzzing against the reference implementation, JFR inlining and compilation checks, the JMH Δcost suite); and the governance (golden files,
+declared-then-verified contracts, `DISCARDED.md`). It also answers the proposal's "is this even possible?" on our own code first,
+where the POC found the bigger lever: the tracer's overhead.
+
 ## Tracer-side track: setTag shaping (2026-11-23)
 
 The problem: `setTag`/`setTagsFrom` are built to fold with constant keys, but they still hit "already
