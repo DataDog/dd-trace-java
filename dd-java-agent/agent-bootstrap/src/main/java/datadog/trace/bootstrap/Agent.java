@@ -121,8 +121,9 @@ public class Agent {
     PROFILING(ProfilingConfig.PROFILING_ENABLED, false),
     APPSEC(AppSecConfig.APPSEC_ENABLED, false),
     IAST(IastConfig.IAST_ENABLED, false),
-    REMOTE_CONFIG(RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED, true),
-    DEPRECATED_REMOTE_CONFIG(RemoteConfigConfig.REMOTE_CONFIG_ENABLED, true),
+    // Off by default in AWS Lambda: the Datadog Lambda extension serves no Remote Configuration
+    REMOTE_CONFIG(RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED, !isAwsLambdaRuntime()),
+    DEPRECATED_REMOTE_CONFIG(RemoteConfigConfig.REMOTE_CONFIG_ENABLED, !isAwsLambdaRuntime()),
     CWS(CwsConfig.CWS_ENABLED, false),
     CIVISIBILITY(CiVisibilityConfig.CIVISIBILITY_ENABLED, false),
     CIVISIBILITY_AGENTLESS(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, false),
@@ -1634,15 +1635,13 @@ public class Agent {
   }
 
   /**
-   * Returns whether Remote Configuration is enabled. In AWS Lambda it is off unless explicitly
-   * enabled, because the Datadog Lambda extension serves no Remote Configuration. Like the other
+   * Returns whether Remote Configuration is enabled under either setting name. Like the other
    * startup checks, this ignores the {@code DD_TRACE_CONFIG} properties file. Must be kept in sync
    * with Config.
    */
   static boolean isRemoteConfigEnabled() {
-    final boolean enabledByDefault = !isAwsLambdaRuntime();
-    return isFeatureEnabled(AgentFeature.REMOTE_CONFIG, enabledByDefault)
-        || isFeatureEnabled(AgentFeature.DEPRECATED_REMOTE_CONFIG, enabledByDefault);
+    return isFeatureEnabled(AgentFeature.REMOTE_CONFIG)
+        || isFeatureEnabled(AgentFeature.DEPRECATED_REMOTE_CONFIG);
   }
 
   private static void shutdownProfilingAgent(final boolean sync) {
@@ -1778,14 +1777,6 @@ public class Agent {
    * @return {@code true} if the agent feature is enabled
    */
   private static boolean isFeatureEnabled(AgentFeature feature) {
-    return isFeatureEnabled(feature, feature.isEnabledByDefault());
-  }
-
-  /**
-   * @return {@code true} if the agent feature is enabled, using {@code enabledByDefault} when it is
-   *     not set
-   */
-  private static boolean isFeatureEnabled(AgentFeature feature, boolean enabledByDefault) {
     // must be kept in sync with logic from Config!
     final String featureConfigKey = feature.getConfigKey();
     final String featureSystemProp = feature.getSystemProp();
@@ -1800,7 +1791,7 @@ public class Agent {
       featureEnabled = getStableConfig(LOCAL, featureConfigKey);
     }
 
-    if (enabledByDefault) {
+    if (feature.isEnabledByDefault()) {
       // true unless it's explicitly set to "false"
       return !("false".equalsIgnoreCase(featureEnabled) || "0".equals(featureEnabled));
     } else {
