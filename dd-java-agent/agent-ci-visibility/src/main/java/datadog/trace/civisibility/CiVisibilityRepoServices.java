@@ -2,6 +2,7 @@ package datadog.trace.civisibility;
 
 import static datadog.trace.api.git.UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_SHA;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.GIT_COMMIT_SHA;
+import static datadog.trace.civisibility.Constants.DDCI_PULL_REQUEST_SOURCE_SHA;
 import static datadog.trace.util.Strings.isBlank;
 import static datadog.trace.util.Strings.isNotBlank;
 
@@ -75,8 +76,11 @@ public class CiVisibilityRepoServices {
     ciProvider = ciProviderInfo.getProvider();
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
 
-    String checkoutRoot = getRepoRoot(services.gitClientFactory, path);
-    repoRoot = checkoutRoot != null ? checkoutRoot : ciInfo.getCiWorkspace();
+    BazelMode bazelMode = BazelMode.get();
+    String resolvedRoot = getRepoRoot(services.gitClientFactory, path);
+    repoRoot = resolvedRoot != null ? resolvedRoot : ciInfo.getCiWorkspace();
+    String checkoutRoot =
+        bazelMode.isEnabled() && bazelMode.getRepoRoot() != null ? null : resolvedRoot;
     moduleName = getModuleName(services.config, repoRoot, path);
 
     GitClient gitClient = services.gitClientFactory.create(repoRoot);
@@ -93,15 +97,14 @@ public class CiVisibilityRepoServices {
         !custom
             && (GitCheckoutInfo.matchesRevision(selectedSha, providerGit, providerPr, mergeSha)
                 || GitCheckoutInfo.sameRevision(
-                    selectedSha, services.environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA))
+                    selectedSha, services.environment.get(DDCI_PULL_REQUEST_SOURCE_SHA))
                 || isBlank(ConfigProvider.getInstance().getString(DD_GIT_COMMIT_SHA))
                     && isBlank(services.config.getGlobalTags().get(GIT_COMMIT_SHA))
                     && (isBlank(selectedSha)
                         || isBlank(providerGit.getCommit().getSha())
                             && isBlank(providerPr.getHeadCommit().getSha())
                             && isBlank(mergeSha)
-                            && isBlank(
-                                services.environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA))));
+                            && isBlank(services.environment.get(DDCI_PULL_REQUEST_SOURCE_SHA))));
     PullRequestInfo pullRequestInfo =
         buildPullRequestInfo(
             services.config, services.environment, ciProviderInfo, gitClient, useCiInfo);
@@ -123,7 +126,7 @@ public class CiVisibilityRepoServices {
       ciTags.put("ci.git.merge_commit_sha", mergeSha);
     }
 
-    if (BazelMode.get().isEnabled()) {
+    if (bazelMode.isEnabled()) {
       // bazel rule takes care of the git data upload
       LOGGER.info("[bazel mode] Skipping git data upload");
       gitDataUploader = () -> CompletableFuture.completedFuture(null);
@@ -207,7 +210,7 @@ public class CiVisibilityRepoServices {
 
     // ddci specific vars
     String targetSha = environment.get(Constants.DDCI_PULL_REQUEST_TARGET_SHA);
-    String sourceSha = environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA);
+    String sourceSha = environment.get(DDCI_PULL_REQUEST_SOURCE_SHA);
     String mergeBase = null;
 
     if (!Constants.DDCI_LEGACY_KIND.equals(environment.get(Constants.DDCI_REQUEST_KIND))) {
@@ -223,7 +226,7 @@ public class CiVisibilityRepoServices {
             null,
             mergeBase,
             null,
-            new CommitInfo(environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA)),
+            new CommitInfo(environment.get(DDCI_PULL_REQUEST_SOURCE_SHA)),
             null);
 
     return PullRequestInfo.coalesce(userInfo, ddCiInfo);

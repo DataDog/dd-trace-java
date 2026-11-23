@@ -1,5 +1,6 @@
 package datadog.trace.civisibility;
 
+import static datadog.communication.util.IOUtils.copyFolder;
 import static datadog.trace.api.git.UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_SHA;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.GIT_COMMIT_SHA;
 import static datadog.trace.civisibility.ci.TeamcityInfo.TEAMCITY;
@@ -16,7 +17,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import datadog.communication.util.IOUtils;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.git.CommitInfo;
@@ -73,8 +73,8 @@ class CiVisibilityCheckoutTest {
       throws Exception {
     Path fixture = Paths.get(getClass().getResource("/ci/git/with_pack/git").toURI());
     Path nested = Files.createDirectories(workspace.resolve("tools"));
-    IOUtils.copyFolder(fixture, Files.createDirectory(workspace.resolve(".git")));
-    IOUtils.copyFolder(fixture, Files.createDirectory(nested.resolve(".git")));
+    copyFolder(fixture, Files.createDirectory(workspace.resolve(".git")));
+    copyFolder(fixture, Files.createDirectory(nested.resolve(".git")));
     Path module = Files.createDirectory(nested.resolve("module"));
     Config config = mock(Config.class);
     when(config.getCiVisibilityGitCommandTimeoutMillis()).thenReturn(GIT_COMMAND_TIMEOUT_MILLIS);
@@ -97,7 +97,7 @@ class CiVisibilityCheckoutTest {
     Path repository = Files.createDirectories(checkout.resolve(root));
     Path tested = Files.createDirectories(repository.resolve(module));
     Path fixture = Paths.get(getClass().getResource("/ci/git/with_pack/git").toURI());
-    IOUtils.copyFolder(fixture, Files.createDirectory(repository.resolve(".git")));
+    copyFolder(fixture, Files.createDirectory(repository.resolve(".git")));
     Config config = mock(Config.class);
     when(config.getCiVisibilityGitCommandTimeoutMillis()).thenReturn(GIT_COMMAND_TIMEOUT_MILLIS);
     when(config.isCiVisibilityCiProviderIntegrationEnabled()).thenReturn(true);
@@ -168,7 +168,9 @@ class CiVisibilityCheckoutTest {
     Map<String, String> values = new HashMap<>();
     values.put(TEAMCITY, "2026.1");
     values.put("TEAMCITY_PULLREQUEST_TARGET_BRANCH", "release/1.x");
-    if (ddciMismatch) values.put(Constants.DDCI_PULL_REQUEST_SOURCE_SHA, OTHER_SHA);
+    if (ddciMismatch) {
+      values.put(Constants.DDCI_PULL_REQUEST_SOURCE_SHA, OTHER_SHA);
+    }
     CiEnvironment environment = new CiEnvironmentImpl(values);
     CIProviderInfo provider =
         spy(new CIProviderInfoFactory(config, environment).createCIProviderInfo(checkout));
@@ -177,9 +179,10 @@ class CiVisibilityCheckoutTest {
             CIInfo.builder(environment)
                 .ciWorkspace(custom ? checkout.resolve("workflow").toString() : checkout.toString())
                 .build());
-    if (providerMismatch)
+    if (providerMismatch) {
       when(provider.buildCIGitInfo())
           .thenReturn(new GitInfo(null, null, null, new CommitInfo(OTHER_SHA)));
+    }
     CIProviderInfoFactory providerFactory = mock(CIProviderInfoFactory.class);
     when(providerFactory.createCIProviderInfo(checkout)).thenReturn(provider);
     GitClient git = mock(GitClient.class);
