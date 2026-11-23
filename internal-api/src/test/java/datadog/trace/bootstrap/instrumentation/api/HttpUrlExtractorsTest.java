@@ -36,7 +36,7 @@ import org.tabletest.junit.TableTest;
 @WithConfig(key = "http.client.tag.query-string", value = "true")
 @WithConfig(key = "http.server.tag.query-string", value = "true")
 class HttpUrlExtractorsTest {
-  private final AgentSpan span = mock(AgentSpan.class);
+  private final SpanData span = mock(SpanData.class);
 
   @TableTest({
     "Scenario           | Get first",
@@ -127,7 +127,7 @@ class HttpUrlExtractorsTest {
   })
   void clientsPreserveEncodedQueryBoundaries(String rawQuery, String expectedQuery) {
     URI uri = URI.create("http://host/orders?" + rawQuery);
-    AgentSpan datadog = mock(AgentSpan.class);
+    SpanData datadog = mock(SpanData.class);
 
     DatadogClientUrl.INSTANCE.extract(uri, datadog);
     OtelClientUrl.INSTANCE.extract(uri, span);
@@ -148,7 +148,7 @@ class HttpUrlExtractorsTest {
     URI uri = URI.create("http://host/orders?" + rawQuery);
     HttpServerUrl url =
         HttpServerUrl.fromRequest(new URIDefaultDataAdapter(uri), uri.getPath(), null, null);
-    AgentSpan datadog = mock(AgentSpan.class);
+    SpanData datadog = mock(SpanData.class);
 
     DatadogServerUrl.INSTANCE.extract(url, datadog);
     OtelServerUrl.INSTANCE.extract(url, span);
@@ -293,7 +293,7 @@ class HttpUrlExtractorsTest {
   void serverExtractsMalformedRequestUrl(String rawUrl, String expectedPath, String expectedQuery) {
     HttpServerUrl url =
         HttpServerUrl.fromRequest(new UnparseableURIDataAdapter(rawUrl), null, null, null);
-    AgentSpan datadog = mock(AgentSpan.class);
+    SpanData datadog = mock(SpanData.class);
 
     DatadogServerUrl.INSTANCE.extract(url, datadog);
     OtelServerUrl.INSTANCE.extract(url, span);
@@ -376,7 +376,7 @@ class HttpUrlExtractorsTest {
   void transactionPreservesOriginalUrlAndResolvesOtelOrigin(
       String originalUrl, String host, String port, String expectedHost, int expectedPort) {
     HttpServerUrl url = HttpServerUrl.fromTransaction(originalUrl, host, port);
-    AgentSpan datadog = mock(AgentSpan.class);
+    SpanData datadog = mock(SpanData.class);
 
     DatadogServerUrl.URL_ONLY.extract(url, datadog);
     OtelServerUrl.INSTANCE.extract(url, span);
@@ -409,7 +409,7 @@ class HttpUrlExtractorsTest {
   @Test
   void inferredProxySupportsBothUrlStyles() {
     HttpServerUrl url = HttpServerUrl.fromInferredProxy("api.host", "/a");
-    AgentSpan datadog = mock(AgentSpan.class);
+    SpanData datadog = mock(SpanData.class);
 
     DatadogServerUrl.URL_ONLY.extract(url, datadog);
     OtelServerUrl.INSTANCE.extract(url, span);
@@ -425,7 +425,7 @@ class HttpUrlExtractorsTest {
   @NullAndEmptySource
   void inferredProxyOmitsUnknownOrigin(String domain) {
     HttpServerUrl url = HttpServerUrl.fromInferredProxy(domain, "/a");
-    AgentSpan datadog = mock(AgentSpan.class);
+    SpanData datadog = mock(SpanData.class);
 
     DatadogServerUrl.URL_ONLY.extract(url, datadog);
     OtelServerUrl.INSTANCE.extract(url, span);
