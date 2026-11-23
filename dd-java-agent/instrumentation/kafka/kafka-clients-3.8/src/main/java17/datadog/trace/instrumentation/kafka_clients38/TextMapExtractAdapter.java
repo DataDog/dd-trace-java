@@ -80,13 +80,38 @@ public class TextMapExtractAdapter implements ContextVisitor<Headers> {
     for (Header header : carrier) {
       BufferedHeaderFields fields =
           header instanceof BufferedHeaderFields ? (BufferedHeaderFields) header : null;
-      String key = key(header, fields, keys);
-      if (key == null) {
-        continue;
+      // A fetched header's key is matched from its bytes, once, for both its name and constant;
+      // a declared name comes back as that name's (lower-cased) constant, a prefix match is
+      // decoded, and anything else is skipped undecoded.
+      String key;
+      HeaderSchema schema = null;
+      ByteBuffer keyBuffer =
+          fields != null && fields.$$DD$$__key() == null ? fields.$$DD$$__keyBuffer() : null;
+      if (keyBuffer == null) {
+        key = header.key();
+        if (!keys.contains(key)) {
+          continue;
+        }
+        if (transientSink != null && fields != null) {
+          schema = keys.header(key);
+        }
+      } else if (keys.isAll()) {
+        key = RecordHeaderAccess.key(header, fields);
+        if (key == null) {
+          continue;
+        }
+      } else {
+        int match = keys.matchAscii(keyBuffer);
+        if (match != CarrierKeys.NO_MATCH) {
+          key = keys.nameOf(match);
+          schema = keys.headerOf(match);
+        } else if (keys.hasPrefixAscii(keyBuffer)) {
+          key = header.key();
+        } else {
+          continue;
+        }
       }
       if (transientSink != null && fields != null) {
-        // a matched key is the declared name itself, so this is an identity check
-        HeaderSchema schema = keys.header(key);
         if (schema != null && schema.isParseOnly()) {
           CharSequence view = RecordHeaderAccess.asciiValueView(fields);
           if (view != null) {
@@ -103,29 +128,6 @@ public class TextMapExtractAdapter implements ContextVisitor<Headers> {
         return;
       }
     }
-  }
-
-  /**
-   * The header's key, or null if it isn't in {@code keys}. A fetched header's key is matched from
-   * its bytes once: a declared name comes back as that name's (lower-cased) constant, a prefix
-   * match is decoded, and anything else is skipped undecoded.
-   */
-  private static String key(Header header, BufferedHeaderFields fields, CarrierKeys keys) {
-    if (fields != null && fields.$$DD$$__key() == null) {
-      ByteBuffer keyBuffer = fields.$$DD$$__keyBuffer();
-      if (keyBuffer != null) {
-        if (keys.isAll()) {
-          return RecordHeaderAccess.key(header, fields);
-        }
-        String name = keys.nameAscii(keyBuffer);
-        if (name != null) {
-          return name;
-        }
-        return keys.hasPrefixAscii(keyBuffer) ? header.key() : null;
-      }
-    }
-    String key = header.key();
-    return keys.contains(key) ? key : null;
   }
 
   /** The header's value decoded, or null if it has none or doesn't decode. */

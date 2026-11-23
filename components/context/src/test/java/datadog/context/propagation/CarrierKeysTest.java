@@ -178,4 +178,53 @@ class CarrierKeysTest {
         "CarrierKeys{names=[traceparent, x-b3-traceid, x-datadog-trace-id], prefixes=[ot-baggage-]}",
         KEYS.toString());
   }
+
+  @Test
+  void matchAsciiGivesNameAndConstantFromOneLookup() {
+    CarrierKeys keys =
+        CarrierKeys.builder()
+            .header(HeaderSchema.X_DATADOG_PARENT_ID)
+            .header(HeaderSchema.X_DATADOG_TRACE_ID)
+            .header(HeaderSchema.TRACEPARENT)
+            .name("x-custom-header")
+            .build();
+
+    int match = keys.matchAscii(bytes("x-datadog-parent-id"));
+    assertEquals("x-datadog-parent-id", keys.nameOf(match));
+    assertSame(HeaderSchema.X_DATADOG_PARENT_ID, keys.headerOf(match));
+
+    // ignoring case; the name comes back lower-cased
+    match = keys.matchAscii(bytes("TraceParent"));
+    assertEquals("traceparent", keys.nameOf(match));
+    assertSame(HeaderSchema.TRACEPARENT, keys.headerOf(match));
+
+    // a declared name without a constant
+    match = keys.matchAscii(bytes("X-Custom-Header"));
+    assertEquals("x-custom-header", keys.nameOf(match));
+    assertNull(keys.headerOf(match));
+
+    assertEquals(CarrierKeys.NO_MATCH, keys.matchAscii(bytes("x-datadog-parent-ix")));
+    assertEquals(CarrierKeys.NO_MATCH, keys.matchAscii(bytes("content-type")));
+    ByteBuffer buffer = bytes("x-datadog-trace-id");
+    keys.matchAscii(buffer);
+    assertEquals(3, buffer.position(), "position moved");
+  }
+
+  @Test
+  void sameLengthNamesMatchedExactlyOrIgnoringCase() {
+    // x-datadog-trace-id and x-forwarded-proto... share a length with other declared names
+    CarrierKeys keys =
+        CarrierKeys.builder()
+            .name("aaaa-bbbb")
+            .name("cccc-dddd")
+            .header(HeaderSchema.X_DATADOG_TRACE_ID)
+            .build();
+    assertTrue(keys.contains("cccc-dddd"));
+    assertTrue(keys.contains("CCCC-dddd"));
+    assertFalse(keys.contains("cccc-ddde"));
+    assertSame(HeaderSchema.X_DATADOG_TRACE_ID, keys.header("x-datadog-trace-id"));
+    assertSame(HeaderSchema.X_DATADOG_TRACE_ID, keys.header("X-DATADOG-TRACE-ID"));
+    assertNull(keys.header("aaaa-bbbb"));
+    assertNull(keys.header("x-datadog-trace-ie"));
+  }
 }

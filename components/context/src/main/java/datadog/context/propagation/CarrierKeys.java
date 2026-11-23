@@ -22,6 +22,9 @@ import java.util.Set;
  * <p>Immutable.
  */
 public final class CarrierKeys {
+  /** {@link #matchAscii} found no declared name. */
+  public static final int NO_MATCH = -1;
+
   private static final CarrierKeys ALL =
       new CarrierKeys(true, new String[0][], new byte[0][][], new HeaderSchema[0][], new String[0]);
   private static final CarrierKeys NONE =
@@ -96,12 +99,8 @@ public final class CarrierKeys {
     int length = key.length();
     if (length < namesByLength.length) {
       String[] names = namesByLength[length];
-      if (names != null) {
-        for (String name : names) {
-          if (name.equals(key) || name.regionMatches(true, 0, key, 0, length)) {
-            return true;
-          }
-        }
+      if (names != null && indexOf(names, key) >= 0) {
+        return true;
       }
     }
     for (String prefix : prefixes) {
@@ -150,15 +149,53 @@ public final class CarrierKeys {
     if (length < namesByLength.length) {
       String[] names = namesByLength[length];
       if (names != null) {
-        for (int i = 0; i < names.length; i++) {
-          // usually lower case already: the declared name itself, or a decoded copy of it
-          if (names[i].equals(key) || names[i].regionMatches(true, 0, key, 0, length)) {
-            return headersByLength[length][i];
-          }
+        int i = indexOf(names, key);
+        if (i >= 0) {
+          return headersByLength[length][i];
         }
       }
     }
     return null;
+  }
+
+  /**
+   * The index of the name {@code key} is, among same-length {@code names}, or -1. Compares every
+   * name exactly first, since a key is usually lower case already (often the declared name itself,
+   * so the compare is an identity check), and ignoring case only if none is equal; comparing each
+   * name both ways in turn would run the case-insensitive compare on every name before the match.
+   */
+  private static int indexOf(String[] names, String key) {
+    for (int i = 0; i < names.length; i++) {
+      if (names[i].equals(key)) {
+        return i;
+      }
+    }
+    for (int i = 0; i < names.length; i++) {
+      if (names[i].regionMatches(true, 0, key, 0, key.length())) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  /**
+   * Matches the ASCII bytes between {@code key}'s position and limit against the declared names
+   * once, ignoring case, for a carrier that needs both the {@link #nameOf name} and the {@link
+   * #headerOf constant}: the match, or {@link #NO_MATCH}. Prefixes aren't considered. Reads only.
+   */
+  public int matchAscii(ByteBuffer key) {
+    int index = indexAscii(key);
+    return index < 0 ? NO_MATCH : key.remaining() << 16 | index;
+  }
+
+  /** The declared name (lower-cased) of a {@link #matchAscii} match. */
+  public String nameOf(int match) {
+    return namesByLength[match >>> 16][match & 0xFFFF];
+  }
+
+  /** The {@link HeaderSchema} constant of a {@link #matchAscii} match, or null if it has none. */
+  public HeaderSchema headerOf(int match) {
+    return headersByLength[match >>> 16][match & 0xFFFF];
   }
 
   /** The index, among the names of its length, of the name {@code key}'s bytes spell, or -1. */
