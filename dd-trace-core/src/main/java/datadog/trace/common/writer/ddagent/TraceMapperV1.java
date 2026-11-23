@@ -1,9 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
-import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.ProtocolVersion.V1_0;
-import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
 import static datadog.trace.core.CoreSpan.STRUCTURED_EVENTS;
 import static datadog.trace.core.CoreSpan.STRUCTURED_LINKS;
@@ -20,6 +18,7 @@ import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.TagMap;
@@ -27,6 +26,7 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpanEvent;
@@ -73,6 +73,11 @@ public final class TraceMapperV1 implements TraceMapper {
   private final GrowableBuffer metaStructBuffer;
   private final MsgPackWriter metaStructWriter;
   private final ByteBuffer header;
+
+  /**
+   * Scratch state for {@link #countTagAttributes}, reset for each span on the serialization thread.
+   */
+  private int tagAttributeCount;
 
   public TraceMapperV1(int bufferSize) {
     this.bufferSize = bufferSize;
@@ -173,13 +178,13 @@ public final class TraceMapperV1 implements TraceMapper {
       // events = 12, a collection of events that occurred during this span
       encodeSpanEvents(writable, 12, meta.getSpanEvents());
       // env = 13, the optional string environment of this span
-      encodeString(writable, 13, tags.getString(Tags.ENV));
+      encodeString(writable, 13, tags.loadString(KnownTags.ENV));
       // version = 14, the optional string version of this span
-      encodeString(writable, 14, tags.getString(Tags.VERSION));
+      encodeString(writable, 14, tags.loadString(KnownTags.VERSION));
       // component = 15, the string component name of this span
-      encodeString(writable, 15, tags.getString(Tags.COMPONENT));
+      encodeString(writable, 15, tags.loadString(KnownTags.COMPONENT));
       // kind = 16, the SpanKind of this span as defined in the OTEL Specification, uint32
-      encodeInt(writable, 16, getSpanKindValue(tags.getString(Tags.SPAN_KIND)));
+      encodeInt(writable, 16, getSpanKindValue(tags.loadString(KnownTags.SPAN_KIND)));
 
       meta = null; // Proceed to next span metadata.
     }
@@ -284,7 +289,7 @@ public final class TraceMapperV1 implements TraceMapper {
       return;
     }
     writable.writeInt(VALUE_TYPE_STRING);
-    writeStreamingString(writable, String.valueOf(value));
+    writeStreamingString(writable, value);
   }
 
   private boolean isEncodableEventArrayItem(Object item) {
@@ -302,7 +307,7 @@ public final class TraceMapperV1 implements TraceMapper {
       return;
     }
     writable.writeInt(VALUE_TYPE_STRING);
-    writeStreamingString(writable, String.valueOf(item));
+    writeStreamingString(writable, item);
   }
 
   private void writeEventNumberValue(Writable writable, Number number) {
@@ -323,17 +328,16 @@ public final class TraceMapperV1 implements TraceMapper {
       Writable writable, int fieldId, Metadata meta, Map<String, Object> metaStruct) {
     TagMap tags = meta.getTags();
     Map<String, String> baggage = meta.getBaggage();
-    String httpStatusCode =
-        meta.getHttpStatusCode() == UNSET_STATUS ? null : meta.getHttpStatusCodeString().toString();
-    boolean writeHttpStatus = httpStatusCode != null && tags.getString(HTTP_STATUS) == null;
+    UTF8BytesString httpStatusCode = meta.getHttpStatusCodeString();
+    boolean writeHttpStatus =
+        httpStatusCode != null && tags.getEntryReader(KnownTags.HTTP_STATUS_CODE) == null;
     boolean writeTopLevel = meta.topLevel();
-    int tagCount = 0;
-    for (TagMap.EntryReader entry : tags) {
-      if (SPAN_EVENTS.equals(entry.tag())) {
-        continue;
-      }
-      tagCount += getFlatAttributeCount(entry);
-    }
+
+    // Count flattened tags before writing the array header. Explicit callback state keeps both
+    // tag passes free of TagMap iterators and capturing lambdas.
+    tagAttributeCount = 0;
+    tags.forEach(this, TraceMapperV1::countTagAttributes);
+    int tagCount = tagAttributeCount;
 
     writable.writeInt(fieldId);
     writable.startArray(
@@ -348,26 +352,42 @@ public final class TraceMapperV1 implements TraceMapper {
     writeAttribute(writable, DDTags.THREAD_ID, meta.getThreadId());
     writeAttribute(writable, DDTags.THREAD_NAME, meta.getThreadName());
 
-    for (Map.Entry<String, String> entry : baggage.entrySet()) {
-      writeAttribute(writable, entry.getKey(), entry.getValue());
+    // Skip entry-set views and iterators for empty baggage and meta-struct maps.
+    if (!baggage.isEmpty()) {
+      for (Map.Entry<String, String> entry : baggage.entrySet()) {
+        writeAttribute(writable, entry.getKey(), entry.getValue());
+      }
     }
 
-    for (TagMap.EntryReader entry : tags) {
-      if (SPAN_EVENTS.equals(entry.tag())) {
-        continue;
-      }
-      writeFlattenedTagAttribute(writable, entry);
-    }
+    tags.forEach(this, writable, TraceMapperV1::writeTagAttribute);
+
     if (writeHttpStatus) {
       writeAttribute(writable, HTTP_STATUS, httpStatusCode);
     }
+
     if (writeTopLevel) {
       writeAttribute(writable, InstrumentationTags.DD_TOP_LEVEL.toString(), 1);
     }
-    for (Map.Entry<String, Object> metaStructField : metaStruct.entrySet()) {
-      writeStreamingString(writable, metaStructField.getKey());
-      writable.writeInt(VALUE_TYPE_BYTES);
-      writable.writeBinary(serializeMetaStructValue(metaStructField.getValue()));
+
+    if (!metaStruct.isEmpty()) {
+      for (Map.Entry<String, Object> metaStructField : metaStruct.entrySet()) {
+        writeStreamingString(writable, metaStructField.getKey());
+        writable.writeInt(VALUE_TYPE_BYTES);
+        writable.writeBinary(serializeMetaStructValue(metaStructField.getValue()));
+      }
+    }
+  }
+
+  private static void countTagAttributes(TraceMapperV1 mapper, TagMap.EntryReader entry) {
+    if (entry.tagId() != KnownTags.EVENTS) {
+      mapper.tagAttributeCount += mapper.getFlatAttributeCount(entry);
+    }
+  }
+
+  private static void writeTagAttribute(
+      TraceMapperV1 mapper, Writable writable, TagMap.EntryReader entry) {
+    if (entry.tagId() != KnownTags.EVENTS) {
+      mapper.writeFlattenedTagAttribute(writable, entry);
     }
   }
 
@@ -454,7 +474,7 @@ public final class TraceMapperV1 implements TraceMapper {
     }
 
     writable.writeInt(VALUE_TYPE_STRING);
-    writeStreamingString(writable, value == null ? "" : value.toString());
+    writeStreamingString(writable, value);
   }
 
   private byte[] serializeMetaStructValue(Object value) {
@@ -501,16 +521,24 @@ public final class TraceMapperV1 implements TraceMapper {
     writable.writeBinary(traceId.toHighOrderLong(), traceId.toLong());
   }
 
-  /** Writes a string using the streaming string table encoding. */
-  private void writeStreamingString(Writable writable, CharSequence value) {
+  /**
+   * Writes a string-table reference or a new string, treating null as empty.
+   *
+   * <p>String keys let equal text share an index across value types. On a miss, preserve a {@link
+   * UTF8BytesString} to reuse its cached encoding; other values reuse the String computed for
+   * lookup.
+   */
+  private void writeStreamingString(Writable writable, Object value) {
     String str = value == null ? "" : value.toString();
     Integer index = stringTable.get(str);
     if (index != null) {
-      // String already in table, write index
       writable.writeInt(index);
     } else {
-      // New string, write it directly and add to table
-      writable.writeString(str, null);
+      if (value instanceof UTF8BytesString) {
+        writable.writeUTF8((UTF8BytesString) value);
+      } else {
+        writable.writeString(str, null);
+      }
       stringTable.add(str);
     }
   }
