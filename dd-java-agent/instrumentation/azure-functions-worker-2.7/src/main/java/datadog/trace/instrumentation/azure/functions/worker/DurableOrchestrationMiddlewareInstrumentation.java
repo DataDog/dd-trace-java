@@ -53,9 +53,9 @@ public final class DurableOrchestrationMiddlewareInstrumentation extends Instrum
     public static ContextScope onEnter(
         @Advice.Argument(0) MiddlewareContext context,
         @Advice.Local("startTimeMicros") long startTimeMicros) {
-      final ContextScope scope = DurableFunctionsUtils.activateOrchestrationContext(context);
+      final ContextScope scope = AzureFunctionsWorkerUtils.activateOrchestrationContext(context);
       if (scope != null) {
-        startTimeMicros = DurableFunctionsUtils.nowMicros();
+        startTimeMicros = AzureFunctionsWorkerUtils.nowMicros();
       }
       return scope;
     }
@@ -73,8 +73,8 @@ public final class DurableOrchestrationMiddlewareInstrumentation extends Instrum
         final DurableOrchestrationState state = DurableOrchestrationState.current();
         if (throwable != null && state != null && !state.errorRecorded()) {
           final AgentSpan span =
-              DurableFunctionsUtils.startOrchestrationErrorSpan(context, startTimeMicros);
-          DurableFunctionsUtils.recordOrchestrationError(span, throwable, state);
+              AzureFunctionsWorkerUtils.startOrchestrationErrorSpan(context, startTimeMicros);
+          AzureFunctionsWorkerUtils.recordOrchestrationError(span, throwable, state);
         }
       } finally {
         scope.close();

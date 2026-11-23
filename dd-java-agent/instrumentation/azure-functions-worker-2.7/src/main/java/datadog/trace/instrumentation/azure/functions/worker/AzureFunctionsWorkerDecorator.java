@@ -8,16 +8,16 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.lang.reflect.InvocationTargetException;
 
-public final class DurableFunctionsDecorator extends BaseDecorator {
+public final class AzureFunctionsWorkerDecorator extends BaseDecorator {
   public static final String ORCHESTRATION_TRIGGER = "DurableOrchestration";
-  public static final DurableFunctionsDecorator DECORATE = new DurableFunctionsDecorator();
+  public static final AzureFunctionsWorkerDecorator DECORATE = new AzureFunctionsWorkerDecorator();
   public static final CharSequence AZURE_FUNCTIONS_REQUEST =
       UTF8BytesString.create(
           SpanNaming.instance().namingSchema().cloud().operationForFaas("azure"));
 
   private static final CharSequence AZURE_FUNCTIONS = UTF8BytesString.create("azure-functions");
 
-  private DurableFunctionsDecorator() {}
+  private AzureFunctionsWorkerDecorator() {}
 
   @Override
   protected String[] instrumentationNames() {

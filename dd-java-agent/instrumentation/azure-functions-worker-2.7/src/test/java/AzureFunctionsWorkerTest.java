@@ -59,7 +59,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.azure.DurableOrchestrationState;
 import datadog.trace.core.DDSpan;
 import datadog.trace.instrumentation.azure.functions.worker.AzureFunctionsWorkerInstrumentation;
-import datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsUtils;
+import datadog.trace.instrumentation.azure.functions.worker.AzureFunctionsWorkerUtils;
 import datadog.trace.instrumentation.azure.functions.worker.DurableOrchestrationExecutorInstrumentation;
 import datadog.trace.instrumentation.azure.functions.worker.DurableOrchestrationUtils;
 import java.io.ByteArrayOutputStream;
@@ -311,7 +311,12 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
         assertNull(state.span());
         assertSame(previousSpan, activeSpan());
         DurableOrchestrationExecutorInstrumentation.ExecuteAdvice.onExit(
-            null, state, null, DurableFunctionsUtils.nowMicros(), null, new NullActionsResult());
+            null,
+            state,
+            null,
+            AzureFunctionsWorkerUtils.nowMicros(),
+            null,
+            new NullActionsResult());
         assertFalse(state.errorRecorded());
       }
     } finally {
@@ -334,7 +339,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
       assertThrows(
           BlockingException.class,
           () ->
-              DurableFunctionsUtils.recordOrchestrationError(
+              AzureFunctionsWorkerUtils.recordOrchestrationError(
                   span, new IllegalStateException("failure"), state));
 
       verify(span).setError(true);
@@ -416,10 +421,11 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
 
     try (ContextScope scope = DurableOrchestrationState.activate(null, "Orchestrator")) {
       DurableOrchestrationState.current().setSpan(expectedSpan);
-      Class<?> firstUtils = Class.forName(DurableFunctionsUtils.class.getName(), true, firstWorker);
+      Class<?> firstUtils =
+          Class.forName(AzureFunctionsWorkerUtils.class.getName(), true, firstWorker);
       Class<?> secondUtils =
-          Class.forName(DurableFunctionsUtils.class.getName(), true, secondWorker);
-      assertNotSame(DurableFunctionsUtils.class, firstUtils);
+          Class.forName(AzureFunctionsWorkerUtils.class.getName(), true, secondWorker);
+      assertNotSame(AzureFunctionsWorkerUtils.class, firstUtils);
       assertNotSame(firstUtils, secondUtils);
       for (Class<?> workerUtils : new Class<?>[] {firstUtils, secondUtils}) {
         assertSame(
@@ -462,7 +468,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
         null,
         "DurableOrchestration",
         null,
-        DurableFunctionsUtils.nowMicros(),
+        AzureFunctionsWorkerUtils.nowMicros(),
         new IllegalStateException("worker failure"));
 
     writer.waitForTraces(1);
@@ -656,7 +662,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
     AtomicLong invocationStartMicros = new AtomicLong();
     doAnswer(
             invocation -> {
-              invocationStartMicros.set(DurableFunctionsUtils.nowMicros());
+              invocationStartMicros.set(AzureFunctionsWorkerUtils.nowMicros());
               Thread.sleep(25);
               throw new InvocationTargetException(new IllegalStateException("replay failure"));
             })
@@ -886,7 +892,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
   void marksDeeplyWrappedReplayInterruptionAsRealFailure() throws Exception {
     Throwable interruption = replayInterruption();
     assertFalse(
-        DurableFunctionsUtils.isReplayControlFlow(
+        AzureFunctionsWorkerUtils.isReplayControlFlow(
             new InvocationTargetException(new RuntimeException(interruption))));
 
     MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
@@ -920,7 +926,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
   @Test
   void marksUnwrappedReplayInterruptionAsRealFailure() throws Exception {
     Throwable interruption = replayInterruption();
-    assertFalse(DurableFunctionsUtils.isReplayControlFlow(interruption));
+    assertFalse(AzureFunctionsWorkerUtils.isReplayControlFlow(interruption));
     MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
     MiddlewareChain chain = mock(MiddlewareChain.class);
     doAnswer(

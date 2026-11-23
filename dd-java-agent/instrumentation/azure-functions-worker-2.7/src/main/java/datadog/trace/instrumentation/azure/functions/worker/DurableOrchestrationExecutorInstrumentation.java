@@ -2,8 +2,8 @@ package datadog.trace.instrumentation.azure.functions.worker;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
-import static datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsDecorator.DECORATE;
-import static datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsUtils.startOrchestrationSpan;
+import static datadog.trace.instrumentation.azure.functions.worker.AzureFunctionsWorkerDecorator.DECORATE;
+import static datadog.trace.instrumentation.azure.functions.worker.AzureFunctionsWorkerUtils.startOrchestrationSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -54,7 +54,7 @@ public final class DurableOrchestrationExecutorInstrumentation extends Instrumen
       if (state == null) {
         return null;
       }
-      startTimeMicros = DurableFunctionsUtils.nowMicros();
+      startTimeMicros = AzureFunctionsWorkerUtils.nowMicros();
       if (!DurableOrchestrationUtils.shouldTrace(pastEvents, newEvents)) {
         return null;
       }

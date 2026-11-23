@@ -3,9 +3,9 @@ package datadog.trace.instrumentation.azure.functions.worker;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsDecorator.AZURE_FUNCTIONS_REQUEST;
-import static datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsDecorator.DECORATE;
-import static datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsDecorator.ORCHESTRATION_TRIGGER;
+import static datadog.trace.instrumentation.azure.functions.worker.AzureFunctionsWorkerDecorator.AZURE_FUNCTIONS_REQUEST;
+import static datadog.trace.instrumentation.azure.functions.worker.AzureFunctionsWorkerDecorator.DECORATE;
+import static datadog.trace.instrumentation.azure.functions.worker.AzureFunctionsWorkerDecorator.ORCHESTRATION_TRIGGER;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -17,14 +17,14 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.azure.DurableOrchestrationState;
 import java.time.Instant;
 
-public final class DurableFunctionsUtils {
+public final class AzureFunctionsWorkerUtils {
   private static final String ACTIVITY_ANNOTATION = "DurableActivityTrigger";
   private static final String ENTITY_ANNOTATION = "DurableEntityTrigger";
   private static final String ORCHESTRATION_ANNOTATION = "DurableOrchestrationTrigger";
   private static final String COSMOS_DB_ANNOTATION = "CosmosDBTrigger";
   private static final String COSMOS_DB_TRIGGER = "CosmosDB";
 
-  private DurableFunctionsUtils() {}
+  private AzureFunctionsWorkerUtils() {}
 
   public static String getTrigger(MiddlewareContext context) {
     if (context.getParameterName(ORCHESTRATION_ANNOTATION) != null) {

@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.azure.functions.worker;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsUtils.recordOrchestrationError;
-import static datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsUtils.startOrchestrationSpan;
+import static datadog.trace.instrumentation.azure.functions.worker.AzureFunctionsWorkerUtils.recordOrchestrationError;
+import static datadog.trace.instrumentation.azure.functions.worker.AzureFunctionsWorkerUtils.startOrchestrationSpan;
 
 import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.HistoryEvent;
 import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.HistoryEvent.EventTypeCase;
