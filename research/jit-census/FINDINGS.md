@@ -342,11 +342,22 @@ In priority order:
    depend on the generic `setTag`'s compiled size. Optional typed-setter dimension (no boxing). Advice is woven from the
    already-rewritten bytes, so the specialized calls land inside customer methods. It complements the `INTERCEPTED` id bit
    (#12817), which still pays off at dynamic call sites.
-4. **Contributor/extractor masks (lower priority, only for contributors that still vary per span):** a build-time
-   may-set analysis of the constant keys passed to the sink. Mark the mask unknown on non-constant keys or a sink that escapes. Two uses with different
-   soundness bars: presizing is a hint (an approximate mask is fine, and the store must still grow); skipping interceptors needs a sound
-   mask plus a runtime AND against the current intercepted bitset. Possible layout: `popcount(mask)` slots indexed by rank,
-   with an overflow structure for keys outside the mask. Validate with a sink assertion mode across the instrumentation tests.
+4. **Contributor/extractor masks, a peer of FrozenTags (Doug, 2026-11-23: contributors and extractors are the
+   *preferred* API, so the complexity is worth it).** Make the analysis trivial by designing the API for it:
+   - the sink accepts only `TagId` constants (no strings), so every key is a `getstatic`/`ldc` and the may-set mask is just
+     the collected operands;
+   - the sink must not escape (only sink calls; no storing, passing or capturing). This is a simple build check within one method;
+   - declared, then verified: each contributor declares its key set, the build checks that the inferred keys fit within it,
+     and a golden file indexes them for review (a `@PerfContract`-style contract);
+   - an explicit `@DynamicTags`-style opt-out for genuinely dynamic keys (header tags, baggage, user or OTel attributes).
+     Defeating the analysis without opting out fails the build, so the fast path is the default.
+   - What the mask drives: (a) layout, as the union of the masks registered per instrumentation or span type, computed once at registration
+     (an exact presize, or a rank-indexed packed layout, with an overflow structure for keys outside it); (b) skipping interceptors per contributor,
+     with one AND against the current intercepted bitset per call; (c) a frozen/varying split in the extractor API, with
+     FrozenTags covering the frozen part; (d) possibly pre-encoded keys for serialization.
+   - Presizing tolerates an approximate mask (the store must still grow). Skipping interceptors needs the verified, sound mask.
+     Validate with a sink assertion mode across the instrumentation tests.
+   - Migration: direct `setTag` call sites keep the item-3 rewrite; new instrumentation uses contributors.
 - **Validation for 3:** differential instrumentation tests (rewrite on/off); a benchmark with JFR `jdk.CompilerInlining`
   confirming "already compiled into a big method" disappears for `setTag` call sites.
 - Compiler-control notes: negative (`inline:-`) directives for our cold helpers are low-risk. Forced inlining can abort the
