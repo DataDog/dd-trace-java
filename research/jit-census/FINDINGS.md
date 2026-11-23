@@ -382,7 +382,7 @@ In priority order:
   (collision chains, entry construction). The deterministic goal is every setter's own C2 code under `InlineSmallCode`.
   Candidate: a rank-indexed dense layout (`bitCount(occupancy & (bit-1))`, a serial check, a lazily created eviction area
   for slot collisions; unslotted tags sent straight to the eviction area). Slots come from graph coloring, at most 63 global, so plain
-  `values[slot]` would be too big. **On hold (Doug): design it together with FrozenTags rather than as a standalone store change.**
+  `values[slot]` would be too big. **On hold (Doug): still working out how FrozenTags, contributor masks and the store fit together; whether exact positioning is the right move is undecided, and no more churn to the dense store for now.**
 - **Validation for 3:** differential instrumentation tests (rewrite on/off); a benchmark with JFR `jdk.CompilerInlining`
   confirming "already compiled into a big method" disappears for `setTag` call sites.
 - Compiler-control notes: negative (`inline:-`) directives for our cold helpers are low-risk. Forced inlining can abort the
