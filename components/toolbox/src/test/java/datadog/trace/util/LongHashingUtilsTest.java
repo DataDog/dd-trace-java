@@ -189,4 +189,69 @@ class LongHashingUtilsTest {
     int xHash = Objects.hashCode("x");
     assertEquals(31L * 0 + xHash, hash(null, "x"));
   }
+
+  @org.junit.jupiter.api.Test
+  public void mixSpreadsNearbyInputs() {
+    final java.util.Set<Long> mixed = new java.util.HashSet<>();
+    for (long i = 0; i < 1_000; i++) {
+      mixed.add(LongHashingUtils.mix(i));
+    }
+    org.junit.jupiter.api.Assertions.assertEquals(1_000, mixed.size());
+    org.junit.jupiter.api.Assertions.assertNotEquals(
+        LongHashingUtils.mix(1L) >>> 32, LongHashingUtils.mix(2L) >>> 32);
+  }
+
+  @org.junit.jupiter.api.Test
+  public void unorderedHashIgnoresIterationOrder() {
+    final java.util.Map<String, Object> forward = new java.util.LinkedHashMap<>();
+    final java.util.Map<String, Object> backward = new java.util.LinkedHashMap<>();
+    for (int i = 0; i < 20; i++) {
+      forward.put("k" + i, i);
+      backward.put("k" + (19 - i), 19 - i);
+    }
+
+    org.junit.jupiter.api.Assertions.assertEquals(
+        LongHashingUtils.unorderedHash(forward), LongHashingUtils.unorderedHash(backward));
+  }
+
+  @org.junit.jupiter.api.Test
+  public void unorderedHashAvoidsMapHashCodesXorCollisions() {
+    final java.util.Map<String, Object> zeros = new java.util.HashMap<>();
+    zeros.put("a", 0);
+    zeros.put("b", 0);
+    final java.util.Map<String, Object> ones = new java.util.HashMap<>();
+    ones.put("a", 1);
+    ones.put("b", 1);
+    final java.util.Map<String, Object> swapped = new java.util.HashMap<>();
+    swapped.put("a", 1);
+    swapped.put("b", 0);
+    final java.util.Map<String, Object> unswapped = new java.util.HashMap<>();
+    unswapped.put("a", 0);
+    unswapped.put("b", 1);
+
+    // Map.hashCode sums key ^ value, so these collide there.
+    org.junit.jupiter.api.Assertions.assertEquals(zeros.hashCode(), ones.hashCode());
+    org.junit.jupiter.api.Assertions.assertNotEquals(
+        LongHashingUtils.unorderedHash(zeros), LongHashingUtils.unorderedHash(ones));
+    org.junit.jupiter.api.Assertions.assertNotEquals(
+        LongHashingUtils.unorderedHash(swapped), LongHashingUtils.unorderedHash(unswapped));
+  }
+
+  @org.junit.jupiter.api.Test
+  public void unorderedHashOfEmptyAndNullMaps() {
+    org.junit.jupiter.api.Assertions.assertEquals(0L, LongHashingUtils.unorderedHash(null));
+    org.junit.jupiter.api.Assertions.assertEquals(
+        0L, LongHashingUtils.unorderedHash(java.util.Collections.emptyMap()));
+    org.junit.jupiter.api.Assertions.assertNotEquals(
+        0L, LongHashingUtils.unorderedHash(java.util.Collections.singletonMap("k", null)));
+  }
+
+  @org.junit.jupiter.api.Test
+  public void unorderedEntryHashIsWhatUnorderedHashAddsUp() {
+    final java.util.Map<String, Object> map = java.util.Collections.singletonMap("k", "v");
+
+    org.junit.jupiter.api.Assertions.assertEquals(
+        1L + LongHashingUtils.unorderedEntryHash("k".hashCode(), "v".hashCode()),
+        LongHashingUtils.unorderedHash(map));
+  }
 }
