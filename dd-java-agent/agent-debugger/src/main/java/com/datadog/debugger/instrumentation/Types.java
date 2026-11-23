@@ -23,6 +23,7 @@ import datadog.trace.bootstrap.debugger.DebuggerSpan;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
+import datadog.trace.util.Strings;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -292,7 +293,7 @@ public final class Types {
     int rightParen = javaSignature.indexOf(')');
     if (leftParen == -1 || rightParen == -1) {
       throw new IllegalArgumentException(
-          String.format(
+          Strings.format(
               "Illegal java signature, missing matching parenthesis: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
               javaSignature));
     }
@@ -305,7 +306,7 @@ public final class Types {
     StringTokenizer st = new StringTokenizer(args, ",");
     if (!st.hasMoreTokens() && !args.isEmpty()) {
       throw new IllegalArgumentException(
-          String.format(
+          Strings.format(
               "Illegal java signature, invalid argument format: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
               javaSignature));
     }
@@ -313,7 +314,7 @@ public final class Types {
       String arg = st.nextToken().trim();
       if (arg.length() == 0) {
         throw new IllegalArgumentException(
-            String.format(
+            Strings.format(
                 "Illegal java signature, empty argument: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
                 javaSignature));
       }
@@ -328,7 +329,7 @@ public final class Types {
     String returnType = javaSignature.substring(0, leftParen).trim();
     if (returnType.length() == 0) {
       throw new IllegalArgumentException(
-          String.format(
+          Strings.format(
               "Illegal java signature: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
               javaSignature));
     }

@@ -3,6 +3,7 @@ package datadog.common.container;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.trace.test.util.DDJavaSpecification;
@@ -11,6 +12,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -19,9 +21,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 @SuppressForbidden
@@ -224,6 +228,21 @@ public class ContainerInfoTest extends DDJavaSpecification {
     assertNull(containerInfo.getContainerId());
     assertNull(containerInfo.getPodId());
     assertEquals(0, containerInfo.getCGroups().size());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"0::", "1:memory:"})
+  void preservesCgroupPathUsingTheJvmDefault(String prefix, @TempDir Path directory)
+      throws Exception {
+    Charset charset = Charset.defaultCharset();
+    assumeTrue(charset.newEncoder().canEncode("/café"), "Fixture requires a non-ASCII charset");
+    Path cgroup = directory.resolve("cgroup");
+    Files.write(cgroup, (prefix + "/café\n").getBytes(charset));
+
+    ContainerInfo info = ContainerInfo.fromProcFile(cgroup);
+
+    assertEquals(1, info.getCGroups().size());
+    assertEquals("/café", info.getCGroups().get(0).getPath());
   }
 
   @Test

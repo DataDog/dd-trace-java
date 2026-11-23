@@ -1,7 +1,5 @@
 package com.datadog.debugger.probe;
 
-import static java.lang.String.format;
-
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.el.ProbeCondition;
@@ -20,6 +18,7 @@ import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.util.Strings;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
@@ -153,7 +152,7 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
 
     AgentSpan agentSpan = tracerAPI.activeSpan().getLocalRootSpan();
     agentSpan.setTag(Tags.PROPAGATED_DEBUG, sessionId + ":1");
-    agentSpan.setTag(format("_dd.ld.probe_id.%s", getProbeId().getId()), true);
+    agentSpan.setTag(Strings.format("_dd.ld.probe_id.%s", getProbeId().getId()), true);
   }
 
   @Override
@@ -190,7 +189,7 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
 
   @Override
   public String toString() {
-    return String.format(
+    return Strings.format(
         "TriggerProbe{id='%s', sessionId='%s', evaluateAt=%s, language='%s', location=%s, probeCondition=%s, probeId=%s,"
             + " sampling=%s, tagMap=%s, tags=%s, version=%d, where=%s}",
         id,
