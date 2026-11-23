@@ -341,6 +341,8 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    *   <li>JDK 11+: {@code Receiver class X does not define or inherit an implementation of the
    *       resolved method ...}
    *   <li>JDK 8: {@code X.method(descriptor)}
+   *   <li>OpenJ9: {@code d/e/Declaring.method(descriptor)}, the declaring type rather than the
+   *       receiver; checked with {@link #lacksImplementation}
    * </ul>
    *
    * A concrete object's class is never the abstract method's declaring class or an interface, so an
@@ -386,6 +388,46 @@ public abstract class ClassLatch<T, R, E extends Exception> {
           && message.indexOf('.', methodStart) < 0
           && paren == methodStart + methodName.length()
           && message.regionMatches(methodStart, methodName, 0, methodName.length());
+    }
+    return namesADeclaringType(message, type, methodName) && lacksImplementation(type, methodName);
+  }
+
+  /**
+   * Whether {@code message} reads {@code <declaring type>.<methodName><descriptor>}, naming {@code
+   * type} or one of its supertypes, with {@code '/'} or {@code '.'} separators. OpenJ9 reports this
+   * form on every call, fresh or warmed (e.g. {@code
+   * javax/servlet/http/HttpServletResponse.getHeaderNames()Ljava/util/Collection;}): it names the
+   * interface or abstract class that declares the method, never the receiver. Since the message
+   * doesn't identify the receiver, the caller still checks the class itself ({@link
+   * #lacksImplementation}).
+   */
+  private static boolean namesADeclaringType(String message, Class<?> type, String methodName) {
+    final int paren = message.indexOf('(');
+    final int dot = paren < 0 ? -1 : message.lastIndexOf('.', paren);
+    if (dot <= 0
+        || paren != dot + 1 + methodName.length()
+        || !message.regionMatches(dot + 1, methodName, 0, methodName.length())) {
+      return false;
+    }
+    final String declaring = message.substring(0, dot).replace('/', '.');
+    return isSelfOrSupertype(declaring, type);
+  }
+
+  /** Whether {@code name} is {@code type}, a superclass of it, or an interface it implements. */
+  private static boolean isSelfOrSupertype(String name, Class<?> type) {
+    for (Class<?> c = type; c != null; c = c.getSuperclass()) {
+      if (c.getName().equals(name) || implementsNamed(c, name)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean implementsNamed(Class<?> type, String name) {
+    for (Class<?> each : type.getInterfaces()) {
+      if (each.getName().equals(name) || implementsNamed(each, name)) {
+        return true;
+      }
     }
     return false;
   }

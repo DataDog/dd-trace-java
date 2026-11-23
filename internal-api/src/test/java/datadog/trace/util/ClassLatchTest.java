@@ -334,6 +334,49 @@ class ClassLatchTest {
             new AbstractMethodError("something else"), String.class, "getClientInfo"));
   }
 
+  /**
+   * OpenJ9 names the type that declares the method, with '/' separators, never the receiver, and on
+   * every call: {@code "javax/servlet/http/HttpServletResponse.getHeaderNames()..."}.
+   */
+  @Test
+  void attributesTheOpenJ9MessageFormat() {
+    String declaring = DeclaresM.class.getName().replace('.', '/');
+    // the interface the receiver inherits the abstract method from
+    assertTrue(
+        ClassLatch.isNamedIn(
+            new AbstractMethodError(declaring + ".m()Ljava/lang/String;"),
+            InheritsUnimplemented.class,
+            "m"));
+    // the receiver's own abstract declaration
+    assertTrue(
+        ClassLatch.isNamedIn(
+            new AbstractMethodError(
+                Unimplemented.class.getName().replace('.', '/') + ".m()Ljava/lang/String;"),
+            Unimplemented.class,
+            "m"));
+    // a different method on the same type
+    assertFalse(
+        ClassLatch.isNamedIn(
+            new AbstractMethodError(declaring + ".other()Ljava/lang/String;"),
+            InheritsUnimplemented.class,
+            "m"));
+    // a type the receiver doesn't inherit from
+    assertFalse(
+        ClassLatch.isNamedIn(new AbstractMethodError("java/util/List.m()I"), String.class, "m"));
+    // a supertype the receiver implements concretely: String has length()
+    assertFalse(
+        ClassLatch.isNamedIn(
+            new AbstractMethodError("java/lang/CharSequence.length()I"), String.class, "length"));
+  }
+
+  /** An interface declaring {@code m}. */
+  interface DeclaresM {
+    String m();
+  }
+
+  /** Inherits {@code m} from {@link DeclaresM} without implementing it. */
+  abstract static class InheritsUnimplemented implements DeclaresM {}
+
   /** Stands in for a class that never implemented an interface method it declares. */
   abstract static class Unimplemented {
     public abstract String m();
