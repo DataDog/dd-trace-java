@@ -869,16 +869,14 @@ public final class FlatHashtable {
   /**
    * Placement slot for {@code hash} in a table of {@code mask + 1} slots. The table owns the
    * spread: the hash is salted with a per-process random seed (see {@link #HASH_SEED}), then a
-   * golden-ratio (Fibonacci) multiply diffuses it across all bits — robust to weak or {@code
-   * int}-derived {@code hashCode}s and to full 64-bit composite hashes alike — then the low index
-   * bits are taken. So a strategy may return a plain {@code hashCode} without pre-mixing.
-   * Package-private so tests can predict slots (within one run — {@link #HASH_SEED} still varies
-   * process to process).
+   * golden-ratio (Fibonacci) multiply ({@link LongHashingUtils#hashSpread}) diffuses it across all
+   * bits — robust to weak or {@code int}-derived {@code hashCode}s and to full 64-bit composite
+   * hashes alike — then the low index bits are taken. So a strategy may return a plain {@code
+   * hashCode} without pre-mixing. Package-private so tests can predict slots (within one run —
+   * {@link #HASH_SEED} still varies process to process).
    */
   static int home(long hash, int mask) {
-    long z = (hash ^ HASH_SEED) * 0x9E3779B97F4A7C15L; // 2^64 / golden ratio; odd ⇒ a bijection
-    z ^= z >>> 32; // fold the well-mixed high half down into the low bits the mask keeps
-    return (int) z & mask;
+    return LongHashingUtils.hashSpread(hash ^ HASH_SEED) & mask; // salt, then the shared spread
   }
 
   /**
