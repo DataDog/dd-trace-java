@@ -6,6 +6,9 @@ import datadog.environment.SystemProperties;
 import datadog.trace.config.inversion.ConfigHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,6 +39,32 @@ public final class PidHelper {
   /** Returns 0 if the PID is not a number. */
   public static long getPidAsLong() {
     return PID_AS_LONG;
+  }
+
+  private static final MethodHandle PROCESS_PID = findProcessPid();
+
+  /** Returns the PID of a child process, or an empty string when the JVM cannot provide it. */
+  public static String getPid(Process process) {
+    if (process != null && PROCESS_PID != null) {
+      try {
+        return Long.toString((long) PROCESS_PID.invokeExact(process));
+      } catch (Throwable e) {
+        log.debug("Cannot get child PID through JVM API", e);
+      }
+    }
+    return "";
+  }
+
+  private static MethodHandle findProcessPid() {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
+      try {
+        return MethodHandles.publicLookup()
+            .findVirtual(Process.class, "pid", MethodType.methodType(long.class));
+      } catch (Throwable e) {
+        log.debug("Process.pid() not available", e);
+      }
+    }
+    return null;
   }
 
   @SuppressWarnings("unchecked")
