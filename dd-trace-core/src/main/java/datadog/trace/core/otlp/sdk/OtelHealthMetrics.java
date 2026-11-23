@@ -180,7 +180,11 @@ final class OtelHealthMetrics extends HealthMetrics {
     exportDuration.recordDouble(durationNanos / 1e9, outcome);
   }
 
-  /** Records the collection, with {@code error.type} (see {@link ErrorTypes}) when it failed. */
+  /**
+   * Records the collection, with {@code error.type} (see {@link ErrorTypes}) when it threw.
+   * Failures inside observable callbacks are caught and logged by the callbacks, so they don't set
+   * {@code error.type}.
+   */
   @Override
   public void onMetricCollection(
       ComponentId reader, long durationNanos, @Nullable Throwable error) {

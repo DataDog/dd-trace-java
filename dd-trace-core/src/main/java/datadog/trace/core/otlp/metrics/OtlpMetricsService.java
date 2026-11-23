@@ -220,7 +220,10 @@ public final class OtlpMetricsService {
   /**
    * Collects the metrics, reporting how long it took and whether it failed.
    *
-   * <p>The duration includes encoding the payload, which the collector does while it collects.
+   * <p>The duration includes encoding the payload, which the collector does while it collects. Only
+   * an exception that escapes the collector marks the collection as failed: observable callbacks
+   * catch and log their own exceptions, so a cycle where a callback failed is still reported as a
+   * success.
    */
   private OtlpPayload collect() {
     HealthMetrics sink = healthMetrics;

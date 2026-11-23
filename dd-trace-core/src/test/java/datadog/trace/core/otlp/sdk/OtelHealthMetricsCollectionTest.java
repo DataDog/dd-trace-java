@@ -2,6 +2,7 @@ package datadog.trace.core.otlp.sdk;
 
 import static datadog.trace.agent.test.utils.OtelMetricCollector.collect;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
+import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -42,6 +43,8 @@ class OtelHealthMetricsCollectionTest {
     OtlpHistogramPoint histogram = (OtlpHistogramPoint) point.point;
     assertEquals(1.0, histogram.count);
     assertEquals(1, histogram.bucketCounts.size()); // empty bucket advice: a single bucket
+    // no explicit bounds, so the encoder doesn't add an overflow bucket
+    assertEquals(singletonList(Double.POSITIVE_INFINITY), histogram.bucketBoundaries);
     assertEquals(0.25, histogram.sum);
   }
 
