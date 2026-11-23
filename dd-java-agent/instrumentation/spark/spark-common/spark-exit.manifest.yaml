@@ -1,8 +1,7 @@
 _v: 1
 name: spark-exit
-display_name: Spark Project SQL
-description: Instruments JVM exit to finalize and flush Apache Spark application traces, including nonzero exit
-  status.
+display_name: Apache Spark Exit
+description: Instruments JVM exits to finish and flush Apache Spark application traces with their exit status.
 packages:
 - name: org.apache.spark:spark-sql_2.12
 - name: org.apache.spark:spark-sql_2.13

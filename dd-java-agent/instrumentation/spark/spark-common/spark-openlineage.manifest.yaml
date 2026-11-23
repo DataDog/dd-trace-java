@@ -1,8 +1,7 @@
 _v: 1
 name: spark-openlineage
-display_name: Spark Project SQL
-description: Instruments OpenLineage Spark listener construction to capture configuration for correlating lineage
-  with Spark execution.
+display_name: OpenLineage Spark
+description: Instruments OpenLineage Spark listener initialization to configure Datadog Data Jobs lineage event delivery.
 packages:
 - name: org.apache.spark:spark-sql_2.12
 - name: org.apache.spark:spark-sql_2.13

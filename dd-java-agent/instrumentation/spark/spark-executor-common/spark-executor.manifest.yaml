@@ -1,8 +1,7 @@
 _v: 1
 name: spark-executor
-display_name: Spark Project SQL
-description: Instruments Apache Spark executor task execution, recording task spans, execution identifiers, and
-  executor metrics.
+display_name: Apache Spark Executor
+description: Instruments Apache Spark executor task execution, creating spark.task spans with task and execution metrics.
 packages:
 - name: org.apache.spark:spark-sql_2.12
 - name: org.apache.spark:spark-sql_2.13
