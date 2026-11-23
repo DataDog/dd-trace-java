@@ -37,4 +37,12 @@ final class DefaultDataStreamsMonitoringTestBridge {
       throw new IllegalStateException(e);
     }
   }
+
+  static Thread getThread(DefaultDataStreamsMonitoring monitoring) {
+    try {
+      return (Thread) THREAD_FIELD.get(monitoring);
+    } catch (IllegalAccessException e) {
+      throw new IllegalStateException(e);
+    }
+  }
 }
