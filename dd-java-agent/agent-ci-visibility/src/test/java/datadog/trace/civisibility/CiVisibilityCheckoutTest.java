@@ -13,7 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -35,16 +37,20 @@ import datadog.trace.civisibility.git.tree.GitClient;
 import datadog.trace.civisibility.git.tree.NoOpGitClient;
 import datadog.trace.civisibility.git.tree.ShellGitClient;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
+import datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.junit.jupiter.api.parallel.Resources;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 @WithConfig(key = DD_GIT_COMMIT_SHA, value = "")
@@ -125,6 +131,47 @@ class CiVisibilityCheckoutTest {
     GitClient.Factory clients =
         new ShellGitClient.Factory(mock(Config.class), mock(CiVisibilityMetricCollector.class));
     assertSame(NoOpGitClient.INSTANCE, clients.create(path));
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void missingCheckoutDoesNotBlockRemoteSettings(boolean uploadEnabled) throws Exception {
+    String workspace = checkout.toRealPath().toString();
+    Config config = mock(Config.class);
+    when(config.getCiVisibilityGitCommandTimeoutMillis()).thenReturn(GIT_COMMAND_TIMEOUT_MILLIS);
+    when(config.isCiVisibilityCiProviderIntegrationEnabled()).thenReturn(true);
+    when(config.isCiVisibilityGitUploadEnabled()).thenReturn(uploadEnabled);
+    when(config.isCiVisibilityGitUnshallowEnabled()).thenReturn(true);
+    when(config.isCiVisibilityGitUnshallowDefer()).thenReturn(true);
+    CiEnvironment environment = new CiEnvironmentImpl(singletonMap(TEAMCITY, "2026.1"));
+    CIProviderInfo provider =
+        spy(new CIProviderInfoFactory(config, environment).createCIProviderInfo(checkout));
+    when(provider.buildCIInfo())
+        .thenReturn(CIInfo.builder(environment).ciWorkspace(workspace).build());
+    CIProviderInfoFactory providers = mock(CIProviderInfoFactory.class);
+    when(providers.createCIProviderInfo(checkout)).thenReturn(provider);
+    GitInfoProvider selected = mock(GitInfoProvider.class);
+    when(selected.getGitInfo(workspace))
+        .thenReturn(
+            new GitInfo("https://example.com/repo.git", "main", null, new CommitInfo(HEAD_SHA)));
+    GitClient git = mock(GitClient.class);
+    doThrow(new ShellCommandFailedException(128, "not a git repository"))
+        .when(git)
+        .fetchSelectedCommit(HEAD_SHA);
+    GitClient.Factory clients = mock(GitClient.Factory.class);
+    when(clients.create(anyString())).thenReturn(git);
+    ProcessHierarchy hierarchy = mock(ProcessHierarchy.class);
+    when(hierarchy.isHeadless()).thenReturn(true);
+    RepoIndexProvider.Factory indexes = mock(RepoIndexProvider.Factory.class);
+    when(indexes.create(workspace)).thenReturn(mock(RepoIndexProvider.class));
+    CiVisibilityRepoServices repository =
+        new CiVisibilityRepoServices(
+            createServices(config, environment, providers, clients, selected, hierarchy, indexes),
+            checkout);
+    assertNull(repository.gitDataUploader.startOrObserveGitDataUpload().get(5, TimeUnit.SECONDS));
+    verify(git, never()).fetchSelectedCommit(anyString());
+    assertEquals(workspace, repository.repoRoot);
+    assertEquals(workspace, repository.ciTags.get("ci.workspace_path"));
   }
 
   @Test

@@ -599,8 +599,8 @@ public class ShellGitClient implements GitClient {
             try {
               fetchExecutor.executeCommand(IGNORE, buildGitCommand(args.toArray(new String[0])));
             } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-              // A selected revision can predate the history window.
-              args.set(1, "--depth=1");
+              // Keep bounded ancestry when the selected revision predates the time window.
+              args.set(1, "--depth=" + Math.max(1, latestCommitsLimit));
               fetchExecutor.executeCommand(IGNORE, buildGitCommand(args.toArray(new String[0])));
             }
             Path shallow = recoveryDirectory.resolve("shallow");

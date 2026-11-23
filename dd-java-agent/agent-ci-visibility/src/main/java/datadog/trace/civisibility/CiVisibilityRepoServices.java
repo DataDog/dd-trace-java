@@ -139,7 +139,7 @@ public class CiVisibilityRepoServices {
               gitClient,
               gitRepoUnshallow,
               services.backendApi,
-              repoRoot);
+              resolvedRoot);
     }
 
     repoIndexProvider = services.repoIndexProviderFactory.create(repoRoot);

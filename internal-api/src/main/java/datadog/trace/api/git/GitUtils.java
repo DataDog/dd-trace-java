@@ -155,8 +155,7 @@ public class GitUtils {
       return null;
     }
     // Git passes a remote helper's address separately from its transport prefix.
-    Pattern helperPrefix = compile("[a-zA-Z0-9][a-zA-Z0-9+.-]*::");
-    Matcher helper = helperPrefix.matcher(urlStr);
+    Matcher helper = compile("[a-zA-Z0-9][a-zA-Z0-9+.-]*::").matcher(urlStr);
     int addressStart = 0;
     while (helper.region(addressStart, urlStr.length()).lookingAt()) {
       addressStart = helper.end();
@@ -172,12 +171,9 @@ public class GitUtils {
     if (!urlStr.contains("://") && !urlStr.startsWith("//")) {
       // Preserve SCP-style usernames and non-URL CI values, but reject opaque credentials.
       int colon = urlStr.indexOf(':');
-      if (urlStr.startsWith("[")) {
-        int bracket = urlStr.indexOf("]:");
-        if (bracket >= 0) {
-          // Everything after a bracketed SCP host is a path, not URI user info.
-          return urlStr;
-        }
+      if (urlStr.startsWith("[") && urlStr.contains("]:")) {
+        // Everything after a bracketed SCP host is a path, not URI user info.
+        return urlStr;
       }
       int at = urlStr.indexOf('@');
       if (colon >= 0 && at > colon) {
@@ -393,8 +389,6 @@ public class GitUtils {
 
   /** Checks if the provided string is neither a valid commit SHA nor a valid Git reference */
   public static boolean isNotValidCommit(@Nullable String commit) {
-    return commit == null
-        || commit.startsWith("-")
-        || (!isValidCommitSha(commit) && !isValidRef(commit));
+    return !isValidCommitSha(commit) && !isValidRef(commit);
   }
 }

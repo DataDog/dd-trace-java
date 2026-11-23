@@ -179,10 +179,8 @@ public class GitDataUploaderImpl implements GitDataUploader {
         return;
       }
 
-      String currentCommit = gitInfo.getCommit().getSha();
-      if (isValidCommitSha(currentCommit)) {
-        currentCommit = latestCommits.get(0);
-      }
+      String currentCommit =
+          isValidCommitSha(selectedCommit) ? latestCommits.get(0) : selectedCommit;
 
       Path packFilesDirectory = gitClient.createPackFiles(objectHashes);
       try {

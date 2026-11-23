@@ -72,7 +72,7 @@ public class GitInfoProvider {
     GitInfo gitInfo =
         new GitInfo(
             evaluator.get(
-                gi -> filterSensitiveInfo(gi.getRepositoryURL()),
+                gi -> GitUtils.filterSensitiveInfo(gi.getRepositoryURL()),
                 GitInfoProvider::validateGitRemoteUrl),
             evaluator.get(GitInfo::getBranch, Strings::isNotBlank),
             evaluator.getIfCommitShaMatches(GitInfo::getTag, Strings::isNotBlank),
@@ -109,7 +109,7 @@ public class GitInfoProvider {
 
   private static boolean validateGitRemoteUrl(String s) {
     // we cannot work with URL that uses "file://" protocol
-    return isNotBlank(s) && !s.startsWith("file:");
+    return Strings.isNotBlank(s) && !s.startsWith("file:");
   }
 
   private static final class ShaDiscrepancy {

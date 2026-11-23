@@ -2,7 +2,9 @@ package datadog.trace.civisibility;
 
 import static org.mockito.Mockito.mock;
 
+import datadog.communication.BackendApi;
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.CIProviderInfoFactory;
 import datadog.trace.civisibility.ci.PullRequestInfo;
@@ -33,6 +35,8 @@ final class CiVisibilityRepoServicesTestFixture {
     setServiceField(services, "gitInfoProvider", selected);
     setServiceField(services, "processHierarchy", hierarchy);
     setServiceField(services, "repoIndexProviderFactory", indexes);
+    setServiceField(services, "backendApi", mock(BackendApi.class));
+    setServiceField(services, "metricCollector", mock(CiVisibilityMetricCollector.class));
     return services;
   }
 

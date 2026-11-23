@@ -10,6 +10,7 @@ import static datadog.trace.civisibility.git.tree.GitTestRepository.sha256Fixtur
 import static datadog.trace.civisibility.git.tree.GitTestRepository.writeCommit;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.writeObject;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -18,13 +19,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
@@ -46,6 +50,66 @@ class GitRecoveryCompatibilityTest {
     assertEquals(64, selected.length());
     assertEquals(selected, client.getCommitInfo(selected, false).getSha());
     assertFalse(client.isShallow());
+  }
+
+  @TableTest({
+    "Scenario                 | shallow | parentLocal | limit",
+    "complete known parent    | false   | true        | 1000 ",
+    "shallow known parent     | true    | true        | 1000 ",
+    "bounded missing ancestry | false   | false       | 5    "
+  })
+  void backdatedRecoveryKeepsEligibleParents(boolean shallow, boolean parentLocal, int limit)
+      throws Exception {
+    Path origin = directory.resolve("origin");
+    ShellCommandExecutor remote = fixture(origin);
+    String original = git(remote, "rev-parse", "HEAD");
+    String tree = git(remote, "rev-parse", "HEAD^{tree}");
+    Path checkout = directory.resolve("checkout");
+    if (!parentLocal) {
+      git(remote, "clone", "--no-local", origin.toString(), checkout.toString());
+    }
+    String recent = original;
+    for (int i = 0; i < (parentLocal ? 1 : 8); i++) {
+      recent = writeCommit(remote, tree, recent, "recent parent " + i);
+    }
+    git(remote, "update-ref", "HEAD", recent);
+    if (parentLocal) {
+      if (shallow) {
+        git(remote, "clone", "--depth=1", origin.toUri().toString(), checkout.toString());
+      } else {
+        git(remote, "clone", "--no-local", origin.toString(), checkout.toString());
+      }
+    }
+    String selected =
+        writeObject(
+            remote,
+            "tree "
+                + tree
+                + "\nparent "
+                + recent
+                + "\nauthor Test <test@example.com> 1 +0000"
+                + "\ncommitter Test <test@example.com> 1 +0000\n\nbackdated selected\n");
+    git(remote, "update-ref", "refs/heads/selected", selected);
+    ShellCommandExecutor local =
+        new ShellCommandExecutor(checkout.toFile(), GIT_COMMAND_TIMEOUT_MILLIS);
+    String head = git(local, "rev-parse", "HEAD");
+    String count = git(local, "rev-list", "--count", "HEAD");
+    ShellGitClient client =
+        new ShellGitClient(
+            mock(CiVisibilityMetricCollector.class),
+            checkout.toString(),
+            "1 month ago",
+            limit,
+            GIT_COMMAND_TIMEOUT_MILLIS);
+    client.fetchSelectedCommit(selected);
+    List<String> commits = client.getLatestCommits(selected);
+    assertEquals(selected, commits.get(0));
+    assertTrue(commits.contains(recent));
+    assertEquals(parentLocal ? 2 : limit, commits.size());
+    assertTrue(client.getObjects(emptyList(), commits).contains(recent));
+    assertEquals(shallow, client.isShallow());
+    assertEquals(head, git(local, "rev-parse", "HEAD"));
+    assertEquals(count, git(local, "rev-list", "--count", "HEAD"));
   }
 
   @Test

@@ -482,9 +482,23 @@ class GitDataUploaderSelectedCommitTest {
                 + parent
                 + "\nauthor Test <test@example.com> 1 +0000\ncommitter Test <test@example.com> 1 +0000\n\nold selected\n");
     git(remote, "update-ref", "refs/heads/selected", selected);
-    ShellGitClient first = client(checkout, "1 month ago");
+    ShellGitClient first =
+        new ShellGitClient(
+            mock(CiVisibilityMetricCollector.class),
+            checkout.toString(),
+            "1 month ago",
+            1,
+            GIT_COMMAND_TIMEOUT_MILLIS);
     first.fetchSelectedCommit(selected);
     assertEquals(singletonList(selected), first.getLatestCommits(selected));
+    assertThrows(
+        ShellCommandExecutor.ShellCommandFailedException.class,
+        () ->
+            git(
+                new ShellCommandExecutor(checkout.toFile(), GIT_COMMAND_TIMEOUT_MILLIS),
+                "cat-file",
+                "-e",
+                parent + "^{commit}"));
     ShellGitClient next = spy(client(checkout, "1 month ago"));
     when(config.isCiVisibilityGitUnshallowDefer()).thenReturn(deferred);
     when(config.isCiVisibilityGitUnshallowEnabled()).thenReturn(recoveryEnabled);
