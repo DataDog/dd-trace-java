@@ -1,0 +1,42 @@
+{
+  "version": "2.1",
+  "actions": [
+    {
+      "id": "block",
+      "type": "block_request",
+      "parameters": {
+        "status_code": 403,
+        "type": "auto"
+      }
+    }
+  ],
+  "rules": [
+    {
+      "id": "test-block-unique",
+      "name": "Test unique security_response_id",
+      "tags": {
+        "type": "test",
+        "category": "test"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "x-test-header"
+                ]
+              }
+            ],
+            "regex": "^BlockUnique"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "on_match": [
+        "block"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "version": "2.1",
+  "actions": [
+    {
+      "id": "block_no_id",
+      "type": "block_request",
+      "parameters": {
+        "status_code": 418,
+        "type": "html"
+      }
+    }
+  ],
+  "rules": [
+    {
+      "id": "test-null-securityResponseId",
+      "name": "Test null security_response_id handling",
+      "tags": {
+        "type": "test",
+        "category": "test"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              }
+            ],
+            "regex": "^NullSecurityResponseId"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "on_match": [
+        "block_no_id"
+      ]
+    }
+  ]
+}

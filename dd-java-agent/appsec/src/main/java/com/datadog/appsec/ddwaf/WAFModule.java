@@ -33,6 +33,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.api.time.SystemTimeSource;
@@ -94,7 +95,8 @@ public class WAFModule implements AppSecModule {
     }
   }
 
-  private static class CtxAndAddresses {
+  @VisibleForTesting
+  static class CtxAndAddresses {
     final Collection<Address<?>> addressesOfInterest;
     final WafHandle ctx;
 
@@ -139,8 +141,11 @@ public class WAFModule implements AppSecModule {
 
   private final boolean wafMetricsEnabled =
       Config.get().isAppSecWafMetrics(); // could be static if not for tests
-  private final AtomicReference<CtxAndAddresses> ctxAndAddresses = new AtomicReference<>();
-  private final RateLimiter rateLimiter;
+
+  @VisibleForTesting
+  final AtomicReference<CtxAndAddresses> ctxAndAddresses = new AtomicReference<>();
+
+  @VisibleForTesting final RateLimiter rateLimiter;
 
   public WAFModule() {
     this(null);
@@ -174,7 +179,8 @@ public class WAFModule implements AppSecModule {
 
   // this function is called from one thread in the beginning that's different
   // from the RC thread that calls it later on
-  private void applyConfig(AppSecModuleConfigurer.Reconfiguration reconf)
+  @VisibleForTesting
+  void applyConfig(AppSecModuleConfigurer.Reconfiguration reconf)
       throws AppSecModuleActivationException, AbstractWafException {
     boolean success = false;
     if (init) {
@@ -651,7 +657,8 @@ public class WAFModule implements AppSecModule {
         new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData), LIMITS, metrics);
   }
 
-  private Collection<AppSecEvent> buildEvents(
+  @VisibleForTesting
+  Collection<AppSecEvent> buildEvents(
       Waf.ResultWithData actionWithData, String securityResponseId) {
     if (actionWithData.data == null) {
       // Since ruleset 1.14.1, fingerprint processors evaluate unconditionally, so the WAF
@@ -702,12 +709,12 @@ public class WAFModule implements AppSecModule {
         .build();
   }
 
-  private static final class DataBundleMapWrapper implements Map<String, Object> {
+  @VisibleForTesting
+  static final class DataBundleMapWrapper implements Map<String, Object> {
     private final Collection<Address<?>> addressesOfInterest;
     private final DataBundle dataBundle;
 
-    private DataBundleMapWrapper(
-        Collection<Address<?>> addressesOfInterest, DataBundle dataBundle) {
+    DataBundleMapWrapper(Collection<Address<?>> addressesOfInterest, DataBundle dataBundle) {
       this.addressesOfInterest = addressesOfInterest;
       this.dataBundle = dataBundle;
     }

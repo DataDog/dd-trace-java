@@ -1,5 +1,6 @@
 package com.datadog.appsec.gateway;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.time.TimeSource;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -38,7 +39,7 @@ public class RateLimiter {
     ThrottledCallback NOOP = () -> {};
   }
 
-  private final int limitPerSec;
+  @VisibleForTesting final int limitPerSec;
   private final AtomicLong state = new AtomicLong();
 
   public RateLimiter(int limitPerSec, TimeSource timeSource, ThrottledCallback cb) {

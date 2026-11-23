@@ -54,6 +54,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ConfigCollector;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.UserIdCollectionMode;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.ByteArrayInputStream;
@@ -114,8 +115,10 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private boolean defaultConfigActivated;
 
   private final AtomicBoolean subscribedToRulesAndData = new AtomicBoolean();
-  private final Set<String> usedDDWafConfigKeys =
-      Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+  @VisibleForTesting
+  final Set<String> usedDDWafConfigKeys = Collections.newSetFromMap(new ConcurrentHashMap<>());
+
   private final Set<String> ignoredConfigKeys =
       Collections.newSetFromMap(new ConcurrentHashMap<>());
   private final String DEFAULT_WAF_CONFIG_RULE = "ASM_DD/default";
@@ -219,7 +222,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     return currentRuleVersion;
   }
 
-  private class AppSecConfigChangesListener implements ProductListener {
+  @VisibleForTesting
+  class AppSecConfigChangesListener implements ProductListener {
     @Override
     public void accept(ConfigKey configKey, byte[] content, PollingRateHinter pollingRateHinter)
         throws IOException {
