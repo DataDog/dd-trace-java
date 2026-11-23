@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling.bytebuddy;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -75,8 +76,7 @@ class FieldAccessorsTest {
     Class<?> sample = redefine(new FieldAccessors(SampleFields.class, SAMPLE_GETTERS));
     Object instance = newSample(sample);
 
-    assertTrue(instance instanceof SampleFields);
-    SampleFields fields = (SampleFields) instance;
+    SampleFields fields = assertInstanceOf(SampleFields.class, instance);
     assertEquals("n", fields.$$DD$$__name());
     assertEquals(7, fields.$$DD$$__count());
     assertEquals(42L, fields.$$DD$$__total());

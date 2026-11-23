@@ -103,9 +103,9 @@ public final class FieldAccessors implements AsmVisitorWrapper {
 
   /**
    * A muzzle reference requiring {@code className} to declare every named field, non-static, with
-   * its getter's return type: what {@link #appliesTo} checks, for an instrumentation's {@code
-   * additionalMuzzleReferences()}. Muzzle then checks the fields against every library version in
-   * the instrumentation's range, and skips the instrumentation where they're missing.
+   * its getter's return type: what {@link #appliesTo} checks. The muzzle generator adds it for each
+   * {@code installFieldAccessors} call, so muzzle checks the fields against every library version
+   * in the instrumentation's range, and skips the instrumentation where they're missing.
    */
   public Reference muzzleReference(String className) {
     Reference.Builder builder = new Reference.Builder(className);
