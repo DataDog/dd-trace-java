@@ -1,6 +1,7 @@
 package datadog.trace.api.civisibility.telemetry.tag;
 
 import datadog.trace.api.civisibility.telemetry.TagValue;
+import java.util.Locale;
 
 /** The name of test framework instrumentation used */
 public enum TestFrameworkInstrumentation implements TagValue {
@@ -18,7 +19,7 @@ public enum TestFrameworkInstrumentation implements TagValue {
   private final String s;
 
   TestFrameworkInstrumentation() {
-    s = "test_framework:" + name().toLowerCase();
+    s = "test_framework:" + name().toLowerCase(Locale.ROOT);
   }
 
   @Override

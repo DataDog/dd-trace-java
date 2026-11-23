@@ -23,7 +23,7 @@ class HelperInjectionTest extends DDJavaSpecification {
 
   @Test
   void helpersInjectedToNonDelegatingClassloader() throws Exception {
-    ClassInjector.enableClassInjection(ByteBuddyAgent.getInstrumentation());
+    ClassInjector.enableClassInjection(ByteBuddyAgent.install());
     HelperInjector injector = new HelperInjector(false, "test", HELPER_CLASS_NAME);
     AtomicReference<URLClassLoader> emptyLoader =
         new AtomicReference<>(new URLClassLoader(new URL[0], null));
