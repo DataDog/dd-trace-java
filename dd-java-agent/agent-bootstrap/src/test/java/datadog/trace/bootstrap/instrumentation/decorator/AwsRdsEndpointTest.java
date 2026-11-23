@@ -239,6 +239,9 @@ class AwsRdsEndpointTest {
         "orders-db.c9akciq32bzq.eu-isoe-west-1.rds.cloud.adc-e.uk.evil.example",
         "orders-db.c9akciq32bzq.us-isof-east-1.rds.csp.hci.ic.gov.evil.example",
         "orders-db.c9akciq32bzq.eusc-de-east-1.rds.amazonaws.eu.evil.example",
+        // one trailing dot at most, on either side of the port
+        RDS + "..",
+        RDS + "..:5432",
         // port must be all digits and at most five of them
         RDS + ":54x2",
         RDS + ":543210",

@@ -181,12 +181,13 @@ public final class AwsRdsEndpoint implements TagContributor {
 
   /**
    * Returns the end index of the host part, dropping a trailing {@code :port} and a trailing {@code
-   * .} from a fully qualified name. The dot is tolerated on either side of the port.
+   * .} from a fully qualified name. The dot is tolerated on either side of the port, but only one
+   * dot is dropped without a port, so {@code host..} is rejected.
    */
   private static int hostEnd(final String hostname) {
     int end = stripTrailingDot(hostname, hostname.length());
-    end = stripPort(hostname, end);
-    return stripTrailingDot(hostname, end);
+    int hostEnd = stripPort(hostname, end);
+    return hostEnd < end ? stripTrailingDot(hostname, hostEnd) : hostEnd;
   }
 
   private static int stripTrailingDot(final String hostname, final int end) {
