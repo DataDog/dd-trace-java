@@ -349,11 +349,15 @@ The setTag experiments are a testbed for bytecode optimization in general. What 
 3. **Measure compiled size before throughput:** the standalone C2 code size (JFR, `research/settag/inlining-summary.py` on the
    prototype branch) is deterministic and cheap, and predicts whether a rewrite can work before any benchmark hours are spent.
 4. **Find out where the size goes before choosing the rewrite:** we targeted interception (~5%); the store dominated.
+5. **Peepholes across statements** (fusing adjacent calls, with knowledge of what commutes) are a different class from call-for-call
+   substitution. If fusion pays off, the machinery (detecting runs, delaying stores safely, emitting helpers) is reusable beyond tags.
 6. **The approach in one line (Doug):** C2 could do much of this itself (inline then fold, coarsen adjacent locks, keep cold paths out),
    but only when compile order, profiles and the JDK line up. We do the same things at build time so the outcome is **deterministic**:
    help the JIT, don't replace it.
-5. **Peepholes across statements** (fusing adjacent calls, with knowledge of what commutes) are a different class from call-for-call
-   substitution. If fusion pays off, the machinery (detecting runs, delaying stores safely, emitting helpers) is reusable beyond tags.
+   It's easy because we have **prior knowledge of each piece**: these are tracer intrinsics, like C2's `OptimizeStringConcat`
+   or its method intrinsics. Each has a recognizable shape, knowledge of what it means (the tag registry and what interceptors and setters read; for customer code, the
+   specs of `String`/`Pattern`/library methods), and a fallback when the shape doesn't fit. The tracer-side fusion and the customer-side regex rules are the
+   same kind of thing, and like intrinsics each needs differential testing against the reference behavior.
 
 ## Tracer-side track: setTag shaping (2026-11-23)
 
