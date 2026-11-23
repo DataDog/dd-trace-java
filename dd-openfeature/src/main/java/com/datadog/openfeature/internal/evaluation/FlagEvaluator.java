@@ -62,6 +62,7 @@ public final class FlagEvaluator {
   private final boolean spanEnrichmentEnabled;
   private final ExposureLookup exposureLookup;
   private final ExperimentationOptOutMode experimentationOptOutMode;
+  private final boolean exposuresEnabled;
 
   /**
    * Creates an evaluator.
@@ -77,9 +78,28 @@ public final class FlagEvaluator {
       final boolean spanEnrichmentEnabled,
       final ExposureLookup exposureLookup,
       final ExperimentationOptOutMode experimentationOptOutMode) {
+    this(spanEnrichmentEnabled, exposureLookup, experimentationOptOutMode, true);
+  }
+
+  /**
+   * Creates an evaluator.
+   *
+   * @param spanEnrichmentEnabled whether span enrichment is enabled.
+   * @param exposureLookup the lookup telling whether an exposure was already recorded.
+   * @param experimentationOptOutMode the resolved experimentation opt-out mode.
+   * @param exposuresEnabled whether evaluations of allocations logging exposures are exposures.
+   *     When false, every evaluation is reported as not logging exposures, so no exposure is
+   *     recorded, deduplicated, sent, or reported to exposure hooks, and assignment is unchanged.
+   */
+  public FlagEvaluator(
+      final boolean spanEnrichmentEnabled,
+      final ExposureLookup exposureLookup,
+      final ExperimentationOptOutMode experimentationOptOutMode,
+      final boolean exposuresEnabled) {
     this.spanEnrichmentEnabled = spanEnrichmentEnabled;
     this.exposureLookup = exposureLookup;
     this.experimentationOptOutMode = experimentationOptOutMode;
+    this.exposuresEnabled = exposuresEnabled;
   }
 
   public <T> ProviderEvaluation<T> evaluate(
@@ -534,7 +554,9 @@ public final class FlagEvaluator {
     // for the exposure hook, which sends the exposure after the evaluation succeeds. An evaluation
     // that neither logs exposures nor enriches spans carries neither key.
     // __dd_split_serial_id is omitted when the split carries no serial id.
-    final boolean doLog = Boolean.TRUE.equals(allocation.doLog);
+    // A provider with exposures disabled treats every allocation as not logging exposures. The
+    // allocation and split were already selected, so this changes reporting, not assignment.
+    final boolean doLog = this.exposuresEnabled && Boolean.TRUE.equals(allocation.doLog);
     if (spanEnrichmentEnabled || doLog) {
       if (split.serialId != null) {
         metadataBuilder.addInteger(SPLIT_SERIAL_ID, split.serialId);
