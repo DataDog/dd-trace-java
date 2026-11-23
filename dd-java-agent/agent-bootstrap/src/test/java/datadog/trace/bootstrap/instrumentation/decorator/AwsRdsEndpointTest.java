@@ -123,6 +123,45 @@ class AwsRdsEndpointTest {
     verifyNoMoreInteractions(span);
   }
 
+  @TableTest({
+    "scenario     | hostname                                                ",
+    "global       | orders.global-g2zn7e8kp7h0.global.rds.amazonaws.com     ",
+    "upper case   | ORDERS.GLOBAL-G2ZN7E8KP7H0.GLOBAL.RDS.AMAZONAWS.COM     ",
+    "trailing dot | orders.global-g2zn7e8kp7h0.global.rds.amazonaws.com.    ",
+    "port         | orders.global-g2zn7e8kp7h0.global.rds.amazonaws.com:5432"
+  })
+  void parsesGlobalWriterEndpointWithoutRegion(String hostname) {
+    AwsRdsEndpoint endpoint = AwsRdsEndpoint.parse(hostname);
+
+    assertNotNull(endpoint);
+    assertEquals("orders", endpoint.identifier());
+    assertEquals(AwsRdsEndpoint.Type.GLOBAL_WRITER, endpoint.type());
+    assertNull(endpoint.region());
+  }
+
+  @ParameterizedTest(name = "rejects global-like {0}")
+  @ValueSource(
+      strings = {
+        "orders.global-ab.global.rds.amazonaws.com",
+        "orders.g2zn7e8kp7h0.global.rds.amazonaws.com",
+        ".global-g2zn7e8kp7h0.global.rds.amazonaws.com",
+        "orders.global-g2zn7e8kp7h0.global.rds.amazonaws.com.cn.example"
+      })
+  void rejectsMalformedGlobalWriterEndpoints(String hostname) {
+    assertNull(AwsRdsEndpoint.parse(hostname));
+  }
+
+  @Test
+  void globalWriterEndpointOmitsRegionTag() {
+    NameKeyedAgentSpan span = mock(NameKeyedAgentSpan.class);
+
+    span.setTagsFrom(AwsRdsEndpoint.parse("orders.global-g2zn7e8kp7h0.global.rds.amazonaws.com"));
+
+    verify(span).setTag("aws.rds.identifier", "orders");
+    verify(span).setTag("aws.rds.endpoint_type", "global");
+    verifyNoMoreInteractions(span);
+  }
+
   @Test
   void addsNothingForNonRdsHostnames() {
     NameKeyedAgentSpan span = mock(NameKeyedAgentSpan.class);

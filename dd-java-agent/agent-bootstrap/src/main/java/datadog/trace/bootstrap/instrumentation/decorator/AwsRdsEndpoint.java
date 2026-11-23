@@ -19,7 +19,9 @@ import java.util.Locale;
  * {@code <identifier>.<hash>.rds.<region>.amazonaws.com.cn} in the China partition). The leading
  * label is the DB instance identifier, the Aurora cluster identifier, a custom endpoint name, an
  * RDS Proxy name or proxy endpoint name, or an Aurora Limitless DB shard group name, depending on
- * the {@code <hash>} label prefix. The Region is always present.
+ * the {@code <hash>} label prefix. Every regional endpoint carries its Region. An Aurora Global
+ * Database writer endpoint, {@code <global-cluster-id>.global-<hash>.global.rds.amazonaws.com},
+ * carries none because it follows the writer across Regions.
  *
  * <p>A cluster endpoint identifies the cluster but not the writer instance behind it, so this class
  * never claims an instance identifier for a cluster endpoint.
@@ -49,7 +51,13 @@ public final class AwsRdsEndpoint implements TagContributor {
      * <name>.limitless-<hash>.<region>.rds.amazonaws.com}. AWS documents both prefixes for this
      * endpoint, so both map here.
      */
-    SHARD_GROUP("shardgrp", AWS_RDS_IDENTIFIER);
+    SHARD_GROUP("shardgrp", AWS_RDS_IDENTIFIER),
+    /**
+     * {@code <global-cluster-id>.global-<hash>.global.rds.amazonaws.com}, the Aurora Global
+     * Database writer endpoint. The global cluster identifier is not a regional DB cluster
+     * identifier.
+     */
+    GLOBAL_WRITER("global", AWS_RDS_IDENTIFIER);
 
     private final String tagValue;
     // The one tag that carries the identifier. Instance and cluster endpoints use the same tag
@@ -124,15 +132,18 @@ public final class AwsRdsEndpoint implements TagContributor {
   }
 
   /**
-   * Tags the span with the endpoint type, the Region and the identifier. The identifier goes under
-   * {@code dbinstanceidentifier} for instance endpoints, {@code dbclusteridentifier} for cluster
-   * and cluster reader endpoints, and {@code aws.rds.identifier} otherwise.
+   * Tags the span with the endpoint type, the Region when the hostname has one, and the identifier.
+   * The identifier goes under {@code dbinstanceidentifier} for instance endpoints, {@code
+   * dbclusteridentifier} for cluster and cluster reader endpoints, and {@code aws.rds.identifier}
+   * otherwise.
    */
   @Override
   public void addTo(final AgentSpan span) {
     span.setTag(type.identifierTag, identifier);
     span.setTag(AWS_RDS_ENDPOINT_TYPE, type.tagValue);
-    span.setTag(AWS_REGION, region);
+    if (region != null) {
+      span.setTag(AWS_REGION, region);
+    }
   }
 
   /**
@@ -147,7 +158,10 @@ public final class AwsRdsEndpoint implements TagContributor {
     return type;
   }
 
-  /** The AWS Region the endpoint lives in, for example {@code us-east-1}. */
+  /**
+   * The AWS Region the endpoint lives in, for example {@code us-east-1}, or {@code null} for a
+   * Global Database writer endpoint.
+   */
   public String region() {
     return region;
   }
@@ -254,6 +268,17 @@ public final class AwsRdsEndpoint implements TagContributor {
     int offset = 0;
     if (labelsCount > 3 && "endpoint".equals(labels[1]) && labels[2].startsWith("proxy-")) {
       offset = 1;
+    }
+
+    // Global Database writer: <id>.global-<hash>.global.rds<suffix>. No Region is encoded.
+    if (offset == 0
+        && labelsCount == 4
+        && "global".equals(labels[2])
+        && "rds".equals(labels[3])
+        && labels[1].startsWith("global-")) {
+      return labels[0].isEmpty() || !isHash(labels[1].substring("global-".length()))
+          ? null
+          : new AwsRdsEndpoint(labels[0], Type.GLOBAL_WRITER, null);
     }
 
     // The remaining labels are the identifier, hash, Region and literal "rds". The China
