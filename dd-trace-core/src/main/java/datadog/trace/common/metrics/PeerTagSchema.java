@@ -4,6 +4,7 @@ import static datadog.trace.api.DDTags.BASE_SERVICE;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.api.Config;
+import datadog.trace.api.TagLookup;
 import datadog.trace.api.metrics.StatsMetrics;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -61,6 +62,10 @@ final class PeerTagSchema {
   private static final String[] COLLAPSED_STATSD_TAG = {"collapsed:peer_tags"};
 
   final String[] names;
+
+  /** {@link #names}, resolved once for the bulk read on each published span. */
+  final TagLookup lookup;
+
   final TagCardinalityHandler[] handlers;
 
   /**
@@ -79,6 +84,7 @@ final class PeerTagSchema {
 
   PeerTagSchema(String[] names, String state) {
     this.names = names;
+    this.lookup = TagLookup.of(names);
     this.state = state;
     this.handlers = new TagCardinalityHandler[names.length];
     for (int i = 0; i < names.length; i++) {

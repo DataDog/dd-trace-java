@@ -20,6 +20,7 @@ import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.TagLookup;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
@@ -529,7 +530,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
    * canonicalization run on the aggregator thread.
    */
   private String[] captureAdditionalTagValues(CoreSpan<?> span) {
-    return captureTagValues(span, additionalTagsSchema.names);
+    return captureTagValues(span, additionalTagsSchema.lookup);
   }
 
   /**
@@ -653,22 +654,16 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
    * Returns {@code null} when none of the configured peer tags are set on the span.
    */
   private static String[] capturePeerTagValues(CoreSpan<?> span, PeerTagSchema schema) {
-    return captureTagValues(span, schema.names);
+    return captureTagValues(span, schema.lookup);
   }
 
-  private static String[] captureTagValues(CoreSpan<?> span, String[] names) {
-    int n = names.length;
-    String[] values = null;
-    for (int i = 0; i < n; i++) {
-      Object v = span.unsafeGetTag(names[i]);
-      if (v != null) {
-        if (values == null) {
-          values = new String[n];
-        }
-        values[i] = v.toString();
-      }
-    }
-    return values;
+  /**
+   * One bulk read per span over the schema's prebuilt lookup, instead of a lookup per name. The
+   * values array is allocated only when a tag is found, so a span holding none of them allocates
+   * nothing. Returns null when none of the tags are set.
+   */
+  private static String[] captureTagValues(CoreSpan<?> span, TagLookup lookup) {
+    return span.unsafeGetTagStrings(lookup);
   }
 
   private static boolean isSynthetic(CoreSpan<?> span) {
