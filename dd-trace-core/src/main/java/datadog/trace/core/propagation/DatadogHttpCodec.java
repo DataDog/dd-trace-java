@@ -144,6 +144,9 @@ class DatadogHttpCodec {
 
     private long traceIdLow;
 
+    /** Whether an x-datadog-trace-id was parsed, as text or from a transient view. */
+    private boolean hasTraceIdLow;
+
     private DatadogContextInterpreter(Config config) {
       super(config);
       isAwsPropagationEnabled = config.isAwsPropagationEnabled();
@@ -159,6 +162,7 @@ class DatadogHttpCodec {
       datadogTags = null;
       traceIdString = null;
       traceIdLow = 0;
+      hasTraceIdLow = false;
       return super.reset(traceConfig);
     }
 
@@ -260,7 +264,9 @@ class DatadogHttpCodec {
       try {
         switch (classification) {
           case TRACE_ID:
-            traceId = DDTraceId.from(LongStringUtils.parseUnsignedLong(value, 0, end));
+            // built in build(), like the text path, so x-datadog-tags can give its high order bits
+            traceIdLow = LongStringUtils.parseUnsignedLong(value, 0, end);
+            hasTraceIdLow = true;
             break;
           case SPAN_ID:
             spanId = LongStringUtils.parseUnsignedLong(value, 0, end);
@@ -310,6 +316,7 @@ class DatadogHttpCodec {
               String traceIdValue = firstHeaderValue(value);
               traceIdLow = LongStringUtils.parseUnsignedLong(traceIdValue);
               traceIdString = traceIdValue;
+              hasTraceIdLow = true;
               break;
             case SPAN_ID:
               spanId = DDSpanId.from(firstHeaderValue(value));
@@ -374,7 +381,7 @@ class DatadogHttpCodec {
     }
 
     private void buildTraceId() {
-      if (traceIdString == null) {
+      if (!hasTraceIdLow) {
         return;
       }
       long highOrderBits;
@@ -383,8 +390,11 @@ class DatadogHttpCodec {
           && (highOrderBits = propagationTags.getTraceIdHighOrderBits()) != 0) {
         // Restore the 128-bit TraceId
         traceId = DD128bTraceId.from(highOrderBits, traceIdLow);
-      } else {
+      } else if (traceIdString != null) {
         traceId = DDTraceId.from(traceIdLow, traceIdString);
+      } else {
+        // from a transient view, which is only used for canonical text, so this prints the same
+        traceId = DDTraceId.from(traceIdLow);
       }
     }
   }
