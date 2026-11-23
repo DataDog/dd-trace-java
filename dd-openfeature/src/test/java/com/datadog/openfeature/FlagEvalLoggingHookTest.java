@@ -12,17 +12,17 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
 
-import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
+import com.datadog.openfeature.internal.flagevaluation.RecordedEvaluation;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.FlagValueType;
@@ -42,25 +42,17 @@ import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 /**
- * Unit tests for {@link FlagEvalLoggingHook}: context capture, non-blocking enqueue, eval-time
- * metadata, absent-variant detection, and killswitch-via-writer-null behaviour.
+ * Unit tests for {@link FlagEvalLoggingHook}: context capture, recording, eval-time metadata,
+ * absent-variant detection, and killswitch-via-writer-null behaviour.
  */
 class FlagEvalLoggingHookTest {
 
   // ---- helpers ----
 
-  /** Creates a pipeline mock that captures the enqueued event for assertion. */
-  private static FlagEvaluationWriter capturingWriter(final AtomicReference<FlagEvalEvent> ref) {
-    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
-    when(writer.hasCapacityForEnqueue()).thenReturn(true);
-    doAnswer(
-            invocation -> {
-              ref.set(invocation.getArgument(0));
-              return null;
-            })
-        .when(writer)
-        .enqueue(any());
-    return writer;
+  /** Creates a writer that captures the recorded evaluation for assertion. */
+  private static FlagEvaluationWriter capturingWriter(
+      final AtomicReference<RecordedEvaluation> ref) {
+    return new RecordedEvaluation.Recorder(ref::set);
   }
 
   private static FlagEvalLoggingHook<Object> hookWithWriter(final FlagEvaluationWriter writer) {
@@ -95,11 +87,11 @@ class FlagEvalLoggingHookTest {
         .build();
   }
 
-  // ---- test: hook calls writer.enqueue once with flagKey, variant, allocationKey ----
+  // ---- test: hook calls writer.record once with flagKey, variant, allocationKey ----
 
   @Test
-  void finallyAfterEnqueuesEventWithAllBasicFields() {
-    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+  void finallyAfterRecordsEvaluationWithAllBasicFields() {
+    final AtomicReference<RecordedEvaluation> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
     final FlagEvaluationDetails<Object> det =
@@ -112,8 +104,8 @@ class FlagEvalLoggingHookTest {
 
     hook.finallyAfter(null, det, Collections.emptyMap());
 
-    assertNotNull(captured.get(), "writer.enqueue must be called once");
-    final FlagEvalEvent e = captured.get();
+    assertNotNull(captured.get(), "writer.record must be called once");
+    final RecordedEvaluation e = captured.get();
     assertEquals("my-flag", e.flagKey);
     assertEquals("on", e.variant, "variant must be the OpenFeature variant key");
     assertEquals("alloc-1", e.allocationKey);
@@ -125,7 +117,7 @@ class FlagEvalLoggingHookTest {
     "consent off | false  "
   })
   void finallyAfterAddsEvaluationFeaturesWhateverTheConsent(final boolean consent) {
-    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final AtomicReference<RecordedEvaluation> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
     hook.finallyAfter(
@@ -153,7 +145,7 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void finallyAfterSkipsEvaluationFeaturesWithoutTheMarker() {
-    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final AtomicReference<RecordedEvaluation> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
     hook.finallyAfter(
@@ -173,7 +165,7 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void finallyAfterIgnoresMetadataOfTheWrongType() {
-    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final AtomicReference<RecordedEvaluation> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
     hook.finallyAfter(
@@ -190,7 +182,7 @@ class FlagEvalLoggingHookTest {
                 .build()),
         Collections.emptyMap());
 
-    final FlagEvalEvent event = captured.get();
+    final RecordedEvaluation event = captured.get();
     assertNull(event.allocationKey);
     assertFalse(event.observeFullEvaluationData);
     assertTrue(event.evalTimeMs > 0);
@@ -200,7 +192,7 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void variantIsTheVariantKeyNotTheEvaluatedValue() {
-    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final AtomicReference<RecordedEvaluation> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
     // value and variant DIFFER, so a value-vs-variant mistake is detectable.
@@ -225,7 +217,7 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void evalTimeMsComesFromMetadataWhenPresent() {
-    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final AtomicReference<RecordedEvaluation> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
     final long expectedTimestamp = 1_700_000_000_000L;
@@ -253,7 +245,7 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void evalTimeMsFallsBackToCurrentTimeWhenMetadataAbsent() {
-    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final AtomicReference<RecordedEvaluation> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
     final long before = System.currentTimeMillis();
@@ -274,7 +266,7 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void absentVariantProducesNullVariant() {
-    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final AtomicReference<RecordedEvaluation> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
     // A runtime default returns the default value but no variant.
@@ -293,7 +285,7 @@ class FlagEvalLoggingHookTest {
   void errorMessageCapturedFromDetailsUnderConsentOn() {
     // With observeFullEvaluationData=true the provider's raw message is preserved verbatim so
     // operators keep the diagnostic detail they opted in to.
-    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final AtomicReference<RecordedEvaluation> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
     final FlagEvaluationDetails<Object> det =
@@ -321,7 +313,7 @@ class FlagEvalLoggingHookTest {
     // provider, or a third-party provider that doesn't distinguish consent tiers), the hook must
     // substitute the ErrorCode name so raw PII from exception messages never reaches the wire.
     // Uses a PII-looking marker exactly like the wire-level guards in FlagEvaluationWriterImplTest.
-    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final AtomicReference<RecordedEvaluation> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
     final FlagEvaluationDetails<Object> det =
@@ -343,15 +335,16 @@ class FlagEvalLoggingHookTest {
         "consent-off must replace the raw message with the ErrorCode name");
     assertFalse(
         captured.get().errorMessage.contains("jane.doe@datadoghq.com"),
-        "raw PII must never survive into the enqueued event under consent-off");
+        "raw PII must never survive into the recorded evaluation under consent-off");
   }
 
   @Test
   void errorMessageDroppedWhenConsentOffAndNoErrorCode() {
     // Edge case: no ErrorCode available (unusual — providers should set one for ERROR reason).
-    // Consent-off drops the message and there's nothing to substitute, so the enqueued event has
+    // Consent-off drops the message and there's nothing to substitute, so the recorded evaluation
+    // has
     // no error message at all. This is the strictest privacy-preserving outcome.
-    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final AtomicReference<RecordedEvaluation> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
     final FlagEvaluationDetails<Object> det =
@@ -373,7 +366,7 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void errorCodeUsedAsFallbackWhenMessageEmpty() {
-    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final AtomicReference<RecordedEvaluation> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
     final FlagEvaluationDetails<Object> det =
@@ -397,7 +390,7 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void successPathHasNullErrorMessage() {
-    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final AtomicReference<RecordedEvaluation> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
     final FlagEvaluationDetails<Object> det =
@@ -412,9 +405,8 @@ class FlagEvalLoggingHookTest {
   // ---- test: hook does NO aggregation on the hook thread ----
 
   @Test
-  void finallyAfterOnlyCallsEnqueueAndCapacityCheckOnWriter() {
+  void finallyAfterOnlyRecordsOnWriter() {
     final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
-    when(writer.hasCapacityForEnqueue()).thenReturn(true);
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
 
     final FlagEvaluationDetails<Object> det =
@@ -422,33 +414,15 @@ class FlagEvalLoggingHookTest {
 
     hook.finallyAfter(null, det, Collections.emptyMap());
 
-    // Capacity check gates the enqueue; exactly one enqueue call; nothing else.
-    verify(writer, times(1)).hasCapacityForEnqueue();
-    verify(writer, times(1)).enqueue(any(FlagEvalEvent.class));
+    // Exactly one record call; nothing else.
+    verify(writer, times(1))
+        .record(any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), any());
     verifyNoMoreInteractions(writer);
-  }
-
-  @Test
-  void finallyAfterSkipsEnqueueAndCountsDropWhenQueueSaturated() {
-    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
-    when(writer.hasCapacityForEnqueue()).thenReturn(false);
-    final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
-
-    final FlagEvaluationDetails<Object> det =
-        details("flag", "v", "v", Reason.TARGETING_MATCH.name(), null);
-
-    hook.finallyAfter(null, det, Collections.emptyMap());
-
-    // Pre-queue guard fires: one capacity check, one drop count, and no enqueue at all.
-    verify(writer, times(1)).hasCapacityForEnqueue();
-    verify(writer, times(1)).countPreQueueOverflow();
-    verify(writer, never()).enqueue(any(FlagEvalEvent.class));
   }
 
   @Test
   void countContextTruncatedCalledWhenContextIsTruncated() {
     final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
-    when(writer.hasCapacityForEnqueue()).thenReturn(true);
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
 
     // Context with one oversized string value — triggers max_value_length.
@@ -474,13 +448,13 @@ class FlagEvalLoggingHookTest {
     hook.finallyAfter(hookCtx, det, Collections.emptyMap());
 
     verify(writer, times(1)).countContextTruncated("max_value_length");
-    verify(writer, times(1)).enqueue(any(FlagEvalEvent.class));
+    verify(writer, times(1))
+        .record(any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), any());
   }
 
   @Test
   void countContextTruncatedNotCalledWhenNoTruncation() {
     final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
-    when(writer.hasCapacityForEnqueue()).thenReturn(true);
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
 
     final MutableContext ctx = new MutableContext("user-1");
@@ -503,7 +477,8 @@ class FlagEvalLoggingHookTest {
     hook.finallyAfter(hookCtx, det, Collections.emptyMap());
 
     verify(writer, never()).countContextTruncated(any());
-    verify(writer, times(1)).enqueue(any(FlagEvalEvent.class));
+    verify(writer, times(1))
+        .record(any(), any(), any(), any(), any(), anyLong(), anyBoolean(), any(), any());
   }
 
   // ---- test: writer=null -> no-op (killswitch off / not yet started) ----
@@ -514,7 +489,7 @@ class FlagEvalLoggingHookTest {
     final FlagEvaluationDetails<Object> det =
         details("flag", "v", "v", Reason.TARGETING_MATCH.name(), null);
 
-    // Must not throw; nothing is enqueued
+    // Must not throw; nothing is recorded
     hook.finallyAfter(null, det, Collections.emptyMap());
   }
 
@@ -547,7 +522,7 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void targetingKeyExtractedFromContext() {
-    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final AtomicReference<RecordedEvaluation> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
     final FlagEvaluationDetails<Object> det =
@@ -566,7 +541,7 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void contextAttributesAreFlattenedAndConvertedInline() {
-    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final AtomicReference<RecordedEvaluation> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
     final Map<String, Object> profile = new HashMap<>();
@@ -604,8 +579,8 @@ class FlagEvalLoggingHookTest {
   }
 
   @Test
-  void contextAttributesUseEnqueueTimeSnapshot() {
-    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+  void contextAttributesUseRecordTimeSnapshot() {
+    final AtomicReference<RecordedEvaluation> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
     final MutableContext context = new MutableContext("user-42");
@@ -649,25 +624,26 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void readsObserveFullEvaluationDataTrueFromEvaluationMetadata() {
-    assertTrue(enqueuedEventWithConsentMetadata(true).observeFullEvaluationData);
+    assertTrue(recordedWithConsentMetadata(true).observeFullEvaluationData);
   }
 
   @Test
   void readsObserveFullEvaluationDataFalseFromEvaluationMetadata() {
-    assertFalse(enqueuedEventWithConsentMetadata(false).observeFullEvaluationData);
+    assertFalse(recordedWithConsentMetadata(false).observeFullEvaluationData);
   }
 
   @Test
   void observeFullEvaluationDataDefaultsToFalseWhenMetadataAbsent() {
     // No metadata at all: fail-closed toward privacy.
-    assertFalse(enqueuedEventWithConsentMetadata(null).observeFullEvaluationData);
+    assertFalse(recordedWithConsentMetadata(null).observeFullEvaluationData);
   }
 
   @Test
   void protectedPathSkipsEvaluationContextCapture() {
     // Consent off → the hook must not snapshot the evaluation context at all. Verified by mutating
-    // the context after finallyAfter returns and asserting the enqueued event still sees nothing.
-    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    // the context after finallyAfter returns and asserting the recorded evaluation still sees
+    // nothing.
+    final AtomicReference<RecordedEvaluation> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
     final MutableContext context = new MutableContext("user-1");
@@ -695,10 +671,10 @@ class FlagEvalLoggingHookTest {
 
   /**
    * Fires the hook once for a simple targeted evaluation whose metadata carries the given consent
-   * value ({@code null} = key absent) and returns the enqueued event.
+   * value ({@code null} = key absent) and returns the recorded evaluation.
    */
-  private FlagEvalEvent enqueuedEventWithConsentMetadata(final Boolean consent) {
-    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+  private RecordedEvaluation recordedWithConsentMetadata(final Boolean consent) {
+    final AtomicReference<RecordedEvaluation> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
     final ImmutableMetadata metadata =
         consent == null
@@ -708,7 +684,7 @@ class FlagEvalLoggingHookTest {
         hookCtxWithTargetingKey("obs-flag", "user-1"),
         details("obs-flag", "on", "on", Reason.TARGETING_MATCH.name(), metadata),
         Collections.emptyMap());
-    assertNotNull(captured.get(), "writer.enqueue must be called once");
+    assertNotNull(captured.get(), "writer.record must be called once");
     return captured.get();
   }
 

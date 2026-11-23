@@ -249,27 +249,37 @@ final class FlagEvaluationPayloads {
       this.features = (features != null && !features.isEmpty()) ? features : null;
     }
 
-    static FlagEvaluationEvent fromBucket(
-        final FlagEvaluationAggregator.EvalBucket bucket,
-        final boolean isFullTier,
-        final boolean observeFullEvaluationData,
+    /**
+     * The row of a drained tally. Timestamps that raced the drain (none left, so first is after
+     * last) read as the flush time.
+     */
+    static FlagEvaluationEvent fromTally(
+        final ConcurrentFlagAggregator.EvaluationTally tally,
+        final long count,
+        final long firstEvalMs,
+        final long lastEvalMs,
+        final boolean runtimeDefaultUsed,
         final long flushTimeMs) {
-      final boolean includeRawContext = isFullTier && observeFullEvaluationData;
+      final boolean isFullTier = !tally.degraded;
+      // Consent is the value snapshotted at evaluation time, not the current configuration's: a
+      // later configuration may have changed it since these evaluations happened.
+      final boolean observeFullEvaluationData = tally.observeFullEvaluationData;
+      final boolean timed = firstEvalMs <= lastEvalMs;
       return new FlagEvaluationEvent(
           flushTimeMs,
-          bucket.flagKey,
-          bucket.firstEvalMs,
-          bucket.lastEvalMs,
-          bucket.count,
-          bucket.variant,
-          bucket.allocationKey,
-          resolveTargetingKey(bucket.targetingKey, isFullTier, observeFullEvaluationData),
-          bucket.runtimeDefaultUsed,
-          bucket.errorMessage,
-          includeRawContext ? bucket.prunedAttrs : null,
+          tally.flagKey,
+          timed ? firstEvalMs : flushTimeMs,
+          timed ? lastEvalMs : flushTimeMs,
+          count,
+          tally.variant,
+          tally.allocationKey,
+          resolveTargetingKey(tally.targetingKey, isFullTier, observeFullEvaluationData),
+          runtimeDefaultUsed,
+          tally.errorMessage,
+          isFullTier && observeFullEvaluationData ? tally.prunedAttrs : null,
           // Features come from the flag configuration, so both tiers keep them whatever the
           // consent.
-          bucket.features);
+          tally.features);
     }
 
     private static String resolveTargetingKey(

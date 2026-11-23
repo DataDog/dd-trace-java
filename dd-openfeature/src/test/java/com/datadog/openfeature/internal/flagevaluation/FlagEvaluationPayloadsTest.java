@@ -51,20 +51,15 @@ class FlagEvaluationPayloadsTest {
     final Map<String, Object> attrs = new HashMap<>();
     attrs.put("present", "value");
     attrs.put("missing", null);
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        new FlagEvaluationAggregator.EvalBucket(
+    final ConcurrentFlagAggregator.EvaluationTally tally =
+        tally(
+            true,
             "flag",
-            "on",
-            "alloc",
             "user",
-            null,
-            EVAL_MS,
-            false,
             attrs,
             true,
             singletonMap("items", asList(null, singletonMap("missing", null))));
-    final FlagEvaluationPayloads.FlagEvaluationEvent row =
-        FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(bucket, true, true, EVAL_MS);
+    final FlagEvaluationPayloads.FlagEvaluationEvent row = row(tally);
 
     final Map<String, Object> event = firstEvent(onlyPayload(row));
 
@@ -76,18 +71,16 @@ class FlagEvaluationPayloadsTest {
 
   @Test
   void eventFromFullBucketUsesFlushTimeAndEvaluationBounds() throws Exception {
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        new FlagEvaluationAggregator.EvalBucket(
-            "ts-flag", "on", "alloc1", "user-1", null, EVAL_MS, false, emptyMap(), true, null);
-    bucket.merge(EVAL_MS + 10, false);
+    final ConcurrentFlagAggregator.EvaluationTally tally =
+        tally(true, "ts-flag", "user-1", emptyMap(), true, emptyMap());
     final long flushTimeMs = EVAL_MS + 5_000;
 
     final Map<String, Object> json =
         firstPayload(
             FlagEvaluationPayloads.buildPayloads(
                 java.util.Collections.singletonList(
-                    FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
-                        bucket, true, true, flushTimeMs)),
+                    FlagEvaluationPayloads.FlagEvaluationEvent.fromTally(
+                        tally, 2, EVAL_MS, EVAL_MS + 10, false, flushTimeMs)),
                 CONTEXT,
                 1_000_000));
 
@@ -100,18 +93,14 @@ class FlagEvaluationPayloadsTest {
 
   @Test
   void degradedTierEventOmitsTargetingKeyAndContext() throws Exception {
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        new FlagEvaluationAggregator.EvalBucket(
-            "dg-flag", "on", "alloc1", null, null, EVAL_MS, false, null, false, null);
+    // Consent on, so only the tier drops the targeting key and context.
+    final ConcurrentFlagAggregator.EvaluationTally tally =
+        tally(false, "dg-flag", "user-1", singletonMap("region", "us-east-1"), true, emptyMap());
 
     final Map<String, Object> json =
         firstPayload(
             FlagEvaluationPayloads.buildPayloads(
-                java.util.Collections.singletonList(
-                    FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
-                        bucket, false, true, EVAL_MS)),
-                CONTEXT,
-                1_000_000));
+                java.util.Collections.singletonList(row(tally)), CONTEXT, 1_000_000));
 
     final Map<String, Object> ev = firstEvent(json);
     assertNull(ev.get("targeting_key"));
@@ -122,27 +111,13 @@ class FlagEvaluationPayloadsTest {
   void fullTierWithObserveFullEvaluationDataTrueEmitsRawTargetingKeyAndContext() throws Exception {
     final Map<String, Object> attrs = new HashMap<>();
     attrs.put("region", "us-east-1");
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        new FlagEvaluationAggregator.EvalBucket(
-            "pii-flag",
-            "on",
-            "alloc1",
-            "jane.doe@datadoghq.com",
-            null,
-            EVAL_MS,
-            false,
-            attrs,
-            true,
-            null);
+    final ConcurrentFlagAggregator.EvaluationTally tally =
+        tally(true, "pii-flag", "jane.doe@datadoghq.com", attrs, true, emptyMap());
 
     final Map<String, Object> json =
         firstPayload(
             FlagEvaluationPayloads.buildPayloads(
-                java.util.Collections.singletonList(
-                    FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
-                        bucket, true, true, EVAL_MS)),
-                CONTEXT,
-                1_000_000));
+                java.util.Collections.singletonList(row(tally)), CONTEXT, 1_000_000));
 
     final Map<String, Object> ev = firstEvent(json);
     assertEquals("jane.doe@datadoghq.com", ev.get("targeting_key"));
@@ -158,26 +133,12 @@ class FlagEvaluationPayloadsTest {
       throws Exception {
     final Map<String, Object> attrs = new HashMap<>();
     attrs.put("region", "us-east-1");
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        new FlagEvaluationAggregator.EvalBucket(
-            "pii-flag",
-            "on",
-            "alloc1",
-            "jane.doe@datadoghq.com",
-            null,
-            EVAL_MS,
-            false,
-            attrs,
-            false,
-            null);
+    final ConcurrentFlagAggregator.EvaluationTally tally =
+        tally(true, "pii-flag", "jane.doe@datadoghq.com", attrs, false, emptyMap());
 
     final FlagEvaluationPayloads.EncodedPayloads payloads =
         FlagEvaluationPayloads.buildPayloads(
-            java.util.Collections.singletonList(
-                FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
-                    bucket, true, false, EVAL_MS)),
-            CONTEXT,
-            1_000_000);
+            java.util.Collections.singletonList(row(tally)), CONTEXT, 1_000_000);
     final String rawJson =
         new String(payloads.bodies.get(0), java.nio.charset.StandardCharsets.UTF_8);
 
@@ -468,14 +429,10 @@ class FlagEvaluationPayloadsTest {
     final Map<String, Object> features = new HashMap<>();
     features.put("bandit.policy_id", "p2");
     features.put("bandit.weight", 0.5);
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        new FlagEvaluationAggregator.EvalBucket(
-            "feature-flag", "on", "alloc1", "user-1", null, EVAL_MS, false, null, false, features);
-
     final FlagEvaluationPayloads.FlagEvaluationEvent full =
-        FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(bucket, true, false, EVAL_MS);
+        row(tally(true, "feature-flag", "user-1", null, false, features));
     final FlagEvaluationPayloads.FlagEvaluationEvent degraded =
-        FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(bucket, false, false, EVAL_MS);
+        row(tally(false, "feature-flag", null, null, false, features));
 
     assertEquals(features, firstEvent(onlyPayload(full)).get("features"));
     assertEquals(features, firstEvent(onlyPayload(degraded)).get("features"));
@@ -484,15 +441,60 @@ class FlagEvaluationPayloadsTest {
 
   @Test
   void rowsWithoutFeaturesOmitTheField() throws Exception {
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        new FlagEvaluationAggregator.EvalBucket(
-            "plain-flag", "on", "alloc1", null, null, EVAL_MS, false, null, false, emptyMap());
-
     final FlagEvaluationPayloads.FlagEvaluationEvent row =
-        FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(bucket, false, false, EVAL_MS);
+        row(tally(false, "plain-flag", null, null, false, emptyMap()));
 
     assertNull(row.features);
     assertFalse(firstEvent(onlyPayload(row)).containsKey("features"));
+  }
+
+  /** A tally of flag variant "on" and allocation "alloc1", in the full or the degraded tier. */
+  private static ConcurrentFlagAggregator.EvaluationTally tally(
+      final boolean fullTier,
+      final String flagKey,
+      final String targetingKey,
+      final Map<String, Object> attrs,
+      final boolean observeFullEvaluationData,
+      final Map<String, Object> features) {
+    return new ConcurrentFlagAggregator.EvaluationTally(
+        !fullTier,
+        1L,
+        flagKey,
+        "on",
+        "alloc1",
+        targetingKey,
+        null,
+        attrs,
+        observeFullEvaluationData,
+        features,
+        null,
+        0);
+  }
+
+  /** The row of one evaluation of {@code tally} at {@link #EVAL_MS}. */
+  private static FlagEvaluationPayloads.FlagEvaluationEvent row(
+      final ConcurrentFlagAggregator.EvaluationTally tally) {
+    return FlagEvaluationPayloads.FlagEvaluationEvent.fromTally(
+        tally, 1, EVAL_MS, EVAL_MS, false, EVAL_MS);
+  }
+
+  @Test
+  void rowsWhoseTimestampsRacedTheDrainReadAsTheFlushTime() {
+    final ConcurrentFlagAggregator.EvaluationTally tally =
+        tally(true, "raced-flag", "user-1", null, false, emptyMap());
+
+    final FlagEvaluationPayloads.FlagEvaluationEvent untimed =
+        FlagEvaluationPayloads.FlagEvaluationEvent.fromTally(
+            tally, 1, Long.MAX_VALUE, Long.MIN_VALUE, false, 42L);
+    final FlagEvaluationPayloads.FlagEvaluationEvent timed =
+        FlagEvaluationPayloads.FlagEvaluationEvent.fromTally(tally, 1, 5L, 9L, true, 42L);
+
+    assertEquals(42L, untimed.first_evaluation);
+    assertEquals(42L, untimed.last_evaluation);
+    assertNull(untimed.runtime_default_used);
+    assertEquals(5L, timed.first_evaluation);
+    assertEquals(9L, timed.last_evaluation);
+    assertEquals(Boolean.TRUE, timed.runtime_default_used);
   }
 
   private static Map<String, Object> onlyPayload(

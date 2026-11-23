@@ -4,7 +4,6 @@ import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_F
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.FlagValueType;
@@ -37,15 +36,15 @@ import org.openjdk.jmh.infra.Blackhole;
  * Evaluation-thread benchmark for the OpenFeature hook: the inline cost a caller actually pays
  * inside FlagEvalLoggingHook.finallyAfter, across context shapes.
  *
- * <p>This is the counterpart to FlagEvaluationHotPathBenchmark, which measures the writer queue and
- * the worker-thread aggregation.
+ * <p>This is the counterpart to FlagEvaluationHotPathBenchmark, which measures recording into the
+ * writer's aggregate.
  *
  * <p>The dominant inline cost under consent-on is DDEvaluator.copyPrunedContext: one bounded walk
  * of the caller-owned EvaluationContext. contextCopy isolates that walk so its share of
  * hookFinallyAfter is directly readable. Under consent-off the hook skips the copy entirely, which
  * hookFinallyAfterConsentOff measures as the protected-path floor.
  *
- * <p>The writer used here is a no-op that discards events, so no queue or worker cost is included.
+ * <p>The writer used here is a no-op that discards evaluations, so no aggregation cost is included.
  *
  * <p>Run: {@code ./gradlew :dd-openfeature:jmh -Pjmh.includes=FlagEvalHookHotPathBenchmark}.
  */
@@ -95,13 +94,13 @@ public class FlagEvalHookHotPathBenchmark {
     hook = new FlagEvalLoggingHook<>(() -> writer);
   }
 
-  /** Total inline cost under consent-on: scalar extraction, bounded context copy, and enqueue. */
+  /** Total inline cost under consent-on: scalar extraction, bounded context copy, and record. */
   @Benchmark
   public void hookFinallyAfter() {
     hook.finallyAfter(hookContext, consentOnDetails, Collections.emptyMap());
   }
 
-  /** Protected-path floor: consent-off skips the context copy, leaving scalar work plus enqueue. */
+  /** Protected-path floor: consent-off skips the context copy, leaving scalar work plus record. */
   @Benchmark
   public void hookFinallyAfterConsentOff() {
     hook.finallyAfter(hookContext, consentOffDetails, Collections.emptyMap());
@@ -169,18 +168,19 @@ public class FlagEvalHookHotPathBenchmark {
     return ctx;
   }
 
-  /** Discards events so only hook-inline work is measured. */
+  /** Discards evaluations so only hook-inline work is measured. */
   private static final class NoOpWriter implements FlagEvaluationWriter {
     @Override
-    public void enqueue(final FlagEvalEvent event) {}
-
-    @Override
-    public boolean hasCapacityForEnqueue() {
-      return true;
-    }
-
-    @Override
-    public void countPreQueueOverflow() {}
+    public void record(
+        final String flagKey,
+        final String variant,
+        final String allocationKey,
+        final String targetingKey,
+        final String errorMessage,
+        final long evalTimeMs,
+        final boolean observeFullEvaluationData,
+        final Map<String, Object> attrs,
+        final Map<String, Object> features) {}
 
     @Override
     public void countContextTruncated(final String reason) {}

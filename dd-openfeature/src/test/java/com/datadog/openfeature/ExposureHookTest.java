@@ -18,14 +18,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.datadog.openfeature.Provider.Options;
-import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
+import com.datadog.openfeature.internal.flagevaluation.RecordedEvaluation;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.Feature;
 import com.datadog.openfeature.internal.ufc.Flag;
@@ -257,7 +253,7 @@ class ExposureHookTest {
 
   @Test
   void sendsEvaluationFeaturesForAnAllocationThatDoesNotLogExposures() throws Exception {
-    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final AtomicReference<RecordedEvaluation> captured = new AtomicReference<>();
     start(
         true,
         configuration(
@@ -459,16 +455,8 @@ class ExposureHookTest {
     return new ServerConfiguration("", "", false, null, flags);
   }
 
-  private static FlagEvaluationWriter capturingWriter(final AtomicReference<FlagEvalEvent> ref) {
-    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
-    when(writer.hasCapacityForEnqueue()).thenReturn(true);
-    doAnswer(
-            invocation -> {
-              ref.set(invocation.getArgument(0));
-              return null;
-            })
-        .when(writer)
-        .enqueue(any());
-    return writer;
+  private static FlagEvaluationWriter capturingWriter(
+      final AtomicReference<RecordedEvaluation> ref) {
+    return new RecordedEvaluation.Recorder(ref::set);
   }
 }
