@@ -49,6 +49,14 @@ Deleted lines, moved code, test code and resources, and Gradle lock files files 
 
 _Recovery:_ Split the pull request into smaller stacked pull requests. To override this check entirely, add the `tag: override pr size check` label to the PR. Remove the label to re-enable the check.
 
+### check-required-benchmarks [🔗](check-required-benchmarks.yaml)
+
+_Trigger:_ When creating or updating a pull request targeting `master` or a patch release (`release/vM.N.x`) branch, or when its description or labels are updated. Draft pull requests are skipped.
+
+_Action:_ If the pull request changes code listed in `.github/required-benchmarks.txt`, fail it unless its description has a `## Benchmarks` section (printed by `tooling/benchmark_pr.py run`) with results for every required benchmark, for a commit in the pull request's history after which no benchmarked file changed. Then comment saying what is missing.
+
+_Recovery:_ Run `tooling/benchmark_pr.py run` and paste its output into the description. For a change that can't affect performance, add the `tag: no perf impact` label and say why in the description.
+
 ### enforce-datadog-merge-queue [🔗](enforce-datadog-merge-queue.yaml)
 
 _Trigger:_ When creating or updating a pull request, or when a pull request is added to GitHub merge queue.
