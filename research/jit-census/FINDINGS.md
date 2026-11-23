@@ -438,6 +438,10 @@ In priority order:
   folding. **Conclusion (Doug): the sizeable gain needs fast insertion and lock coarsening together**: one presence test per run (`occupancy & runMask`), plain
   appends with no `indexOf`, one capacity check, plus presizing. That needs the bulk append entry point in `DenseIdStore` (store hold: prototype branch only, or wait for the
   FrozenTags design).
+- **Fused-run benchmark, hash store (dense off; Mario, Temurin 17, 2026-11-23):** `newApiFused` +5.8% / −2.4%, `newApiFusedConservative` +3.8% / +0.4%
+  at 5 / 20 children; all intervals overlap, B/op unchanged (within ±13 B fork variation). Fused/20 has wide within-fork ranges, so its −2.4% is
+  within error but is the one point to re-check against the better-or-neutral bar. Short JFRs: the 4-tag bulk wrappers stay out of line in both stores; 3-tag ones inline.
+  Same picture as dense-on: setter-side fusion alone is neutral. Fast insertion (`119fa009b2`, dense on only, 5 forks) is queued next on Mario.
 - **Validation for 3:** differential instrumentation tests (rewrite on/off); a benchmark with JFR `jdk.CompilerInlining`
   confirming "already compiled into a big method" disappears for `setTag` call sites.
 - Compiler-control notes: negative (`inline:-`) directives for our cold helpers are low-risk. Forced inlining can abort the
