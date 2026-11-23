@@ -78,14 +78,15 @@ variables:
   NON_DEFAULT_JVMS:
     description: "Enable tests on JVMs that are not the default"
     value: "false"
-  # Temporary cross-repository branch for the TaskBlock rollout. java-profiler is fetched from its
-  # public GitHub repository because GitLab rejects cross-project CI_JOB_TOKEN authentication.
-  DDPROF_BRANCH: "paul.fournillon/taskblock-native-io"
-  DDPROF_ARTIFACT_VERSION: "1.47.0-taskblock-native-io"
-  DDPROF_BUILD_IMAGE_X64: "registry.ddbuild.io/ci/async-profiler-build:v107978918-x64-2.17-base@sha256:03fb65c5c7fb2866397ceaf18ccb5a0b91bb377a9f89c94264427b62d48cfffd"
-  DDPROF_BUILD_IMAGE_X64_MUSL: "registry.ddbuild.io/ci/async-profiler-build:v107978918-x64-musl-base@sha256:0efe0c5fbd04e5647a53235d4c4942a2dd305b3d76bf5afdc052d64a7c0b9505"
-  DDPROF_BUILD_IMAGE_ARM64: "registry.ddbuild.io/ci/async-profiler-build:v107978918-arm64-base@sha256:15670752fa8e67c81c1b7fd4d93ef34c668649f117584ab29327d8d7733d64d6"
-  DDPROF_BUILD_IMAGE_ARM64_MUSL: "registry.ddbuild.io/ci/async-profiler-build:v107978918-arm64-musl-base@sha256:1c8a96ded178bfa130077166db049cbea422c94c96a8c5172d66f8c3581d57cf"
+  # Temporary cross-repository branch for the TaskBlock rollout until a ddprof release contains it.
+  # java-profiler is fetched from its public GitHub repository because GitLab rejects cross-project
+  # CI_JOB_TOKEN authentication. Build images match that branch's shipped-binary images.
+  DDPROF_BRANCH: "paul.fournillon/native_socket_netty"
+  DDPROF_ARTIFACT_VERSION: "1.53.0-native-socket-netty"
+  DDPROF_BUILD_IMAGE_X64: "registry.ddbuild.io/ci/async-profiler-build:v137281788-x64-glibc-base@sha256:270a9101716a0865071182e0ef0e40e98f874535b90722949b33a4a8998fe08d"
+  DDPROF_BUILD_IMAGE_X64_MUSL: "registry.ddbuild.io/ci/async-profiler-build:v137281788-x64-musl-base@sha256:fd3803695771de3eabf44e4953c0474273f9dbb97d88c22e99ac507b88572481"
+  DDPROF_BUILD_IMAGE_ARM64: "registry.ddbuild.io/ci/async-profiler-build:v137281788-arm64-glibc-base@sha256:511d051d37ed99b2ca9cd3af797aa9de63e4b4b952af1e738b2cea913bbcc057"
+  DDPROF_BUILD_IMAGE_ARM64_MUSL: "registry.ddbuild.io/ci/async-profiler-build:v137281788-arm64-musl-base@sha256:edff5b0205db2d1d520debdd35f9ae6b047a6c0f80bd6f3eca02b57cf56c8c98"
   RUN_FLAKY_TESTS:
     description: "Enable flaky tests"
     value: "false"
