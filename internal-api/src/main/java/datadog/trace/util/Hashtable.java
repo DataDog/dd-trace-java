@@ -1051,11 +1051,20 @@ public final class Hashtable {
   @Nonnull
   static Hashtable.Entry[] growIfNeeded(
       @Nonnull SizeManager sizeManager, @Nonnull Hashtable.Entry[] buckets, int maxBuckets) {
-    int length = buckets.length;
-    if (length < maxBuckets && sizeManager.estimateSize() >= (length >> 1) + (length >> 2)) {
+    if (needsGrowth(sizeManager.estimateSize(), buckets.length, maxBuckets)) {
       return resize(sizeManager, buckets);
     }
     return buckets;
+  }
+
+  /**
+   * {@code true} when an array of {@code length} buckets holding {@code size} entries should double
+   * before the next insert: one more entry would take it past 3/4 full, and it is still shorter
+   * than {@code maxBuckets}. The growth rule shared by every table that grows through {@link
+   * #resize(Hashtable.Entry[])}.
+   */
+  static boolean needsGrowth(int size, int length, int maxBuckets) {
+    return length < maxBuckets && size >= (length >> 1) + (length >> 2);
   }
 
   /**

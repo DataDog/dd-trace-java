@@ -17,17 +17,18 @@ import javax.annotation.Nullable;
  * the least recently used entry and returns it, so a caller can release what it holds or count the
  * eviction.
  *
- * <p>The bucket array starts small and doubles as the table fills, up to {@link
- * Hashtable#capacityFor(int)} of the bound: the size a fixed table would allocate up front. A table
- * that never fills never pays for its bound, and a full one ends up the same size as a fixed one.
+ * <p>The bucket array grows exactly as {@link Hashtable.D1}'s does, through {@link
+ * Hashtable#resize(Hashtable.Entry[])}: it starts at {@link Hashtable#capacityFor(int)} of the
+ * {@link Hashtable.Sizing}'s initial capacity (16 buckets by default, fewer for a small bound),
+ * doubles once an insert would take it past 3/4 full, and stops at {@code capacityFor} of the
+ * bound: the size a fixed table would allocate up front. A table that never fills never pays for
+ * its bound, and a full one ends up the same size as a fixed one. Growth relinks the bucket chains
+ * only; the recency links are separate fields and stay as they are.
  *
  * <p>This outer class is a namespace. Not thread-safe: guard a shared table with a lock.
  */
 public final class LruTable {
   private LruTable() {}
-
-  /** The bucket count a table starts with, unless its bound needs fewer. */
-  static final int INITIAL_BUCKETS = 16;
 
   /**
    * Base class of entries: the chained-bucket entry plus its links in the recency order. Subclass
@@ -57,13 +58,10 @@ public final class LruTable {
     private Entry eldest;
     private Entry youngest;
 
-    Base(final int maxSize) {
-      if (maxSize < 0) {
-        throw new IllegalArgumentException("maxSize < 0: " + maxSize);
-      }
-      this.maxSize = maxSize;
+    Base(@Nonnull final Hashtable.Sizing sizing) {
+      this.maxSize = sizing.maxCapacity();
       this.maxBuckets = Hashtable.capacityFor(maxSize);
-      this.buckets = new Hashtable.Entry[Math.min(INITIAL_BUCKETS, maxBuckets)];
+      this.buckets = Hashtable.create(Hashtable.initialBucketsFor(sizing));
     }
 
     /**
@@ -112,9 +110,8 @@ public final class LruTable {
       if (size == maxSize) {
         evicted = eldest;
         unlinkEntry(evicted);
-      } else if (size >= (buckets.length >> 1) + (buckets.length >> 2)
-          && buckets.length < maxBuckets) {
-        grow(); // past 3/4 full
+      } else if (Hashtable.needsGrowth(size, buckets.length, maxBuckets)) {
+        buckets = Hashtable.resize(buckets);
       }
       Hashtable.insertHeadEntryFor(buckets, entry.keyHash, entry);
       append(entry);
@@ -146,6 +143,14 @@ public final class LruTable {
       for (Entry e = eldest; e != null; e = e.newer) {
         consumer.accept(cast(e));
       }
+    }
+
+    /** The default sizing for a bound, keeping the constructors' own argument check. */
+    static Hashtable.Sizing sized(final int maxSize) {
+      if (maxSize < 0) {
+        throw new IllegalArgumentException("maxSize < 0: " + maxSize);
+      }
+      return Hashtable.Sizing.bounded(maxSize);
     }
 
     @SuppressWarnings("unchecked")
@@ -205,15 +210,6 @@ public final class LruTable {
       entry.older = null;
       entry.newer = null;
     }
-
-    private void grow() {
-      final Hashtable.Entry[] grown = new Hashtable.Entry[buckets.length << 1];
-      for (Entry e = eldest; e != null; e = e.newer) {
-        e.setNext(null);
-        Hashtable.insertHeadEntryFor(grown, e.keyHash, e);
-      }
-      buckets = grown;
-    }
   }
 
   /**
@@ -254,7 +250,25 @@ public final class LruTable {
      * @param maxSize the bound; 0 for a table that remembers nothing.
      */
     public D1(final int maxSize) {
-      super(maxSize);
+      super(sized(maxSize));
+    }
+
+    private D1(@Nonnull final Hashtable.Sizing sizing) {
+      super(sizing);
+    }
+
+    /**
+     * Creates a table sized by {@code sizing}: it holds up to the max capacity and its bucket array
+     * starts sized for the initial capacity, as with {@link Hashtable.D1#create}.
+     *
+     * @param entryClass concrete entry type, used only for generic type inference.
+     * @param sizing the bound and the starting size, in entries.
+     * @return an empty table.
+     */
+    @Nonnull
+    public static <K, TEntry extends D1.Entry<K>> D1<K, TEntry> create(
+        @Nonnull final Class<TEntry> entryClass, @Nonnull final Hashtable.Sizing sizing) {
+      return new D1<>(sizing);
     }
 
     /**
@@ -358,7 +372,25 @@ public final class LruTable {
      * @param maxSize the bound; 0 for a table that remembers nothing.
      */
     public D2(final int maxSize) {
-      super(maxSize);
+      super(sized(maxSize));
+    }
+
+    private D2(@Nonnull final Hashtable.Sizing sizing) {
+      super(sizing);
+    }
+
+    /**
+     * Creates a table sized by {@code sizing}: it holds up to the max capacity and its bucket array
+     * starts sized for the initial capacity, as with {@link Hashtable.D2#create}.
+     *
+     * @param entryClass concrete entry type, used only for generic type inference.
+     * @param sizing the bound and the starting size, in entries.
+     * @return an empty table.
+     */
+    @Nonnull
+    public static <K1, K2, TEntry extends D2.Entry<K1, K2>> D2<K1, K2, TEntry> create(
+        @Nonnull final Class<TEntry> entryClass, @Nonnull final Hashtable.Sizing sizing) {
+      return new D2<>(sizing);
     }
 
     /**

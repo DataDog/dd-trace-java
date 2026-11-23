@@ -138,7 +138,7 @@ class LruTableTest {
   void growsWithItsEntriesUpToTheFixedTableSize() {
     final int max = 10_000;
     final LruTable.D2<String, Integer, Pair> table = new LruTable.D2<>(max);
-    assertEquals(LruTable.INITIAL_BUCKETS, table.buckets.length);
+    assertEquals(16, table.buckets.length);
     final List<Pair> pairs = new ArrayList<>();
     for (int i = 0; i < max; i++) {
       final Pair pair = new Pair("flag-" + (i % 7), i);
@@ -160,6 +160,34 @@ class LruTableTest {
     final LruTable.D1<Object, Counter> table = new LruTable.D1<>(3);
     assertTrue(table.buckets.length <= Hashtable.capacityFor(3));
     assertEquals(3, table.maxSize());
+  }
+
+  @Test
+  void startsAtSixteenBucketsOrFewerForASmallBound() {
+    for (final int max : new int[] {0, 1, 3, 11, 12, 13, 100, 10_000}) {
+      final int expected = Math.min(16, Hashtable.capacityFor(max));
+      assertEquals(expected, new LruTable.D1<Object, Counter>(max).buckets.length, "max " + max);
+      assertEquals(
+          expected, new LruTable.D2<String, Integer, Pair>(max).buckets.length, "max " + max);
+    }
+  }
+
+  @Test
+  void createStartsAtTheSizingsInitialCapacity() {
+    final Hashtable.Sizing sizing = Hashtable.Sizing.bounded(1000).initialCapacity(100);
+    final LruTable.D1<Object, Counter> d1 = LruTable.D1.create(Counter.class, sizing);
+    final LruTable.D2<String, Integer, Pair> d2 = LruTable.D2.create(Pair.class, sizing);
+    assertEquals(Hashtable.capacityFor(100), d1.buckets.length);
+    assertEquals(Hashtable.capacityFor(100), d2.buckets.length);
+    assertEquals(1000, d1.maxSize());
+    assertEquals(1000, d2.maxSize());
+    for (int i = 0; i < 1000; i++) {
+      assertNull(d1.insert(new Counter(i)));
+    }
+    assertEquals(Hashtable.capacityFor(1000), d1.buckets.length);
+    for (int i = 0; i < 1000; i++) {
+      assertTrue(d1.peek(i) != null, "key " + i);
+    }
   }
 
   @Test
