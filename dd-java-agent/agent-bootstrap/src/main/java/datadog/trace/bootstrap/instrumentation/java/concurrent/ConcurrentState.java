@@ -36,7 +36,7 @@ public final class ConcurrentState {
   public static <K> ConcurrentState captureContinuation(
       ContextStore<K, ConcurrentState> contextStore, K key, Context context) {
     if (shouldCapture(context)) {
-      final ConcurrentState state = contextStore.putIfAbsent(key, FACTORY);
+      final ConcurrentState state = contextStore.getOrCreate(key, FACTORY);
       if (!state.captureAndSetContinuation(context) && log.isDebugEnabled()) {
         log.debug(
             "continuation was already set for {} in context {}, no continuation captured.",

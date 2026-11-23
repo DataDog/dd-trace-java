@@ -342,6 +342,8 @@ public abstract class JUnitPlatformUtils {
   }
 
   public static List<String> getTags(TestDescriptor testDescriptor) {
-    return testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
+    return TestDataFactory.createTestTags(testDescriptor).stream()
+        .map(TestTag::getName)
+        .collect(Collectors.toList());
   }
 }

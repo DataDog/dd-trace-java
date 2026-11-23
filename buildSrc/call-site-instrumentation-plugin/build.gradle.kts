@@ -20,7 +20,9 @@ spotless {
     target("src/**/*.java")
     // ignore embedded test projects
     targetExclude("src/test/resources/**")
-    googleJavaFormat(libs.versions.google.java.format.get())
+    removeUnusedImports()
+    forbidWildcardImports()
+    googleJavaFormat()
   }
 }
 
@@ -38,6 +40,7 @@ dependencies {
 
   testCompileOnly(libs.jsr305)
   testImplementation(libs.bytebuddy)
+  testImplementation(platform(libs.junit.bom))
   testImplementation(libs.bundles.junit5)
   testRuntimeOnly(libs.junit.platform.launcher)
   testImplementation(libs.bundles.mockito)

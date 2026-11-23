@@ -6,9 +6,8 @@ import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.SpanProbe;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.util.NonRetryable;
-import java.nio.file.Path;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
@@ -16,12 +15,9 @@ import org.junit.jupiter.api.condition.DisabledIf;
 @NonRetryable
 public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
 
-  @Override
-  protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
-    List<String> commandParams = getDebuggerCommandParams();
-    commandParams.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
-    return ProcessBuilderHelper.createProcessBuilder(
-        commandParams, logFilePath, getAppClass(), params);
+  @BeforeEach
+  public void beforeEach() {
+    additionalJvmArgs.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
   }
 
   @Test
@@ -36,12 +32,11 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
 
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     AtomicBoolean traceReceived = new AtomicBoolean();
-    registerTraceListener(
-        decodedTrace -> {
-          DecodedSpan decodedSpan = decodedTrace.getSpans().get(0);
-          assertEquals("Main.fullMethod", decodedSpan.getResource());
-          traceReceived.set(true);
-        });
+    registerTraceListener(decodedTrace -> {
+      DecodedSpan decodedSpan = decodedTrace.getSpans().get(0);
+      assertEquals("Main.fullMethod", decodedSpan.getResource());
+      traceReceived.set(true);
+    });
     processRequests(
         () -> statusResult.get() && traceReceived.get(),
         () ->
@@ -66,12 +61,11 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     AtomicBoolean traceReceived = new AtomicBoolean();
-    registerTraceListener(
-        decodedTrace -> {
-          DecodedSpan decodedSpan = decodedTrace.getSpans().get(0);
-          assertEquals("Main.fullMethod:L95-104", decodedSpan.getResource());
-          traceReceived.set(true);
-        });
+    registerTraceListener(decodedTrace -> {
+      DecodedSpan decodedSpan = decodedTrace.getSpans().get(0);
+      assertEquals("Main.fullMethod:L95-104", decodedSpan.getResource());
+      traceReceived.set(true);
+    });
     processRequests(
         () -> statusResult.get() && traceReceived.get(),
         () ->
@@ -98,18 +92,17 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean received = new AtomicBoolean(false);
     AtomicBoolean error = new AtomicBoolean(false);
-    registerProbeStatusListener(
-        probeStatus -> {
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
-            received.set(true);
-          }
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
-            assertEquals(
-                "Single line span is not supported, you need to provide a range.",
-                probeStatus.getDiagnostics().getException().getMessage());
-            error.set(true);
-          }
-        });
+    registerProbeStatusListener(probeStatus -> {
+      if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+        received.set(true);
+      }
+      if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
+        assertEquals(
+            "Single line span is not supported, you need to provide a range.",
+            probeStatus.getDiagnostics().getException().getMessage());
+        error.set(true);
+      }
+    });
     processRequests(
         () -> received.get() && error.get(),
         () -> String.format("timeout received=%s error=%s", received.get(), error.get()));

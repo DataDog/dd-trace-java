@@ -1,5 +1,6 @@
 package com.datadog.profiling.controller.openjdk.events;
 
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -55,7 +56,8 @@ public class SmapEntryFactoryTest {
         new BufferedReader(
             new InputStreamReader(
                 Objects.requireNonNull(
-                    SmapEntryFactory.class.getResourceAsStream("/smap/smaps.txt"))))) {
+                    SmapEntryFactory.class.getResourceAsStream("/smap/smaps.txt")),
+                ISO_8859_1))) {
       List<SmapEntryEvent> events = new ArrayList<>();
       SmapEntryCache.readEvents(br, events);
       assertNotNull(events);

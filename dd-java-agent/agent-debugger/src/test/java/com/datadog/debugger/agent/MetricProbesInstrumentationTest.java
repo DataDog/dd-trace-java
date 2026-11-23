@@ -14,12 +14,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import static utils.InstrumentationTestHelper.getLineForLineProbe;
-import static utils.InstrumentationTestHelper.loadClass;
+import static utils.InstrumentationTestHelper.installTracerInstrumentation;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ValueScript;
@@ -170,6 +171,51 @@ public class MetricProbesInstrumentationTest {
     assertEquals(3, result);
     assertFalse(listener.counters.containsKey(METRIC_NAME));
     verify(probeStatusSink).addError(eq(METRIC_ID), eq("Cannot resolve symbol value"));
+  }
+
+  @Test
+  public void invalidMetricFirstOnSameMethodAsValidMetric() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    MetricProbe invalidProbe = createInvalidMainMetric(CLASS_NAME);
+    MetricProbe validProbe = createValidMainMetric(CLASS_NAME);
+    assertProbeStatusPerProbe(CLASS_NAME, installMetricProbes(invalidProbe, validProbe));
+  }
+
+  @Test
+  public void invalidMetricLastOnSameMethodAsValidMetric() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    MetricProbe validProbe = createValidMainMetric(CLASS_NAME);
+    MetricProbe invalidProbe = createInvalidMainMetric(CLASS_NAME);
+    assertProbeStatusPerProbe(CLASS_NAME, installMetricProbes(validProbe, invalidProbe));
+  }
+
+  private static MetricProbe createInvalidMainMetric(String className) {
+    return createMethodMetric(
+        METRIC_ID,
+        "invalid_count",
+        COUNT,
+        className,
+        "main",
+        "int (java.lang.String)",
+        new ValueScript(DSL.ref("value"), "value"),
+        null);
+  }
+
+  private static MetricProbe createValidMainMetric(String className) {
+    return createMethodMetric(
+        METRIC_ID1, "call_count", COUNT, className, "main", "int (java.lang.String)", null, null);
+  }
+
+  private void assertProbeStatusPerProbe(String className, MetricForwarderListener listener)
+      throws IOException, URISyntaxException {
+    Class<?> testClass = compileAndLoadClass(className);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    assertEquals(1, listener.counters.get("call_count").longValue());
+    assertFalse(listener.counters.containsKey("invalid_count"));
+    verify(probeStatusSink).addError(eq(METRIC_ID), eq("Cannot resolve symbol value"));
+    verify(probeStatusSink, never()).addInstalled(eq(METRIC_ID));
+    verify(probeStatusSink).addInstalled(eq(METRIC_ID1));
   }
 
   @Test
@@ -527,6 +573,45 @@ public class MetricProbesInstrumentationTest {
     assertEquals(48, result);
     assertTrue(listener.counters.containsKey(METRIC_NAME));
     assertEquals(31, listener.counters.get(METRIC_NAME).longValue());
+  }
+
+  @Test
+  public void lineCatchHandlerCountMetric() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot05";
+    String METRIC_NAME = "catch_count";
+    // line of catch handler start: caught exception is on the operand stack
+    int line = getLineForLineProbe(CLASS_NAME, LINE_METRIC_ID1);
+    MetricProbe metricProbe =
+        createLineMetric(LINE_METRIC_ID1, METRIC_NAME, COUNT, CLASS_NAME, null, line);
+    MetricForwarderListener listener = installMetricProbes(metricProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "triggerSwallowedException").get();
+    assertEquals(-1, result);
+    assertTrue(listener.counters.containsKey(METRIC_NAME));
+    assertEquals(1, listener.counters.get(METRIC_NAME).longValue());
+    verify(probeStatusSink, times(0)).addError(any(), anyString());
+  }
+
+  @Test
+  public void lineMultiLineExpressionCountMetric() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot05";
+    String METRIC_NAME = "expr_count";
+    // line in the middle of a constructor call: operand stack holds uninitialized references
+    int line = getLineForLineProbe(CLASS_NAME, LINE_METRIC_ID4);
+    MetricProbe metricProbe =
+        createLineMetric(LINE_METRIC_ID4, METRIC_NAME, COUNT, CLASS_NAME, null, line);
+    MetricForwarderListener listener = installMetricProbes(metricProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    String result = Reflect.on(testClass).call("multiLineExpression", "foo").get();
+    assertEquals("f", result);
+    assertFalse(listener.counters.containsKey(METRIC_NAME));
+    verify(probeStatusSink)
+        .addError(
+            eq(LINE_METRIC_ID4),
+            eq(
+                "Cannot instrument line "
+                    + line
+                    + ": operand stack is not empty, line is probably in the middle of a statement or expression"));
   }
 
   @Test
@@ -1291,21 +1376,28 @@ public class MetricProbesInstrumentationTest {
   public void localVarNotInScope() throws IOException, URISyntaxException {
     final String METRIC_NAME = "lenstr";
     final String CLASS_NAME = "com.datadog.debugger.jaxrs.MyResource";
-    MetricProbe metricProbe =
-        createMetricBuilder(METRIC_ID, METRIC_NAME, GAUGE)
-            .where(CLASS_NAME, "createResource", null)
-            .valueScript(new ValueScript(DSL.len(DSL.ref("varStr")), "len(varStr)"))
-            .build();
-    MetricForwarderListener listener = installMetricProbes(metricProbe);
-    Class<?> testClass =
-        loadClass(CLASS_NAME, getClass().getResource("/MyResource.class").getFile());
-    Object result =
-        Reflect.onClass(testClass)
-            .create()
-            .call("createResource", (Object) null, (Object) null, 1)
-            .get();
-    assertNotNull(result);
-    assertFalse(listener.gauges.containsKey(METRIC_NAME));
+    // compile the JAX-RS resource fixture and weave it with the real tracer JAX-RS
+    // instrumentation, so this test exercises the same bytecode shape the tracer produces
+    ClassFileTransformer jaxRsTransformer = installTracerInstrumentation(instr);
+    Class<?> testClass;
+    try {
+      MetricProbe metricProbe =
+          createMetricBuilder(METRIC_ID, METRIC_NAME, GAUGE)
+              .where(CLASS_NAME, "createResource", null)
+              .valueScript(new ValueScript(DSL.len(DSL.ref("varStr")), "len(varStr)"))
+              .build();
+      MetricForwarderListener listener = installMetricProbes(metricProbe);
+      testClass = compileAndLoadClass(CLASS_NAME);
+      Object result =
+          Reflect.onClass(testClass)
+              .create()
+              .call("createResource", (Object) null, (Object) null, 1)
+              .get();
+      assertNotNull(result);
+      assertFalse(listener.gauges.containsKey(METRIC_NAME));
+    } finally {
+      instr.removeTransformer(jaxRsTransformer);
+    }
   }
 
   private MetricForwarderListener installMethodMetric(

@@ -2,6 +2,7 @@ package datadog.trace.common.sampling;
 
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.api.time.SystemTimeSource;
@@ -9,6 +10,7 @@ import datadog.trace.api.time.TimeSource;
 import datadog.trace.common.writer.RemoteResponseListener;
 import datadog.trace.core.CoreSpan;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Function;
@@ -49,6 +51,11 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     return true;
   }
 
+  @Override
+  public RateByServiceTraceSampler agentSampler() {
+    return this;
+  }
+
   /** If span is a root span, set the span context samplingPriority to keep or drop */
   @Override
   public <T extends CoreSpan<T>> void setSamplingPriority(final T span) {
@@ -58,23 +65,27 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     final RateSamplersByEnvAndService rates = serviceRates;
     RateSampler sampler = rates.getSampler(env, serviceName);
 
-    if (sampler.sample(span)) {
-      span.setSamplingPriority(
-          PrioritySampling.SAMPLER_KEEP,
-          SAMPLING_AGENT_RATE,
-          sampler.getSampleRate(),
-          SamplingMechanism.AGENT_RATE);
-    } else {
-      span.setSamplingPriority(
-          PrioritySampling.SAMPLER_DROP,
-          SAMPLING_AGENT_RATE,
-          sampler.getSampleRate(),
-          SamplingMechanism.AGENT_RATE);
-    }
+    boolean sampled = sampler.sample(span);
+    int samplingPriority = sampled ? PrioritySampling.SAMPLER_KEEP : PrioritySampling.SAMPLER_DROP;
+    span.setSamplingPriority(
+        samplingPriority,
+        SAMPLING_AGENT_RATE,
+        sampler.getSampleRate(),
+        SamplingMechanism.AGENT_RATE);
   }
 
   private <T extends CoreSpan<T>> String getSpanEnv(final T span) {
     return span.getTag("env", "");
+  }
+
+  @VisibleForTesting
+  double sampleRateFor(String env, String service) {
+    return serviceRates.getSampler(env, service).getSampleRate();
+  }
+
+  @VisibleForTesting
+  double fallbackSampleRate() {
+    return serviceRates.getFallbackSampler().getSampleRate();
   }
 
   static boolean shouldCap(double oldRate, double newRate) {
@@ -244,8 +255,8 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     private final String lowerService;
 
     private EnvAndService(String env, String service) {
-      lowerEnv = env.toLowerCase();
-      lowerService = service.toLowerCase();
+      lowerEnv = env.toLowerCase(Locale.ROOT);
+      lowerService = service.toLowerCase(Locale.ROOT);
     }
 
     boolean isFallback() {

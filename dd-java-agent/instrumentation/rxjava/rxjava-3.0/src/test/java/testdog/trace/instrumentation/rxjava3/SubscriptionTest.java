@@ -6,8 +6,8 @@ import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.reactivex.rxjava3.core.BackpressureStrategy;
 import io.reactivex.rxjava3.core.Completable;
@@ -26,13 +26,12 @@ class SubscriptionTest extends AbstractInstrumentationTest {
     CountDownLatch latch = new CountDownLatch(1);
 
     AgentSpan parent = startSpan("test", "parent");
-    try (AgentScope scope = activateSpan(parent)) {
+    try (ContextScope scope = activateSpan(parent)) {
       Maybe<Connection> connection = Maybe.create(emitter -> emitter.onSuccess(new Connection()));
-      connection.subscribe(
-          c -> {
-            c.query();
-            latch.countDown();
-          });
+      connection.subscribe(c -> {
+        c.query();
+        latch.countDown();
+      });
     } finally {
       parent.finish();
     }
@@ -50,13 +49,12 @@ class SubscriptionTest extends AbstractInstrumentationTest {
     CountDownLatch latch = new CountDownLatch(1);
 
     AgentSpan parent = startSpan("test", "parent");
-    try (AgentScope scope = activateSpan(parent)) {
+    try (ContextScope scope = activateSpan(parent)) {
       Single<Connection> connection = Single.create(emitter -> emitter.onSuccess(new Connection()));
-      connection.subscribe(
-          c -> {
-            c.query();
-            latch.countDown();
-          });
+      connection.subscribe(c -> {
+        c.query();
+        latch.countDown();
+      });
     } finally {
       parent.finish();
     }
@@ -74,13 +72,12 @@ class SubscriptionTest extends AbstractInstrumentationTest {
     CountDownLatch latch = new CountDownLatch(1);
 
     AgentSpan parent = startSpan("test", "parent");
-    try (AgentScope scope = activateSpan(parent)) {
+    try (ContextScope scope = activateSpan(parent)) {
       Completable action = Completable.create(emitter -> emitter.onComplete());
-      action.subscribe(
-          () -> {
-            new Connection().query();
-            latch.countDown();
-          });
+      action.subscribe(() -> {
+        new Connection().query();
+        latch.countDown();
+      });
     } finally {
       parent.finish();
     }
@@ -98,18 +95,16 @@ class SubscriptionTest extends AbstractInstrumentationTest {
     CountDownLatch latch = new CountDownLatch(1);
 
     AgentSpan parent = startSpan("test", "parent");
-    try (AgentScope scope = activateSpan(parent)) {
+    try (ContextScope scope = activateSpan(parent)) {
       Observable<Connection> connection =
-          Observable.create(
-              emitter -> {
-                emitter.onNext(new Connection());
-                emitter.onComplete();
-              });
-      connection.subscribe(
-          c -> {
-            c.query();
-            latch.countDown();
+          Observable.create(emitter -> {
+            emitter.onNext(new Connection());
+            emitter.onComplete();
           });
+      connection.subscribe(c -> {
+        c.query();
+        latch.countDown();
+      });
     } finally {
       parent.finish();
     }
@@ -127,7 +122,7 @@ class SubscriptionTest extends AbstractInstrumentationTest {
     CountDownLatch latch = new CountDownLatch(1);
 
     AgentSpan parent = startSpan("test", "parent");
-    try (AgentScope scope = activateSpan(parent)) {
+    try (ContextScope scope = activateSpan(parent)) {
       Flowable<Connection> connection =
           Flowable.create(
               emitter -> {
@@ -135,11 +130,10 @@ class SubscriptionTest extends AbstractInstrumentationTest {
                 emitter.onComplete();
               },
               BackpressureStrategy.BUFFER);
-      connection.subscribe(
-          c -> {
-            c.query();
-            latch.countDown();
-          });
+      connection.subscribe(c -> {
+        c.query();
+        latch.countDown();
+      });
     } finally {
       parent.finish();
     }

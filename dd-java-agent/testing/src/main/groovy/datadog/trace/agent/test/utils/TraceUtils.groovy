@@ -1,7 +1,7 @@
 package datadog.trace.agent.test.utils
 
 import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.bootstrap.instrumentation.api.AgentScope
+import datadog.context.ContextScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator
@@ -48,7 +48,7 @@ class TraceUtils {
     final AgentSpan span = inheritCurrent ? startSpan("test", rootOperationName) : startSpan("test", rootOperationName, (AgentSpanContext) null)
     DECORATOR.afterStart(span)
 
-    AgentScope scope = activateSpan(span)
+    ContextScope scope = activateSpan(span)
 
     try {
       return r.call()

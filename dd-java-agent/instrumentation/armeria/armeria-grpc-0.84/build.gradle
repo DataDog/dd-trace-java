@@ -1,6 +1,7 @@
 plugins {
   id 'com.google.protobuf' version '0.10.0'
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.instrumentation.netty-concurrent-tests'
   id 'idea'
 }
 
@@ -37,11 +38,6 @@ protobuf {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
-
-tasks.named("latestDepTest", Test) {
-  finalizedBy 'latestDepForkedTest'
-}
 
 dependencies {
   compileOnly group: 'com.linecorp.armeria', name: 'armeria-grpc', version: '0.84.0'

@@ -16,7 +16,7 @@ public class ProducerConstructorAdvice {
       @Advice.Argument(0) ProducerConfig producerConfig) {
     MetadataState state =
         InstrumentationContext.get(Metadata.class, MetadataState.class)
-            .putIfAbsent(metadata, MetadataState::new);
+            .getOrCreate(metadata, MetadataState::new);
     if (Config.get().isDataStreamsEnabled()) {
       KafkaConfigHelper.storePendingProducerConfig(
           state, KafkaConfigHelper.extractProducerConfig(producerConfig));

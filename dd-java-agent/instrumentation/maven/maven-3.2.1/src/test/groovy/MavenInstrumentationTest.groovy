@@ -1,18 +1,35 @@
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import org.apache.maven.artifact.versioning.ComparableVersion
 import org.apache.maven.cli.MavenCli
 import org.codehaus.plexus.util.FileUtils
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.slf4j.MDC
 import spock.lang.TempDir
 
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.concurrent.TimeUnit
 
 import static org.junit.jupiter.api.Assertions.assertEquals
 
 class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(MavenInstrumentationTest)
+
   private static final int DEPENDENCIES_DOWNLOAD_RETRIES = 3
+
+  private static final ComparableVersion MAVEN_3_6_3 = new ComparableVersion("3.6.3")
+
+  // Versions Maven 3.2.5 picks when the POM omits them: the default binding for Surefire and the latest compatible release for Failsafe
+  private static final String SUREFIRE_2_12_4 = "2.12.4"
+  private static final String FAILSAFE_3_2_5 = "3.2.5"
+
+  // Recent Surefire releases require Maven 3.6.3
+  private static final boolean LATEST_SUREFIRE_SUPPORTED = getCurrentMavenVersion() >= MAVEN_3_6_3
+  private static final String SUREFIRE_VERSION = LATEST_SUREFIRE_SUPPORTED ? getLatestMavenSurefireVersion() : SUREFIRE_2_12_4
+  private static final String FAILSAFE_VERSION = LATEST_SUREFIRE_SUPPORTED ? SUREFIRE_VERSION : FAILSAFE_3_2_5
 
   @TempDir
   Path projectFolder
@@ -40,9 +57,7 @@ class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test #testcaseName"() {
-    String workingDirectory = projectFolder.toString()
-
-    def exitCode = new MavenCli().doMain(args.toArray(new String[0]), workingDirectory, null, null)
+    def exitCode = executeMaven(args)
 
     assertEquals(expectedExitCode, exitCode)
     assertSpansData(testcaseName)
@@ -59,6 +74,116 @@ class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
     "test_maven_build_with_no_fork_generates_spans"                                   | ["-B", "clean", "test"]        | 0
   }
 
+  def "Maven test status follows resolved skip configuration: #skipArgument, POM skipTests=#pomSkipTests"() {
+    given:
+    if (pomSkipTests != null) {
+      def pom = projectFolder.resolve("pom.xml").toFile()
+      pom.text = pom.text.replace("<artifactId>maven-surefire-plugin</artifactId>",
+        "<artifactId>maven-surefire-plugin</artifactId><configuration><skipTests>${pomSkipTests}</skipTests></configuration>")
+    }
+
+    when:
+    def exitCode = executeMaven(["-B", "clean", "test", skipArgument])
+
+    then:
+    exitCode == 0
+    spanFilter.waitForSpan({ span -> span.spanType == "test_session_end" }, TimeUnit.SECONDS.toMillis(20))
+    def spans = TEST_WRITER.toList().flatten()
+    def modules = spans.findAll { it.spanType == "test_module_end" }
+    def sessions = spans.findAll { it.spanType == "test_session_end" }
+    modules.size() == 1
+    sessions.size() == 1
+    modules.every { it.getTag("test.status").toString() == expectedStatus }
+    sessions.every { it.getTag("test.status").toString() == expectedStatus }
+    expectedStatus != "skip" || modules.every { it.getTag("test.skip_reason") == "Tests were skipped by Maven configuration" }
+    expectedStatus != "skip" || !spans.any { it.spanType == "test" || it.spanType == "test_suite_end" }
+
+    where:
+    testcaseName                                 | skipArgument             | pomSkipTests | expectedStatus
+    "test_maven_build_with_tests_generates_spans"  | "-DskipTests"            | null         | "skip"
+    "test_maven_build_with_tests_generates_spans"  | "-Dmaven.test.skip=true"  | null         | "skip"
+    "test_maven_build_with_tests_generates_spans"  | "-DskipTests=false"      | null         | "pass"
+    "test_maven_build_with_tests_generates_spans"  | "-DskipTests"            | "false"      | "pass"
+    "test_maven_build_with_tests_generates_spans"  | "-DskipTests=false"      | "true"       | "skip"
+  }
+
+  def "Failsafe status follows skipITs: CLI=#cliSkipITs, POM=#pomSkipITs, unit tests skipped=#skipUnitTests"() {
+    given:
+    def pom = projectFolder.resolve("pom.xml").toFile()
+    // An unrelated skipITs element must not mark Surefire tests as skipped.
+    pom.text = pom.text.replace("<artifactId>maven-surefire-plugin</artifactId>",
+      "<artifactId>maven-surefire-plugin</artifactId><configuration><skipTests>${skipUnitTests}</skipTests><skipITs>true</skipITs></configuration>")
+    if (pomSkipITs != null) {
+      pom.text = pom.text.replace("<artifactId>maven-failsafe-plugin</artifactId>",
+        "<artifactId>maven-failsafe-plugin</artifactId><configuration><skipITs>${pomSkipITs}</skipITs></configuration>")
+    }
+
+    when:
+    def exitCode = executeMaven(["-B", "clean", "verify", "-DskipITs=${cliSkipITs}".toString()])
+
+    then:
+    exitCode == 0
+    spanFilter.waitForSpan({ span -> span.spanType == "test_session_end" }, TimeUnit.SECONDS.toMillis(20))
+    def spans = TEST_WRITER.toList().flatten()
+    def modules = spans.findAll { it.spanType == "test_module_end" }
+    def sessions = spans.findAll { it.spanType == "test_session_end" }
+    modules.size() == 2
+    sessions.size() == 1
+    def unitModule = modules.find { it.getTag("test.execution").toString().startsWith("maven-surefire-plugin:") }
+    def integrationModule = modules.find { it.getTag("test.execution").toString().startsWith("maven-failsafe-plugin:") }
+    unitModule.getTag("test.status").toString() == (skipUnitTests ? "skip" : "pass")
+    integrationModule.getTag("test.status").toString() == expectedIntegrationStatus
+    expectedIntegrationStatus != "skip" || integrationModule.getTag("test.skip_reason") == "Tests were skipped by Maven configuration"
+    sessions[0].getTag("test.status").toString() == (skipUnitTests && expectedIntegrationStatus == "skip" ? "skip" : "pass")
+    projectFolder.resolve("target/surefire-reports/TEST-org.example.TestSucceed.xml").toFile().exists() == !skipUnitTests
+    projectFolder.resolve("target/failsafe-reports/TEST-org.example.ITSucceed.xml").toFile().exists() == (expectedIntegrationStatus == "pass")
+
+    where:
+    cliSkipITs | pomSkipITs | skipUnitTests | expectedIntegrationStatus
+    true       | null       | false         | "skip"
+    true       | null       | true          | "skip"
+    false      | null       | false         | "pass"
+    true       | "false"    | false         | "pass"
+    false      | "true"     | false         | "skip"
+    testcaseName = "test_maven_build_with_unit_and_integration_tests_generates_spans"
+  }
+
+  def "Surefire and Failsafe status follows skipExec: CLI=#cliSkipExec, POM=#pomSkipExec"() {
+    given:
+    if (pomSkipExec != null) {
+      def pom = projectFolder.resolve("pom.xml").toFile()
+      ["maven-surefire-plugin", "maven-failsafe-plugin"].each { plugin ->
+        pom.text = pom.text.replace("<artifactId>${plugin}</artifactId>",
+          "<artifactId>${plugin}</artifactId><configuration><skipExec>${pomSkipExec}</skipExec></configuration>")
+      }
+    }
+
+    when:
+    def exitCode = executeMaven(["-B", "clean", "verify", "-Dmaven.test.skip.exec=${cliSkipExec}".toString()])
+
+    then:
+    exitCode == 0
+    spanFilter.waitForSpan({ span -> span.spanType == "test_session_end" }, TimeUnit.SECONDS.toMillis(20))
+    def spans = TEST_WRITER.toList().flatten()
+    def modules = spans.findAll { it.spanType == "test_module_end" }
+    def sessions = spans.findAll { it.spanType == "test_session_end" }
+    modules.size() == 2
+    sessions.size() == 1
+    modules.every { it.getTag("test.status").toString() == expectedStatus }
+    sessions[0].getTag("test.status").toString() == expectedStatus
+    expectedStatus != "skip" || modules.every { it.getTag("test.skip_reason") == "Tests were skipped by Maven configuration" }
+    projectFolder.resolve("target/surefire-reports/TEST-org.example.TestSucceed.xml").toFile().exists() == (expectedStatus == "pass")
+    projectFolder.resolve("target/failsafe-reports/TEST-org.example.ITSucceed.xml").toFile().exists() == (expectedStatus == "pass")
+
+    where:
+    cliSkipExec | pomSkipExec | expectedStatus
+    true        | null        | "skip"
+    false       | null        | "pass"
+    true        | "false"     | "pass"
+    false       | "true"      | "skip"
+    testcaseName = "test_maven_build_with_unit_and_integration_tests_generates_spans"
+  }
+
   private void givenMavenProjectFiles(String projectFilesSources) {
     def projectResourcesUri = this.getClass().getClassLoader().getResource(projectFilesSources).toURI()
     def projectResourcesPath = Paths.get(projectResourcesUri)
@@ -71,15 +196,46 @@ class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
    * before proceeding with running the build
    */
   void givenMavenDependenciesAreLoaded() {
-    String[] args = ["org.apache.maven.plugins:maven-dependency-plugin:go-offline"]
-    String workingDirectory = projectFolder.toString()
     for (int attempt = 0; attempt < DEPENDENCIES_DOWNLOAD_RETRIES; attempt++) {
-      def exitCode = new MavenCli().doMain(args, workingDirectory, null, null)
+      def exitCode = executeMaven(["org.apache.maven.plugins:maven-dependency-plugin:go-offline"])
       if (exitCode == 0) {
         return
       }
     }
     throw new AssertionError((Object) "Tried to download dependencies $DEPENDENCIES_DOWNLOAD_RETRIES times and failed")
+  }
+
+  private int executeMaven(List<String> args) {
+    def arguments = new ArrayList<>(args)
+    arguments.add("-Dsurefire.version=${SUREFIRE_VERSION}".toString())
+    arguments.add("-Dfailsafe.version=${FAILSAFE_VERSION}".toString())
+    if (System.getenv("MAVEN_REPOSITORY_PROXY") != null) {
+      def settingsFile = new File(getClass().getResource("/settings.mirror.xml").toURI())
+      arguments.addAll(["-s", settingsFile.absolutePath])
+    }
+    return new MavenCli().doMain(arguments.toArray(new String[0]), projectFolder.toString(), null, null)
+  }
+
+  private static ComparableVersion getCurrentMavenVersion() {
+    return new ComparableVersion(MavenCli.getPackage().getImplementationVersion())
+  }
+
+  private static String getLatestMavenSurefireVersion() {
+    String version = loadLatestToolVersions().getProperty("maven-surefire.latest")
+    LOGGER.info("Will run the 'latest' tests with Maven Surefire version {}", version)
+    return version
+  }
+
+  private static Properties loadLatestToolVersions() {
+    def stream = MavenInstrumentationTest.classLoader.getResourceAsStream("latest-tool-versions.properties")
+    if (stream == null) {
+      throw new IllegalStateException("Could not find latest-tool-versions.properties on classpath")
+    }
+    def properties = new Properties()
+    stream.withCloseable {
+      properties.load(it)
+    }
+    return properties
   }
 
   @Override

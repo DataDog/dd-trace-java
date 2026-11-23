@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
 import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -175,35 +176,14 @@ class ReactiveStreamsContextPropagationTest {
     }
 
     @Override
-    public C putIfAbsent(final K key, final C context) {
-      final C existing = map.get(key);
-      if (existing != null) {
-        return existing;
-      }
-      map.put(key, context);
-      return context;
+    public C getOrPut(final K key, final C context) {
+      final C existing = map.putIfAbsent(key, context);
+      return existing != null ? existing : context;
     }
 
     @Override
-    public C putIfAbsent(final K key, final Factory<C> contextFactory) {
-      final C existing = map.get(key);
-      if (existing != null) {
-        return existing;
-      }
-      final C created = contextFactory.create();
-      map.put(key, created);
-      return created;
-    }
-
-    @Override
-    public C computeIfAbsent(final K key, final KeyAwareFactory<? super K, C> contextFactory) {
-      final C existing = map.get(key);
-      if (existing != null) {
-        return existing;
-      }
-      final C created = contextFactory.create(key);
-      map.put(key, created);
-      return created;
+    public C getOrCompute(final K key, final Function<? super K, C> contextFactory) {
+      return map.computeIfAbsent(key, contextFactory);
     }
 
     @Override

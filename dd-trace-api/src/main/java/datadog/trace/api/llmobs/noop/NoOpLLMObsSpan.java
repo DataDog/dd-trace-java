@@ -19,6 +19,9 @@ public class NoOpLLMObsSpan implements LLMObsSpan {
   public void annotatePrompt(LLMObs.Prompt prompt) {}
 
   @Override
+  public void annotateAgentManifest(LLMObs.AgentManifest manifest) {}
+
+  @Override
   public void setToolDefinitions(List<LLMObs.ToolDefinition> toolDefinitions) {}
 
   @Override

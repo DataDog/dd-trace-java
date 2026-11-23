@@ -7,16 +7,13 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import java.util.Collections;
 import scala.util.Failure;
 import scala.util.Success;
 import scala.util.Try;
 
 public class PromiseHelper {
   public static final boolean completionPriority =
-      InstrumenterConfig.get()
-          .isIntegrationEnabled(
-              Collections.singletonList("scala_promise_completion_priority"), false);
+      InstrumenterConfig.get().isScalaPromiseCompletionPriorityEnabled();
 
   /**
    * Get the {@code Try} that should be associated with the {@code Context}. Will create a new copy

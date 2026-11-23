@@ -2,7 +2,7 @@ package datadog.trace.agent.tooling.context;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresContextField;
 
-import datadog.trace.bootstrap.FieldBackedContextAccessor;
+import datadog.instrument.fieldinject.KeyWithValue;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.Logger;
@@ -66,7 +66,7 @@ public final class FieldBackedContextMatcher {
    */
   private static boolean implementsContextAccessor(Class<?> classBeingRedefined) {
     for (Class<?> intf : classBeingRedefined.getInterfaces()) {
-      if (FieldBackedContextAccessor.class.equals(intf)) {
+      if (KeyWithValue.class.equals(intf)) {
         return true;
       }
     }

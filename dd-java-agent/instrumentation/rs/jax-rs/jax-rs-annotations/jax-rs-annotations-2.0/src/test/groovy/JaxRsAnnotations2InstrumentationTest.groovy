@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.api.Config
+import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator
@@ -54,7 +56,7 @@ class JaxRsAnnotations2InstrumentationTest extends InstrumentationSpecification 
       trace(2) {
         span {
           operationName "test"
-          resourceName name
+          resourceName(Config.get().isTraceOtelSemanticsEnabled() ? otelName : name)
           parent()
           tags {
             "$Tags.COMPONENT" "jax-rs"
@@ -77,65 +79,65 @@ class JaxRsAnnotations2InstrumentationTest extends InstrumentationSpecification 
     }
 
     where:
-    name                 | obj
-    "/a"                 | new Jax() {
+    name                 | otelName             | obj
+    "/a"                 | "HTTP /a"            | new Jax() {
         @Path("/a")
         void call() {
         }
       }
-    "GET /b"             | new Jax() {
+    "GET /b"             | "GET /b"             | new Jax() {
         @GET
         @Path("/b")
         void call() {
         }
       }
-    "POST /interface/c"  | new InterfaceWithPath() {
+    "POST /interface/c"  | "POST /interface/c"  | new InterfaceWithPath() {
         @POST
         @Path("/c")
         void call() {
         }
       }
-    "HEAD /interface"    | new InterfaceWithPath() {
+    "HEAD /interface"    | "HEAD /interface"    | new InterfaceWithPath() {
         @HEAD
         void call() {
         }
       }
-    "POST /abstract/d"   | new AbstractClassWithPath() {
+    "POST /abstract/d"   | "POST /abstract/d"   | new AbstractClassWithPath() {
         @POST
         @Path("/d")
         void call() {
         }
       }
-    "PATCH /interface"    | new InterfaceWithPath() {
+    "PATCH /interface"   | "PATCH /interface"   | new InterfaceWithPath() {
         @PATCH
         void call() {
         }
       }
-    "CUSTOM /interface"    | new InterfaceWithPath() {
+    "CUSTOM /interface"  | "HTTP /interface"    | new InterfaceWithPath() {
         @CustomMethod
         void call() {
         }
       }
-    "PUT /abstract"      | new AbstractClassWithPath() {
+    "PUT /abstract"      | "PUT /abstract"      | new AbstractClassWithPath() {
         @PUT
         void call() {
         }
       }
-    "OPTIONS /child/e"   | new ChildClassWithPath() {
+    "OPTIONS /child/e"   | "OPTIONS /child/e"   | new ChildClassWithPath() {
         @OPTIONS
         @Path("/e")
         void call() {
         }
       }
-    "DELETE /child/call" | new ChildClassWithPath() {
+    "DELETE /child/call" | "DELETE /child/call" | new ChildClassWithPath() {
         @DELETE
         void call() {
         }
       }
-    "POST /child/call"   | new ChildClassWithPath()
-    "GET /child/call"    | new JavaInterfaces.ChildClassOnInterface()
+    "POST /child/call"   | "POST /child/call"   | new ChildClassWithPath()
+    "GET /child/call"    | "GET /child/call"    | new JavaInterfaces.ChildClassOnInterface()
     // TODO: uncomment when we drop support for Java 7
-    //    "GET /child/invoke"         | new JavaInterfaces.DefaultChildClassOnInterface()
+    //    "GET /child/invoke" | "GET /child/invoke" | new JavaInterfaces.DefaultChildClassOnInterface()
 
     className = JaxRsAnnotationsDecorator.DECORATE.className(obj.class)
   }
@@ -186,5 +188,13 @@ class JaxRsAnnotations2InstrumentationTest extends InstrumentationSpecification 
     @POST
     void call() {
     }
+  }
+}
+
+class JaxRsAnnotations2OtelSemanticsForkedTest extends JaxRsAnnotations2InstrumentationTest {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED, "true")
   }
 }

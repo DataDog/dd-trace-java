@@ -28,17 +28,10 @@ public class KarateInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".KarateUtils",
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".KarateTracingHook"
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap("com.intuit.karate.core.FeatureRuntime", "java.lang.Boolean");
+    return Collections.singletonMap(
+        "com.intuit.karate.core.FeatureRuntime",
+        "datadog.trace.instrumentation.karate.FeatureSuite");
   }
 
   @Override
@@ -51,9 +44,9 @@ public class KarateInstrumentation extends InstrumenterModule.CiVisibility
     @Advice.OnMethodExit
     public static void onRunnerBuilderConstructorExit(
         @Advice.This Runner.Builder<?> runnerBuilder) {
-      ContextStore<FeatureRuntime, Boolean> featureRuntimeContextStore =
-          InstrumentationContext.get(FeatureRuntime.class, Boolean.class);
-      runnerBuilder.hook(new KarateTracingHook(featureRuntimeContextStore));
+      ContextStore<FeatureRuntime, FeatureSuite> featureSuites =
+          InstrumentationContext.get(FeatureRuntime.class, FeatureSuite.class);
+      runnerBuilder.hook(new KarateTracingHook(featureSuites));
     }
 
     // Karate 1.0.0 and above

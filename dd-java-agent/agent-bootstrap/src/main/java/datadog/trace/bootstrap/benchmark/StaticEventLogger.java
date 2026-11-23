@@ -1,7 +1,13 @@
 package datadog.trace.bootstrap.benchmark;
 
 import datadog.environment.SystemProperties;
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import org.slf4j.Logger;
@@ -25,7 +31,11 @@ public class StaticEventLogger {
       String fileName = dir + "startup_" + System.currentTimeMillis() + ".csv";
 
       try {
-        writer = new BufferedWriter(new FileWriter(fileName), 32768);
+        // The tracer owns this CSV format, so its text encoding is independent of the application.
+        writer =
+            new BufferedWriter(
+                new OutputStreamWriter(new FileOutputStream(fileName), StandardCharsets.UTF_8),
+                32768);
         writer.write("Event,State,Timestamp");
         writer.newLine();
       } catch (IOException e) {

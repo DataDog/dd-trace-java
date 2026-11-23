@@ -47,12 +47,6 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
     return new String[] {
       packageName + ".AttributeKeys",
       packageName + ".ServerRequestContext",
-      // client helpers
-      packageName + ".client.NettyHttpClientDecorator",
-      packageName + ".client.NettyResponseInjectAdapter",
-      packageName + ".client.HttpClientRequestTracingHandler",
-      packageName + ".client.HttpClientResponseTracingHandler",
-      packageName + ".client.HttpClientTracingHandler",
       // server helpers
       packageName + ".server.ResponseExtractAdapter",
       packageName + ".server.NettyHttpServerDecorator",

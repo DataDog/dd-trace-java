@@ -37,17 +37,6 @@ public class JUnit4SuiteEventsInstrumentation extends InstrumenterModule.CiVisib
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".SkippedByDatadog",
-      packageName + ".JUnit4Utils",
-      packageName + ".TracingListener",
-      packageName + ".JUnit4TracingListener",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("run")

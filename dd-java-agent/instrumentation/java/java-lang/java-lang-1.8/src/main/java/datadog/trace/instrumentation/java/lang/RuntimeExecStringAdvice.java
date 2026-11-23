@@ -6,18 +6,15 @@ import net.bytebuddy.asm.Advice;
 
 class RuntimeExecStringAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static boolean beforeExec(@Advice.Argument(0) final String command) {
+  public static void beforeExec(@Advice.Argument(0) final String command) {
     if (command == null || !AgentTracer.isRegistered()) {
-      return false;
+      return;
     }
     ProcessImplInstrumentationHelpers.shiRaspCheck(command);
-    return true;
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void afterExec(@Advice.Enter boolean checking) {
-    if (checking) {
-      ProcessImplInstrumentationHelpers.resetCheckShi();
-    }
+  public static void afterExec() {
+    ProcessImplInstrumentationHelpers.resetCheckShi();
   }
 }

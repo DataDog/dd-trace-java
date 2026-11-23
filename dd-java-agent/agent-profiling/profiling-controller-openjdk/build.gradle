@@ -1,14 +1,5 @@
 plugins {
   id 'dd-trace-java.module.internal-library'
-  id 'idea'
-}
-
-tracerJava {
-  addSourceSetFor(JavaVersion.VERSION_11) {
-    // By default tests with be compiled for `minJavaVersion` version,
-    // but in this case we would like to avoid this since we would like to run with ZULU8
-    applyForTestSources = false
-  }
 }
 
 testJvmConstraints {
@@ -18,12 +9,47 @@ testJvmConstraints {
   excludeJdk = ['SEMERU11', 'SEMERU17']
 }
 
+// TODO: Cover these classes, then remove them from the coverage baseline (APMLP-2263)
+excludedClassesBranchCoverage += [
+  'com.datadog.profiling.controller.openjdk.JFREventContextIntegration',
+  'com.datadog.profiling.controller.openjdk.JfrProfilerSettings',
+  'com.datadog.profiling.controller.openjdk.OpenJdkController',
+  'com.datadog.profiling.controller.openjdk.OpenJdkOngoingRecording',
+  'com.datadog.profiling.controller.openjdk.events.AggregatedSmapEntryEvent',
+  'com.datadog.profiling.controller.openjdk.events.DeadlockEventFactory',
+  'com.datadog.profiling.controller.openjdk.events.EndpointEvent',
+  'com.datadog.profiling.controller.openjdk.events.QueueTimeEvent',
+  'com.datadog.profiling.controller.openjdk.events.SimpleParser',
+  'com.datadog.profiling.controller.openjdk.events.SmapEntryCache',
+  'com.datadog.profiling.controller.openjdk.events.SmapEntryEvent',
+  'com.datadog.profiling.controller.openjdk.events.SmapEntryFactory',
+  'com.datadog.profiling.controller.openjdk.events.TimelineEvent',
+]
+excludedClassesInstructionCoverage += [
+  'com.datadog.profiling.controller.openjdk.JFREventContextIntegration',
+  'com.datadog.profiling.controller.openjdk.JfrProfilerSettings',
+  'com.datadog.profiling.controller.openjdk.OpenJdkController',
+  'com.datadog.profiling.controller.openjdk.OpenJdkOngoingRecording',
+  'com.datadog.profiling.controller.openjdk.events.AggregatedSmapEntryEvent',
+  'com.datadog.profiling.controller.openjdk.events.DeadlockEvent',
+  'com.datadog.profiling.controller.openjdk.events.EndpointEvent',
+  'com.datadog.profiling.controller.openjdk.events.QueueTimeEvent',
+  'com.datadog.profiling.controller.openjdk.events.SmapEntryCache',
+  'com.datadog.profiling.controller.openjdk.events.SmapEntryEvent',
+  'com.datadog.profiling.controller.openjdk.events.SmapEntryFactory',
+  'com.datadog.profiling.controller.openjdk.events.TimelineEvent',
+]
+
 dependencies {
   api libs.slf4j
   api project(':internal-api')
   api project(':utils:version-utils')
   api(project(':dd-java-agent:agent-bootstrap')) {
     exclude group: 'com.datadoghq', module: 'agent-logging'
+    // The jar includes the Java 11 JFR classes from the additional source set.
+    attributes {
+      attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements, LibraryElements.JAR))
+    }
   }
   api project(':dd-java-agent:agent-profiling:profiling-controller')
   api project(':dd-java-agent:agent-profiling:profiling-controller-jfr')
@@ -36,22 +62,16 @@ dependencies {
 
 /*
  Setup here is as following:
- * We compile with Java11 compiler to get JFR definitions.
+ * We compile with Java25 compiler to get JFR definitions.
  * We specify source/target as Java8 to get code that is loadable on Java8 - JFR defs are Java8 compatible.
- * We force IDEA to treat this as Java11 project with 'idea' plugin below.
  */
 [JavaCompile, GroovyCompile].each {
   tasks.withType(it).configureEach {
-    configureCompiler(it, 11, JavaVersion.VERSION_1_8, "Need access to jdk.jfr package")
+    // Do not lift this offset: this controller runs on Java 8 distributions that backport JFR.
+    configureCompiler(it, JavaVersion.VERSION_1_8, "Uses public jdk.jfr APIs (Java 11+) at Java 8 bytecode")
     // Disable '-processing' because some annotations are not claimed.
     // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
     // Disable '-path' because we do not have some of the paths seem to be missing.
     options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
-  }
-}
-
-idea {
-  module {
-    jdkName = '11'
   }
 }

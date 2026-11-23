@@ -33,6 +33,10 @@ abstract class WithHttpServer<SERVER> extends VersionedNamingTestBase {
     return new DefaultHttpServer()
   }
 
+  boolean recreateServerForEachTest() {
+    false
+  }
+
   private class DefaultHttpServer implements HttpServer {
     final ServerSocket socket = PortUtils.randomOpenSocket()
     final int port = socket.localPort
@@ -64,6 +68,30 @@ abstract class WithHttpServer<SERVER> extends VersionedNamingTestBase {
   }
 
   void setupSpec() {
+    if (!recreateServerForEachTest()) {
+      startHttpServer()
+    }
+  }
+
+  void setup() {
+    if (recreateServerForEachTest()) {
+      startHttpServer()
+    }
+  }
+
+  void cleanup() {
+    if (recreateServerForEachTest()) {
+      stopHttpServer()
+    }
+  }
+
+  void cleanupSpec() {
+    if (!recreateServerForEachTest()) {
+      stopHttpServer()
+    }
+  }
+
+  private void startHttpServer() {
     server = server()
     server.start()
     address = server.address()
@@ -72,7 +100,7 @@ abstract class WithHttpServer<SERVER> extends VersionedNamingTestBase {
     println "$server started at: $address"
   }
 
-  void cleanupSpec() {
+  private void stopHttpServer() {
     server.stop()
     println "$server stopped at: $address"
   }

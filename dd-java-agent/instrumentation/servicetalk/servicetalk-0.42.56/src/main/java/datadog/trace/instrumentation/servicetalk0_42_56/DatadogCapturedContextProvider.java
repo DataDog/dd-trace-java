@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.servicetalk0_42_56;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.servicetalk.concurrent.api.CapturedContext;
@@ -40,7 +40,7 @@ public final class DatadogCapturedContextProvider implements CapturedContextProv
     @Override
     public Scope attachContext() {
       Scope stScope = underlying.attachContext();
-      AgentScope ddScope = AgentTracer.activateSpan(agentSpan);
+      ContextScope ddScope = AgentTracer.activateSpan(agentSpan);
       return () -> {
         ddScope.close();
         stScope.close();

@@ -4,6 +4,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObs;
+import datadog.trace.api.llmobs.LLMObsInternal;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
@@ -11,7 +12,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.llmobs.domain.DDLLMObsSpan;
 import datadog.trace.llmobs.domain.LLMObsEval;
 import datadog.trace.llmobs.domain.LLMObsFeedbackEvent;
-import datadog.trace.llmobs.domain.LLMObsInternal;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.instrument.Instrumentation;
 import java.util.Map;
@@ -42,16 +42,30 @@ public class LLMObsSystem {
       return;
     }
 
+    // LLMObs spans need a real tracer (buildSpan() returns null on the no-op one), so keep the
+    // no-op SDK when none is installed. Mirrors TracerInstaller.installGlobalTracer, which still
+    // installs one for CI Visibility.
+    if (!config.isTraceEnabled() && !config.isCiVisibilityEnabled()) {
+      LOGGER.debug("LLM Observability is disabled: no tracer is installed (dd.trace.enabled)");
+      return;
+    }
+
     sco.createRemaining(config);
 
     String mlApp = config.getLlmObsMlApp();
     WellKnownTags wellKnownTags = config.getWellKnownTags();
-    LLMObsInternal.setLLMObsSpanFactory(new LLMObsManualSpanFactory(mlApp, wellKnownTags));
+    // The span factory deliberately gets no default ml_app: DDLLMObsSpan applies it last, after
+    // in-process and propagated values have had their chance.
+    LLMObsInternal.setSpanFactory(new LLMObsManualSpanFactory(wellKnownTags));
 
-    LLMObsInternal.setLLMObsEvalProcessor(new LLMObsCustomEvalProcessor(mlApp, sco, config));
+    LLMObsInternal.setEvalProcessor(new LLMObsCustomEvalProcessor(mlApp, sco, config));
 
-    LLMObsInternal.setLLMObsFeedbackProcessor(
-        new LLMObsCustomFeedbackProcessor(mlApp, sco, config));
+    LLMObsInternal.setFeedbackProcessor(new LLMObsCustomFeedbackProcessor(mlApp, sco, config));
+
+    // Not a Propagator: nothing is written to the carrier here. The tracing codecs ask for these
+    // values while serializing x-datadog-tags / tracestate, so they are resolved per injection and
+    // never held on the span context, which every span in the trace shares.
+    LLMObsInternal.setPropagationSource(new LLMObsContextPropagationSource());
   }
 
   private static class LLMObsCustomFeedbackProcessor implements LLMObs.LLMObsFeedbackProcessor {
@@ -166,7 +180,7 @@ public class LLMObsSystem {
       if (mlApp == null || mlApp.isEmpty()) {
         mlApp = defaultMLApp;
       }
-      String traceID = llmObsSpan.getTraceId().toHexString();
+      String traceID = llmObsTraceId(llmObsSpan);
       long spanID = llmObsSpan.getSpanId();
       LLMObsEval.Score score =
           new LLMObsEval.Score(
@@ -202,7 +216,7 @@ public class LLMObsSystem {
       if (mlApp == null || mlApp.isEmpty()) {
         mlApp = defaultMLApp;
       }
-      String traceID = llmObsSpan.getTraceId().toHexString();
+      String traceID = llmObsTraceId(llmObsSpan);
       long spanID = llmObsSpan.getSpanId();
       LLMObsEval.Categorical category =
           new LLMObsEval.Categorical(
@@ -216,16 +230,26 @@ public class LLMObsSystem {
             label);
       }
     }
+
+    /**
+     * The LLMObs trace id to join the evaluation on. This is not the APM trace id: once a trace
+     * crosses a process boundary the span adopts its caller's LLMObs trace id, and an evaluation
+     * carrying the APM one would not join to the span it scores. Only {@link DDLLMObsSpan} tracks
+     * it, so any other implementation falls back to the APM trace id, which is what it reports.
+     */
+    private static String llmObsTraceId(LLMObsSpan llmObsSpan) {
+      return llmObsSpan instanceof DDLLMObsSpan
+          ? ((DDLLMObsSpan) llmObsSpan).getLLMObsTraceId()
+          : llmObsSpan.getTraceId().toHexString();
+    }
   }
 
   private static class LLMObsManualSpanFactory implements LLMObs.LLMObsSpanFactory {
 
-    private final String defaultMLApp;
     private final String serviceName;
     private final WellKnownTags wellKnownTags;
 
-    public LLMObsManualSpanFactory(String defaultMLApp, WellKnownTags wellKnownTags) {
-      this.defaultMLApp = defaultMLApp;
+    public LLMObsManualSpanFactory(WellKnownTags wellKnownTags) {
       this.serviceName = wellKnownTags.getService().toString();
       this.wellKnownTags = wellKnownTags;
     }
@@ -240,12 +264,7 @@ public class LLMObsSystem {
 
       DDLLMObsSpan span =
           new DDLLMObsSpan(
-              Tags.LLMOBS_LLM_SPAN_KIND,
-              spanName,
-              getMLApp(mlApp),
-              sessionId,
-              serviceName,
-              wellKnownTags);
+              Tags.LLMOBS_LLM_SPAN_KIND, spanName, mlApp, sessionId, serviceName, wellKnownTags);
 
       if (modelName == null || modelName.isEmpty()) {
         modelName = CUSTOM_MODEL_VAL;
@@ -262,49 +281,44 @@ public class LLMObsSystem {
     @Override
     public LLMObsSpan startAgentSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+      return startAgentSpan(spanName, mlApp, sessionId, null);
+    }
+
+    @Override
+    public LLMObsSpan startAgentSpan(
+        String spanName,
+        @Nullable String mlApp,
+        @Nullable String sessionId,
+        @Nullable String version) {
       return new DDLLMObsSpan(
           Tags.LLMOBS_AGENT_SPAN_KIND,
           spanName,
-          getMLApp(mlApp),
+          mlApp,
           sessionId,
           serviceName,
-          wellKnownTags);
+          wellKnownTags,
+          version);
     }
 
     @Override
     public LLMObsSpan startToolSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionId) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_TOOL_SPAN_KIND,
-          spanName,
-          getMLApp(mlApp),
-          sessionId,
-          serviceName,
-          wellKnownTags);
+          Tags.LLMOBS_TOOL_SPAN_KIND, spanName, mlApp, sessionId, serviceName, wellKnownTags);
     }
 
     @Override
     public LLMObsSpan startTaskSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionId) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_TASK_SPAN_KIND,
-          spanName,
-          getMLApp(mlApp),
-          sessionId,
-          serviceName,
-          wellKnownTags);
+          Tags.LLMOBS_TASK_SPAN_KIND, spanName, mlApp, sessionId, serviceName, wellKnownTags);
     }
 
     @Override
     public LLMObsSpan startWorkflowSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionId) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_WORKFLOW_SPAN_KIND,
-          spanName,
-          getMLApp(mlApp),
-          sessionId,
-          serviceName,
-          wellKnownTags);
+          Tags.LLMOBS_WORKFLOW_SPAN_KIND, spanName, mlApp, sessionId, serviceName, wellKnownTags);
     }
 
     @Override
@@ -321,7 +335,7 @@ public class LLMObsSystem {
           new DDLLMObsSpan(
               Tags.LLMOBS_EMBEDDING_SPAN_KIND,
               spanName,
-              getMLApp(mlApp),
+              mlApp,
               sessionId,
               serviceName,
               wellKnownTags);
@@ -333,19 +347,7 @@ public class LLMObsSystem {
     public LLMObsSpan startRetrievalSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionId) {
       return new DDLLMObsSpan(
-          Tags.LLMOBS_RETRIEVAL_SPAN_KIND,
-          spanName,
-          getMLApp(mlApp),
-          sessionId,
-          serviceName,
-          wellKnownTags);
-    }
-
-    private String getMLApp(String mlApp) {
-      if (mlApp == null || mlApp.isEmpty()) {
-        return defaultMLApp;
-      }
-      return mlApp;
+          Tags.LLMOBS_RETRIEVAL_SPAN_KIND, spanName, mlApp, sessionId, serviceName, wellKnownTags);
     }
   }
 }

@@ -21,7 +21,8 @@ class FinatraServer extends HttpServer {
     latch.countDown()
   }
 
-  def awaitStart(timeout: Long, unit: TimeUnit): Unit = {
+  /** Returns false if the server did not finish warming up within the timeout. */
+  def awaitStart(timeout: Long, unit: TimeUnit): Boolean = {
     latch.await(timeout, unit)
   }
 }

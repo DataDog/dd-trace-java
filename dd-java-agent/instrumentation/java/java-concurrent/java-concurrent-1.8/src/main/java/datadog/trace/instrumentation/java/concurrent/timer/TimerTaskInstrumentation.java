@@ -33,7 +33,7 @@ public final class TimerTaskInstrumentation
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named(TimerTask.class.getName()));
+    return extendsClass(named("java.util.TimerTask"));
   }
 
   @Override

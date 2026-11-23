@@ -8,6 +8,19 @@ ext {
 
 minimumBranchCoverage = 0.80
 
+tasks.named('compileTestJava', JavaCompile) {
+  configureCompiler(it, JavaVersion.VERSION_1_8, "Uses public jdk.jfr APIs at Java 8 bytecode")
+}
+
+tasks.named('forkedTest', Test) {
+  // Exercise localised numbers and an inherited override of file.encoding.
+  systemProperty 'file.encoding', 'ISO-8859-1'
+  environment 'JAVA_TOOL_OPTIONS',
+    "${environment['JAVA_TOOL_OPTIONS'] ?: ''} -Dfile.encoding=ISO-8859-1 -Duser.language=ar -Duser.country=EG"
+  environment '_JAVA_OPTIONS',
+    "${environment['_JAVA_OPTIONS'] ?: ''} -Dfile.encoding=ISO-8859-1"
+}
+
 excludedClassesCoverage += [
   // Large parts of this class are jvm specific which makes jacoco really confused since we run it only for 'default' jvm
   'com.datadog.profiling.uploader.util.PidHelper',
@@ -21,6 +34,13 @@ excludedClassesCoverage += [
   'com.datadog.profiling.uploader.util.JfrCliHelper.Event'
 ]
 
+// TODO: Cover these classes, then remove them from the coverage baseline (APMLP-2263)
+excludedClassesBranchCoverage += [
+  'com.datadog.profiling.uploader.CompressingRequestBody',
+  'com.datadog.profiling.uploader.ProfileUploader',
+  'com.datadog.profiling.uploader.ProfileUploader.RecordingDataAdapter',
+]
+
 dependencies {
   implementation libs.slf4j
   implementation project(':communication')
@@ -32,7 +52,7 @@ dependencies {
 
   implementation project(':dd-java-agent:agent-profiling:profiling-controller')
 
-  implementation libs.okhttp
+  implementation libs.datadog.okhttp
   implementation libs.lz4
   implementation libs.aircompressor
 
@@ -41,5 +61,5 @@ dependencies {
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
   testImplementation libs.jackson.databind
-  testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
+  testImplementation libs.okhttp3.mockwebserver
 }

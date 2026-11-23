@@ -33,16 +33,6 @@ public final class AxwayHTTPPluginInstrumentation extends InstrumenterModule.Tra
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".StateAdvice",
-      packageName + ".AxwayHTTPPluginDecorator",
-      packageName + ".HTTPPluginAdvice",
-      packageName + ".ServerTransactionAdvice",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("invokeDispose")), packageName + ".HTTPPluginAdvice");

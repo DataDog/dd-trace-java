@@ -30,18 +30,6 @@ public class JavaxJmsModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JMSDecorator",
-      packageName + ".MessageExtractAdapter",
-      packageName + ".MessageExtractAdapter$1",
-      packageName + ".MessageInjectAdapter",
-      packageName + ".DatadogMessageListener",
-      packageName + ".JMSLogger"
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStore = new HashMap<>(4);
     contextStore.put(namespace + ".jms.MessageConsumer", MessageConsumerState.class.getName());

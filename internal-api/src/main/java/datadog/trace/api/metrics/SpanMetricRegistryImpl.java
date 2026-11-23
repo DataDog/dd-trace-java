@@ -1,5 +1,6 @@
 package datadog.trace.api.metrics;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,6 +16,11 @@ public class SpanMetricRegistryImpl implements SpanMetricRegistry {
 
   private SpanMetricRegistryImpl() {
     this.spanMetrics = new ConcurrentHashMap<>();
+  }
+
+  @VisibleForTesting
+  static SpanMetricRegistryImpl create() {
+    return new SpanMetricRegistryImpl();
   }
 
   @Override

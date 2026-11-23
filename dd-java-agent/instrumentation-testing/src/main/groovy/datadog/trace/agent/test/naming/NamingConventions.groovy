@@ -1,5 +1,9 @@
 package datadog.trace.agent.test.naming
 
+/** Marks a forked HTTP test suite that runs with OpenTelemetry HTTP semantics enabled. */
+interface TestingOtelHttpSemantics {
+}
+
 class TestingGenericHttpNamingConventions {
   trait ClientV0 implements VersionedNamingTest {
     @Override

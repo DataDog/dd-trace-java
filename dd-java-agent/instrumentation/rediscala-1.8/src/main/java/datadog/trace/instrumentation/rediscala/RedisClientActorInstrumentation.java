@@ -34,11 +34,6 @@ public class RedisClientActorInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".RedisConnectionInfo"};
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap("akka.actor.ActorRef", packageName + ".RedisConnectionInfo");
   }

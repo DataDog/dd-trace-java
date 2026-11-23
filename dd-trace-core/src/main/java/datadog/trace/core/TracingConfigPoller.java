@@ -255,7 +255,7 @@ final class TracingConfigPoller {
     }
     maybeOverride(builder::setTraceSampleRate, libConfig.traceSampleRate);
 
-    maybeOverride(builder::setTracingTags, parseTagListToMap(libConfig.tracingTags));
+    maybeOverride(builder::overrideTracingTags, parseTagListToMap(libConfig.tracingTags));
     DebuggerConfigBridge.updateConfig(
         new DebuggerConfigUpdate(
             libConfig.dynamicInstrumentationEnabled,
@@ -268,6 +268,7 @@ final class TracingConfigPoller {
   void removeConfigOverrides() {
     dynamicConfig.resetTraceConfig();
     GlobalLogLevelSwitcher.get().restore();
+    DebuggerConfigBridge.resetToInitialConfig();
   }
 
   private <T> void maybeOverride(Consumer<T> setter, T override) {

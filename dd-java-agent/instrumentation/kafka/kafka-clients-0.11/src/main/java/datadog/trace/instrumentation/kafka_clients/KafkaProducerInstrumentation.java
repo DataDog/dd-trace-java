@@ -4,6 +4,7 @@ import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.api.KnownTags.TOMBSTONE;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTagsWithoutCheckpoint;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.createWithClusterId;
@@ -12,12 +13,14 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 import static datadog.trace.instrumentation.kafka_common.Utils.DSM_TRANSACTION_SOURCE_READER;
+import static datadog.trace.instrumentation.kafka_common.Utils.hasHeaders;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -27,6 +30,7 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -38,11 +42,9 @@ import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
 import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
 import datadog.trace.instrumentation.kafka_common.MetadataState;
@@ -135,7 +137,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
   public static class ProducerAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.FieldValue("producerConfig") ProducerConfig producerConfig,
         @Advice.FieldValue("sender") Sender sender,
         @Advice.FieldValue("metadata") Metadata metadata,
@@ -145,14 +147,16 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
           InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
       String clusterId = metadataState != null ? metadataState.clusterId : null;
 
-      // Set cluster ID for Schema Registry instrumentation
-      if (clusterId != null) {
+      // Set cluster ID for Schema Registry instrumentation, which only reports to Data Streams
+      if (clusterId != null && traceConfig().isDataStreamsEnabled()) {
         ClusterIdHolder.set(clusterId);
       }
 
-      // Try to extract existing trace context from record headers
+      // Try to extract existing trace context from record headers, which most records don't have
       final AgentSpanContext extractedContext =
-          extractContextAndGetSpanContext(record.headers(), TextMapExtractAdapter.GETTER);
+          hasHeaders(record.headers())
+              ? extractContextAndGetSpanContext(record.headers(), TextMapExtractAdapter.GETTER)
+              : null;
 
       final AgentSpan localActiveSpan = activeSpan();
 
@@ -172,7 +176,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       callback = new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId);
 
       if (record.value() == null) {
-        span.setTag(InstrumentationTags.TOMBSTONE, true);
+        span.setTag(TOMBSTONE, true);
       }
 
       return activateSpan(span);
@@ -180,7 +184,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
       // Clear cluster ID from Schema Registry instrumentation
       ClusterIdHolder.clear();
 
@@ -216,11 +220,16 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
           && !Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
         setter = TextMapInjectAdapter.SETTER;
       }
-      DataStreamsTags tags = createWithClusterId("kafka", OUTBOUND, record.topic(), clusterId);
+      // With DSM off the DSM propagator injects nothing, so skip building its tags and context.
+      DataStreamsTags tags =
+          traceConfig().isDataStreamsEnabled()
+              ? createWithClusterId("kafka", OUTBOUND, record.topic(), clusterId)
+              : null;
       try {
         defaultPropagator().inject(span, record.headers(), setter);
-        if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
-            || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
+        if (tags != null
+            && (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
+                || STREAMING_CONTEXT.isSinkTopic(record.topic()))) {
           // inject the context in the headers, but delay sending the stats until we know the
           // message size.
           // The stats are saved in the pathway context and sent in PayloadSizeAdvice.
@@ -240,8 +249,9 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
                 record.headers());
 
         defaultPropagator().inject(span, record.headers(), setter);
-        if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
-            || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
+        if (tags != null
+            && (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
+                || STREAMING_CONTEXT.isSinkTopic(record.topic()))) {
           Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
           DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(tags);
           dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
@@ -267,7 +277,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         @Advice.Argument(0) ProducerConfig producerConfig) {
       MetadataState state =
           InstrumentationContext.get(Metadata.class, MetadataState.class)
-              .putIfAbsent(metadata, MetadataState::new);
+              .getOrCreate(metadata, MetadataState::new);
       if (Config.get().isDataStreamsEnabled()) {
         KafkaConfigHelper.storePendingProducerConfig(
             state, KafkaConfigHelper.extractProducerConfig(producerConfig));

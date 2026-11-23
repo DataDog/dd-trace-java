@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.opentelemetry;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -38,7 +38,7 @@ public class OtelTracer implements Tracer {
     }
 
     final AgentSpan agentSpan = converter.toAgentSpan(span);
-    final AgentScope agentScope = tracer.activateManualSpan(agentSpan);
+    final ContextScope agentScope = tracer.activateManualSpan(agentSpan);
     return converter.toScope(agentScope);
   }
 

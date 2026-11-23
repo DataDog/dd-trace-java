@@ -2,7 +2,10 @@ package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.*;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.not;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -87,7 +90,8 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
       if (requestFuture == null || requestFuture.failed()) {
         return;
       }
-      if (offsets == null) {
+      // Only Data Streams tracks committed offsets
+      if (offsets == null || !traceConfig().isDataStreamsEnabled()) {
         return;
       }
       KafkaConsumerInfo kafkaConsumerInfo =

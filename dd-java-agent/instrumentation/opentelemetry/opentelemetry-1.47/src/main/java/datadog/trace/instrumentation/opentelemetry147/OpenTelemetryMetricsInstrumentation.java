@@ -60,33 +60,6 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.opentelemetry.shim.metrics.OtelMeter",
-      "datadog.opentelemetry.shim.metrics.OtelMeterBuilder",
-      "datadog.opentelemetry.shim.metrics.OtelMeterProvider",
-      "datadog.opentelemetry.shim.metrics.OtelDoubleCounter",
-      "datadog.opentelemetry.shim.metrics.OtelDoubleCounter$Builder",
-      "datadog.opentelemetry.shim.metrics.OtelDoubleGauge",
-      "datadog.opentelemetry.shim.metrics.OtelDoubleGauge$Builder",
-      "datadog.opentelemetry.shim.metrics.OtelDoubleHistogram",
-      "datadog.opentelemetry.shim.metrics.OtelDoubleHistogram$Builder",
-      "datadog.opentelemetry.shim.metrics.OtelDoubleUpDownCounter",
-      "datadog.opentelemetry.shim.metrics.OtelDoubleUpDownCounter$Builder",
-      "datadog.opentelemetry.shim.metrics.OtelLongCounter",
-      "datadog.opentelemetry.shim.metrics.OtelLongCounter$Builder",
-      "datadog.opentelemetry.shim.metrics.OtelLongGauge",
-      "datadog.opentelemetry.shim.metrics.OtelLongGauge$Builder",
-      "datadog.opentelemetry.shim.metrics.OtelLongHistogram",
-      "datadog.opentelemetry.shim.metrics.OtelLongHistogram$Builder",
-      "datadog.opentelemetry.shim.metrics.OtelLongUpDownCounter",
-      "datadog.opentelemetry.shim.metrics.OtelLongUpDownCounter$Builder",
-      "datadog.opentelemetry.shim.metrics.OtelObservableCallback",
-      "datadog.opentelemetry.shim.metrics.OtelObservableMeasurement",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     // MeterProvider OpenTelemetry.getMeterProvider()
     transformer.applyAdvice(

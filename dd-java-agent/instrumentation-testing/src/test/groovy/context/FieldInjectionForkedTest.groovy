@@ -66,7 +66,7 @@ class FieldInjectionForkedTest extends InstrumentationSpecification {
 
     boolean hasAccessorInterface = false
     for (Class inter : keyClass.getInterfaces()) {
-      if (inter.getName() == 'datadog.trace.bootstrap.FieldBackedContextAccessor') {
+      if (inter.getName() == 'datadog.instrument.fieldinject.KeyWithValue') {
         hasAccessorInterface = true
       }
     }
@@ -246,7 +246,7 @@ class FieldInjectionDisabledForkedTest extends InstrumentationSpecification {
 
     boolean hasAccessorInterface = false
     for (Class inter : keyClass.getInterfaces()) {
-      if (inter.getName() == 'datadog.trace.bootstrap.FieldBackedContextAccessor') {
+      if (inter.getName() == 'datadog.instrument.fieldinject.KeyWithValue') {
         hasAccessorInterface = true
       }
     }

@@ -1,7 +1,9 @@
 package com.datadog.debugger.el.expressions;
 
 import com.datadog.debugger.el.EvalContext;
+import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.Visitor;
+import java.util.Objects;
 
 /**
  * Takes two {@linkplain BooleanExpression} instances and combines them with the given {@link
@@ -51,5 +53,21 @@ public final class BinaryExpression implements BooleanExpression {
 
   public BinaryOperator getOperator() {
     return operator;
+  }
+
+  @Generated
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    BinaryExpression that = (BinaryExpression) o;
+    return Objects.equals(left, that.left)
+        && Objects.equals(right, that.right)
+        && operator == that.operator;
+  }
+
+  @Generated
+  @Override
+  public int hashCode() {
+    return Objects.hash(left, right, operator);
   }
 }

@@ -38,11 +38,6 @@ public class ProbeInserterInstrumentation extends InstrumenterModule.CiVisibilit
     return super.isEnabled() && Config.get().isCiVisibilityCoverageLinesEnabled();
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".MethodVisitorWrapper"};
-  }
-
   @SuppressForbidden
   @Override
   public ElementMatcher<TypeDescription> structureMatcher() {

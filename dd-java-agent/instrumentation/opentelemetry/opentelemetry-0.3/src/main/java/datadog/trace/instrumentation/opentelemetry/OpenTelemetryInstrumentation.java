@@ -31,25 +31,6 @@ public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".OtelScope",
-      packageName + ".OtelSpan",
-      packageName + ".OtelSpan$1", // switch statement
-      packageName + ".OtelSpanContext",
-      packageName + ".OtelTracer",
-      packageName + ".OtelTracer$1", // switch statement
-      packageName + ".OtelTracerProvider",
-      packageName + ".OtelTracer$SpanBuilder",
-      packageName + ".OtelContextPropagators",
-      packageName + ".OtelContextPropagators$1", // switch statement
-      packageName + ".OtelContextPropagators$OtelHttpTextFormat",
-      packageName + ".OtelContextPropagators$OtelGetter",
-      packageName + ".TypeConverter",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getTracerProvider").and(returns(named("io.opentelemetry.trace.TracerProvider"))),

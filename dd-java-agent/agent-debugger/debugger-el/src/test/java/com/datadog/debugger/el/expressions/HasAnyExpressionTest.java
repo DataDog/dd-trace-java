@@ -1,10 +1,18 @@
 package com.datadog.debugger.el.expressions;
 
-import static com.datadog.debugger.el.DSL.*;
+import static com.datadog.debugger.el.DSL.FALSE;
+import static com.datadog.debugger.el.DSL.TRUE;
+import static com.datadog.debugger.el.DSL.any;
+import static com.datadog.debugger.el.DSL.eq;
+import static com.datadog.debugger.el.DSL.getMember;
+import static com.datadog.debugger.el.DSL.ref;
 import static com.datadog.debugger.el.DSL.value;
 import static com.datadog.debugger.el.EvalContextHelper.createEvalContext;
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;

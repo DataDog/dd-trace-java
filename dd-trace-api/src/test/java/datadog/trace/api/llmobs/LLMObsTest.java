@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -28,23 +29,48 @@ class LLMObsTest {
 
   private static Object originalSpanFactory;
   private static Object originalEvalProcessor;
+  private static Object originalSpanProcessor;
 
   @BeforeAll
   static void setupSpec() throws Exception {
     originalSpanFactory = getStaticField("SPAN_FACTORY");
     originalEvalProcessor = getStaticField("EVAL_PROCESSOR");
+    originalSpanProcessor = getStaticField("SPAN_PROCESSOR");
   }
 
   @AfterAll
   static void cleanupSpec() throws Exception {
     setStaticField("SPAN_FACTORY", originalSpanFactory);
     setStaticField("EVAL_PROCESSOR", originalEvalProcessor);
+    setStaticField("SPAN_PROCESSOR", originalSpanProcessor);
   }
 
   @AfterEach
   void cleanup() throws Exception {
     setStaticField("SPAN_FACTORY", NoOpLLMObsSpanFactory.INSTANCE);
     setStaticField("EVAL_PROCESSOR", NoOpLLMObsEvalProcessor.INSTANCE);
+    LLMObs.deregisterProcessor();
+  }
+
+  @Test
+  void testRegisterAndDeregisterProcessor() throws Exception {
+    LLMObsSpanData span = mock(LLMObsSpanData.class);
+    LLMObsSpanProcessor processor = registeredSpan -> registeredSpan;
+
+    LLMObs.registerProcessor(processor);
+
+    assertSame(processor, getStaticField("SPAN_PROCESSOR"));
+    assertSame(span, processor.process(span));
+    assertThrows(IllegalStateException.class, () -> LLMObs.registerProcessor(processor));
+
+    LLMObs.deregisterProcessor();
+
+    assertNull(getStaticField("SPAN_PROCESSOR"));
+  }
+
+  @Test
+  void testRegisterNullProcessor() {
+    assertThrows(NullPointerException.class, () -> LLMObs.registerProcessor(null));
   }
 
   @Test
@@ -183,6 +209,73 @@ class LLMObsTest {
   }
 
   @Test
+  void testAnnotateAgentManifestIsCompatibilityPreservingDefaultMethod() throws Exception {
+    assertTrue(
+        LLMObsSpan.class
+            .getMethod("annotateAgentManifest", LLMObs.AgentManifest.class)
+            .isDefault());
+  }
+
+  @Test
+  void testAgentManifestBuilderWithAllFields() {
+    Map<String, Object> modelSettings = new HashMap<>();
+    modelSettings.put("temperature", 0.7);
+    modelSettings.put("max_tokens", 1024);
+
+    List<LLMObs.AgentTool> tools =
+        Arrays.asList(
+            LLMObs.AgentTool.from(
+                "get_weather",
+                "Look up the weather",
+                Collections.singletonMap("city", Collections.singletonMap("type", "string"))));
+
+    LLMObs.AgentManifest manifest =
+        LLMObs.AgentManifest.builder()
+            .name("travel_desk")
+            .instructions("Book travel for the user.")
+            .model("gpt-4o")
+            .modelSettings(modelSettings)
+            .tools(tools)
+            .build();
+
+    assertEquals("travel_desk", manifest.getName());
+    assertEquals("Book travel for the user.", manifest.getInstructions());
+    assertEquals("gpt-4o", manifest.getModel());
+    assertEquals(modelSettings, manifest.getModelSettings());
+    assertNotSame(modelSettings, manifest.getModelSettings());
+    assertEquals(1, manifest.getTools().size());
+    assertNotSame(tools, manifest.getTools());
+    assertEquals("get_weather", manifest.getTools().get(0).getName());
+    assertEquals("Look up the weather", manifest.getTools().get(0).getDescription());
+  }
+
+  @Test
+  void testAgentManifestBuilderMinimal() {
+    LLMObs.AgentManifest manifest = LLMObs.AgentManifest.builder().build();
+    assertNull(manifest.getName());
+    assertNull(manifest.getInstructions());
+    assertNull(manifest.getModel());
+    assertNull(manifest.getModelSettings());
+    assertNull(manifest.getTools());
+  }
+
+  @Test
+  void testAgentToolCreation() {
+    LLMObs.AgentTool tool = LLMObs.AgentTool.from("search");
+    assertEquals("search", tool.getName());
+    assertNull(tool.getDescription());
+    assertNull(tool.getParameters());
+
+    Map<String, Object> params = new HashMap<>();
+    params.put("query", Collections.singletonMap("type", "string"));
+    LLMObs.AgentTool fullTool = LLMObs.AgentTool.from("search", "Web search", params);
+    assertEquals("search", fullTool.getName());
+    assertEquals("Web search", fullTool.getDescription());
+    assertEquals(params, fullTool.getParameters());
+    assertNotSame(params, fullTool.getParameters());
+  }
+
+  @Test
   void testLLMMessageCreationWithToolCalls() {
     Map<String, Object> args = new HashMap<>();
     args.put("location", "Paris");
@@ -277,14 +370,13 @@ class LLMObsTest {
 
   @Test
   void testDefaultNoOpEvaluationProcessorBehavior() {
-    assertDoesNotThrow(
-        () -> {
-          Map<String, Object> emptyTags = new HashMap<>();
-          LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", 0.5, emptyTags);
-          LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", 0.5, "app", emptyTags);
-          LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", "value", emptyTags);
-          LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", "value", "app", emptyTags);
-        });
+    assertDoesNotThrow(() -> {
+      Map<String, Object> emptyTags = new HashMap<>();
+      LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", 0.5, emptyTags);
+      LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", 0.5, "app", emptyTags);
+      LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", "value", emptyTags);
+      LLMObs.SubmitEvaluation(NoOpLLMObsSpan.INSTANCE, "label", "value", "app", emptyTags);
+    });
   }
 
   @Test
@@ -294,13 +386,12 @@ class LLMObsTest {
     tags.put("category", "test");
     tags.put("version", "1.0");
 
-    assertDoesNotThrow(
-        () -> {
-          LLMObs.SubmitEvaluation(span, "accuracy", 0.0, tags);
-          LLMObs.SubmitEvaluation(span, "precision", 1.0, tags);
-          LLMObs.SubmitEvaluation(span, "recall", 0.85, tags);
-          LLMObs.SubmitEvaluation(span, "f1_score", 0.92, "myapp", tags);
-        });
+    assertDoesNotThrow(() -> {
+      LLMObs.SubmitEvaluation(span, "accuracy", 0.0, tags);
+      LLMObs.SubmitEvaluation(span, "precision", 1.0, tags);
+      LLMObs.SubmitEvaluation(span, "recall", 0.85, tags);
+      LLMObs.SubmitEvaluation(span, "f1_score", 0.92, "myapp", tags);
+    });
   }
 
   @Test
@@ -310,12 +401,11 @@ class LLMObsTest {
     tags.put("evaluator", "human");
     tags.put("context", "production");
 
-    assertDoesNotThrow(
-        () -> {
-          LLMObs.SubmitEvaluation(span, "quality", "excellent", tags);
-          LLMObs.SubmitEvaluation(span, "relevance", "poor", tags);
-          LLMObs.SubmitEvaluation(span, "toxicity", "safe", "content-app", tags);
-        });
+    assertDoesNotThrow(() -> {
+      LLMObs.SubmitEvaluation(span, "quality", "excellent", tags);
+      LLMObs.SubmitEvaluation(span, "relevance", "poor", tags);
+      LLMObs.SubmitEvaluation(span, "toxicity", "safe", "content-app", tags);
+    });
   }
 
   @Test
@@ -323,11 +413,10 @@ class LLMObsTest {
     LLMObsSpan span = NoOpLLMObsSpan.INSTANCE;
     Map<String, Object> emptyTags = new HashMap<>();
 
-    assertDoesNotThrow(
-        () -> {
-          LLMObs.SubmitEvaluation(span, "score", 0.75, emptyTags);
-          LLMObs.SubmitEvaluation(span, "category", "good", emptyTags);
-        });
+    assertDoesNotThrow(() -> {
+      LLMObs.SubmitEvaluation(span, "score", 0.75, emptyTags);
+      LLMObs.SubmitEvaluation(span, "category", "good", emptyTags);
+    });
   }
 
   @Test

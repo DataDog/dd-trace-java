@@ -45,13 +45,6 @@ public class UnmarshallerInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".helpers.TaintFutureHelper",
-    };
-  }
-
-  @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith("org.apache.pekko.http.scaladsl.unmarshalling.")
         .and(implementsInterface(named(hierarchyMarkerType())));

@@ -32,20 +32,6 @@ public class GradleBuildListenerInstrumentation extends InstrumenterModule.CiVis
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".GradleUtils",
-      packageName + ".GradleProjectConfigurator",
-      packageName + ".GradleProjectConfigurator$_configureCompilerPlugin_closure1",
-      packageName + ".GradleProjectConfigurator$_configureJacoco_closure2",
-      packageName + ".GradleProjectConfigurator$_configureJacoco_closure3",
-      packageName + ".GradleProjectConfigurator$_forEveryTestTask_closure4",
-      packageName + ".GradleBuildListener",
-      packageName + ".GradleBuildListener$TestTaskExecutionListener"
-    };
-  }
-
-  @Override
   public boolean isEnabled() {
     return super.isEnabled() && Config.get().isCiVisibilityBuildInstrumentationEnabled();
   }

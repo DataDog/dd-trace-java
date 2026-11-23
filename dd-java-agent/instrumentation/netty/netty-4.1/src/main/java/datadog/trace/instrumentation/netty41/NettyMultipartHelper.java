@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.netty41;
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -86,9 +87,10 @@ public final class NettyMultipartHelper {
   }
 
   /**
-   * Checks if the flow action is a blocking action and, if so, commits the blocking response.
-   * Returns a {@link BlockingException} to be re-thrown by the advice, or {@code null} if no
-   * blocking action was taken.
+   * Checks if the flow action is a blocking action and, if so, commits the blocking response. If
+   * the commit fails, reports the failure to {@link AppSecContext#reportBlockFailure()}. Returns a
+   * {@link BlockingException} to be re-thrown by the advice, or {@code null} if no blocking action
+   * was taken.
    */
   public static BlockingException tryBlock(RequestContext ctx, Flow<Void> flow, String message) {
     Flow.Action action = flow.getAction();
@@ -96,7 +98,7 @@ public final class NettyMultipartHelper {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       BlockResponseFunction brf = ctx.getBlockResponseFunction();
       if (brf != null) {
-        brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
+        brf.tryCommitBlockingResponse(ctx, rba);
         return new BlockingException(message);
       }
     }

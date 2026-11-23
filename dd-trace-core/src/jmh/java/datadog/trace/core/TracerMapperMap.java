@@ -135,7 +135,6 @@ public class TracerMapperMap {
             Collections.<String, String>emptyMap(),
             false,
             "type",
-            0,
             traceCollector,
             null,
             null,

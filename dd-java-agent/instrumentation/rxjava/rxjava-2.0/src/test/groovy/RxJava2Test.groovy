@@ -1,6 +1,6 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentScope
+import datadog.context.ContextScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.reactivex.Flowable
@@ -295,7 +295,7 @@ class RxJava2Test extends InstrumentationSpecification {
       def publisher = publisherSupplier()
 
       AgentSpan intermediate = startSpan("test", "intermediate")
-      AgentScope scope = activateSpan(intermediate)
+      ContextScope scope = activateSpan(intermediate)
       try {
         if (publisher instanceof Maybe) {
           return ((Maybe) publisher).map(addTwo)
@@ -399,7 +399,7 @@ class RxJava2Test extends InstrumentationSpecification {
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")
   def cancelUnderTrace(def publisherSupplier) {
     final AgentSpan span = startSpan("test", "publisher-parent")
-    AgentScope scope = activateSpan(span)
+    ContextScope scope = activateSpan(span)
 
     def publisher = publisherSupplier()
     if (publisher instanceof Maybe) {

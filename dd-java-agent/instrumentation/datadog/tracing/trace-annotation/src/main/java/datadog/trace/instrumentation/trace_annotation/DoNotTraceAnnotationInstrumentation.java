@@ -31,13 +31,6 @@ public final class DoNotTraceAnnotationInstrumentation extends InstrumenterModul
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TraceDecorator",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isAnnotatedWith(named(hierarchyMarkerType())), packageName + ".DoNotTraceAdvice");

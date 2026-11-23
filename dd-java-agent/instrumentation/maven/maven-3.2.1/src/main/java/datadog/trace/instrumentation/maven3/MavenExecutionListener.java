@@ -9,7 +9,11 @@ import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.File;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.maven.execution.AbstractExecutionListener;
 import org.apache.maven.execution.ExecutionEvent;
@@ -25,6 +29,8 @@ import org.slf4j.LoggerFactory;
 public class MavenExecutionListener extends AbstractExecutionListener {
 
   private static final Logger log = LoggerFactory.getLogger(MavenExecutionListener.class);
+  private static final String TESTS_SKIPPED_BY_CONFIGURATION_REASON =
+      "Tests were skipped by Maven configuration";
 
   private final BuildEventsHandler<MavenExecutionRequest> buildEventsHandler;
 
@@ -141,6 +147,22 @@ public class MavenExecutionListener extends AbstractExecutionListener {
     String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
 
     if (MavenUtils.isTestExecution(mojoExecution)) {
+      // Surefire/Failsafe complete successfully when explicitly configured to skip tests;
+      // Maven does not send mojoSkipped for these executions. Read the resolved plugin
+      // configuration, since a POM can override the command-line skip properties.
+      if (Boolean.parseBoolean(
+              MavenUtils.getConfigurationValue(session, mojoExecution, "skipTests"))
+          || Boolean.parseBoolean(MavenUtils.getConfigurationValue(session, mojoExecution, "skip"))
+          || (("maven-surefire-plugin".equals(mojoExecution.getArtifactId())
+                  || "maven-failsafe-plugin".equals(mojoExecution.getArtifactId()))
+              && Boolean.parseBoolean(
+                  MavenUtils.getConfigurationValue(session, mojoExecution, "skipExec")))
+          || ("maven-failsafe-plugin".equals(mojoExecution.getArtifactId())
+              && Boolean.parseBoolean(
+                  MavenUtils.getConfigurationValue(session, mojoExecution, "skipITs")))) {
+        buildEventsHandler.onTestModuleSkip(
+            request, moduleName, TESTS_SKIPPED_BY_CONFIGURATION_REASON);
+      }
       buildEventsHandler.onTestModuleFinish(request, moduleName);
     } else {
       buildEventsHandler.onBuildTaskFinish(request, moduleName);

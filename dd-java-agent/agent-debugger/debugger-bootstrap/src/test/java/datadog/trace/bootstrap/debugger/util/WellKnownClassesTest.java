@@ -7,9 +7,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Hashtable;
 import java.util.LinkedList;
+import java.util.Properties;
+import java.util.Stack;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.Test;
 
@@ -17,6 +21,10 @@ class WellKnownClassesTest {
 
   @Test
   public void synchronizedWrappersAreNotSafe() {
+    assertFalse(WellKnownClasses.isSafe(new Vector<>()));
+    assertFalse(WellKnownClasses.isSafe(new Stack<>()));
+    assertFalse(WellKnownClasses.isSafe(new Hashtable<>()));
+    assertFalse(WellKnownClasses.isSafe(new Properties()));
     assertFalse(WellKnownClasses.isSafe(Collections.synchronizedCollection(new ArrayList<>())));
     assertFalse(WellKnownClasses.isSafe(Collections.synchronizedList(new ArrayList<>())));
     assertFalse(WellKnownClasses.isSafe(Collections.synchronizedList(new LinkedList<>())));
@@ -36,5 +44,17 @@ class WellKnownClassesTest {
     assertTrue(WellKnownClasses.isSafe(new ConcurrentHashMap<>()));
     assertTrue(WellKnownClasses.isSafe(Collections.emptyList()));
     assertTrue(WellKnownClasses.isSafe(Collections.unmodifiableMap(new HashMap<>())));
+  }
+
+  @Test
+  public void springMapsAreSafeOnlyOnExactMatch() {
+    assertTrue(WellKnownClasses.isSafeMap("org.springframework.util.LinkedMultiValueMap"));
+    assertTrue(WellKnownClasses.isSafeMap("org.springframework.util.LinkedCaseInsensitiveMap"));
+    assertTrue(
+        WellKnownClasses.isSafeMap("org.springframework.validation.support.BindingAwareModelMap"));
+    assertFalse(
+        WellKnownClasses.isSafeMap("org.springframework.util.LinkedMultiValueMap$$SpringCGLIB$$0"));
+    assertFalse(WellKnownClasses.isSafeMap("org.springframework.util.LinkedMultiValueMapFoo"));
+    assertFalse(WellKnownClasses.isSafeMap("org.springframework.util.ConcurrentReferenceHashMap"));
   }
 }

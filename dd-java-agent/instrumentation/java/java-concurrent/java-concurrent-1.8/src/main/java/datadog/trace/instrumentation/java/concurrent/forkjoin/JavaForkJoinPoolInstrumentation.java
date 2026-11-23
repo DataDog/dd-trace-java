@@ -30,6 +30,9 @@ public class JavaForkJoinPoolInstrumentation
         isMethod().and(namedOneOf("externalPush", "externalSubmit")), name + "$ExternalPush");
     // Java 21 has a new method name and changed signature
     transformer.applyAdvice(isMethod().and(named("poolSubmit")), name + "$PoolSubmit");
+    // Java 25 delayed tasks capture at construction and bypass the normal submission methods.
+    transformer.applyAdvice(
+        isMethod().and(named("scheduleDelayedTask")), name + "$ScheduleDelayedTask");
   }
 
   public static final class ExternalPush {
@@ -66,6 +69,16 @@ public class JavaForkJoinPoolInstrumentation
     public static <T> void cleanup(
         @Advice.Argument(1) ForkJoinTask<T> task, @Advice.Thrown Throwable thrown) {
       if (null != thrown && !exclude(FORK_JOIN_TASK, task)) {
+        cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+      }
+    }
+  }
+
+  public static final class ScheduleDelayedTask {
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void cleanup(
+        @Advice.Argument(0) ForkJoinTask<?> task, @Advice.Thrown Throwable thrown) {
+      if (thrown != null) {
         cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
       }
     }

@@ -2,13 +2,18 @@ package datadog.trace.core.otlp.common;
 
 import static datadog.communication.http.OkHttpUtils.buildHttpClient;
 import static datadog.communication.http.OkHttpUtils.isPlainHttp;
+import static datadog.communication.http.OkHttpUtils.sendWithRetries;
+import static datadog.trace.common.writer.RemoteApi.Response.failed;
+import static datadog.trace.common.writer.RemoteApi.Response.success;
 
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.config.OtlpConfig.Compression;
 import datadog.trace.common.writer.RemoteApi;
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -25,6 +30,7 @@ public final class OtlpHttpSender implements OtlpSender {
       new HttpRetryPolicy.Factory(5, 100, 2.0, true);
 
   private final HttpUrl url;
+  private final boolean unixDomainSocket;
   private final Map<String, String> headers;
   private final boolean gzip;
 
@@ -46,19 +52,38 @@ public final class OtlpHttpSender implements OtlpSender {
       this.url = HttpUrl.get(endpoint); // HTTP endpoint already includes signal path
     }
 
+    this.unixDomainSocket = unixDomainSocketPath != null;
+
     this.headers = headers;
     this.gzip = compression == Compression.GZIP;
 
     this.client = buildHttpClient(isPlainHttp(url), unixDomainSocketPath, null, timeoutMillis);
   }
 
-  public HttpUrl url() {
-    return url;
+  @Override
+  @Nullable
+  public HttpUrl destination() {
+    return unixDomainSocket ? null : url;
   }
 
   @Override
   public RemoteApi.Response send(OtlpPayload payload) {
-    return OtlpSenderSupport.send(client, retryPolicy, makeRequest(payload), RATELIMITED_LOGGER);
+    Request request = makeRequest(payload);
+    try (okhttp3.Response response = sendWithRetries(client, retryPolicy, request)) {
+      if (response.isSuccessful()) {
+        return success(response.code());
+      }
+      RATELIMITED_LOGGER.warn(
+          "OTLP export to {} failed with status {}: {}",
+          request.url(),
+          response.code(),
+          response.message());
+      return failed(response.code());
+    } catch (IOException e) {
+      RATELIMITED_LOGGER.warn(
+          "OTLP export to {} failed with exception: {}", request.url(), e.toString());
+      return failed(e);
+    }
   }
 
   @Override

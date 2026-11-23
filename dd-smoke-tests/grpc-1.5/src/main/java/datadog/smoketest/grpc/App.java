@@ -26,16 +26,15 @@ public class App {
     logger.info("Server started, listening on " + port);
     Runtime.getRuntime()
         .addShutdownHook(
-            new Thread(
-                () -> {
-                  System.err.println("*** shutting down gRPC server since JVM is shutting down");
-                  try {
-                    App.this.stop();
-                  } catch (InterruptedException e) {
-                    e.printStackTrace(System.err);
-                  }
-                  System.err.println("*** server shut down");
-                }));
+            new Thread(() -> {
+              System.err.println("*** shutting down gRPC server since JVM is shutting down");
+              try {
+                App.this.stop();
+              } catch (InterruptedException e) {
+                e.printStackTrace(System.err);
+              }
+              System.err.println("*** server shut down");
+            }));
   }
 
   private void stop() throws InterruptedException {

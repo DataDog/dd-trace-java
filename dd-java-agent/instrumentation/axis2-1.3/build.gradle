@@ -11,15 +11,8 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteForDir('latestDepForkedTest', 'test')
 
 tasks.named("latestDepTest", Test) {
-  testJvmConstraints {
-    minJavaVersion = JavaVersion.VERSION_17
-  }
-}
-
-tasks.named("latestDepForkedTest", Test) {
   testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_17
   }
@@ -34,12 +27,12 @@ configurations.configureEach {
   }
 }
 
-configureGroovyCompiler(17, "compileLatestDepForkedTestGroovy", "compileLatestDepTestGroovy")
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  configureCompiler(it, JavaVersion.VERSION_17)
+}
 
-["compileLatestDepForkedTestJava", "compileLatestDepTestJava"].each {
-  tasks.named(it, JavaCompile) {
-    configureCompiler(it, 17)
-  }
+tasks.named("compileLatestDepTestJava", JavaCompile) {
+  configureCompiler(it, JavaVersion.VERSION_17)
 }
 
 dependencies {

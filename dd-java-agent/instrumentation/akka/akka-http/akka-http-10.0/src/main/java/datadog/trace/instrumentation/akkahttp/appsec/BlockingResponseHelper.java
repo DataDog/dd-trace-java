@@ -42,7 +42,7 @@ public class BlockingResponseHelper {
     if (action instanceof Flow.Action.RequestBlockingAction) {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       if (brf instanceof AkkaBlockResponseFunction) {
-        brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
+        brf.tryCommitBlockingResponse(requestContext, rba);
         HttpResponse altResponse =
             ((AkkaBlockResponseFunction) brf).maybeCreateAlternativeResponse();
         if (altResponse != null) {
@@ -86,10 +86,8 @@ public class BlockingResponseHelper {
 
     List<akka.http.scaladsl.model.HttpHeader> headersList =
         rba.getExtraHeaders().entrySet().stream()
-            .map(
-                e ->
-                    (akka.http.scaladsl.model.HttpHeader)
-                        RawHeader.create(e.getKey(), e.getValue()))
+            .map(e ->
+                (akka.http.scaladsl.model.HttpHeader) RawHeader.create(e.getKey(), e.getValue()))
             .collect(ScalaListCollector.toScalaList());
 
     StatusCode code;

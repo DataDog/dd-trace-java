@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
 }
 
 muzzle {
@@ -18,15 +19,13 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 addTestSuiteForDir('mongo43Test', 'test')
-addTestSuiteForDir('mongo43ForkedTest', 'test')
 addTestSuiteForDir('mongo410Test', 'test')
-addTestSuiteForDir('mongo410ForkedTest', 'test')
 
 dependencies {
   compileOnly group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.0.0'
   compileOnly group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.0.0'
+  testContainerImage(image('mongo:4.4.29', 'test.mongo.image'))
 
   implementation(project(':dd-java-agent:instrumentation:mongo:mongo-common')) {
     transitive = false
@@ -50,14 +49,10 @@ dependencies {
   mongo43TestImplementation group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.3.+'
   mongo43TestImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.3.+'
 
-  mongo43ForkedTestImplementation group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.3.+'
-  mongo43ForkedTestImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.3.+'
 
   mongo410TestImplementation group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.10.+'
   mongo410TestImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.10.+'
 
-  mongo410ForkedTestImplementation group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '4.10.+'
-  mongo410ForkedTestImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '4.10.+'
 
   latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '+'
   latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '+'
