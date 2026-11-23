@@ -60,19 +60,15 @@ public final class AwsRdsEndpoint implements TagContributor {
      */
     GLOBAL_WRITER("global", AWS_RDS_IDENTIFIER);
 
-    private final String tagValue;
+    final String tagValue;
     // The one tag that carries the identifier. Instance and cluster endpoints use the same tag
     // names as the aws.rds.* integration metrics so spans join them; every other type uses
     // aws.rds.identifier. The value is never written under two keys.
-    private final long identifierTag;
+    final long identifierTag;
 
     Type(final String tagValue, final long identifierTag) {
       this.tagValue = tagValue;
       this.identifierTag = identifierTag;
-    }
-
-    public String tagValue() {
-      return tagValue;
     }
   }
 
