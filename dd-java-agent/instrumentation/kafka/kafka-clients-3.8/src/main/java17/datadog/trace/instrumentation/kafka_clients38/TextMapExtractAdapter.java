@@ -13,7 +13,6 @@ import java.util.Base64;
 import java.util.function.Function;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
-import org.apache.kafka.common.header.internals.RecordHeader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,23 +36,20 @@ public class TextMapExtractAdapter implements ContextVisitor<Headers> {
   }
 
   /**
-   * Hands each header with a value to {@code classifier}. A UTF-8 {@code RecordHeader} (exactly
-   * that class) the agent gave {@link BufferedHeaderFields} is read through {@link
-   * RecordHeaderAccess}, so known keys aren't decoded and values aren't copied before decoding; any
-   * other goes through {@code key()} and {@code value()}, decoded as UTF-8 or Base64.
+   * Hands each header with a value to {@code classifier}. A UTF-8 {@code RecordHeader} the agent
+   * gave {@link BufferedHeaderFields} (see {@link RecordHeaderAccess#bufferedFields}) is read
+   * through {@link RecordHeaderAccess}, so known keys aren't decoded and values aren't copied
+   * before decoding; any other goes through {@code key()} and {@code value()}, decoded as UTF-8 or
+   * Base64.
    */
   @Override
   public void forEachKey(Headers carrier, AgentPropagation.KeyClassifier classifier) {
     for (Header header : carrier) {
       String key;
       String value;
-      // Exactly Kafka's RecordHeader: a subclass may override key() or value(), which the raw
-      // fields would bypass. Checking the exact class also keeps the interface test that follows
-      // constant once compiled, rather than a lookup per header
-      if (decoder == null
-          && header.getClass() == RecordHeader.class
-          && header instanceof BufferedHeaderFields) {
-        BufferedHeaderFields fields = (BufferedHeaderFields) header;
+      BufferedHeaderFields fields =
+          decoder == null ? RecordHeaderAccess.bufferedFields(header) : null;
+      if (fields != null) {
         key = RecordHeaderAccess.key(header, fields);
         value = RecordHeaderAccess.utf8Value(header, fields);
         if (value == null) {
