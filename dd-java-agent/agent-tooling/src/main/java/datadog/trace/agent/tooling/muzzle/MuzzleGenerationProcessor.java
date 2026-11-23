@@ -25,6 +25,23 @@ public final class MuzzleGenerationProcessor implements AdviceProcessor {
    * instruments, found by recording the module's type advice. Muzzle's bytecode scan can't see
    * them: the accessors are generated into the library class, not read by advice.
    */
+  /**
+   * The fields {@code accessors} reads, required on one of {@code types}: known matching types are
+   * often alternatives (a class renamed across versions, classes from optional jars), and the
+   * accessors are installed on each that has the fields, so muzzle passes if any one has them.
+   */
+  private static Reference eachOf(FieldAccessors accessors, String[] types) {
+    Reference first = accessors.muzzleReference(types[0]);
+    if (types.length == 1) {
+      return first;
+    }
+    Reference[] others = new Reference[types.length - 1];
+    for (int i = 1; i < types.length; i++) {
+      others[i - 1] = accessors.muzzleReference(types[i]);
+    }
+    return new OrReference(first, others);
+  }
+
   static List<Reference> fieldAccessorReferences(InstrumenterModule module) {
     List<Reference> references = new ArrayList<>();
     for (Instrumenter instrumenter : module.typeInstrumentations()) {
@@ -49,9 +66,7 @@ public final class MuzzleGenerationProcessor implements AdviceProcessor {
                 @Override
                 public void applyAdvice(AsmVisitorWrapper typeVisitor) {
                   if (typeVisitor instanceof FieldAccessors) {
-                    for (String type : types) {
-                      references.add(((FieldAccessors) typeVisitor).muzzleReference(type));
-                    }
+                    references.add(eachOf((FieldAccessors) typeVisitor, types));
                   }
                 }
               });

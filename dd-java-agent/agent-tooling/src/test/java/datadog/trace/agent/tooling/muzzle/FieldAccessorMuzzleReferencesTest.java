@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling.muzzle;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.tooling.Instrumenter;
@@ -68,5 +69,48 @@ class FieldAccessorMuzzleReferencesTest {
     expected.add("total:J");
     expected.add("bytes:[B");
     assertEquals(expected, fields);
+  }
+
+  /** Known matching types as alternatives, such as a class renamed across library versions. */
+  static final class KnownTypesModule extends InstrumenterModule.Tracing
+      implements Instrumenter.ForKnownTypes, Instrumenter.HasTypeAdvice {
+    KnownTypesModule() {
+      super("test-accessors-known");
+    }
+
+    @Override
+    public String[] knownMatchingTypes() {
+      return new String[] {"com.example.Old", "com.example.New"};
+    }
+
+    @Override
+    public void typeAdvice(TypeTransformer transformer) {
+      transformer.installFieldAccessors(
+          SampleFields.class,
+          "$$DD$$__name",
+          "name",
+          "$$DD$$__count",
+          "count",
+          "$$DD$$__total",
+          "total",
+          "$$DD$$__bytes",
+          "bytes");
+    }
+  }
+
+  @Test
+  void knownMatchingTypesAreAlternatives() {
+    List<Reference> references =
+        MuzzleGenerationProcessor.fieldAccessorReferences(new KnownTypesModule());
+
+    // one reference, satisfied by either type: requiring both would fail wherever one is absent
+    assertEquals(1, references.size());
+    Reference reference = references.get(0);
+    assertInstanceOf(OrReference.class, reference);
+    assertEquals("com.example.Old", reference.className);
+    Reference[] ors = ((OrReference) reference).ors;
+    assertEquals(1, ors.length);
+    assertEquals("com.example.New", ors[0].className);
+    assertEquals(4, ors[0].fields.length);
   }
 }
