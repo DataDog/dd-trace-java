@@ -91,13 +91,11 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
   }
 
   /**
-   * Returns the Amazon RDS endpoint the connection's hostname names, or {@code null} when it is not
-   * an RDS endpoint. The default parses the hostname, which the parser caches per hostname.
-   * Decorators whose connection metadata already holds the parsed endpoint should override this to
-   * return it, so the hostname is not classified again for every span.
+   * Returns the Amazon RDS endpoint for this connection, or {@code null} by default. SQL decorators
+   * opt in by parsing the hostname or returning an endpoint retained in connection metadata.
    */
   protected AwsRdsEndpoint rdsEndpoint(final CONNECTION connection, final CharSequence hostname) {
-    return AwsRdsEndpoint.parse(hostname);
+    return null;
   }
 
   /**

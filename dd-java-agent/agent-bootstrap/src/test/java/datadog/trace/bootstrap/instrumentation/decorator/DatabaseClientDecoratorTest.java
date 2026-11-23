@@ -19,6 +19,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.PEER_HOSTNAME;
 import static datadog.trace.bootstrap.instrumentation.decorator.ExpectedSpanState.expectedSpan;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -26,6 +27,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_MOCKS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
@@ -169,7 +171,7 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
       String endpointType,
       String instanceIdentifier,
       String clusterIdentifier) {
-    DatabaseClientDecorator<Map<String, String>> decorator = newDecorator();
+    DatabaseClientDecorator<Map<String, String>> decorator = newRdsDecorator();
     Map<String, String> session = new HashMap<>();
     session.put("user", "test-user");
     session.put("hostname", hostname);
@@ -194,7 +196,7 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
 
   @Test
   void testOnConnectionLeavesNonRdsHostnameUntagged() {
-    DatabaseClientDecorator<Map<String, String>> decorator = newDecorator();
+    DatabaseClientDecorator<Map<String, String>> decorator = newRdsDecorator();
     Map<String, String> session = new HashMap<>();
     session.put("user", "test-user");
     session.put("hostname", "db.internal.example.com");
@@ -206,6 +208,15 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     verify(span).setTag(DB_USER, "test-user");
     verify(span).setTag(PEER_HOSTNAME, (CharSequence) "db.internal.example.com");
     verifyNoMoreInteractions(span);
+  }
+
+  @Test
+  void testDefaultRdsLookupDoesNotInspectHostname() {
+    CharSequence hostname = mock(CharSequence.class);
+
+    assertNull(newDecorator().rdsEndpoint(new HashMap<>(), hostname));
+
+    verifyNoInteractions(hostname);
   }
 
   @Test
@@ -252,7 +263,7 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     session.put("instance", "test-instance");
     session.put("hostname", hostname);
 
-    newDecorator().onConnection(span, session);
+    newRdsDecorator().onConnection(span, session);
 
     verify(span).setTag(DB_USER, "test-user");
     verify(span).setTag(DB_INSTANCE, "test-instance");
@@ -352,6 +363,15 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
   @Override
   protected DatabaseClientDecorator<Map<String, String>> newDecorator(String serviceName) {
     return new TestDatabaseClientDecorator(serviceName);
+  }
+
+  private DatabaseClientDecorator<Map<String, String>> newRdsDecorator() {
+    return new TestDatabaseClientDecorator("test-service") {
+      @Override
+      protected AwsRdsEndpoint rdsEndpoint(Map<String, String> connection, CharSequence hostname) {
+        return AwsRdsEndpoint.parse(hostname);
+      }
+    };
   }
 
   private static class TestDatabaseClientDecorator
