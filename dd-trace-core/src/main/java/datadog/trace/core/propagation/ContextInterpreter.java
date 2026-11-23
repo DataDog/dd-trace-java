@@ -207,6 +207,23 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   }
 
   /**
+   * Skips another style's own header (one only that style reads, not a forwarding, user agent or
+   * client IP header) when nothing configured could read it: no request header tags, no baggage
+   * mapping, no custom client IP header, and header names aren't being logged. Accepting it would
+   * do nothing then.
+   */
+  @Override
+  public boolean skips(HeaderSchema header) {
+    return header != null
+        && !LOG_EXTRACT_HEADER_NAMES
+        && !header.isReadByEveryStyle()
+        && headerTags.isEmpty()
+        && baggageMapping.isEmpty()
+        && customIpHeaderName == null
+        && classify(header) == NOT_OWN_HEADER;
+  }
+
+  /**
    * {@link #acceptTransient} for a style that doesn't parse views itself: a parse-only header that
    * isn't the style's own (another style's id header) is skipped, without copying the view, unless
    * the configuration names it (a request header tag, a baggage mapping, the client IP header),

@@ -82,6 +82,14 @@ public final class AgentPropagation {
     default boolean acceptTransient(HeaderSchema header, String key, CharSequence value) {
       return accept(header, key, value == null ? null : value.toString());
     }
+
+    /**
+     * Whether this classifier would do nothing with a header with this constant, so a carrier that
+     * knows a key's constant may skip handing it over, value and all. The default skips nothing.
+     */
+    default boolean skips(HeaderSchema header) {
+      return false;
+    }
   }
 
   public interface ContextVisitor<C> extends CarrierVisitor<C> {

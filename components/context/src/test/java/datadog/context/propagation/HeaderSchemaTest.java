@@ -75,4 +75,35 @@ class HeaderSchemaTest {
     assertNull(HeaderSchema.forName("x-custom-header"));
     assertNull(HeaderSchema.forName("Traceparent"));
   }
+
+  @Test
+  void readByEveryStyleIsForwardingUserAgentAndClientIp() {
+    Set<HeaderSchema> everyStyle = new HashSet<>();
+    for (HeaderSchema header : HeaderSchema.values()) {
+      if (header.isReadByEveryStyle()) {
+        everyStyle.add(header);
+      }
+    }
+    Set<HeaderSchema> expected = new HashSet<>();
+    for (HeaderSchema header :
+        new HeaderSchema[] {
+          HeaderSchema.FORWARDED,
+          HeaderSchema.FORWARDED_FOR,
+          HeaderSchema.X_FORWARDED_PROTO,
+          HeaderSchema.X_FORWARDED_HOST,
+          HeaderSchema.X_FORWARDED_FOR,
+          HeaderSchema.X_FORWARDED_PORT,
+          HeaderSchema.USER_AGENT,
+          HeaderSchema.X_CLIENT_IP,
+          HeaderSchema.TRUE_CLIENT_IP,
+          HeaderSchema.X_CLUSTER_CLIENT_IP,
+          HeaderSchema.X_REAL_IP,
+          HeaderSchema.FASTLY_CLIENT_IP,
+          HeaderSchema.CF_CONNECTING_IP,
+          HeaderSchema.CF_CONNECTING_IP_V6
+        }) {
+      expected.add(header);
+    }
+    assertEquals(expected, everyStyle);
+  }
 }

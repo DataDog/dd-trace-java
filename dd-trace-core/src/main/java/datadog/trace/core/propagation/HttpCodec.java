@@ -97,11 +97,15 @@ public class HttpCodec {
    */
   static boolean acceptIndexed(
       AgentPropagation.KeyClassifier classifier, IndexedCarrier indexed, int i) {
+    HeaderSchema header = indexed.header(i);
+    if (classifier.skips(header)) {
+      return true;
+    }
     CharSequence value = indexed.valueView(i);
     if (value == null || value instanceof String) {
-      return classifier.accept(indexed.header(i), indexed.key(i), (String) value);
+      return classifier.accept(header, indexed.key(i), (String) value);
     }
-    return classifier.acceptTransient(indexed.header(i), indexed.key(i), value);
+    return classifier.acceptTransient(header, indexed.key(i), value);
   }
 
   public static Injector createInjector(

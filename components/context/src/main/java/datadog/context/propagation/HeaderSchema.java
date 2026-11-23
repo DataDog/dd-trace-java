@@ -89,6 +89,14 @@ public enum HeaderSchema {
     return parseOnly;
   }
 
+  /**
+   * Whether every propagation style reads this header (forwarding, user agent and client IP), not
+   * only the style it belongs to.
+   */
+  public boolean isReadByEveryStyle() {
+    return compareTo(FORWARDED) >= 0;
+  }
+
   /** The length of {@link #headerName}, in chars and in ASCII bytes. */
   public int length() {
     return asciiName.length;

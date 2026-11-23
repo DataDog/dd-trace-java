@@ -22,6 +22,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -217,6 +218,36 @@ class ExtractorKeysForkedTest extends DDJavaSpecification {
     assertTrue(keys.contains("x-datadog-trace-id"));
     assertTrue(keys.contains("traceparent"));
     assertSame(keys, compound.keys());
+  }
+
+  @Test
+  void anotherStylesHeaderMappedToATagIsStillRead() {
+    assumeFalse(ContextInterpreter.LOG_EXTRACT_HEADER_NAMES);
+    // traceparent is the W3C style's own header; the Datadog interpreter, which builds the
+    // extracted context here, only reads it for the configured header tag
+    Map<String, String> headerTags = new HashMap<>();
+    headerTags.put("traceparent", "tag.traceparent");
+    headerTags.put("x-datadog-tags", "tag.datadog_tags");
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
+        DynamicConfig.create().setHeaderTags(headerTags).apply();
+    List<HttpCodec.Extractor> parts = new ArrayList<>();
+    parts.add(DatadogHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig));
+    parts.add(W3CHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig));
+    HttpCodec.CompoundExtractor compound = new HttpCodec.CompoundExtractor(parts, false);
+
+    Map<String, String> headers = new LinkedHashMap<>();
+    headers.put("x-datadog-trace-id", "1234567890");
+    headers.put("x-datadog-parent-id", "987654321");
+    headers.put("x-datadog-sampling-priority", "1");
+    headers.put("x-datadog-tags", "_dd.p.dm=-1");
+    headers.put("traceparent", "00-000000000000000000000000499602d2-000000003ade68b1-01");
+
+    TagContext fromConstants =
+        compound.extract(new Indexed(headers, compound.keys()), WITH_HEADERS);
+    assertEquals(
+        "00-000000000000000000000000499602d2-000000003ade68b1-01",
+        fromConstants.getTags().getString("tag.traceparent"));
+    assertEquals(describe(compound.extract(headers, stringValuesMap())), describe(fromConstants));
   }
 
   /** A carrier that knows each key's header constant, as the composite propagator's cache does. */
