@@ -106,9 +106,11 @@ public class ShellGitClient implements GitClient {
     this.latestCommitsLimit = latestCommitsLimit;
     this.timeoutMillis = timeoutMillis;
 
-    this.repoRoot = findGitRepositoryRoot(new File(repoRoot));
-    this.safeDirectoryOption = "safe.directory=" + this.repoRoot;
-    commandExecutor = new ShellCommandExecutor(new File(this.repoRoot), timeoutMillis);
+    File executionFolder = new File(repoRoot).getAbsoluteFile();
+    this.repoRoot = executionFolder.getPath();
+    this.safeDirectoryOption = "safe.directory=" + findGitRepositoryRoot(executionFolder);
+    // Git must discover the repository from the caller's path, including inherited boundaries.
+    commandExecutor = new ShellCommandExecutor(executionFolder, timeoutMillis);
   }
 
   /**
