@@ -48,6 +48,111 @@ public final class Hashtable {
   private Hashtable() {}
 
   /**
+   * Describes how a table sizes its bucket array: the strict cap on live entries, and how many
+   * entries the array should fit before its first growth.
+   *
+   * <p>Immutable: {@link #initialCapacity(int)} returns a new instance, so a spec can be a {@code
+   * static final} constant shared by many tables.
+   *
+   * <pre>{@code
+   * static final Hashtable.Sizing SIZING = Hashtable.Sizing.bounded(4096).initialCapacity(256);
+   * ...
+   * Hashtable.D1<String, MyEntry> table = Hashtable.D1.create(MyEntry.class, SIZING);
+   * }</pre>
+   */
+  public static final class Sizing {
+    /**
+     * Initial capacity used when none is given: 12 entries, which {@link
+     * Hashtable#capacityFor(int)} maps to a 16-bucket start.
+     */
+    static final int DEFAULT_INITIAL_CAPACITY = 12;
+
+    /** Marks an initial capacity that was not set explicitly. */
+    private static final int UNSET = -1;
+
+    private final int maxCapacity;
+    private final int initialCapacity;
+
+    private Sizing(int maxCapacity, int initialCapacity) {
+      this.maxCapacity = maxCapacity;
+      this.initialCapacity = initialCapacity;
+    }
+
+    /**
+     * A spec capped at {@code maxCapacity} live entries, starting at the default initial capacity.
+     *
+     * @throws IllegalArgumentException if {@code maxCapacity} is negative
+     */
+    @Nonnull
+    public static Sizing bounded(int maxCapacity) {
+      if (maxCapacity < 0) {
+        throw new IllegalArgumentException("maxCapacity must be non-negative: " + maxCapacity);
+      }
+      return new Sizing(maxCapacity, UNSET);
+    }
+
+    /**
+     * A copy of this spec whose bucket array starts sized for {@code initialCapacity} live entries,
+     * an entry count rather than a bucket count. Values above the max capacity are clamped to it.
+     *
+     * @throws IllegalArgumentException if {@code initialCapacity} is negative
+     */
+    @Nonnull
+    public Sizing initialCapacity(int initialCapacity) {
+      if (initialCapacity < 0) {
+        throw new IllegalArgumentException(
+            "initialCapacity must be non-negative: " + initialCapacity);
+      }
+      return new Sizing(this.maxCapacity, Math.min(initialCapacity, this.maxCapacity));
+    }
+
+    /** The strict cap on live entries. */
+    int maxCapacity() {
+      return this.maxCapacity;
+    }
+
+    /**
+     * The entry count the initial bucket array fits: explicit, or the default clamped to the cap.
+     */
+    int initialCapacity() {
+      return hasExplicitInitialCapacity()
+          ? this.initialCapacity
+          : Math.min(DEFAULT_INITIAL_CAPACITY, this.maxCapacity);
+    }
+
+    /** {@code true} when {@link #initialCapacity(int)} set the initial capacity. */
+    boolean hasExplicitInitialCapacity() {
+      return this.initialCapacity != UNSET;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof Sizing)) {
+        return false;
+      }
+      Sizing that = (Sizing) o;
+      return this.maxCapacity == that.maxCapacity && this.initialCapacity == that.initialCapacity;
+    }
+
+    @Override
+    public int hashCode() {
+      return 31 * this.maxCapacity + this.initialCapacity;
+    }
+
+    @Override
+    public String toString() {
+      return "Hashtable.Sizing{maxCapacity="
+          + this.maxCapacity
+          + ", initialCapacity="
+          + (hasExplicitInitialCapacity() ? Integer.toString(this.initialCapacity) : "default")
+          + "}";
+    }
+  }
+
+  /**
    * Internal base class for entries. Stores the precomputed 64-bit keyHash and the chain-next
    * pointer used to link colliding entries within a single bucket.
    *
@@ -86,7 +191,7 @@ public final class Hashtable {
    * Long>} and produces effectively zero GC pressure.
    *
    * <p>The table holds at most the {@code maxCapacity} passed to {@link #createBounded} (or the
-   * {@link TableSizing} passed to {@link #create}). Its bucket array starts small and doubles as it
+   * {@link Sizing} passed to {@link #create}). Its bucket array starts small and doubles as it
    * fills, up to the size {@link Hashtable#capacityFor(int)} gives for the bound, so a generous
    * bound costs little until it is used. Inserting while iterating can now move entries to a new
    * array, invalidating a {@link #cursor()} or {@link #forEach} in progress; that was never
@@ -152,7 +257,7 @@ public final class Hashtable {
     private final int maxBuckets;
     private final SizeManager sizeManager;
 
-    private D1(TableSizing sizing) {
+    private D1(Sizing sizing) {
       // The array grows up to load-factor headroom over the strict entry cap below, so chains stay
       // short even when the table is full; see Hashtable#capacityFor.
       this.maxBuckets = capacityFor(sizing.maxCapacity());
@@ -181,14 +286,14 @@ public final class Hashtable {
      */
     @Nonnull
     public static <K, TEntry extends D1.Entry<K>> D1<K, TEntry> create(
-        @Nonnull Class<TEntry> entryClass, @Nonnull TableSizing sizing) {
+        @Nonnull Class<TEntry> entryClass, @Nonnull Sizing sizing) {
       return new D1<>(sizing);
     }
 
     /**
-     * Shorthand for {@link #create} with {@link TableSizing#bounded(int)
-     * TableSizing.bounded(maxCapacity)}: the bucket array starts at up to 16 buckets and grows to
-     * {@link Hashtable#capacityFor(int)} of {@code maxCapacity}.
+     * Shorthand for {@link #create} with {@link Sizing#bounded(int) Sizing.bounded(maxCapacity)}:
+     * the bucket array starts at up to 16 buckets and grows to {@link Hashtable#capacityFor(int)}
+     * of {@code maxCapacity}.
      *
      * @param <K> key type
      * @param <TEntry> entry type
@@ -199,7 +304,7 @@ public final class Hashtable {
     @Nonnull
     public static <K, TEntry extends D1.Entry<K>> D1<K, TEntry> createBounded(
         @Nonnull Class<TEntry> entryClass, int maxCapacity) {
-      return create(entryClass, TableSizing.bounded(maxCapacity));
+      return create(entryClass, Sizing.bounded(maxCapacity));
     }
 
     /** Doubles the bucket array if one more entry would take it past 3/4 full. */
@@ -522,7 +627,7 @@ public final class Hashtable {
     private final int maxBuckets;
     private final SizeManager sizeManager;
 
-    private D2(TableSizing sizing) {
+    private D2(Sizing sizing) {
       // Grows up to load-factor headroom over the strict entry cap; see D1's constructor.
       this.maxBuckets = capacityFor(sizing.maxCapacity());
       this.buckets = Hashtable.create(initialBucketsFor(sizing));
@@ -546,13 +651,12 @@ public final class Hashtable {
      */
     @Nonnull
     public static <K1, K2, TEntry extends D2.Entry<K1, K2>> D2<K1, K2, TEntry> create(
-        @Nonnull Class<TEntry> entryClass, @Nonnull TableSizing sizing) {
+        @Nonnull Class<TEntry> entryClass, @Nonnull Sizing sizing) {
       return new D2<>(sizing);
     }
 
     /**
-     * Shorthand for {@link #create} with {@link TableSizing#bounded(int)
-     * TableSizing.bounded(maxCapacity)}.
+     * Shorthand for {@link #create} with {@link Sizing#bounded(int) Sizing.bounded(maxCapacity)}.
      *
      * @param <K1> first key type
      * @param <K2> second key type
@@ -564,7 +668,7 @@ public final class Hashtable {
     @Nonnull
     public static <K1, K2, TEntry extends D2.Entry<K1, K2>> D2<K1, K2, TEntry> createBounded(
         @Nonnull Class<TEntry> entryClass, int maxCapacity) {
-      return create(entryClass, TableSizing.bounded(maxCapacity));
+      return create(entryClass, Sizing.bounded(maxCapacity));
     }
 
     /** Doubles the bucket array if one more entry would take it past 3/4 full. */
@@ -910,7 +1014,7 @@ public final class Hashtable {
   }
 
   /** Bucket count a {@link D1} or {@link D2} built from {@code sizing} starts with. */
-  static int initialBucketsFor(@Nonnull TableSizing sizing) {
+  static int initialBucketsFor(@Nonnull Sizing sizing) {
     // initialCapacity() is clamped to maxCapacity(), so this never exceeds the full-table size.
     return capacityFor(sizing.initialCapacity());
   }

@@ -343,16 +343,16 @@ class HashtableGrowthTest {
     @Test
     void createBoundedMatchesDefaultSizing() {
       Hashtable.D1<String, StringIntEntry> viaCreate =
-          Hashtable.D1.create(StringIntEntry.class, TableSizing.bounded(BOUND));
+          Hashtable.D1.create(StringIntEntry.class, Hashtable.Sizing.bounded(BOUND));
       assertEquals(d1(BOUND).buckets.length, viaCreate.buckets.length);
       Hashtable.D2<String, Integer, PairEntry> viaCreate2 =
-          Hashtable.D2.create(PairEntry.class, TableSizing.bounded(BOUND));
+          Hashtable.D2.create(PairEntry.class, Hashtable.Sizing.bounded(BOUND));
       assertEquals(d2(BOUND).buckets.length, viaCreate2.buckets.length);
     }
 
     @Test
     void explicitInitialCapacitySetsStartThenGrowsToTheCap() {
-      TableSizing sizing = TableSizing.bounded(1000).initialCapacity(100);
+      Hashtable.Sizing sizing = Hashtable.Sizing.bounded(1000).initialCapacity(100);
       Hashtable.D1<String, StringIntEntry> table =
           Hashtable.D1.create(StringIntEntry.class, sizing);
       assertEquals(Hashtable.capacityFor(100), table.buckets.length);
@@ -373,7 +373,8 @@ class HashtableGrowthTest {
     @Test
     void zeroInitialCapacityStartsAtOneBucket() {
       Hashtable.D1<String, StringIntEntry> table =
-          Hashtable.D1.create(StringIntEntry.class, TableSizing.bounded(50).initialCapacity(0));
+          Hashtable.D1.create(
+              StringIntEntry.class, Hashtable.Sizing.bounded(50).initialCapacity(0));
       assertEquals(1, table.buckets.length);
       for (int i = 0; i < 50; i++) {
         assertTrue(table.insert(new StringIntEntry(key(i), i)));
@@ -386,7 +387,7 @@ class HashtableGrowthTest {
 
     @Test
     void initialCapacityAtTheBoundStartsFullSizeAndNeverGrows() {
-      TableSizing sizing = TableSizing.bounded(BOUND).initialCapacity(BOUND * 10);
+      Hashtable.Sizing sizing = Hashtable.Sizing.bounded(BOUND).initialCapacity(BOUND * 10);
       Hashtable.D1<String, StringIntEntry> table =
           Hashtable.D1.create(StringIntEntry.class, sizing);
       Hashtable.Entry[] initial = table.buckets;
