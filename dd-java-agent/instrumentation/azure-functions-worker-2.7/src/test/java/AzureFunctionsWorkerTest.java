@@ -101,7 +101,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
       new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));
     }
 
-    assertTraces(trace(durableSpan("MyFunction", trigger)));
+    assertTraces(trace(invocationSpan("MyFunction", trigger)));
   }
 
   @Test
@@ -202,7 +202,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
     invokeOrchestration(
         context, emptyList(), singletonList(executionStarted()), mock(MiddlewareChain.class));
 
-    assertTraces(trace(durableSpan("Orchestrator", "DurableOrchestration")));
+    assertTraces(trace(invocationSpan("Orchestrator", "DurableOrchestration")));
   }
 
   @Test
@@ -487,7 +487,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
         singletonList(failureEvent(subOrchestration)),
         mock(MiddlewareChain.class));
 
-    assertTraces(trace(durableSpan("Orchestrator", "DurableOrchestration")));
+    assertTraces(trace(invocationSpan("Orchestrator", "DurableOrchestration")));
   }
 
   @Test
@@ -504,7 +504,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
         singletonList(entityFailure),
         mock(MiddlewareChain.class));
 
-    assertTraces(trace(durableSpan("Orchestrator", "DurableOrchestration")));
+    assertTraces(trace(invocationSpan("Orchestrator", "DurableOrchestration")));
   }
 
   @Test
@@ -879,7 +879,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
 
     invokeOrchestration(context, emptyList(), singletonList(executionStarted()), chain);
 
-    assertTraces(trace(durableSpan("Orchestrator", "DurableOrchestration")));
+    assertTraces(trace(invocationSpan("Orchestrator", "DurableOrchestration")));
   }
 
   @Test
@@ -968,7 +968,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
                     tag("aas.function.trigger", is("DurableActivity")))));
   }
 
-  private SpanMatcher durableSpan(String functionName, String trigger) {
+  private SpanMatcher invocationSpan(String functionName, String trigger) {
     return span()
         .root()
         .operationName(Pattern.compile(Pattern.quote(operation())))
