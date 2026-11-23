@@ -403,7 +403,7 @@ In priority order:
   per run) overlaps with #13030's lock coarsening in `setTagsFrom`. If fusion pays off, its target can be `setTagsFrom`'s path rather than
   a separate bulk API, so plain `setTag` runs and contributors share one path.
 - **Static tag counts as sizing seeds (follow-up after #13513 / #13514 land; no dense store churn now):** a fused run knows its
-  size, a prototype knows its tags, a contributor mask gives `popcount`. Their union per span is an upper bound (slight oversizing is fine, per Doug).
+  size, a prototype knows its tags, a contributor mask gives `popcount`. Their union per span is an upper bound. **The goal is zero expansions (no grow allocation or copying), not a tight fit; oversizing is the accepted cost (Doug).** So learned hints should track the high end (max or a high percentile plus headroom), not the mean, and the metric is expansions per span plus their B/op.
   Seed #13513's `SizingHint` with it via the `SpanPrototype` (e.g. `initExpectedTags(n)`, generated or declared), and let learning refine it.
   It fixes what learning can't: first spans, rare operations, and hints evicted from the size-limited table. Steady-state JMH won't show it; measure
   first-N-span cost or a scenario with many operations.
