@@ -1,0 +1,11 @@
+_v: 1
+name: opentelemetry-metrics
+display_name: OpenTelemetry Metrics
+description: Instruments the OpenTelemetry Metrics API by replacing its meter provider with a Datadog implementation that
+  records counters, gauges, histograms, and observable measurements.
+packages:
+- name: io.opentelemetry:opentelemetry-api
+category:
+- other
+systems: []
+creation_date: '2026-02-06'

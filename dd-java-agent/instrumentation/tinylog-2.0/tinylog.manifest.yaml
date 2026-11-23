@@ -1,0 +1,11 @@
+_v: 1
+name: tinylog
+display_name: tinylog
+description: Instruments tinylog log records to inject trace-correlation and service metadata and, when enabled, submit log
+  events agentlessly.
+packages:
+- name: org.tinylog:tinylog-impl
+category:
+- log.emission
+systems: []
+creation_date: '2023-11-30'

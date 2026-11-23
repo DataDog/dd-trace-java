@@ -1,0 +1,13 @@
+_v: 1
+name: log4j
+display_name: Apache Log4j
+description: Instruments Apache Log4j log records to add trace-correlation and service metadata and, when enabled, submit
+  them to Datadog log intake.
+packages:
+- name: log4j:log4j
+- name: org.apache.logging.log4j:log4j-api
+- name: org.apache.logging.log4j:log4j-core
+category:
+- log.emission
+systems: []
+creation_date: '2019-06-13'

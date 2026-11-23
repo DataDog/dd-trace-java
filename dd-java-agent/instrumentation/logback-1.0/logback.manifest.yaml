@@ -1,0 +1,11 @@
+_v: 1
+name: logback
+display_name: Logback Classic
+description: Instruments Logback log record processing for trace correlation and configured log forwarding to Datadog Logs
+  Intake.
+packages:
+- name: ch.qos.logback:logback-classic
+category:
+- log.emission
+systems: []
+creation_date: '2021-03-01'

@@ -1,0 +1,10 @@
+_v: 1
+name: opentelemetry-logs
+display_name: OpenTelemetry Logs
+description: Instruments the OpenTelemetry Logs API by providing a logger bridge that captures emitted log records.
+packages:
+- name: io.opentelemetry:opentelemetry-api
+category:
+- log.emission
+systems: []
+creation_date: '2026-04-29'

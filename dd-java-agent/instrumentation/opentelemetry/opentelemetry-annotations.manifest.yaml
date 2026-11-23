@@ -1,0 +1,10 @@
+_v: 1
+name: opentelemetry-annotations
+display_name: OpenTelemetry Annotations
+description: Instruments OpenTelemetry annotated methods to create spans and add annotated parameters as span tags.
+packages:
+- name: io.opentelemetry.instrumentation:opentelemetry-instrumentation-annotations
+category:
+- other
+systems: []
+creation_date: '2023-08-23'
