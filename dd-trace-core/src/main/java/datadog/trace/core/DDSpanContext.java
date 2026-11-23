@@ -829,6 +829,14 @@ public class DDSpanContext implements AgentSpanContext, ProfilerContext, TagStor
         }
         return;
       }
+      // span.kind first: interceptors that read it, such as http.url's choice of client or server
+      // path mappings, must see the prototype's kind whatever order its tags are walked in (slot
+      // order in the dense store)
+      if (plan.kindOrdinal != SPAN_KIND_UNSET
+          && knownTags.getEntryReader(KnownTags.SPAN_KIND) == null) {
+        spanKindOrdinal = plan.kindOrdinal;
+        routePut(tags.getEntry(KnownTags.SPAN_KIND));
+      }
       tags.forEach(this, (ctx, tagEntry) -> ctx.seedIfAbsent(tagEntry));
     }
   }
