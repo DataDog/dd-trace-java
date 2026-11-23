@@ -105,7 +105,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
   }
 
   @Test
-  void doesNotCreateSpanForNonDurableFunction() throws Exception {
+  void doesNotCreateSpanForUnsupportedTrigger() throws Exception {
     MiddlewareContext context = contextFor(null, "HttpFunction");
 
     new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));

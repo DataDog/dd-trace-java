@@ -1,4 +1,8 @@
-# Azure Durable Functions Java tracing
+# Azure Functions Java worker tracing
+
+This module traces Durable Functions and Cosmos DB trigger invocations in the Java worker.
+
+## Durable Functions
 
 For correlated host and Java worker traces, enable OpenTelemetry in the Function App's
 `host.json`:
@@ -19,7 +23,7 @@ worker invocations; enabling OpenTelemetry does not override an intentional upst
 See the [Azure Functions OpenTelemetry setup guide](https://learn.microsoft.com/en-us/azure/azure-functions/opentelemetry-howto)
 for host configuration details.
 
-# Azure Functions Cosmos DB trigger tracing
+## Cosmos DB trigger
 
 Functions with a `@CosmosDBTrigger` parameter get an `azure.functions.invoke` span with resource
 `CosmosDB <function name>` and the `aas.function.trigger:CosmosDB` tag. Like dd-trace-js and
