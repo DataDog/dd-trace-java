@@ -1,7 +1,15 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import static datadog.trace.api.KnownTags.AWS_RDS_ENDPOINT_TYPE;
+import static datadog.trace.api.KnownTags.AWS_RDS_IDENTIFIER;
+import static datadog.trace.api.KnownTags.AWS_REGION;
+import static datadog.trace.api.KnownTags.DBCLUSTERIDENTIFIER;
+import static datadog.trace.api.KnownTags.DBINSTANCEIDENTIFIER;
+
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.TagContributor;
 import java.util.Locale;
 
 /**
@@ -10,40 +18,48 @@ import java.util.Locale;
  * <p>RDS hands out DNS names of the form {@code <identifier>.<hash>.<region>.rds.amazonaws.com} (or
  * {@code <identifier>.<hash>.rds.<region>.amazonaws.com.cn} in the China partition). The leading
  * label is the DB instance identifier, the Aurora cluster identifier, a custom endpoint name, an
- * RDS Proxy name or an Aurora Limitless DB shard group name depending on the {@code <hash>} label
- * prefix. The Region is always present.
+ * RDS Proxy name or proxy endpoint name, or an Aurora Limitless DB shard group name, depending on
+ * the {@code <hash>} label prefix. The Region is always present.
  *
  * <p>A cluster endpoint identifies the cluster but not the writer instance behind it, so this class
  * never claims an instance identifier for a cluster endpoint.
+ *
+ * <p>SQL client integrations parse the endpoint once with their connection metadata and apply it to
+ * each span with {@link AgentSpan#setTagsFrom(TagContributor)}.
  */
-public final class AwsRdsEndpoint {
+public final class AwsRdsEndpoint implements TagContributor {
 
   public enum Type {
     /** {@code <db-instance-identifier>.<hash>.<region>.rds.amazonaws.com}. */
-    INSTANCE("instance"),
+    INSTANCE("instance", DBINSTANCEIDENTIFIER),
     /** {@code <db-cluster-identifier>.cluster-<hash>.<region>.rds.amazonaws.com}. */
-    CLUSTER("cluster"),
+    CLUSTER("cluster", DBCLUSTERIDENTIFIER),
     /** {@code <db-cluster-identifier>.cluster-ro-<hash>.<region>.rds.amazonaws.com}. */
-    CLUSTER_READER("cluster-ro"),
+    CLUSTER_READER("cluster-ro", DBCLUSTERIDENTIFIER),
     /** {@code <endpoint-name>.cluster-custom-<hash>.<region>.rds.amazonaws.com}. */
-    CLUSTER_CUSTOM("cluster-custom"),
+    CLUSTER_CUSTOM("cluster-custom", AWS_RDS_IDENTIFIER),
     /**
-     * {@code <proxy-name>.proxy-<hash>.<region>.rds.amazonaws.com}, or a user-defined endpoint
-     * {@code <endpoint-name>.endpoint.proxy-<hash>.<region>.rds.amazonaws.com}.
+     * {@code <proxy-name>.proxy-<hash>.<region>.rds.amazonaws.com}, or a user-defined proxy
+     * endpoint {@code <endpoint-name>.endpoint.proxy-<hash>.<region>.rds.amazonaws.com}.
      */
-    PROXY("proxy"),
+    PROXY("proxy", AWS_RDS_IDENTIFIER),
     /**
      * An Aurora Limitless DB shard group endpoint, {@code
      * <name>.shardgrp-<hash>.<region>.rds.amazonaws.com} or {@code
-     * <name>.limitless-<hash>.<region>.rds.amazonaws.com}. AWS documents both prefixes for the same
+     * <name>.limitless-<hash>.<region>.rds.amazonaws.com}. AWS documents both prefixes for this
      * endpoint, so both map here.
      */
-    SHARD_GROUP("shardgrp");
+    SHARD_GROUP("shardgrp", AWS_RDS_IDENTIFIER);
 
     private final String tagValue;
+    // The one tag that carries the identifier. Instance and cluster endpoints use the same tag
+    // names as the aws.rds.* integration metrics so spans join them; every other type uses
+    // aws.rds.identifier. The value is never written under two keys.
+    private final long identifierTag;
 
-    Type(String tagValue) {
+    Type(final String tagValue, final long identifierTag) {
       this.tagValue = tagValue;
+      this.identifierTag = identifierTag;
     }
 
     public String tagValue() {
@@ -51,8 +67,30 @@ public final class AwsRdsEndpoint {
     }
   }
 
-  // Applications talk to a handful of databases; the cache only needs to absorb the per-span
-  // parse of the same few hostnames.
+  // AWS partition DNS suffixes that carry RDS endpoints, from the AWS SDK endpoint partition data.
+  private static final String[] DNS_SUFFIXES = {
+    ".amazonaws.com",
+    ".amazonaws.com.cn",
+    ".c2s.ic.gov",
+    ".sc2s.sgov.gov",
+    ".cloud.adc-e.uk",
+    ".csp.hci.ic.gov",
+    ".amazonaws.eu"
+  };
+
+  // Cheap length floor checked before any other work.
+  private static final int MIN_DNS_SUFFIX_LENGTH;
+
+  static {
+    int minimum = Integer.MAX_VALUE;
+    for (String suffix : DNS_SUFFIXES) {
+      minimum = Math.min(minimum, suffix.length());
+    }
+    MIN_DNS_SUFFIX_LENGTH = minimum;
+  }
+
+  // Applications talk to a handful of databases; the cache only needs to absorb repeated parses of
+  // the same few hostnames. Non-RDS results are cached too, as null values.
   private static final DDCache<String, AwsRdsEndpoint> CACHE = DDCaches.newFixedSizeCache(16);
 
   private final String identifier;
@@ -85,54 +123,48 @@ public final class AwsRdsEndpoint {
     return CACHE.computeIfAbsent(hostnameString, AwsRdsEndpoint::doParse);
   }
 
-  // AWS partition DNS suffixes that carry RDS endpoints, from the AWS SDK endpoint partition data.
-  private static final String[] DNS_SUFFIXES = {
-    ".amazonaws.com",
-    ".amazonaws.com.cn",
-    ".c2s.ic.gov",
-    ".sc2s.sgov.gov",
-    ".cloud.adc-e.uk",
-    ".csp.hci.ic.gov",
-    ".amazonaws.eu"
-  };
-
-  // Cheap length floor checked before any other work.
-  private static final int MIN_DNS_SUFFIX_LENGTH;
-
-  static {
-    int minimum = Integer.MAX_VALUE;
-    for (String suffix : DNS_SUFFIXES) {
-      minimum = Math.min(minimum, suffix.length());
-    }
-    MIN_DNS_SUFFIX_LENGTH = minimum;
+  /**
+   * Tags the span with the endpoint type, the Region and the identifier. The identifier goes under
+   * {@code dbinstanceidentifier} for instance endpoints, {@code dbclusteridentifier} for cluster
+   * and cluster reader endpoints, and {@code aws.rds.identifier} otherwise.
+   */
+  @Override
+  public void addTo(final AgentSpan span) {
+    span.setTag(type.identifierTag, identifier);
+    span.setTag(AWS_RDS_ENDPOINT_TYPE, type.tagValue);
+    span.setTag(AWS_REGION, region);
   }
 
   /**
-   * O(1) check that the hostname ends with one of the known AWS partition DNS suffixes, ignoring
-   * case and tolerating a trailing {@code .} and a well-formed {@code :port} (at most five ASCII
-   * digits). Anchoring on the suffix (rather than scanning for a substring) also rejects hostnames
-   * that merely contain such a suffix followed by other labels.
-   *
-   * <p>This is a conservative pre-filter, not an exact mirror of {@link #doParse}. A hostname with
-   * a malformed or oversized port (for example {@code ...amazonaws.com:54x2} or {@code :543210}) is
-   * rejected here even though {@code doParse} would truncate at the first {@code :} and could
-   * otherwise accept the labels before it. Real RDS endpoints never carry such a suffix, so
-   * rejecting them early is safe: the gate never rejects a valid RDS endpoint.
+   * The DB instance identifier, cluster identifier, custom endpoint name, proxy name, proxy
+   * endpoint name or shard group name.
+   */
+  public String identifier() {
+    return identifier;
+  }
+
+  public Type type() {
+    return type;
+  }
+
+  /** The AWS Region the endpoint lives in, for example {@code us-east-1}. */
+  public String region() {
+    return region;
+  }
+
+  /**
+   * Checks that the hostname ends with one of the known AWS partition DNS suffixes, ignoring case
+   * and tolerating a trailing {@code .} and a well-formed {@code :port} (one to five ASCII digits).
+   * Anchoring on the suffix also rejects hostnames that only contain such a suffix followed by
+   * other labels. {@link #doParse} uses the same host boundary and suffix match.
    */
   static boolean isPlausibleRdsHostname(final String hostname) {
-    int end = hostEnd(hostname);
-    for (String suffix : DNS_SUFFIXES) {
-      if (endsWithIgnoreCase(hostname, end, suffix)) {
-        return true;
-      }
-    }
-    return false;
+    return suffixStart(hostname, hostEnd(hostname)) >= 0;
   }
 
   /**
    * Returns the end index of the host part, dropping a trailing {@code :port} and a trailing {@code
-   * .} on either side of it ({@code host.}, {@code host:5432}, {@code host.:5432} and {@code
-   * host:5432.} all end at {@code host}).
+   * .} from a fully qualified name. The dot is tolerated on either side of the port.
    */
   private static int hostEnd(final String hostname) {
     int end = stripTrailingDot(hostname, hostname.length());
@@ -155,65 +187,66 @@ public final class AwsRdsEndpoint {
     return digits > 0 && i > 0 && hostname.charAt(i - 1) == ':' ? i - 1 : end;
   }
 
+  /**
+   * Returns where the partition DNS suffix starts in {@code hostname[0, end)}, ignoring case, or
+   * {@code -1} when it ends in none of them.
+   */
+  private static int suffixStart(final String hostname, final int end) {
+    // Every suffix ends in one of com, cn, gov, uk or eu. Checking that last letter first rejects
+    // most other hostnames (.local, .internal, .corp, IP addresses) without trying each suffix.
+    if (end == 0) {
+      return -1;
+    }
+    switch (hostname.charAt(end - 1)) {
+      case 'm':
+      case 'M':
+      case 'n':
+      case 'N':
+      case 'v':
+      case 'V':
+      case 'k':
+      case 'K':
+      case 'u':
+      case 'U':
+        break;
+      default:
+        return -1;
+    }
+    for (String suffix : DNS_SUFFIXES) {
+      int start = end - suffix.length();
+      if (start >= 0 && hostname.regionMatches(true, start, suffix, 0, suffix.length())) {
+        return start;
+      }
+    }
+    return -1;
+  }
+
   private static boolean isAsciiDigit(final char c) {
     return c >= '0' && c <= '9';
   }
 
-  private static boolean endsWithIgnoreCase(
-      final String hostname, final int end, final String suffix) {
-    final int length = suffix.length();
-    return end >= length && hostname.regionMatches(true, end - length, suffix, 0, length);
-  }
-
-  /**
-   * The DB instance identifier, cluster identifier, custom endpoint name, proxy name or shard group
-   * name.
-   */
-  public String identifier() {
-    return identifier;
-  }
-
-  public Type type() {
-    return type;
-  }
-
-  /** The AWS Region the endpoint lives in, for example {@code us-east-1}. */
-  public String region() {
-    return region;
-  }
-
   private static AwsRdsEndpoint doParse(final String rawHostname) {
     String hostname = rawHostname.toLowerCase(Locale.ROOT);
-    // Same host boundary as the gate: drop a :port and a trailing dot from a fully qualified name.
-    int end = hostEnd(hostname);
-
-    // Strip the partition DNS suffix so the remaining labels are the same shape in every
-    // partition.
-    String prefix = null;
-    for (String suffix : DNS_SUFFIXES) {
-      if (end >= suffix.length()
-          && hostname.regionMatches(end - suffix.length(), suffix, 0, suffix.length())) {
-        prefix = hostname.substring(0, end - suffix.length());
-        break;
-      }
-    }
-    if (prefix == null) {
+    int start = suffixStart(hostname, hostEnd(hostname));
+    if (start < 0) {
       return null;
     }
+    // Without the partition DNS suffix the remaining labels have the same shape in every partition.
+    String prefix = hostname.substring(0, start);
 
     String[] labels = new String[5];
     int labelsCount = 0;
     {
-      int start = 0;
+      int labelStart = 0;
       int dot;
-      while ((dot = prefix.indexOf(".", start)) >= 0) {
+      while ((dot = prefix.indexOf('.', labelStart)) >= 0) {
         if (labelsCount == labels.length - 1) {
           return null;
         }
-        labels[labelsCount++] = prefix.substring(start, dot);
-        start = dot + 1;
+        labels[labelsCount++] = prefix.substring(labelStart, dot);
+        labelStart = dot + 1;
       }
-      labels[labelsCount++] = prefix.substring(start);
+      labels[labelsCount++] = prefix.substring(labelStart);
     }
 
     // Custom proxy endpoints have an extra label before the proxy hash.
@@ -281,7 +314,7 @@ public final class AwsRdsEndpoint {
     }
     for (int i = 0; i < value.length(); i++) {
       char c = value.charAt(i);
-      if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))) {
+      if (!((c >= 'a' && c <= 'z') || isAsciiDigit(c))) {
         return false;
       }
     }
@@ -299,11 +332,11 @@ public final class AwsRdsEndpoint {
       char c = value.charAt(i);
       if (c == '-') {
         dashes++;
-      } else if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))) {
+      } else if (!((c >= 'a' && c <= 'z') || isAsciiDigit(c))) {
         return false;
       }
     }
     // Every Region ends in a digit and has at least two dashes (e.g. us-east-1).
-    return dashes >= 2 && value.charAt(0) != '-' && Character.isDigit(value.charAt(length - 1));
+    return dashes >= 2 && value.charAt(0) != '-' && isAsciiDigit(value.charAt(length - 1));
   }
 }

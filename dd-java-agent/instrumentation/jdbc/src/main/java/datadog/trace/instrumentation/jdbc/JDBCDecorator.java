@@ -26,7 +26,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.dbm.SQLCommenter;
-import datadog.trace.bootstrap.instrumentation.decorator.AwsRdsEndpoint;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
@@ -172,11 +171,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return info.getHost();
   }
 
-  @Override
-  protected AwsRdsEndpoint rdsEndpoint(final DBInfo info, final CharSequence hostname) {
-    return info.getRdsEndpoint();
-  }
-
   private void setTagIfPresent(final AgentSpan span, final long tagId, final String value) {
     if (value != null && !value.isEmpty()) {
       span.setTag(tagId, value);
@@ -191,6 +185,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       setTagIfPresent(span, DB_WAREHOUSE, dbInfo.getWarehouse());
       setTagIfPresent(span, DB_SCHEMA, dbInfo.getSchema());
       setTagIfPresent(span, DB_POOL_NAME, connectionContext.getPoolName());
+      span.setTagsFrom(dbInfo.getRdsEndpoint());
     }
     super.onConnection(span, dbInfo);
   }

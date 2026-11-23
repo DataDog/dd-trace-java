@@ -7,7 +7,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.bootstrap.instrumentation.decorator.AwsRdsEndpoint;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
 import io.r2dbc.spi.ConnectionFactoryOptions;
 import io.r2dbc.spi.Option;
@@ -83,12 +82,6 @@ public class R2dbcDecorator extends DatabaseClientDecorator<ConnectionFactoryOpt
   @Override
   protected CharSequence dbHostname(ConnectionFactoryOptions options) {
     return stringOption(options, ConnectionFactoryOptions.HOST);
-  }
-
-  @Override
-  protected AwsRdsEndpoint rdsEndpoint(
-      final ConnectionFactoryOptions options, final CharSequence hostname) {
-    return AwsRdsEndpoint.parse(hostname);
   }
 
   // Driver names that wrap another driver rather than being a database (e.g.

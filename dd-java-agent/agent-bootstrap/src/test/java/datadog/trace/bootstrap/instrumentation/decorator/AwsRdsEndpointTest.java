@@ -6,6 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -96,6 +99,37 @@ class AwsRdsEndpointTest {
       })
   void rejectsNonRdsHostname(String hostname) {
     assertNull(AwsRdsEndpoint.parse(hostname));
+  }
+
+  @TableTest({
+    "scenario       | hostname                                                        | identifierTag        | identifier | endpointType  ",
+    "instance       | orders.c9akciq32bzq.us-east-1.rds.amazonaws.com                 | dbinstanceidentifier | orders     | instance      ",
+    "cluster        | orders.cluster-c9akciq32bzq.us-east-1.rds.amazonaws.com         | dbclusteridentifier  | orders     | cluster       ",
+    "cluster reader | orders.cluster-ro-c9akciq32bzq.us-east-1.rds.amazonaws.com      | dbclusteridentifier  | orders     | cluster-ro    ",
+    "custom cluster | reports.cluster-custom-c9akciq32bzq.us-east-1.rds.amazonaws.com | aws.rds.identifier   | reports    | cluster-custom",
+    "proxy          | orders.proxy-c9akciq32bzq.us-east-1.rds.amazonaws.com           | aws.rds.identifier   | orders     | proxy         ",
+    "shard group    | orders.shardgrp-c9akciq32bzq.us-east-1.rds.amazonaws.com        | aws.rds.identifier   | orders     | shardgrp      ",
+    "limitless      | orders.limitless-c9akciq32bzq.us-east-1.rds.amazonaws.com       | aws.rds.identifier   | orders     | shardgrp      "
+  })
+  void addsIdentityTagsToSpan(
+      String hostname, String identifierTag, String identifier, String endpointType) {
+    NameKeyedAgentSpan span = mock(NameKeyedAgentSpan.class);
+
+    span.setTagsFrom(AwsRdsEndpoint.parse(hostname));
+
+    verify(span).setTag(identifierTag, identifier);
+    verify(span).setTag("aws.rds.endpoint_type", endpointType);
+    verify(span).setTag("aws.region", "us-east-1");
+    verifyNoMoreInteractions(span);
+  }
+
+  @Test
+  void addsNothingForNonRdsHostnames() {
+    NameKeyedAgentSpan span = mock(NameKeyedAgentSpan.class);
+
+    span.setTagsFrom(AwsRdsEndpoint.parse("db.internal.example.com"));
+
+    verifyNoMoreInteractions(span);
   }
 
   @Test
