@@ -1,0 +1,62 @@
+package datadog.trace.util;
+
+import java.util.concurrent.TimeUnit;
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Level;
+import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Mode;
+import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Warmup;
+
+/**
+ * The cost of building a {@link Hashtable.D1} from scratch: create a table bounded to {@code bound}
+ * entries, then insert {@code fill} of them. Each op builds a fresh table, so the bucket array's
+ * allocation, and any growth, is part of what's measured. {@link HashtableD1Benchmark} instead
+ * clears and refills one table, which keeps the array it grew.
+ *
+ * <p>Uses only {@link Hashtable.D1#createBounded}, so it runs unchanged against a fixed table
+ * (which allocates {@code capacityFor(bound)} buckets up front) and a growing one (which starts at
+ * 16 buckets and doubles). Run with {@code -prof gc}: B/op is the bucket arrays allocated per
+ * table, since the entries are made once in setup and reused.
+ */
+@State(Scope.Thread)
+@BenchmarkMode(Mode.AverageTime)
+@OutputTimeUnit(TimeUnit.NANOSECONDS)
+@Fork(3)
+@Warmup(iterations = 3, time = 2)
+@Measurement(iterations = 5, time = 2)
+public class HashtableGrowthBenchmark {
+  @Param({"1024", "65536"})
+  int bound;
+
+  @Param({"8", "256", "full"})
+  String fill;
+
+  private HashtableD1Benchmark.D1Counter[] entries;
+
+  @Setup(Level.Trial)
+  public void setUp() {
+    final int count = "full".equals(fill) ? bound : Math.min(bound, Integer.parseInt(fill));
+    entries = new HashtableD1Benchmark.D1Counter[count];
+    for (int i = 0; i < count; i++) {
+      entries[i] = new HashtableD1Benchmark.D1Counter("key-" + i);
+    }
+  }
+
+  @Benchmark
+  public Hashtable.D1<String, HashtableD1Benchmark.D1Counter> buildTable() {
+    final Hashtable.D1<String, HashtableD1Benchmark.D1Counter> table =
+        Hashtable.D1.createBounded(HashtableD1Benchmark.D1Counter.class, bound);
+    // The entries are relinked into each new table; the previous table is garbage by then.
+    for (final HashtableD1Benchmark.D1Counter entry : entries) {
+      table.insert(entry);
+    }
+    return table;
+  }
+}
