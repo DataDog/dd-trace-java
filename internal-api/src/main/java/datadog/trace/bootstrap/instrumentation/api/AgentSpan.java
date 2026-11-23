@@ -145,6 +145,19 @@ public interface AgentSpan
     return setTag(KnownTagCodec.nameOf(tagId), value);
   }
 
+  /*
+   * Prototype: setters a build-time rewrite would target for a constant id that the tag registry
+   * classifies as never intercepted. Behaviorally identical to setTag; the core span overrides them
+   * with a smaller compiled shape.
+   */
+  default AgentSpan setTagNoIntercept(long tagId, String value) {
+    return setTag(tagId, value);
+  }
+
+  default AgentSpan setTagNoIntercept(long tagId, CharSequence value) {
+    return setTag(tagId, value);
+  }
+
   /** entry may be null - in which case the tags remained unchanged */
   AgentSpan setTag(TagMap.EntryReader entry);
 

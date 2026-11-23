@@ -548,6 +548,28 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
     return this;
   }
 
+  /** Prototype: {@link #setTag(long, String)} for an id classified as never intercepted. */
+  @Override
+  public DDSpan setTagNoIntercept(final long tagId, final String value) {
+    if (value == null || value.isEmpty()) {
+      context.removeTag(tagId);
+    } else {
+      context.setTagNoIntercept(tagId, value);
+    }
+    return this;
+  }
+
+  /** Prototype: {@link #setTag(long, CharSequence)} for an id classified as never intercepted. */
+  @Override
+  public DDSpan setTagNoIntercept(final long tagId, final CharSequence value) {
+    if (value == null || value.length() == 0) {
+      context.setTag(tagId, (Object) null);
+    } else {
+      context.setTagNoIntercept(tagId, value);
+    }
+    return this;
+  }
+
   @Override
   public DDSpan setTag(final long tagId, final boolean value) {
     context.setTag(tagId, value);
