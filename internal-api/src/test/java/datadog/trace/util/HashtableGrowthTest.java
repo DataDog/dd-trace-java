@@ -27,7 +27,9 @@ import org.junit.jupiter.params.provider.ValueSource;
  */
 class HashtableGrowthTest {
 
-  /** capacityFor(100) is 256 buckets; the table starts at 16 and doubles at 13, 25, 49 and 97. */
+  /**
+   * capacityFor(100) is 256 buckets; the table starts at a quarter (64) and doubles at 49 and 97.
+   */
   private static final int BOUND = 100;
 
   private static Hashtable.D1<String, StringIntEntry> d1(int bound) {
@@ -36,6 +38,11 @@ class HashtableGrowthTest {
 
   private static Hashtable.D2<String, Integer, PairEntry> d2(int bound) {
     return Hashtable.D2.createBounded(PairEntry.class, bound);
+  }
+
+  /** A quarter of the full size, at least 16 buckets, never more than the full size. */
+  private static int quarterStart(int full) {
+    return Math.min(full, Math.max(16, full / 4));
   }
 
   private static String key(int i) {
@@ -47,15 +54,21 @@ class HashtableGrowthTest {
 
     @ParameterizedTest
     @ValueSource(ints = {0, 1, 2, 3, 5, 12, 13, 24, 25, 48, 49, 100, 1000})
-    void startsSmallAndEndsAtCapacityForWhenFull(int bound) {
+    void startsAtAQuarterAndGrowsAtMostTwiceToCapacityFor(int bound) {
       Hashtable.D1<String, StringIntEntry> table = d1(bound);
       int full = Hashtable.capacityFor(bound);
-      assertEquals(Math.min(16, full), table.buckets.length);
+      assertEquals(quarterStart(full), table.buckets.length);
 
+      int growths = 0;
       for (int i = 0; i < bound; i++) {
+        int before = table.buckets.length;
         assertTrue(table.insert(new StringIntEntry(key(i), i)));
         assertTrue(table.buckets.length <= full, "grew past capacityFor(bound)");
+        if (table.buckets.length != before) {
+          growths++;
+        }
       }
+      assertTrue(growths <= Hashtable.MAX_GROWTHS, "grew " + growths + " times");
       assertEquals(full, table.buckets.length);
       assertTrue(table.isFull());
 
@@ -80,7 +93,7 @@ class HashtableGrowthTest {
         }
       }
       // length, size-at-growth, new length, ...
-      assertEquals(asList(16, 13, 32, 25, 64, 49, 128, 97, 256), lengths, "growth points");
+      assertEquals(asList(64, 49, 128, 97, 256), lengths, "growth points");
     }
 
     @Test
@@ -103,9 +116,9 @@ class HashtableGrowthTest {
           Hashtable.D1.createBounded(CollidingKeyEntry.class, BOUND);
       List<CollidingKey> keys = new ArrayList<>();
       for (int i = 0; i < 60; i++) {
-        // Multiples of 16 share bucket 0 at the starting length and split as the array doubles;
+        // Multiples of 64 share bucket 0 at the starting length and split as the array doubles;
         // pairs with the same hash stay chained together at every length.
-        keys.add(new CollidingKey("a" + i, (i / 2) * 16));
+        keys.add(new CollidingKey("a" + i, (i / 2) * 64));
       }
       for (int i = 0; i < keys.size(); i++) {
         assertTrue(table.insert(new CollidingKeyEntry(keys.get(i), i)));
@@ -138,13 +151,13 @@ class HashtableGrowthTest {
 
       for (int p = 0; p < paths.size(); p++) {
         Hashtable.D1<String, StringIntEntry> table = d1(BOUND);
-        for (int i = 0; i < 12; i++) {
+        for (int i = 0; i < 48; i++) {
           paths.get(p).accept(table, i);
         }
-        assertEquals(16, table.buckets.length, "path " + p + " grew early");
-        paths.get(p).accept(table, 12);
-        assertEquals(32, table.buckets.length, "path " + p + " did not grow");
-        for (int i = 13; i < BOUND; i++) {
+        assertEquals(64, table.buckets.length, "path " + p + " grew early");
+        paths.get(p).accept(table, 48);
+        assertEquals(128, table.buckets.length, "path " + p + " did not grow");
+        for (int i = 49; i < BOUND; i++) {
           paths.get(p).accept(table, i);
         }
         assertEquals(256, table.buckets.length, "path " + p);
@@ -158,14 +171,14 @@ class HashtableGrowthTest {
     @Test
     void replacementDoesNotGrow() {
       Hashtable.D1<String, StringIntEntry> table = d1(BOUND);
-      for (int i = 0; i < 12; i++) {
+      for (int i = 0; i < 48; i++) {
         table.insert(new StringIntEntry(key(i), i));
       }
-      for (int i = 0; i < 12; i++) {
+      for (int i = 0; i < 48; i++) {
         assertTrue(table.tryInsertOrReplace(new StringIntEntry(key(i), i + 100)));
       }
-      assertEquals(16, table.buckets.length);
-      assertEquals(12, table.size());
+      assertEquals(64, table.buckets.length);
+      assertEquals(48, table.size());
       assertEquals(105, table.get(key(5)).value);
     }
 
@@ -267,14 +280,20 @@ class HashtableGrowthTest {
 
     @ParameterizedTest
     @ValueSource(ints = {0, 1, 7, 12, 13, 100, 1000})
-    void startsSmallAndEndsAtCapacityForWhenFull(int bound) {
+    void startsAtAQuarterAndGrowsAtMostTwiceToCapacityFor(int bound) {
       Hashtable.D2<String, Integer, PairEntry> table = d2(bound);
       int full = Hashtable.capacityFor(bound);
-      assertEquals(Math.min(16, full), table.buckets.length);
+      assertEquals(quarterStart(full), table.buckets.length);
+      int growths = 0;
       for (int i = 0; i < bound; i++) {
+        int before = table.buckets.length;
         assertTrue(table.insert(new PairEntry(key(i), i)));
         assertTrue(table.buckets.length <= full);
+        if (table.buckets.length != before) {
+          growths++;
+        }
       }
+      assertTrue(growths <= Hashtable.MAX_GROWTHS, "grew " + growths + " times");
       assertEquals(full, table.buckets.length);
       assertFalse(table.insert(new PairEntry("refused", -1)));
       for (int i = 0; i < bound; i++) {
@@ -296,13 +315,13 @@ class HashtableGrowthTest {
 
       for (int p = 0; p < paths.size(); p++) {
         Hashtable.D2<String, Integer, PairEntry> table = d2(BOUND);
-        for (int i = 0; i < 12; i++) {
+        for (int i = 0; i < 48; i++) {
           paths.get(p).accept(table, i);
         }
-        assertEquals(16, table.buckets.length, "path " + p + " grew early");
-        paths.get(p).accept(table, 12);
-        assertEquals(32, table.buckets.length, "path " + p + " did not grow");
-        for (int i = 13; i < BOUND; i++) {
+        assertEquals(64, table.buckets.length, "path " + p + " grew early");
+        paths.get(p).accept(table, 48);
+        assertEquals(128, table.buckets.length, "path " + p + " did not grow");
+        for (int i = 49; i < BOUND; i++) {
           paths.get(p).accept(table, i);
         }
         assertEquals(256, table.buckets.length, "path " + p);
@@ -351,11 +370,13 @@ class HashtableGrowthTest {
     }
 
     @Test
-    void explicitInitialCapacitySetsStartThenGrowsToTheCap() {
-      Hashtable.Sizing sizing = Hashtable.Sizing.bounded(1000).initialCapacity(100);
+    void explicitInitialCapacityAboveTheFloorSetsStartThenGrowsToTheCap() {
+      // capacityFor(1000) is 2048 buckets, so the floor is 512; 700 entries need 1024.
+      Hashtable.Sizing sizing = Hashtable.Sizing.bounded(1000).initialCapacity(700);
       Hashtable.D1<String, StringIntEntry> table =
           Hashtable.D1.create(StringIntEntry.class, sizing);
-      assertEquals(Hashtable.capacityFor(100), table.buckets.length);
+      assertEquals(1024, Hashtable.capacityFor(700));
+      assertEquals(Hashtable.capacityFor(700), table.buckets.length);
       for (int i = 0; i < 1000; i++) {
         assertTrue(table.insert(new StringIntEntry(key(i), i)));
       }
@@ -363,7 +384,7 @@ class HashtableGrowthTest {
 
       Hashtable.D2<String, Integer, PairEntry> table2 =
           Hashtable.D2.create(PairEntry.class, sizing);
-      assertEquals(Hashtable.capacityFor(100), table2.buckets.length);
+      assertEquals(Hashtable.capacityFor(700), table2.buckets.length);
       for (int i = 0; i < 1000; i++) {
         assertTrue(table2.insert(new PairEntry(key(i), i)));
       }
@@ -371,11 +392,27 @@ class HashtableGrowthTest {
     }
 
     @Test
-    void zeroInitialCapacityStartsAtOneBucket() {
+    void initialCapacityBelowTheFloorStartsAtAQuarter() {
+      assertEquals(
+          512,
+          Hashtable.D1.create(
+                  StringIntEntry.class, Hashtable.Sizing.bounded(1000).initialCapacity(100))
+              .buckets
+              .length);
+      assertEquals(
+          512,
+          Hashtable.D2.create(PairEntry.class, Hashtable.Sizing.bounded(1000).initialCapacity(1))
+              .buckets
+              .length);
+    }
+
+    @Test
+    void zeroInitialCapacityStartsAtTheFloor() {
+      // capacityFor(50) is 128 buckets, so the floor is 32.
       Hashtable.D1<String, StringIntEntry> table =
           Hashtable.D1.create(
               StringIntEntry.class, Hashtable.Sizing.bounded(50).initialCapacity(0));
-      assertEquals(1, table.buckets.length);
+      assertEquals(32, table.buckets.length);
       for (int i = 0; i < 50; i++) {
         assertTrue(table.insert(new StringIntEntry(key(i), i)));
       }

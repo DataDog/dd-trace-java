@@ -23,15 +23,29 @@ class HashtableSizingTest {
   }
 
   @Test
-  void defaultInitialCapacityIsClampedToTheBound() {
+  void defaultStartsAtAQuarterOfTheFullSize() {
     Hashtable.Sizing large = Hashtable.Sizing.bounded(1000);
     assertFalse(large.hasExplicitInitialCapacity());
     assertEquals(1000, large.maxCapacity());
-    assertEquals(Hashtable.Sizing.DEFAULT_INITIAL_CAPACITY, large.initialCapacity());
-    assertEquals(16, Hashtable.capacityFor(large.initialCapacity()));
+    assertEquals(0, large.initialCapacity());
+    assertEquals(2048, Hashtable.capacityFor(1000));
+    assertEquals(512, Hashtable.initialBucketsFor(large));
 
-    assertEquals(5, Hashtable.Sizing.bounded(5).initialCapacity());
-    assertEquals(0, Hashtable.Sizing.bounded(0).initialCapacity());
+    // At least 16 buckets, and never more than the full size.
+    assertEquals(16, Hashtable.initialBucketsFor(Hashtable.Sizing.bounded(30)));
+    assertEquals(
+        Hashtable.capacityFor(5), Hashtable.initialBucketsFor(Hashtable.Sizing.bounded(5)));
+    assertEquals(1, Hashtable.initialBucketsFor(Hashtable.Sizing.bounded(0)));
+  }
+
+  @Test
+  void explicitInitialCapacityRaisesButNeverLowersTheStart() {
+    assertEquals(
+        512, Hashtable.initialBucketsFor(Hashtable.Sizing.bounded(1000).initialCapacity(1)));
+    assertEquals(
+        1024, Hashtable.initialBucketsFor(Hashtable.Sizing.bounded(1000).initialCapacity(700)));
+    assertEquals(
+        2048, Hashtable.initialBucketsFor(Hashtable.Sizing.bounded(1000).initialCapacity(5000)));
   }
 
   @Test
@@ -49,7 +63,7 @@ class HashtableSizingTest {
     Hashtable.Sizing withInitial = base.initialCapacity(40);
     assertNotSame(base, withInitial);
     assertFalse(base.hasExplicitInitialCapacity());
-    assertEquals(Hashtable.Sizing.DEFAULT_INITIAL_CAPACITY, base.initialCapacity());
+    assertEquals(0, base.initialCapacity());
     assertEquals(40, withInitial.initialCapacity());
     assertEquals(100, withInitial.maxCapacity());
   }
