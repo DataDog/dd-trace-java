@@ -32,11 +32,12 @@ import javax.annotation.Nullable;
  * <p>Use {@code ConcurrentHashtable} for concurrent access. Otherwise use this class when entries
  * are removed independently, and {@code FlatHashtable} when the table is cleared as a unit.
  *
- * <p>{@link D1} and {@link D2} grow their bucket array as they fill: it starts at a quarter of the
- * size a fixed table for the same bound would allocate ({@link #capacityFor(int)}), doubles once an
- * insert takes the table past 3/4 full, and stops at that full size, so it grows at most twice. An
- * almost-empty table pays for a quarter of its bound up front, and a full one ends exactly where it
- * used to. A caller-owned array driven by the static building blocks stays fixed unless the caller
+ * <p>{@link D1} and {@link D2} allocate their bucket array once, at {@link #capacityFor(int)} of
+ * the bound, unless the {@link Sizing} they're created with sets an initial capacity. Then the
+ * array starts smaller and doubles once an insert takes the table past 3/4 full, at most twice,
+ * ending at that same full size. Growth suits a long-lived table with a generous bound that may
+ * stay sparse; every doubling relinks every entry, so a table that is filled right away is cheaper
+ * fixed. A caller-owned array driven by the static building blocks stays fixed unless the caller
  * calls {@link #resize(Hashtable.Entry[])}.
  *
  * <p>This outer class is a pure namespace -- it can't be instantiated. The actual table types are
@@ -52,13 +53,13 @@ public final class Hashtable {
    * Describes how a table sizes its bucket array: the strict cap on live entries, and optionally
    * how many entries the array should fit before its first growth.
    *
-   * <p>A table doubles its array at most {@link Hashtable#MAX_GROWTHS} times: it starts at a
-   * quarter of the full-table size ({@link Hashtable#capacityFor(int)} of the max capacity), and at
-   * least {@link Hashtable#MIN_INITIAL_BUCKETS} buckets. Each doubling relinks every entry, so a
-   * table that grows from a handful of buckets to its bound costs several times the inserts;
-   * capping the doublings keeps a full table within about 1.75 extra relinks per entry, while a
-   * table that stays small still holds a quarter of the full array. An explicit initial capacity
-   * can start the array larger, up to the full size, but not smaller.
+   * <p>{@link #bounded(int)} alone gives a fixed table: the array is allocated at full size ({@link
+   * Hashtable#capacityFor(int)} of the max capacity) and never grows. Setting {@link
+   * #initialCapacity(int)} opts into growth: the array starts sized for that many entries and
+   * doubles as the table fills, but at most {@link Hashtable#MAX_GROWTHS} times, so it never starts
+   * below a quarter of the full size (or {@link Hashtable#MIN_INITIAL_BUCKETS} buckets). Each
+   * doubling relinks every entry; filling a growable table to its bound costs about twice the time
+   * of filling a fixed one, so opt in only where a table is long-lived and may stay sparse.
    *
    * <p>Immutable: {@link #initialCapacity(int)} returns a new instance, so a spec can be a {@code
    * static final} constant shared by many tables.
@@ -82,8 +83,8 @@ public final class Hashtable {
     }
 
     /**
-     * A spec capped at {@code maxCapacity} live entries, starting at a quarter of the full-table
-     * size.
+     * A fixed spec: capped at {@code maxCapacity} live entries, with the bucket array allocated at
+     * full size up front.
      *
      * @throws IllegalArgumentException if {@code maxCapacity} is negative
      */
@@ -96,10 +97,10 @@ public final class Hashtable {
     }
 
     /**
-     * A copy of this spec whose bucket array starts sized for {@code initialCapacity} live entries,
-     * an entry count rather than a bucket count. Values above the max capacity are clamped to it;
-     * values below the quarter-size floor start at the floor, so a table never doubles more than
-     * {@link Hashtable#MAX_GROWTHS} times.
+     * A growable copy of this spec whose bucket array starts sized for {@code initialCapacity} live
+     * entries, an entry count rather than a bucket count. Values above the max capacity are clamped
+     * to it, giving a table that starts full size; values below the quarter-size floor start at the
+     * floor, so a table never doubles more than {@link Hashtable#MAX_GROWTHS} times.
      *
      * @throws IllegalArgumentException if {@code initialCapacity} is negative
      */
@@ -118,8 +119,8 @@ public final class Hashtable {
     }
 
     /**
-     * The explicit initial capacity, clamped to the max capacity, or 0 when none was set; {@link
-     * Hashtable#initialBucketsFor(Sizing)} raises it to the quarter-size floor.
+     * The explicit initial capacity, clamped to the max capacity, or 0 when none was set (a fixed
+     * table); see {@link Hashtable#initialBucketsFor(Sizing)}.
      */
     int initialCapacity() {
       return hasExplicitInitialCapacity() ? this.initialCapacity : 0;
@@ -196,14 +197,15 @@ public final class Hashtable {
    * Long>} and produces effectively zero GC pressure.
    *
    * <p>The table holds at most the {@code maxCapacity} passed to {@link #createBounded} (or the
-   * {@link Sizing} passed to {@link #create}). Its bucket array starts at a quarter of the size
-   * {@link Hashtable#capacityFor(int)} gives for the bound and doubles at most twice as it fills,
-   * so a generous bound costs a quarter of its array until it is used. Inserting while iterating
-   * can now move entries to a new array, invalidating a {@link #cursor()} or {@link #forEach} in
-   * progress; that was never supported. At the bound, {@link #insert} returns {@code false} and
-   * {@link #tryGetOrCreateOrNull} returns {@code null}; lookup hits are still returned. For an
-   * eviction policy instead of a hard bound, drive the static building blocks with {@link
-   * Hashtable#createBounded(int)}, whose {@link SizeManager} both counts and evicts.
+   * {@link Sizing} passed to {@link #create}). Its bucket array is allocated once at the size
+   * {@link Hashtable#capacityFor(int)} gives for the bound, unless the {@link Sizing} sets an
+   * initial capacity; then it starts smaller and doubles at most twice as it fills. Inserting into
+   * a growable table while iterating can move entries to a new array, invalidating a {@link
+   * #cursor()} or {@link #forEach} in progress; that was never supported. At the bound, {@link
+   * #insert} returns {@code false} and {@link #tryGetOrCreateOrNull} returns {@code null}; lookup
+   * hits are still returned. For an eviction policy instead of a hard bound, drive the static
+   * building blocks with {@link Hashtable#createBounded(int)}, whose {@link SizeManager} both
+   * counts and evicts.
    *
    * <p>Null keys are permitted; they collapse to a single bucket via the sentinel hash {@link
    * Long#MIN_VALUE} defined in {@link D1.Entry#hash}.
@@ -275,10 +277,10 @@ public final class Hashtable {
      * returns {@code false} and {@link #tryGetOrCreateOrNull} returns {@code null} for an absent
      * key; lookup hits and replacements still succeed.
      *
-     * <p>The bucket array starts as {@link Sizing} describes and doubles as the table fills, at
-     * most twice, ending at {@link Hashtable#capacityFor(int)} of the max capacity. Callers that
-     * need an eviction policy can use {@link Hashtable#createBounded(int)} with its state-aware
-     * reservation and eviction helpers.
+     * <p>The bucket array is sized as {@link Sizing} describes: fixed at {@link
+     * Hashtable#capacityFor(int)} of the max capacity, or growable from an initial capacity, at
+     * most twice, to that size. Callers that need an eviction policy can use {@link
+     * Hashtable#createBounded(int)} with its state-aware reservation and eviction helpers.
      *
      * <p>{@code entryClass} is used only to infer {@code K} and {@code TEntry}; the backing array
      * remains a {@code Hashtable.Entry[]}.
@@ -296,9 +298,9 @@ public final class Hashtable {
     }
 
     /**
-     * Shorthand for {@link #create} with {@link Sizing#bounded(int) Sizing.bounded(maxCapacity)}:
-     * the bucket array starts at a quarter of {@link Hashtable#capacityFor(int)} of {@code
-     * maxCapacity} (at least 16 buckets) and grows to the full size.
+     * Shorthand for {@link #create} with {@link Sizing#bounded(int) Sizing.bounded(maxCapacity)}: a
+     * fixed table whose bucket array is allocated at {@link Hashtable#capacityFor(int)} of {@code
+     * maxCapacity} and never grows.
      *
      * @param <K> key type
      * @param <TEntry> entry type
@@ -565,9 +567,9 @@ public final class Hashtable {
    * {@code D2} substantially less GC-intensive than the equivalent {@code HashMap<Pair, Long>} for
    * counter-style workloads.
    *
-   * <p>Same growth and strict-cap semantics as {@link D1}: the bucket array starts at a quarter
-   * size and doubles at most twice as the table fills, up to {@link Hashtable#capacityFor(int)} of
-   * the bound, and inserting while iterating is unsupported.
+   * <p>Same sizing and strict-cap semantics as {@link D1}: the bucket array is fixed at {@link
+   * Hashtable#capacityFor(int)} of the bound unless the {@link Sizing} sets an initial capacity,
+   * and inserting while iterating is unsupported.
    *
    * <p>Key parts are combined into a 64-bit hash via {@link LongHashingUtils}; see {@link
    * D2.Entry#hash(Object, Object)}.
@@ -1026,11 +1028,15 @@ public final class Hashtable {
 
   /**
    * Bucket count a {@link D1} or {@link D2} built from {@code sizing} starts with: the full size
-   * shifted down by {@link #MAX_GROWTHS}, at least {@link #MIN_INITIAL_BUCKETS}, raised to fit an
-   * explicit initial capacity, and never more than the full size.
+   * for a fixed spec. For a growable one (an explicit initial capacity), the full size shifted down
+   * by {@link #MAX_GROWTHS}, at least {@link #MIN_INITIAL_BUCKETS}, raised to fit the initial
+   * capacity, and never more than the full size.
    */
   static int initialBucketsFor(@Nonnull Sizing sizing) {
     int fullBuckets = capacityFor(sizing.maxCapacity());
+    if (!sizing.hasExplicitInitialCapacity()) {
+      return fullBuckets;
+    }
     int floor = Math.max(MIN_INITIAL_BUCKETS, fullBuckets >>> MAX_GROWTHS);
     return Math.min(fullBuckets, Math.max(floor, capacityFor(sizing.initialCapacity())));
   }

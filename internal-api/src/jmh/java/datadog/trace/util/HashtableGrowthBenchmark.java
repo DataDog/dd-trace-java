@@ -20,10 +20,10 @@ import org.openjdk.jmh.annotations.Warmup;
  * allocation, and any growth, is part of what's measured. {@link HashtableD1Benchmark} instead
  * clears and refills one table, which keeps the array it grew.
  *
- * <p>Uses only {@link Hashtable.D1#createBounded}, so it runs unchanged against a fixed table
- * (which allocates {@code capacityFor(bound)} buckets up front) and a growing one (which starts at
- * 16 buckets and doubles). Run with {@code -prof gc}: B/op is the bucket arrays allocated per
- * table, since the entries are made once in setup and reused.
+ * <p>{@link #buildFixed} uses the default sizing, which allocates {@code capacityFor(bound)}
+ * buckets up front; {@link #buildGrowable} opts into growth with an initial capacity of 0, so it
+ * starts at a quarter of that and doubles at most twice. Run with {@code -prof gc}: B/op is the
+ * bucket arrays allocated per table, since the entries are made once in setup and reused.
  */
 @State(Scope.Thread)
 @BenchmarkMode(Mode.AverageTime)
@@ -49,10 +49,25 @@ public class HashtableGrowthBenchmark {
     }
   }
 
+  private Hashtable.Sizing growable;
+
+  @Setup(Level.Trial)
+  public void setUpSizing() {
+    growable = Hashtable.Sizing.bounded(bound).initialCapacity(0);
+  }
+
   @Benchmark
-  public Hashtable.D1<String, HashtableD1Benchmark.D1Counter> buildTable() {
-    final Hashtable.D1<String, HashtableD1Benchmark.D1Counter> table =
-        Hashtable.D1.createBounded(HashtableD1Benchmark.D1Counter.class, bound);
+  public Hashtable.D1<String, HashtableD1Benchmark.D1Counter> buildFixed() {
+    return fill(Hashtable.D1.createBounded(HashtableD1Benchmark.D1Counter.class, bound));
+  }
+
+  @Benchmark
+  public Hashtable.D1<String, HashtableD1Benchmark.D1Counter> buildGrowable() {
+    return fill(Hashtable.D1.create(HashtableD1Benchmark.D1Counter.class, growable));
+  }
+
+  private Hashtable.D1<String, HashtableD1Benchmark.D1Counter> fill(
+      final Hashtable.D1<String, HashtableD1Benchmark.D1Counter> table) {
     // The entries are reused across tables: detach each from the previous table's chain, which
     // insert expects, before linking it into this one.
     for (final HashtableD1Benchmark.D1Counter entry : entries) {

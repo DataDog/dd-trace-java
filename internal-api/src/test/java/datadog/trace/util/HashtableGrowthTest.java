@@ -32,12 +32,17 @@ class HashtableGrowthTest {
    */
   private static final int BOUND = 100;
 
+  /** Growth is opt-in: an explicit initial capacity, here 0, starts at the quarter-size floor. */
+  private static Hashtable.Sizing growable(int bound) {
+    return Hashtable.Sizing.bounded(bound).initialCapacity(0);
+  }
+
   private static Hashtable.D1<String, StringIntEntry> d1(int bound) {
-    return Hashtable.D1.createBounded(StringIntEntry.class, bound);
+    return Hashtable.D1.create(StringIntEntry.class, growable(bound));
   }
 
   private static Hashtable.D2<String, Integer, PairEntry> d2(int bound) {
-    return Hashtable.D2.createBounded(PairEntry.class, bound);
+    return Hashtable.D2.create(PairEntry.class, growable(bound));
   }
 
   /** A quarter of the full size, at least 16 buckets, never more than the full size. */
@@ -113,7 +118,7 @@ class HashtableGrowthTest {
     @Test
     void collidingKeysAreFoundAfterGrowth() {
       Hashtable.D1<CollidingKey, CollidingKeyEntry> table =
-          Hashtable.D1.createBounded(CollidingKeyEntry.class, BOUND);
+          Hashtable.D1.create(CollidingKeyEntry.class, growable(BOUND));
       List<CollidingKey> keys = new ArrayList<>();
       for (int i = 0; i < 60; i++) {
         // Multiples of 64 share bucket 0 at the starting length and split as the array doubles;
@@ -360,13 +365,29 @@ class HashtableGrowthTest {
   class ExplicitSizing {
 
     @Test
-    void createBoundedMatchesDefaultSizing() {
+    void defaultSizingIsFixedAndNeverGrows() {
+      int full = Hashtable.capacityFor(BOUND);
       Hashtable.D1<String, StringIntEntry> viaCreate =
           Hashtable.D1.create(StringIntEntry.class, Hashtable.Sizing.bounded(BOUND));
-      assertEquals(d1(BOUND).buckets.length, viaCreate.buckets.length);
+      Hashtable.D1<String, StringIntEntry> viaCreateBounded =
+          Hashtable.D1.createBounded(StringIntEntry.class, BOUND);
       Hashtable.D2<String, Integer, PairEntry> viaCreate2 =
           Hashtable.D2.create(PairEntry.class, Hashtable.Sizing.bounded(BOUND));
-      assertEquals(d2(BOUND).buckets.length, viaCreate2.buckets.length);
+      Hashtable.D2<String, Integer, PairEntry> viaCreateBounded2 =
+          Hashtable.D2.createBounded(PairEntry.class, BOUND);
+      assertEquals(full, viaCreate.buckets.length);
+      assertEquals(full, viaCreateBounded.buckets.length);
+      assertEquals(full, viaCreate2.buckets.length);
+      assertEquals(full, viaCreateBounded2.buckets.length);
+
+      Hashtable.Entry[] initial = viaCreateBounded.buckets;
+      Hashtable.Entry[] initial2 = viaCreateBounded2.buckets;
+      for (int i = 0; i < BOUND; i++) {
+        assertTrue(viaCreateBounded.insert(new StringIntEntry(key(i), i)));
+        assertTrue(viaCreateBounded2.insert(new PairEntry(key(i), i)));
+      }
+      assertSame(initial, viaCreateBounded.buckets);
+      assertSame(initial2, viaCreateBounded2.buckets);
     }
 
     @Test
