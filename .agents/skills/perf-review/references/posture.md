@@ -101,8 +101,9 @@ mechanism is certain or the severity is catastrophic.
   evidence is one finding, not a soft nudge, but scope it to the part that's unsupported
   (e.g. "allocation claim is supported; timing claim isn't") and label it **advisory, not
   merge-blocking**: the fix is to add the matching numbers *or* narrow the claim to what the
-  evidence shows. Don't give it a severity level or code-defect weight. Elsewhere, including
-  those modules' tests, benchmarks and build files, keep the softer posture above.
+  evidence shows. Don't give it a severity level or code-defect weight: in the report's
+  **Severity** field, write *advisory*. Elsewhere, including those modules' tests, benchmarks
+  and build files, keep the softer posture above.
 
 ## Severity
 
