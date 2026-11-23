@@ -349,6 +349,9 @@ The setTag experiments are a testbed for bytecode optimization in general. What 
 3. **Measure compiled size before throughput:** the standalone C2 code size (JFR, `research/settag/inlining-summary.py` on the
    prototype branch) is deterministic and cheap, and predicts whether a rewrite can work before any benchmark hours are spent.
 4. **Find out where the size goes before choosing the rewrite:** we targeted interception (~5%); the store dominated.
+6. **The approach in one line (Doug):** C2 could do much of this itself (inline then fold, coarsen adjacent locks, keep cold paths out),
+   but only when compile order, profiles and the JDK line up. We do the same things at build time so the outcome is **deterministic**:
+   help the JIT, don't replace it.
 5. **Peepholes across statements** (fusing adjacent calls, with knowledge of what commutes) are a different class from call-for-call
    substitution. If fusion pays off, the machinery (detecting runs, delaying stores safely, emitting helpers) is reusable beyond tags.
 
