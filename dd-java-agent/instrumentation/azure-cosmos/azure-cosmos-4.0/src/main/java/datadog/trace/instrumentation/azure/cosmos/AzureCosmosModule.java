@@ -26,7 +26,10 @@ public final class AzureCosmosModule extends InstrumenterModule.Tracing
 
   @Override
   public List<Instrumenter> typeInstrumentations() {
-    return asList(new DocumentClientInstrumentation(), new StoreModelInstrumentation());
+    return asList(
+        new DocumentClientInstrumentation(),
+        new StoreModelInstrumentation(),
+        new GlobalEndpointManagerInstrumentation());
   }
 
   @Override

@@ -308,6 +308,59 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
     assertEquals(cosmosSpanIds, new HashSet<>(httpChildParents), "Cosmos spans with an HTTP child");
   }
 
+  /**
+   * The SDK refreshes the database account on a timer (every 5 minutes by default) for as long as
+   * the client lives. A client built under a span must not keep adding those refreshes to that
+   * span's trace: they start their own trace, as they do for a client built outside any span.
+   */
+  @ParameterizedTest
+  @ValueSource(strings = {"sync", "async"})
+  void backgroundAccountRefreshDoesNotJoinTheCallerTrace(String api) {
+    // refresh every second, without the jitter that recent versions add
+    System.setProperty("COSMOS.UNAVAILABLE_LOCATIONS_EXPIRATION_TIME_IN_SECONDS", "1");
+    System.setProperty("COSMOS.BACKGROUND_REFRESH_LOCATION_JITTER_MAX_IN_SECONDS", "0");
+    TestClient client;
+    AgentSpan parent = startSpan("test", "parent");
+    try (ContextScope ignored = activateSpan(parent)) {
+      // the SDK only arms the refresh timer with endpoint discovery
+      client = client(api, clientBuilder().endpointDiscoveryEnabled(true));
+    } finally {
+      parent.finish();
+    }
+    long parentEnd = parent.getStartTime() + ((DDSpan) parent).getDurationNano();
+    try {
+      // wait for a refresh after the client was built, wherever it is traced
+      blockUntilTracesMatch(traces -> {
+        for (List<DDSpan> trace : traces) {
+          for (DDSpan span : trace) {
+            if (isAccountRead(span) && span.getStartTime() > parentEnd) {
+              return true;
+            }
+          }
+        }
+        return false;
+      });
+    } finally {
+      client.close();
+    }
+
+    List<String> late = new ArrayList<>();
+    for (List<DDSpan> trace : writer) {
+      for (DDSpan span : trace) {
+        if (span.getTraceId().equals(parent.getTraceId()) && span.getStartTime() > parentEnd) {
+          late.add(span.getOperationName() + " " + span.getResourceName());
+        }
+      }
+    }
+    assertTrue(late.isEmpty(), "spans started after the parent finished, in its trace: " + late);
+  }
+
+  /** The HTTP request of a database account read, which targets the account root. */
+  private static boolean isAccountRead(DDSpan span) {
+    return HTTP_CLIENT_OPERATION_NAME.contentEquals(span.getOperationName())
+        && "GET /".contentEquals(span.getResourceName());
+  }
+
   private static void assertCommonTags(DDSpan span, String db) {
     String resource = resource(span);
     // the SDK's own metadata requests addressed by resource id don't carry the database name
@@ -440,9 +493,13 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
   }
 
   private static TestClient client(String api) {
+    return client(api, clientBuilder());
+  }
+
+  private static TestClient client(String api, CosmosClientBuilder builder) {
     return "async".equals(api)
-        ? new AsyncTestClient(clientBuilder().buildAsyncClient())
-        : new SyncTestClient(clientBuilder().buildClient());
+        ? new AsyncTestClient(builder.buildAsyncClient())
+        : new SyncTestClient(builder.buildClient());
   }
 
   /** Relays connections accepted on localhost to the emulator. */
