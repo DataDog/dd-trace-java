@@ -152,7 +152,7 @@ class CompoundExtractionGoldenTest extends DDCoreJavaSpecification {
     return results;
   }
 
-  private static List<Map<String, String>> corpus(boolean full) {
+  static List<Map<String, String>> corpus(boolean full) {
     List<Map<String, String>> corpus = new ArrayList<>();
     String[] priorities = full ? DD_PRIORITY_FULL : DD_PRIORITY;
     String[] tags = full ? DD_TAGS_FULL : DD_TAGS;

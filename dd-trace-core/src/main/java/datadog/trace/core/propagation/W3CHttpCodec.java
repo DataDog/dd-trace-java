@@ -11,6 +11,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.HeaderSchema;
+import datadog.context.propagation.IndexedCarrier;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
@@ -153,6 +154,60 @@ class W3CHttpCodec {
     }
   }
 
+  /**
+   * Checks a traceparent's length, version, and the character after its flags, throwing an {@link
+   * IllegalStateException} if it can't be parsed.
+   */
+  static void validateTraceParent(String tp) {
+    int length = tp == null ? 0 : tp.length();
+    if (length < TRACE_PARENT_LENGTH) {
+      throw new IllegalStateException("The length of traceparent '" + tp + "' is too short");
+    }
+    long version = LongStringUtils.parseUnsignedLongHex(tp, 0, 2, true);
+    if (version == 255) {
+      throw new IllegalStateException("Illegal version number " + tp.substring(0, 2));
+    } else if (version == 0 && length > TRACE_PARENT_LENGTH) {
+      throw new IllegalStateException("The length of traceparent '" + tp + "' is too long");
+    }
+    if (version != 0 && length > TRACE_PARENT_LENGTH && tp.charAt(TRACE_PARENT_LENGTH) != '-') {
+      throw new IllegalStateException("Illegal character after flags in '" + tp + "'");
+    }
+  }
+
+  /** A {@link #validateTraceParent validated} traceparent's trace id; throws if it's all zero. */
+  static DDTraceId traceParentTraceId(String tp) {
+    DDTraceId traceId = DD128bTraceId.fromHex(tp, TRACE_PARENT_TID_START, 32, true);
+    if (traceId.toLong() == 0) {
+      throw new IllegalStateException(
+          "Illegal all zero 64 bit trace id "
+              + tp.substring(TRACE_PARENT_TID_START, TRACE_PARENT_TID_END));
+    }
+    return traceId;
+  }
+
+  /** A {@link #validateTraceParent validated} traceparent's span id; throws if it's all zero. */
+  static long traceParentSpanId(String tp) {
+    long spanId = DDSpanId.fromHex(tp, TRACE_PARENT_SID_START, 16, true);
+    if (spanId == 0) {
+      throw new IllegalStateException(
+          "Illegal all zero span id " + tp.substring(TRACE_PARENT_SID_START, TRACE_PARENT_SID_END));
+    }
+    return spanId;
+  }
+
+  /** The sampling priority a {@link #validateTraceParent validated} traceparent's flags give. */
+  static int traceParentPriority(String tp) {
+    long flags = LongStringUtils.parseUnsignedLongHex(tp, TRACE_PARENT_FLAGS_START, 2, true);
+    return (flags & TRACE_PARENT_FLAGS_SAMPLED) != 0 ? SAMPLER_KEEP : SAMPLER_DROP;
+  }
+
+  /**
+   * {@link TraceContextExtractor#mergeFrom}: the carrier needs the full extraction instead (it has
+   * a trace context header without a header constant, or header names are being logged).
+   */
+  static final TraceContextMerge NEEDS_EXTRACTION =
+      new TraceContextMerge(null, 0, null, PrioritySampling.UNSET);
+
   static final class TraceContextExtractor extends TagContextExtractor {
     private TraceContextExtractor(Supplier<TraceConfig> traceConfigSupplier, Config config) {
       super(traceConfigSupplier, () -> new W3CContextInterpreter(config));
@@ -165,6 +220,68 @@ class W3CHttpCodec {
     <C> TraceContextMerge extractForMerge(
         final C carrier, final AgentPropagation.ContextVisitor<C> getter) {
       return ((W3CContextInterpreter) interpret(carrier, getter)).buildForMerge();
+    }
+
+    /**
+     * {@link #extractForMerge} reading the two trace context headers straight from a carrier that
+     * knows each key's header constant, without running this style's interpreter over every key:
+     * the same result for the same headers. {@link #NEEDS_EXTRACTION} if this carrier can't be read
+     * that way; then use {@link #extractForMerge}, and {@link #extract} rather than {@link
+     * #completeExtraction} for the whole context.
+     */
+    static TraceContextMerge mergeFrom(IndexedCarrier carrier) {
+      if (ContextInterpreter.LOG_EXTRACT_HEADER_NAMES) {
+        return NEEDS_EXTRACTION;
+      }
+      String traceparent = null;
+      String tracestate = null;
+      for (int i = 0, n = carrier.size(); i < n; i++) {
+        HeaderSchema header = carrier.header(i);
+        if (header == HeaderSchema.TRACEPARENT) {
+          String value = carrier.value(i);
+          if (value != null) {
+            if (traceparent != null) {
+              // as with the interpreter, multiple traceparent headers mean no context to merge
+              return null;
+            }
+            traceparent = W3CContextInterpreter.trim(value);
+          }
+        } else if (header == HeaderSchema.TRACESTATE) {
+          String value = carrier.value(i);
+          if (value != null) {
+            String trimmed = W3CContextInterpreter.trim(value);
+            if (!trimmed.isEmpty()) {
+              tracestate = tracestate == null ? trimmed : tracestate + "," + trimmed;
+            }
+          }
+        } else if (header == null) {
+          String key = carrier.key(i);
+          if (TRACE_PARENT_KEY.equalsIgnoreCase(key) || TRACE_STATE_KEY.equalsIgnoreCase(key)) {
+            return NEEDS_EXTRACTION;
+          }
+        }
+      }
+      if (traceparent == null && tracestate == null) {
+        return null;
+      }
+      try {
+        if (traceparent == null) {
+          return null;
+        }
+        validateTraceParent(traceparent);
+        DDTraceId traceId = traceParentTraceId(traceparent);
+        long spanId = traceParentSpanId(traceparent);
+        int samplingPriority = traceParentPriority(traceparent);
+        W3CTracestate parsed = W3CTracestate.parse(tracestate);
+        int overridingPriority =
+            overridesTracestatePriority(samplingPriority, parsed.getSamplingPriority())
+                ? samplingPriority
+                : PrioritySampling.UNSET;
+        return new TraceContextMerge(traceId, spanId, parsed, overridingPriority);
+      } catch (RuntimeException e) {
+        log.debug("Exception when building context", e);
+        return null;
+      }
     }
 
     /** Builds the whole context that {@link #extractForMerge} last returned the merge parts of. */
@@ -372,38 +489,10 @@ class W3CHttpCodec {
     }
 
     void parseTraceParentHeader(String tp) {
-      int length = tp == null ? 0 : tp.length();
-      if (length < TRACE_PARENT_LENGTH) {
-        throw new IllegalStateException("The length of traceparent '" + tp + "' is too short");
-      }
-      long version = LongStringUtils.parseUnsignedLongHex(tp, 0, 2, true);
-      if (version == 255) {
-        throw new IllegalStateException("Illegal version number " + tp.substring(0, 2));
-      } else if (version == 0 && length > TRACE_PARENT_LENGTH) {
-        throw new IllegalStateException("The length of traceparent '" + tp + "' is too long");
-      }
-      DDTraceId traceId = DD128bTraceId.fromHex(tp, TRACE_PARENT_TID_START, 32, true);
-      if (traceId.toLong() == 0) {
-        throw new IllegalStateException(
-            "Illegal all zero 64 bit trace id "
-                + tp.substring(TRACE_PARENT_TID_START, TRACE_PARENT_TID_END));
-      }
-      this.traceId = traceId;
-      this.spanId = DDSpanId.fromHex(tp, TRACE_PARENT_SID_START, 16, true);
-      if (this.spanId == 0) {
-        throw new IllegalStateException(
-            "Illegal all zero span id "
-                + tp.substring(TRACE_PARENT_SID_START, TRACE_PARENT_SID_END));
-      }
-      if (version != 0 && length > TRACE_PARENT_LENGTH && tp.charAt(TRACE_PARENT_LENGTH) != '-') {
-        throw new IllegalStateException("Illegal character after flags in '" + tp + "'");
-      }
-      long flags = LongStringUtils.parseUnsignedLongHex(tp, TRACE_PARENT_FLAGS_START, 2, true);
-      if ((flags & TRACE_PARENT_FLAGS_SAMPLED) != 0) {
-        this.samplingPriority = SAMPLER_KEEP;
-      } else {
-        this.samplingPriority = SAMPLER_DROP;
-      }
+      validateTraceParent(tp);
+      this.traceId = traceParentTraceId(tp);
+      this.spanId = traceParentSpanId(tp);
+      this.samplingPriority = traceParentPriority(tp);
     }
 
     /** Like {@link #build()}, but for {@link TraceContextExtractor#extractForMerge}. */
