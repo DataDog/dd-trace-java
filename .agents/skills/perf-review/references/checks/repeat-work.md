@@ -1,6 +1,6 @@
 # Repeated work on hot paths
 
-Checks #2, J8. Base P3 (J8 up to P1).
+Checks #2, J8. #2 base P3; J8 base P2, P1 on per-request AppSec paths.
 
 Tracing is repetitive. Work repeated per-span or per-trace compounds quickly. The focus is on
 *allocating* repeat work — patterns that produce garbage the GC must collect — not pure CPU-micro

@@ -10,7 +10,7 @@ container kill. Flag aggressively.
 
 - **#3 — Unbounded memory / collection** — *a cache/map/collection with no size+byte bound, or
   keyed by a high-cardinality input (per-request data, raw strings)* — flag-with-confidence
-  (unboundedness is structurally visible) — **P1 (OOM / container-kill — top severity)** — fix:
+  (unboundedness is structurally visible) — **P1 (OOM / container-kill — highest performance severity)** — fix:
   bound by count *and* bytes; or don't cache high-cardinality inputs (opt out).
 - **J5 — Cardinality-sensitive aggregator** *(domain-specialized #3)*. Some structures are
   invisible to the generic "unbounded collection" check because the risk is *cardinality*, not raw
