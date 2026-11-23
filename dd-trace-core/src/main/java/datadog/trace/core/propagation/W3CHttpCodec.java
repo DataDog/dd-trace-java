@@ -272,7 +272,7 @@ class W3CHttpCodec {
         DDTraceId traceId = traceParentTraceId(traceparent);
         long spanId = traceParentSpanId(traceparent);
         int samplingPriority = traceParentPriority(traceparent);
-        W3CTracestate parsed = W3CTracestate.parse(tracestate);
+        W3CTracestate parsed = W3CTracestate.parseForLowerPriorityMerge(tracestate);
         int overridingPriority =
             overridesTracestatePriority(samplingPriority, parsed.getSamplingPriority())
                 ? samplingPriority

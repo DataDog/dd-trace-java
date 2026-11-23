@@ -230,15 +230,42 @@ class ExtractorKeysForkedTest extends DDJavaSpecification {
 
     // every traceparent against every tracestate, Datadog headers matching, mismatching or absent
     List<Map<String, String>> corpus = CompoundExtractionGoldenTest.corpus(true);
+    int lowerPriorityMalformed = 0;
     for (Map<String, String> headers : corpus) {
       // a String carrier runs the trace context interpreter over every key
       String interpreted = describe(compound.extract(headers, stringValuesMap()));
       // the composite propagator's cache knows each key's constant, so the merge reads the trace
       // context headers straight from it
-      String fromConstants =
-          describe(compound.extract(new Indexed(headers, compound.keys()), WITH_HEADERS));
-      assertEquals(interpreted, fromConstants, headers.toString());
+      TagContext merged = compound.extract(new Indexed(headers, compound.keys()), WITH_HEADERS);
+      String tracestate = headers.get("tracestate");
+      boolean malformedDatadogElement =
+          tracestate != null
+              && (tracestate.contains("t.tid:zzz") || tracestate.contains("t.dm:bad"));
+      if (interpreted.equals(describe(merged))) {
+        continue;
+      }
+      // The only difference: the Datadog context wins and the W3C one is merged into it, and a
+      // malformed element of the lower-priority tracestate's dd member, which the merge doesn't
+      // use (the Datadog context has its own tags), no longer discards that tracestate. It is
+      // carried for its other members, and its well-formed last parent id is the reparented span's
+      // last parent (the interpreter dropped the tracestate, or its dd member, and fell back to
+      // the Datadog parent id).
+      assertTrue(
+          malformedDatadogElement
+              && merged instanceof ExtractedContext
+              && "123456789".equals(headers.get("x-datadog-trace-id")),
+          "unexpected difference for " + headers + "\n  interpreted: " + interpreted);
+      assertEquals(
+          tracestate,
+          ((ExtractedContext) merged).getPropagationTags().getW3CTracestate(),
+          headers.toString());
+      if ("7".equals(headers.get("x-datadog-parent-id"))) {
+        assertEquals(
+            "00f067aa0ba902b7", merged.getTags().getString("_dd.parent_id"), headers.toString());
+      }
+      lowerPriorityMalformed++;
     }
+    assertTrue(lowerPriorityMalformed > 0, "the corpus covers a malformed lower-priority element");
   }
 
   /** A carrier that knows each key's header constant, as the composite propagator's cache does. */

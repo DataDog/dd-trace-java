@@ -49,10 +49,26 @@ public class W3CPTagsCodec extends PTagsCodec {
    * merge reads. Accepts and rejects exactly what {@link #fromHeaderValue} does.
    */
   static W3CTracestate parseForMerge(String value) {
-    return parse(value, MERGE_RESULT);
+    return parse(value, MERGE_RESULT, false);
+  }
+
+  /**
+   * {@link #parseForMerge} for the tracestate of a lower-priority trace context, merged into the
+   * context a higher-priority style already extracted: of the dd member it reads only the sampling
+   * priority and last parent id, each validated as before, and skips its other elements, which the
+   * merge never uses (the higher-priority context has its own Datadog tags). So a malformed element
+   * there no longer discards the priority and parent id, or the whole tracestate. Every member is
+   * still validated, so a malformed tracestate is still ignored as a whole.
+   */
+  static W3CTracestate parseForLowerPriorityMerge(String value) {
+    return parse(value, MERGE_RESULT, true);
   }
 
   private static <R> R parse(String value, Result<R> result) {
+    return parse(value, result, false);
+  }
+
+  private static <R> R parse(String value, Result<R> result, boolean onlyPriorityAndParent) {
     if (value == null || value.isEmpty()) {
       return result.rejected();
     }
@@ -152,6 +168,11 @@ public class W3CPTagsCodec extends PTagsCodec {
       tagPos = skipEmptyElements(value, tagPos, ddMemberValueEnd);
       if (tagPos >= ddMemberValueEnd) {
         break;
+      }
+      if (onlyPriorityAndParent && !isPriorityOrParentElement(value, tagPos, ddMemberValueEnd)) {
+        int separator = value.indexOf(ELEMENT_SEPARATOR, tagPos);
+        tagPos = separator < 0 || separator >= ddMemberValueEnd ? ddMemberValueEnd : separator + 1;
+        continue;
       }
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
@@ -737,6 +758,12 @@ public class W3CPTagsCodec extends PTagsCodec {
     }
 
     return pos;
+  }
+
+  /** Whether the dd member element at {@code pos} is the {@code s:} or {@code p:} element. */
+  private static boolean isPriorityOrParentElement(String value, int pos, int end) {
+    char c = value.charAt(pos);
+    return (c == 's' || c == 'p') && pos + 1 < end && value.charAt(pos + 1) == KEY_VALUE_SEPARATOR;
   }
 
   private static int findNextMember(String original, int start) {

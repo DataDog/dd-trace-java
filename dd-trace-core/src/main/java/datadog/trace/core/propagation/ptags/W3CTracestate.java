@@ -34,6 +34,14 @@ public final class W3CTracestate {
     return W3CPTagsCodec.parseForMerge(value);
   }
 
+  /**
+   * {@link #parse} for a lower-priority trace context's tracestate, reading only what merging it
+   * into a higher-priority context uses (see {@link W3CPTagsCodec#parseForLowerPriorityMerge}).
+   */
+  public static W3CTracestate parseForLowerPriorityMerge(String value) {
+    return W3CPTagsCodec.parseForLowerPriorityMerge(value);
+  }
+
   /** The sampling priority of the {@code dd} member's {@code s} element. */
   public int getSamplingPriority() {
     return samplingPriority;
