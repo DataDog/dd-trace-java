@@ -1,5 +1,6 @@
 package com.datadog.openfeature.internal.evaluation;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.ALLOCATION_KEY;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.DO_LOG;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_CACHE_HIT;
@@ -19,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import com.datadog.openfeature.ExperimentationOptOutMode;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.ConditionConfiguration;
 import com.datadog.openfeature.internal.ufc.ConditionOperator;
@@ -42,6 +44,8 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 class FlagEvaluatorTest {
@@ -102,6 +106,28 @@ class FlagEvaluatorTest {
             });
 
     assertFalse(evaluate(evaluator, false, 7, null).containsKey(EXPOSURE_CACHE_HIT));
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void reportsNoExposureWhenExposuresAreDisabled(final boolean enrichment) {
+    final FlagEvaluator evaluator =
+        new FlagEvaluator(
+            enrichment,
+            (flag, subject, allocation, variant, serialId) -> {
+              throw new AssertionError("no exposure lookup expected");
+            },
+            ExperimentationOptOutMode.DISABLED,
+            false);
+
+    final Map<String, Object> metadata = evaluate(evaluator, true, 7, null);
+
+    assertEquals("allocation", metadata.get(ALLOCATION_KEY), "assignment is unchanged");
+    assertFalse(metadata.containsKey(EXPOSURE_CACHE_HIT));
+    assertEquals(enrichment, metadata.containsKey(DO_LOG));
+    if (enrichment) {
+      assertEquals(Boolean.FALSE, metadata.get(DO_LOG), "span enrichment sees no exposure");
+    }
   }
 
   @Test

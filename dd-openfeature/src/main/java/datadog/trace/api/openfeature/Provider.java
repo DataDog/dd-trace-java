@@ -53,6 +53,18 @@ public class Provider extends com.datadog.openfeature.Provider {
     }
 
     @Override
+    public Options evaluationTelemetryEnabled(final boolean enabled) {
+      super.evaluationTelemetryEnabled(enabled);
+      return this;
+    }
+
+    @Override
+    public Options exposuresEnabled(final boolean enabled) {
+      super.exposuresEnabled(enabled);
+      return this;
+    }
+
+    @Override
     public Options flagSelection(final com.datadog.openfeature.FlagSelection selection) {
       super.flagSelection(selection);
       return this;
