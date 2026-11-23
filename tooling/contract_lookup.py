@@ -77,7 +77,10 @@ class Source:
             return ""
 
     def diff(self, base, pathspecs, names_only=False):
-        cmd = ["git", "diff", "--name-only" if names_only else "-U0", base]
+        # pin the output format: a user's diff.noprefix, color or external diff would change the
+        # "+++ b/" headers added_lines parses
+        cmd = ["git", "diff", "--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/",
+               "--name-only" if names_only else "-U0", base]
         if self.rev:
             cmd.append(self.rev)
         result = subprocess.run(cmd + ["--"] + pathspecs, capture_output=True, text=True)
