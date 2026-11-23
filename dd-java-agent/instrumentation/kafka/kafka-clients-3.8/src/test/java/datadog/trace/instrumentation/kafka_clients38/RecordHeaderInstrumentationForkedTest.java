@@ -25,6 +25,11 @@ class RecordHeaderInstrumentationForkedTest extends AbstractInstrumentationTest 
     UnderAgent.checkProduced();
   }
 
+  @Test
+  void aSubclassOverridingValueIsReadThroughItsOverride() {
+    UnderAgent.checkSubclass();
+  }
+
   /**
    * Touches {@code RecordHeader} only from here, so verifying the test class doesn't load it before
    * the agent is installed.
@@ -49,6 +54,44 @@ class RecordHeaderInstrumentationForkedTest extends AbstractInstrumentationTest 
       // still unmaterialized for the application
       assertNull(fields.$$DD$$__key());
       assertNull(fields.$$DD$$__value());
+    }
+
+    /**
+     * A {@code RecordHeader} subclass inherits the accessor, but may override {@code key()} or
+     * {@code value()}; extraction must go through the override, not the raw fields.
+     */
+    static void checkSubclass() {
+      TransformingHeader header =
+          new TransformingHeader(
+              ByteBuffer.wrap("traceparent".getBytes(UTF_8)),
+              ByteBuffer.wrap("raw".getBytes(UTF_8)));
+      // the agent adds the interface at runtime, so check through Object
+      Object asObject = header;
+      assertTrue(asObject instanceof BufferedHeaderFields, "the subclass inherits the accessor");
+      org.apache.kafka.common.header.internals.RecordHeaders headers =
+          new org.apache.kafka.common.header.internals.RecordHeaders(
+              new org.apache.kafka.common.header.Header[] {header});
+      java.util.Map<String, String> seen = new java.util.HashMap<>();
+      new TextMapExtractAdapter(false)
+          .forEachKey(
+              headers,
+              (key, value) -> {
+                seen.put(key, value);
+                return true;
+              });
+      assertEquals("transformed", seen.get("traceparent"));
+    }
+
+    static final class TransformingHeader
+        extends org.apache.kafka.common.header.internals.RecordHeader {
+      TransformingHeader(ByteBuffer key, ByteBuffer value) {
+        super(key, value);
+      }
+
+      @Override
+      public byte[] value() {
+        return "transformed".getBytes(UTF_8);
+      }
     }
 
     static void checkProduced() {
