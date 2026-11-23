@@ -422,6 +422,16 @@ In priority order:
   (confirmed by Doug). Minimal sketch: `int reserveAbsent(long runMask, int level, int n)` (one presence test, one capacity check, OR the mask in, return
   the start index or −1 on overlap so the caller falls back) plus `void appendAt(int index, char serial, Object value)`, an unchecked write made n times under the tag lock; no
   varargs or `Object[]`, and the run's mask and serials fold as constants; the current fused benchmark measures only the setter side (one lock, one call per run).
+- **Fusion design rules (2026-11-23):**
+  - *Avoid `OptimizeStringConcat`'s fragility* (it matches one exact shape; storing the builder in a local breaks it). Normalize before matching:
+    follow the span through locals (`astore`/`aload`, `dup`), skip intervening code that's provably pure and can't throw, and break a run only on a real barrier
+    (an unknown call, a branch, the span escaping).
+  - *Make misses visible:* a golden-file report of every eligible constant-id `setTag` that wasn't fused, with the reason. Track coverage.
+  - *JEP 280's lesson:* where the source can state the intent (contributors / `setTagsFrom`), nothing needs recognizing. Use fusion for code as written,
+    the explicit API for new code.
+  - *Acceptance bar (Doug): fusion must be better or neutral everywhere.* "Neutral" has to hold even when C2 would have inlined the per-tag setters
+    and coarsened their locks itself (lucky compile order). So compare fused vs unfused in both inlining states, set a minimum run length if 2-tag runs
+    don't pay, and account for code-cache and metaspace cost (the 4-tag bulk method compiles to about 21 KB with the dense store). Correctness is covered by the per-tag fallback.
 - **Validation for 3:** differential instrumentation tests (rewrite on/off); a benchmark with JFR `jdk.CompilerInlining`
   confirming "already compiled into a big method" disappears for `setTag` call sites.
 - Compiler-control notes: negative (`inline:-`) directives for our cold helpers are low-risk. Forced inlining can abort the
