@@ -56,7 +56,7 @@ public class StringSplitBenchmark {
     TestString(String str) {
       this.str = str;
     }
-  };
+  }
 
   @Param TestString testStr;
 

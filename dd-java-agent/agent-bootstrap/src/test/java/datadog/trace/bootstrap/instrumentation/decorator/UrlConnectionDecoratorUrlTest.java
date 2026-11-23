@@ -24,7 +24,7 @@ class UrlConnectionDecoratorUrlTest {
 
     UrlConnectionDecorator.DECORATE.onURI(span, URI.create(url));
 
-    verify(span).setTag(KnownTags.HTTP_URL_ID, url);
-    verify(span, never()).setTag(eq(KnownTags.HTTP_QUERY_STRING_ID), anyString());
+    verify(span).setTag(KnownTags.HTTP_URL, url);
+    verify(span, never()).setTag(eq(KnownTags.HTTP_QUERY_STRING), anyString());
   }
 }

@@ -6,7 +6,7 @@ plugins {
 description = 'iast-smoke-tests-utils-java-17'
 
 dependencies {
-  api project(':dd-smoke-tests')
+  api project(':dd-smoke-tests:smoke-test-common')
   compileOnly group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.2.0.RELEASE'
 
   testFixturesImplementation testFixtures(project(":dd-smoke-tests:iast-util"))

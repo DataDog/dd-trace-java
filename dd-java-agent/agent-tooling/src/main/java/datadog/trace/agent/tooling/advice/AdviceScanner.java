@@ -110,13 +110,12 @@ public final class AdviceScanner {
     for (Instrumenter instrumenter : instrumenters) {
       if (instrumenter instanceof Instrumenter.HasMethodAdvice) {
         ((Instrumenter.HasMethodAdvice) instrumenter)
-            .methodAdvice(
-                (matcher, adviceClass, additionalClasses) -> {
-                  adviceRoots.add(adviceClass);
-                  if (additionalClasses != null) {
-                    addAll(adviceRoots, additionalClasses);
-                  }
-                });
+            .methodAdvice((matcher, adviceClass, additionalClasses) -> {
+              adviceRoots.add(adviceClass);
+              if (additionalClasses != null) {
+                addAll(adviceRoots, additionalClasses);
+              }
+            });
       }
     }
   }

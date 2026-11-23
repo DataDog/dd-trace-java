@@ -74,29 +74,31 @@ class Lettuce5ClusterTest extends AbstractInstrumentationTest {
     connection = redisClient.connect();
     new PollingConditions(30)
         .delay(0.5)
-        .eventually(
-            () ->
-                assertEquals(
-                    "OK",
-                    connection.sync().set("DD_CLUSTER_READY", "1"),
-                    "Redis cluster did not become ready"));
+        .eventually(() ->
+            assertEquals(
+                "OK",
+                connection.sync().set("DD_CLUSTER_READY", "1"),
+                "Redis cluster did not become ready"));
 
     tracer.flush();
     writer.clear();
   }
 
   @AfterEach
-  void cleanUpRedis() {
-    if (connection != null) {
-      connection.close();
-    }
+  void cleanUpRedis() throws Exception {
+    try {
+      if (connection != null) {
+        connection.close();
+      }
 
-    if (redisClient != null) {
-      redisClient.shutdown(5, 10, TimeUnit.SECONDS);
-    }
-
-    if (redisCluster != null) {
-      redisCluster.close();
+      if (redisClient != null) {
+        // Lettuce 5.1 needs its executor alive to deliver pending channel-close notifications.
+        redisClient.shutdownAsync(1, 10, TimeUnit.SECONDS).get(15, TimeUnit.SECONDS);
+      }
+    } finally {
+      if (redisCluster != null) {
+        redisCluster.close();
+      }
     }
   }
 
@@ -131,11 +133,10 @@ class Lettuce5ClusterTest extends AbstractInstrumentationTest {
     connection.setReadFrom(ReadFrom.SLAVE);
     new PollingConditions(30)
         .delay(0.5)
-        .eventually(
-            () -> {
-              redisClient.reloadPartitions();
-              assertEquals(TEST_SET_VALUE, connection.sync().get(TEST_SET_KEY));
-            });
+        .eventually(() -> {
+          redisClient.reloadPartitions();
+          assertEquals(TEST_SET_VALUE, connection.sync().get(TEST_SET_KEY));
+        });
 
     blockUntilTracesMatch(traces -> !findCommandSpans(traces, "GET").isEmpty());
     tracer.flush();

@@ -110,7 +110,8 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
     payloadGlobalTags = null;
     traceGlobalTags = null;
 
-    buf.reset();
+    // Retain ordinary span storage, but release large reports at the payload boundary.
+    buf.reset(64 * 1024);
     protobuf.reset();
 
     payloadBytes = 0;

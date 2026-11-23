@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static datadog.trace.api.KnownTags.TOMBSTONE;
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
@@ -18,6 +19,7 @@ import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.S
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 import static datadog.trace.instrumentation.kafka_common.Utils.DSM_TRANSACTION_SOURCE_READER;
 import static datadog.trace.instrumentation.kafka_common.Utils.computePayloadSizeBytes;
+import static datadog.trace.instrumentation.kafka_common.Utils.hasHeaders;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.context.Context;
@@ -31,7 +33,6 @@ import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.Iterator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
@@ -100,10 +101,15 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
       AgentSpan span, queueSpan = null;
       if (val != null) {
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
+          // A record without headers has no context to extract
           final AgentSpanContext spanContext =
-              extractContextAndGetSpanContext(val.headers(), GETTER);
-          long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
-          if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
+              hasHeaders(val.headers())
+                  ? extractContextAndGetSpanContext(val.headers(), GETTER)
+                  : null;
+          // Check the flag first, as finding the produce time scans the record's headers
+          long timeInQueueStart =
+              TIME_IN_QUEUE_ENABLED ? GETTER.extractTimeInQueueStart(val.headers()) : 0;
+          if (timeInQueueStart == 0) {
             span = startSpan(JAVA_KAFKA.toString(), operationName, spanContext);
           } else {
             queueSpan =
@@ -146,7 +152,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           span = startSpan(JAVA_KAFKA.toString(), operationName, null);
         }
         if (val.value() == null) {
-          span.setTag(InstrumentationTags.TOMBSTONE, true);
+          span.setTag(TOMBSTONE, true);
         }
         decorator.afterStart(span);
         decorator.onConsume(span, val, group, clusterId, bootstrapServers);

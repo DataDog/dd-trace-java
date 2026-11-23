@@ -17,12 +17,12 @@ public final class OtelClientUrl implements TagExtractor<URI> {
   @Override
   public void extract(URI uri, AgentSpan span) {
     // The Object overload avoids calling length(), which would render the lazy URL immediately.
-    span.setTag(KnownTags.HTTP_URL_ID, (Object) new ClientUrl(uri));
+    span.setTag(KnownTags.HTTP_URL, (Object) new ClientUrl(uri));
     if (Config.get().isHttpClientTagQueryString()) {
       // The obfuscator matches decoded parameter names, including names such as t%6fken.
       String query = URIUtils.preserveQueryDelimiters(uri.getRawQuery(), uri.getQuery());
       if (query != null) {
-        span.setTag(KnownTags.URL_QUERY_ID, query);
+        span.setTag(KnownTags.URL_QUERY, query);
       }
     }
   }

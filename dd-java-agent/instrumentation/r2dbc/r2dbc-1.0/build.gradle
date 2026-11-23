@@ -27,15 +27,12 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addForkedTestTask('latestDepTest')
 
 // The latest io.r2dbc:r2dbc-h2 pulls in an H2 build compiled for Java 11
 // (class file version 55), so latestDepTest cannot run on the JVM 8 CI slot.
-['latestDepTest', 'latestDepTestForkedTest'].each { taskName ->
-  tasks.named(taskName, Test) {
-    testJvmConstraints {
-      minJavaVersion = JavaVersion.VERSION_11
-    }
+tasks.named('latestDepTest', Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
   }
 }
 

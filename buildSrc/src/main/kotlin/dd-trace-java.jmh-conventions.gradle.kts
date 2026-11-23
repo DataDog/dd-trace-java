@@ -17,7 +17,6 @@ pluginManager.apply("me.champeau.jmh")
 val testJvmSpec = TestJvmSpec(project)
 val jmh = extensions.getByName("jmh")
 
-
 jmhProperty<String>("getJvm").convention(testJvmSpec.requestedTestJvmLauncher.map { it.executablePath.asFile.absolutePath })
 providers.gradleProperty("jmh.includes").map(::commaSeparated).let {
   if (it.isPresent) {
@@ -43,12 +42,9 @@ providers.gradleProperty("jmh.threads").map(String::toInt).let {
 // JMH types are not on buildSrc's compile classpath, so access its extension through Gradle's public
 // property types.
 @Suppress("UNCHECKED_CAST")
-fun <T : Any> jmhProperty(getterName: String): Property<T> =
-  jmh.javaClass.getMethod(getterName).invoke(jmh) as Property<T>
+fun <T : Any> jmhProperty(getterName: String): Property<T> = jmh.javaClass.getMethod(getterName).invoke(jmh) as Property<T>
 
 @Suppress("UNCHECKED_CAST")
-fun jmhListProperty(getterName: String): ListProperty<String> =
-  jmh.javaClass.getMethod(getterName).invoke(jmh) as ListProperty<String>
+fun jmhListProperty(getterName: String): ListProperty<String> = jmh.javaClass.getMethod(getterName).invoke(jmh) as ListProperty<String>
 
-fun commaSeparated(value: String): List<String> =
-  value.split(",").map(String::trim).filter(String::isNotEmpty)
+fun commaSeparated(value: String): List<String> = value.split(",").map(String::trim).filter(String::isNotEmpty)

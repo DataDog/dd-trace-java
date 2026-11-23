@@ -88,6 +88,7 @@ trace_level:
     - { dd-name: _dd.trace_span_attribute_schema, type: int, required: required }
     - { dd-name: _dd.profiling.ctx,      type: string,  required: optional }     # once the profiling context integration is available
     - { dd-name: process_id,             type: long,    required: required }
+    - { dd-name: _dd.agent_psr,          type: double,  required: optional }     # the agent-provided sampling rate the sampler applied
     - { dd-name: ai_guard.event,         type: boolean, required: optional }     # when the trace holds an AI Guard evaluation span
 
 span_types:
@@ -196,6 +197,7 @@ span_types:
     tags:
       - { dd-name: aws.table.name, type: string, required: optional }
       - { dd-name: tablename,      type: string, required: optional }
+      - { dd-name: aws.table.arn,  type: string, required: optional }  # when the table is named by ARN
       # Span pointer input, removed before serialization (SpanPointersProcessor).
       - { dd-name: dynamodb.primary_key_1,       type: string, required: optional }
       - { dd-name: dynamodb.primary_key_1_value, type: string, required: optional }
@@ -452,6 +454,8 @@ span_types:
       - { dd-name: test.is_retry, type: boolean, required: optional }
       - { dd-name: test.has_failed_all_retries, type: boolean, required: optional }
       - { dd-name: test.failure_suppressed, type: boolean, required: optional }
+      - { dd-name: test.test_management.no_auto_retry, type: boolean, required: optional }
+      - { dd-name: test.test_management.prevent_failure_suppression, type: boolean, required: optional }
       - { dd-name: test.test_management.is_quarantined, type: boolean, required: optional }
       - { dd-name: test.test_management.is_test_disabled, type: boolean, required: optional }
       - { dd-name: test.test_management.is_attempt_to_fix, type: boolean, required: optional }
@@ -618,6 +622,14 @@ mixins:
       - { dd-name: offset,                            type: long,    required: optional }
       - { dd-name: tombstone,                         type: boolean, required: optional }     # a null record value
       - { dd-name: processor.name,                    type: string,  required: optional }     # Kafka Streams
+
+  # google_pubsub — Google Cloud Pub/Sub producer and consumer spans: the full paths of the known
+  # resources, each with its own project.
+  google_pubsub:
+    applies: [ messaging.producer, messaging.consumer ]
+    tags:
+      - { dd-name: gcp.pubsub.topic.name,        type: string, required: optional }  # projects/<project>/topics/<topic>, when known
+      - { dd-name: gcp.pubsub.subscription.name, type: string, required: optional }  # projects/<project>/subscriptions/<subscription>, on consumer spans
 
   # amqp — RabbitMQ (AMQP) spans: publish, consume, other commands, and time in queue.
   amqp:

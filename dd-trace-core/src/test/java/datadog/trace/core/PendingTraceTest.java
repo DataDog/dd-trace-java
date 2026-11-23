@@ -2,9 +2,15 @@ package datadog.trace.core;
 
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
+import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -18,13 +24,13 @@ import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.propagation.PropagationTags;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.mockito.ArgumentCaptor;
 
 @Timeout(60)
 public class PendingTraceTest extends PendingTraceTestBase {
@@ -62,10 +68,9 @@ public class PendingTraceTest extends PendingTraceTestBase {
             "",
             UNSET,
             "",
-            Collections.emptyMap(),
+            emptyMap(),
             false,
             "",
-            0,
             trace,
             null,
             null,
@@ -104,7 +109,7 @@ public class PendingTraceTest extends PendingTraceTestBase {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
 
     when(stubTracer.captureTraceConfig()).thenReturn(traceConfig);
-    when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
+    when(traceConfig.getServiceMapping()).thenReturn(emptyMap());
 
     PendingTrace trace =
         new PendingTrace(
@@ -119,11 +124,94 @@ public class PendingTraceTest extends PendingTraceTestBase {
     DDSpan span = createSimpleSpan(trace);
     trace.registerSpan(span);
 
-    verify(healthMetrics, times(1)).onCreateSpan();
+    verify(healthMetrics, times(1)).onCreateSpan(span);
 
     span.finish();
 
     verify(healthMetrics, times(1)).onCreateTrace();
+  }
+
+  @Test
+  void writingRunningSpansDoesNotCallOnFinishSpan() {
+    CoreTracer stubTracer = mock(CoreTracer.class);
+    CoreTracer.ConfigSnapshot traceConfig = mock(CoreTracer.ConfigSnapshot.class);
+    PendingTraceBuffer buffer = mock(PendingTraceBuffer.class);
+    HealthMetrics healthMetrics = mock(HealthMetrics.class);
+
+    when(stubTracer.captureTraceConfig()).thenReturn(traceConfig);
+    when(traceConfig.getServiceMapping()).thenReturn(emptyMap());
+    when(buffer.longRunningSpansEnabled()).thenReturn(true);
+
+    PendingTrace trace =
+        new PendingTrace(
+            stubTracer,
+            DDTraceId.from(0),
+            buffer,
+            mock(TimeSource.class),
+            null,
+            false,
+            healthMetrics);
+
+    DDSpan root = createSimpleSpanWithID(trace, 1);
+    trace.registerSpan(root);
+    DDSpan child = createSimpleSpanWithID(trace, 2);
+    trace.registerSpan(child);
+    child.finish();
+    clearInvocations(healthMetrics);
+
+    // write the running root, as the long-running tracker does periodically
+    trace.setLongRunningTrackedState(LongRunningTracesTracker.WRITE_RUNNING_SPANS);
+    trace.write();
+
+    ArgumentCaptor<SpanList> written = ArgumentCaptor.forClass(SpanList.class);
+    verify(stubTracer, atLeastOnce()).write(written.capture());
+    assertTrue(
+        written.getAllValues().stream().anyMatch(spans -> spans.contains(root)),
+        "the running root should have been written");
+    verify(healthMetrics, never()).onCreateSpan(any());
+    verify(healthMetrics, never()).onEndSpan();
+    verify(healthMetrics, never()).onFinishSpan();
+
+    root.finish();
+
+    verify(healthMetrics, never()).onCreateSpan(any());
+    verify(healthMetrics, times(1)).onEndSpan();
+    verify(healthMetrics, times(1)).onFinishSpan();
+  }
+
+  @Test
+  void phasedFinishCallsOnEndSpanBeforePublishCallsOnFinishSpan() {
+    CoreTracer stubTracer = mock(CoreTracer.class);
+    CoreTracer.ConfigSnapshot traceConfig = mock(CoreTracer.ConfigSnapshot.class);
+    HealthMetrics healthMetrics = mock(HealthMetrics.class);
+
+    when(stubTracer.captureTraceConfig()).thenReturn(traceConfig);
+    when(traceConfig.getServiceMapping()).thenReturn(emptyMap());
+
+    PendingTrace trace =
+        new PendingTrace(
+            stubTracer,
+            DDTraceId.from(0),
+            mock(PendingTraceBuffer.class),
+            mock(TimeSource.class),
+            null,
+            false,
+            healthMetrics);
+
+    DDSpan span = createSimpleSpan(trace);
+    trace.registerSpan(span);
+
+    assertTrue(span.phasedFinish());
+    assertFalse(span.phasedFinish());
+
+    verify(healthMetrics, times(1)).onEndSpan();
+    verify(healthMetrics, never()).onFinishSpan();
+
+    span.publish();
+    span.publish();
+
+    verify(healthMetrics, times(1)).onEndSpan();
+    verify(healthMetrics, times(1)).onFinishSpan();
   }
 
   @Test
@@ -134,7 +222,7 @@ public class PendingTraceTest extends PendingTraceTestBase {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
 
     when(stubTracer.captureTraceConfig()).thenReturn(traceConfig);
-    when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
+    when(traceConfig.getServiceMapping()).thenReturn(emptyMap());
     when(buffer.longRunningSpansEnabled()).thenReturn(true);
 
     PendingTrace trace =
@@ -177,7 +265,7 @@ public class PendingTraceTest extends PendingTraceTestBase {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
 
     when(stubTracer.captureTraceConfig()).thenReturn(traceConfig);
-    when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
+    when(traceConfig.getServiceMapping()).thenReturn(emptyMap());
     when(buffer.longRunningSpansEnabled()).thenReturn(true);
 
     PendingTrace trace =

@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import javax.annotation.ParametersAreNonnullByDefault;
 import software.amazon.awssdk.awscore.AwsResponse;
@@ -76,6 +77,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       SpanNaming.instance().namingSchema().cloud().serviceForRequest("aws", "sns");
   private static final String GENERIC_SERVICE_NAME =
       SpanNaming.instance().namingSchema().cloud().serviceForRequest("aws", null);
+
+  private static final Pattern TABLE_ARN_PATTERN =
+      Pattern.compile("^arn:[^:]+:dynamodb:[^:]+:[0-9]{12}:table/[^/]+$");
 
   private static final Set<String> KINESIS_PUT_RECORD_OPERATION_NAMES;
 
@@ -151,15 +155,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     // SQS
     request
         .getValueForField("QueueUrl", String.class)
-        .ifPresent(
-            url -> {
-              span.setTag(InstrumentationTags.AWS_QUEUE_URL, url);
-              setPeerService(span, InstrumentationTags.AWS_QUEUE_URL, url);
-              String queueName = urlFileName(url);
-              if (!queueName.isEmpty()) {
-                setQueueName(span, queueName);
-              }
-            });
+        .ifPresent(url -> {
+          span.setTag(InstrumentationTags.AWS_QUEUE_URL, url);
+          setPeerService(span, InstrumentationTags.AWS_QUEUE_URL, url);
+          String queueName = urlFileName(url);
+          if (!queueName.isEmpty()) {
+            setQueueName(span, queueName);
+          }
+        });
     request.getValueForField("QueueName", String.class).ifPresent(name -> setQueueName(span, name));
 
     // SNS. TargetArn may identify a mobile platform endpoint, so only TopicArn is a topic ARN.
@@ -176,17 +179,16 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         .getValueForField("StreamName", String.class)
         .ifPresent(name -> setStreamName(span, name));
     Optional<String> kinesisStreamArn = request.getValueForField("StreamARN", String.class);
-    kinesisStreamArn.ifPresent(
-        streamArn -> {
-          span.setTag(InstrumentationTags.AWS_STREAM_ARN, streamArn);
-          if (traceConfig().isDataStreamsEnabled()) {
-            attributes.putAttribute(KINESIS_STREAM_ARN_ATTRIBUTE, streamArn);
-          }
-          int streamNameStart = streamArn.indexOf(":stream/");
-          if (streamNameStart >= 0) {
-            setStreamName(span, streamArn.substring(streamNameStart + 8));
-          }
-        });
+    kinesisStreamArn.ifPresent(streamArn -> {
+      span.setTag(InstrumentationTags.AWS_STREAM_ARN, streamArn);
+      if (traceConfig().isDataStreamsEnabled()) {
+        attributes.putAttribute(KINESIS_STREAM_ARN_ATTRIBUTE, streamArn);
+      }
+      int streamNameStart = streamArn.indexOf(":stream/");
+      if (streamNameStart >= 0) {
+        setStreamName(span, streamArn.substring(streamNameStart + 8));
+      }
+    });
 
     // DynamoDB
     request.getValueForField("TableName", String.class).ifPresent(name -> setTableName(span, name));
@@ -327,9 +329,21 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   private static void setTableName(AgentSpan span, String name) {
+    if (isTableArn(name)) {
+      span.setTag(InstrumentationTags.AWS_TABLE_ARN, name);
+    }
     span.setTag(InstrumentationTags.AWS_TABLE_NAME, name);
     span.setTag(InstrumentationTags.TABLE_NAME, name);
     setPeerService(span, InstrumentationTags.AWS_TABLE_NAME, name);
+  }
+
+  /**
+   * Whether a DynamoDB {@code TableName} is a full table ARN, {@code
+   * arn:<partition>:dynamodb:<region>:<account>:table/<name>}. Cross-account access requires one,
+   * so it names the callee's account and Region.
+   */
+  static boolean isTableArn(String tableName) {
+    return tableName.startsWith("arn:") && TABLE_ARN_PATTERN.matcher(tableName).matches();
   }
 
   /**
@@ -416,41 +430,39 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         if (null != streamArn) {
           response
               .getValueForField("Records", List.class)
-              .ifPresent(
-                  recordsRaw -> {
-                    //noinspection unchecked
-                    List<SdkPojo> records = (List<SdkPojo>) recordsRaw;
-                    if (!records.isEmpty()) {
-                      DataStreamsTags tags = create("kinesis", INBOUND, streamArn);
-                      if (null == kinesisApproximateArrivalTimestampField) {
-                        Optional<SdkField<?>> maybeField =
-                            records.get(0).sdkFields().stream()
-                                .filter(f -> f.locationName().equals("ApproximateArrivalTimestamp"))
-                                .findFirst();
-                        if (maybeField.isPresent()) {
-                          //noinspection unchecked
-                          kinesisApproximateArrivalTimestampField =
-                              (SdkField<Instant>) maybeField.get();
-                        } else {
-                          // shouldn't be possible
-                          return;
-                        }
-                      }
-                      for (SdkPojo record : records) {
-                        Instant arrivalTime =
-                            kinesisApproximateArrivalTimestampField.getValueOrDefault(record);
-                        AgentDataStreamsMonitoring dataStreamsMonitoring =
-                            AgentTracer.get().getDataStreamsMonitoring();
-                        PathwayContext pathwayContext = dataStreamsMonitoring.newPathwayContext();
-                        pathwayContext.setCheckpoint(
-                            create(tags, arrivalTime.toEpochMilli(), 0),
-                            dataStreamsMonitoring::add);
-                        if (!span.spanContext().getPathwayContext().isStarted()) {
-                          span.spanContext().mergePathwayContext(pathwayContext);
-                        }
-                      }
+              .ifPresent(recordsRaw -> {
+                //noinspection unchecked
+                List<SdkPojo> records = (List<SdkPojo>) recordsRaw;
+                if (!records.isEmpty()) {
+                  DataStreamsTags tags = create("kinesis", INBOUND, streamArn);
+                  if (null == kinesisApproximateArrivalTimestampField) {
+                    Optional<SdkField<?>> maybeField =
+                        records.get(0).sdkFields().stream()
+                            .filter(f -> f.locationName().equals("ApproximateArrivalTimestamp"))
+                            .findFirst();
+                    if (maybeField.isPresent()) {
+                      //noinspection unchecked
+                      kinesisApproximateArrivalTimestampField =
+                          (SdkField<Instant>) maybeField.get();
+                    } else {
+                      // shouldn't be possible
+                      return;
                     }
-                  });
+                  }
+                  for (SdkPojo record : records) {
+                    Instant arrivalTime =
+                        kinesisApproximateArrivalTimestampField.getValueOrDefault(record);
+                    AgentDataStreamsMonitoring dataStreamsMonitoring =
+                        AgentTracer.get().getDataStreamsMonitoring();
+                    PathwayContext pathwayContext = dataStreamsMonitoring.newPathwayContext();
+                    pathwayContext.setCheckpoint(
+                        create(tags, arrivalTime.toEpochMilli(), 0), dataStreamsMonitoring::add);
+                    if (!span.spanContext().getPathwayContext().isStarted()) {
+                      span.spanContext().mergePathwayContext(pathwayContext);
+                    }
+                  }
+                }
+              });
         }
       }
 

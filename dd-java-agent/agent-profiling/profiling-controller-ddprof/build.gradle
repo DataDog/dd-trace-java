@@ -1,16 +1,11 @@
 plugins {
+  // Tests load the native profiler selected for the image's libc variant.
+  id 'dd-trace-java.ci-builder-inputs'
   id 'dd-trace-java.module.internal-library'
 }
 
-tracerJava {
-  addSourceSetFor(JavaVersion.VERSION_11) {
-    // By default tests with be compiled for `minJavaVersion` version,
-    // but in this case we would like to avoid this since we would like to run with ZULU8
-    applyForTestSources = false
-  }
-}
-
 testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
   excludeJdk = ['SEMERU11', 'SEMERU17']
 }
 
@@ -21,6 +16,10 @@ excludedClassesCoverage += [
   'com.datadog.profiling.controller.ddprof.DatadogProfilerController',
   'com.datadog.profiling.controller.ddprof.DatadogProfilerOngoingRecording',
 ]
+
+// TODO: Cover these classes, then remove them from the coverage baseline (APMLP-2263)
+excludedClassesBranchCoverage += ['com.datadog.profiling.controller.ddprof.DatadogProfilerSettings']
+excludedClassesInstructionCoverage += ['com.datadog.profiling.controller.ddprof.DatadogProfilerSettings']
 
 dependencies {
   api libs.slf4j

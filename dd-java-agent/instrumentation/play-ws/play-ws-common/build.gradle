@@ -13,6 +13,11 @@ artifacts {
   testArtifacts testJar
 }
 
+tasks.named('test', Test) {
+  // The test source set only holds the abstract base class reused by the play-ws modules
+  failOnNoDiscoveredTests = false
+}
+
 
 dependencies {
   compileOnly group: 'com.typesafe.play', name: "play-ahc-ws-standalone_$scalaVersion", version: '1.0.2'

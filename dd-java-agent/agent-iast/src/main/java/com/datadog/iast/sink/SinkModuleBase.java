@@ -29,6 +29,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.iastinstrumenter.IastExclusionTrie;
 import datadog.trace.instrumentation.iastinstrumenter.SourceMapperImpl;
+import datadog.trace.util.Strings;
 import datadog.trace.util.stacktrace.StackWalker;
 import java.util.Iterator;
 import java.util.function.Predicate;
@@ -134,7 +135,7 @@ public abstract class SinkModuleBase {
         value = origin;
       } else {
         valueRanges = Ranges.forObject((Source) taintable.$$DD$getSource(), type.mark());
-        value = String.format("Tainted reference detected in " + value.getClass());
+        value = Strings.format("Tainted reference detected in " + value.getClass());
       }
     } else {
       final TaintedObject tainted = to.get(value);
@@ -387,13 +388,12 @@ public abstract class SinkModuleBase {
       @Nonnull final Stream<StackTraceElement> stream) {
     final StackTraceElement[] first = new StackTraceElement[1];
     return stream
-        .filter(
-            stack -> {
-              if (first[0] == null) {
-                first[0] = stack;
-              }
-              return IastExclusionTrie.apply(stack.getClassName()) < 1;
-            })
+        .filter(stack -> {
+          if (first[0] == null) {
+            first[0] = stack;
+          }
+          return IastExclusionTrie.apply(stack.getClassName()) < 1;
+        })
         .findFirst()
         .orElse(first[0]);
   }
