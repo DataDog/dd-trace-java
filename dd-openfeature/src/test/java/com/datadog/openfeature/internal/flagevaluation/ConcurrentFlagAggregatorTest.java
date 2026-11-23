@@ -36,7 +36,7 @@ class ConcurrentFlagAggregatorTest {
 
   private final ConcurrentFlagAggregator aggregator = new ConcurrentFlagAggregator();
 
-  // ---- Aggregation and bucket keys ----
+  // ---- Aggregation and tally keys ----
 
   @Test
   void identicalEvaluationsAggregateIntoOneRow() {
@@ -85,7 +85,7 @@ class ConcurrentFlagAggregatorTest {
     }
     full("flag-d", "user-1", attrs);
 
-    assertSame(attrs, drain().get(0).bucket.prunedAttrs);
+    assertSame(attrs, drain().get(0).tally.prunedAttrs);
   }
 
   @Test
@@ -117,13 +117,13 @@ class ConcurrentFlagAggregatorTest {
     final List<Row> rows = drain();
     assertEquals(2, rows.size());
     for (final Row row : rows) {
-      assertEquals(row.bucket.observeFullEvaluationData ? 2 : 1, row.count);
+      assertEquals(row.tally.observeFullEvaluationData ? 2 : 1, row.count);
     }
   }
 
   @Test
   void withoutConsentDifferingContextsCollapseIntoOneBucket() {
-    // The context is dropped on emit, so it must not fragment buckets, or the per-flag cap blows
+    // The context is dropped on emit, so it must not fragment tallies, or the per-flag cap blows
     // out under real traffic; nor is it stored.
     for (int i = 0; i < 3; i++) {
       aggregator.record(
@@ -142,9 +142,9 @@ class ConcurrentFlagAggregatorTest {
     final List<Row> rows = drain();
     assertEquals(2, rows.size(), "subjects still split");
     final Row alice =
-        rows.stream().filter(r -> "alice".equals(r.bucket.targetingKey)).findFirst().get();
+        rows.stream().filter(r -> "alice".equals(r.tally.targetingKey)).findFirst().get();
     assertEquals(3, alice.count);
-    assertNull(alice.bucket.prunedAttrs);
+    assertNull(alice.tally.prunedAttrs);
   }
 
   @Test
@@ -173,11 +173,11 @@ class ConcurrentFlagAggregatorTest {
     aggregator.record("feature-flag", "on", "a", "user-4", null, 1L, false, emptyMap(), p1);
     final List<Row> degraded =
         drain().stream()
-            .filter(r -> r.bucket.degraded && "feature-flag".equals(r.bucket.flagKey))
+            .filter(r -> r.tally.degraded && "feature-flag".equals(r.tally.flagKey))
             .collect(toList());
     assertEquals(2, degraded.size());
     for (final Row row : degraded) {
-      assertEquals(p1.equals(row.bucket.features) ? 2 : 1, row.count);
+      assertEquals(p1.equals(row.tally.features) ? 2 : 1, row.count);
     }
   }
 
@@ -198,10 +198,10 @@ class ConcurrentFlagAggregatorTest {
     final List<String> degraded = new ArrayList<>();
     long full = 0;
     for (final Row row : drain()) {
-      if (row.bucket.degraded) {
-        assertNull(row.bucket.targetingKey);
+      if (row.tally.degraded) {
+        assertNull(row.tally.targetingKey);
         degraded.add(
-            row.bucket.variant
+            row.tally.variant
                 + " "
                 + row.count
                 + " "
@@ -211,7 +211,7 @@ class ConcurrentFlagAggregatorTest {
                 + " "
                 + row.defaultUsed
                 + " "
-                + row.bucket.observeFullEvaluationData);
+                + row.tally.observeFullEvaluationData);
       } else {
         full += row.count;
       }
@@ -232,7 +232,7 @@ class ConcurrentFlagAggregatorTest {
     full("flag", "on", "other", "error", "user", emptyMap());
     full("flag", "on", "alloc", "other", "user", emptyMap());
 
-    final List<Row> degraded = drain().stream().filter(r -> r.bucket.degraded).collect(toList());
+    final List<Row> degraded = drain().stream().filter(r -> r.tally.degraded).collect(toList());
     assertEquals(6, degraded.size(), "the degraded tier splits on all but subject and context");
     assertEquals(0, aggregator.droppedDegradedOverflow.get());
   }
@@ -243,7 +243,7 @@ class ConcurrentFlagAggregatorTest {
     for (int i = 0; i < DEGRADED_CAP + 5; i++) {
       aggregator.record("g" + i, "on", "a", "u", null, 1L, false, emptyMap(), emptyMap());
     }
-    // An existing degraded bucket still counts at the cap.
+    // An existing degraded tally still counts at the cap.
     aggregator.record("g0", "on", "a", "u", null, 1L, false, emptyMap(), emptyMap());
 
     assertEquals(5, aggregator.droppedDegradedOverflow.get());
@@ -256,9 +256,9 @@ class ConcurrentFlagAggregatorTest {
     }
     record("one-too-many", "on", "user", 1L);
 
-    final List<Row> degraded = drain().stream().filter(r -> r.bucket.degraded).collect(toList());
+    final List<Row> degraded = drain().stream().filter(r -> r.tally.degraded).collect(toList());
     assertEquals(1, degraded.size());
-    assertEquals("one-too-many", degraded.get(0).bucket.flagKey);
+    assertEquals("one-too-many", degraded.get(0).tally.flagKey);
   }
 
   @Test
@@ -275,27 +275,27 @@ class ConcurrentFlagAggregatorTest {
   void bucketsMatchOnEveryKeyDimension() {
     final Map<String, Object> ctx = singletonMap("k", "v");
     final Map<String, Object> feats = singletonMap("f", 1);
-    final ConcurrentFlagAggregator.Bucket full =
-        bucket(false, "f", "on", "a", "u", "e", ctx, true, feats);
+    final ConcurrentFlagAggregator.EvaluationTally full =
+        tally(false, "f", "on", "a", "u", "e", ctx, true, feats);
     assertTrue(
-        full.matches(bucket(false, "f", "on", "a", "u", "e", new HashMap<>(ctx), true, feats)));
-    assertFalse(full.matches(bucket(false, "x", "on", "a", "u", "e", ctx, true, feats)));
-    assertFalse(full.matches(bucket(false, "f", "off", "a", "u", "e", ctx, true, feats)));
-    assertFalse(full.matches(bucket(false, "f", "on", "b", "u", "e", ctx, true, feats)));
-    assertFalse(full.matches(bucket(false, "f", "on", "a", "w", "e", ctx, true, feats)));
-    assertFalse(full.matches(bucket(false, "f", "on", "a", "u", "x", ctx, true, feats)));
-    assertFalse(full.matches(bucket(false, "f", "on", "a", "u", "e", emptyMap(), true, feats)));
-    assertFalse(full.matches(bucket(false, "f", "on", "a", "u", "e", ctx, false, feats)));
-    assertFalse(full.matches(bucket(false, "f", "on", "a", "u", "e", ctx, true, emptyMap())));
+        full.matches(tally(false, "f", "on", "a", "u", "e", new HashMap<>(ctx), true, feats)));
+    assertFalse(full.matches(tally(false, "x", "on", "a", "u", "e", ctx, true, feats)));
+    assertFalse(full.matches(tally(false, "f", "off", "a", "u", "e", ctx, true, feats)));
+    assertFalse(full.matches(tally(false, "f", "on", "b", "u", "e", ctx, true, feats)));
+    assertFalse(full.matches(tally(false, "f", "on", "a", "w", "e", ctx, true, feats)));
+    assertFalse(full.matches(tally(false, "f", "on", "a", "u", "x", ctx, true, feats)));
+    assertFalse(full.matches(tally(false, "f", "on", "a", "u", "e", emptyMap(), true, feats)));
+    assertFalse(full.matches(tally(false, "f", "on", "a", "u", "e", ctx, false, feats)));
+    assertFalse(full.matches(tally(false, "f", "on", "a", "u", "e", ctx, true, emptyMap())));
 
-    final ConcurrentFlagAggregator.Bucket degraded =
-        bucket(true, "f", "on", "a", null, "e", null, false, feats);
-    assertTrue(degraded.matches(bucket(true, "f", "on", "a", "other", "e", ctx, true, feats)));
-    assertFalse(degraded.matches(bucket(true, "x", "on", "a", null, "e", null, false, feats)));
-    assertFalse(degraded.matches(bucket(true, "f", "off", "a", null, "e", null, false, feats)));
-    assertFalse(degraded.matches(bucket(true, "f", "on", "b", null, "e", null, false, feats)));
-    assertFalse(degraded.matches(bucket(true, "f", "on", "a", null, "x", null, false, feats)));
-    assertFalse(degraded.matches(bucket(true, "f", "on", "a", null, "e", null, false, emptyMap())));
+    final ConcurrentFlagAggregator.EvaluationTally degraded =
+        tally(true, "f", "on", "a", null, "e", null, false, feats);
+    assertTrue(degraded.matches(tally(true, "f", "on", "a", "other", "e", ctx, true, feats)));
+    assertFalse(degraded.matches(tally(true, "x", "on", "a", null, "e", null, false, feats)));
+    assertFalse(degraded.matches(tally(true, "f", "off", "a", null, "e", null, false, feats)));
+    assertFalse(degraded.matches(tally(true, "f", "on", "b", null, "e", null, false, feats)));
+    assertFalse(degraded.matches(tally(true, "f", "on", "a", null, "x", null, false, feats)));
+    assertFalse(degraded.matches(tally(true, "f", "on", "a", null, "e", null, false, emptyMap())));
   }
 
   // ---- Context hashing ----
@@ -362,7 +362,7 @@ class ConcurrentFlagAggregatorTest {
 
     record("a", "on", "user", 7L);
     assertEquals(singletonList("a 1 7-7"), summaries(drain()));
-    assertEquals(2, aggregator.bucketCount(), "drained buckets stay for the next window");
+    assertEquals(2, aggregator.tallyCount(), "drained tallies stay for the next window");
   }
 
   @Test
@@ -377,12 +377,12 @@ class ConcurrentFlagAggregatorTest {
         assertThrows(
             IllegalStateException.class,
             () ->
-                aggregator.drain((bucket, count, first, last, defaultUsed) -> {
-                  seen.add(bucket.flagKey);
+                aggregator.drain((tally, count, first, last, defaultUsed) -> {
+                  seen.add(tally.flagKey);
                   throw failure;
                 })));
 
-    assertEquals(2, seen.size(), "every bucket is still drained");
+    assertEquals(2, seen.size(), "every tally is still drained");
     assertTrue(aggregator.isEmpty());
     record("a", "on", "user", 2L);
     assertEquals(singletonList("a 1 2-2"), summaries(drain()), "and pushed again when touched");
@@ -401,13 +401,13 @@ class ConcurrentFlagAggregatorTest {
     record("busy", "on", "user", 2L);
     drain();
     assertEquals(PER_FLAG_CAP + 1, aggregator.sweepIdle());
-    assertEquals(1, aggregator.bucketCount());
+    assertEquals(1, aggregator.tallyCount());
 
-    // The idle buckets' flag slots were given back, so the flag fills the full tier again.
+    // The idle tallies' flag slots were given back, so the flag fills the full tier again.
     for (int i = 0; i < PER_FLAG_CAP; i++) {
       aggregator.record("idle", "on", "alloc", "v" + i, null, 3L, false, emptyMap(), emptyMap());
     }
-    assertEquals(0, drain().stream().filter(r -> r.bucket.degraded).count());
+    assertEquals(0, drain().stream().filter(r -> r.tally.degraded).count());
   }
 
   @Test
@@ -430,7 +430,7 @@ class ConcurrentFlagAggregatorTest {
     assertEquals((long) threads * perThread, rows.stream().mapToLong(r -> r.count).sum());
     // i % 16 determines i % 4, so there are 16 distinct (flag, subject) keys, each inserted once.
     assertEquals(16, rows.size());
-    assertEquals(16, aggregator.bucketCount());
+    assertEquals(16, aggregator.tallyCount());
   }
 
   @Test
@@ -439,7 +439,7 @@ class ConcurrentFlagAggregatorTest {
     final int perThread = 100_000;
     final long[] total = {0};
     final ConcurrentFlagAggregator.Rows sum =
-        (bucket, count, first, last, defaultUsed) -> total[0] += count;
+        (tally, count, first, last, defaultUsed) -> total[0] += count;
     // Drain and sweep over and over while the producers run, then once more after.
     runProducers(
         threads,
@@ -458,19 +458,19 @@ class ConcurrentFlagAggregatorTest {
 
   /** A drained row. */
   private static final class Row {
-    final ConcurrentFlagAggregator.Bucket bucket;
+    final ConcurrentFlagAggregator.EvaluationTally tally;
     final long count;
     final long first;
     final long last;
     final boolean defaultUsed;
 
     Row(
-        final ConcurrentFlagAggregator.Bucket bucket,
+        final ConcurrentFlagAggregator.EvaluationTally tally,
         final long count,
         final long first,
         final long last,
         final boolean defaultUsed) {
-      this.bucket = bucket;
+      this.tally = tally;
       this.count = count;
       this.first = first;
       this.last = last;
@@ -481,15 +481,15 @@ class ConcurrentFlagAggregatorTest {
   private List<Row> drain() {
     final List<Row> rows = new ArrayList<>();
     final int drained =
-        aggregator.drain((bucket, count, first, last, defaultUsed) ->
-            rows.add(new Row(bucket, count, first, last, defaultUsed)));
+        aggregator.drain((tally, count, first, last, defaultUsed) ->
+            rows.add(new Row(tally, count, first, last, defaultUsed)));
     assertEquals(rows.size(), drained);
     return rows;
   }
 
   private static List<String> summaries(final List<Row> rows) {
     return rows.stream()
-        .map(r -> r.bucket.flagKey + " " + r.count + " " + r.first + "-" + r.last)
+        .map(r -> r.tally.flagKey + " " + r.count + " " + r.first + "-" + r.last)
         .sorted()
         .collect(toList());
   }
@@ -497,13 +497,13 @@ class ConcurrentFlagAggregatorTest {
   /** The drained full-tier rows' features and counts, sorted. */
   private List<String> features() {
     return drain().stream()
-        .filter(r -> !r.bucket.degraded)
-        .map(r -> r.bucket.features + "=" + r.count)
+        .filter(r -> !r.tally.degraded)
+        .map(r -> r.tally.features + "=" + r.count)
         .sorted()
         .collect(toList());
   }
 
-  /** Fills the full tier to its global cap with distinct buckets, under the per-flag cap. */
+  /** Fills the full tier to its global cap with distinct tallies, under the per-flag cap. */
   private void fillFullTier() {
     for (int i = 0; i < GLOBAL_CAP; i++) {
       aggregator.record(
@@ -534,7 +534,7 @@ class ConcurrentFlagAggregatorTest {
         flagKey, variant, allocationKey, targetingKey, errorMessage, 1L, true, attrs, emptyMap());
   }
 
-  private static ConcurrentFlagAggregator.Bucket bucket(
+  private static ConcurrentFlagAggregator.EvaluationTally tally(
       final boolean degraded,
       final String flag,
       final String variant,
@@ -544,7 +544,7 @@ class ConcurrentFlagAggregatorTest {
       final Map<String, Object> context,
       final boolean consent,
       final Map<String, Object> features) {
-    return new ConcurrentFlagAggregator.Bucket(
+    return new ConcurrentFlagAggregator.EvaluationTally(
         degraded,
         1L,
         flag,
@@ -572,7 +572,7 @@ class ConcurrentFlagAggregatorTest {
             executor.submit(() -> {
               start.await();
               for (int i = 0; i < perThread; i++) {
-                // Few keys, so threads contend on the same buckets and race on insertion.
+                // Few keys, so threads contend on the same tallies and race on insertion.
                 aggregator.record(
                     "flag-" + (i % 4),
                     (i & 1) == 0 ? "on" : null,

@@ -184,9 +184,9 @@ class FlagEvaluationPipelineTest {
 
     setup.add(simpleEvent("idle-flag", "on"));
     setup.handler.flush();
-    assertEquals(1, setup.aggregator.bucketCount(), "kept through the window it was touched in");
+    assertEquals(1, setup.aggregator.tallyCount(), "kept through the window it was touched in");
     setup.handler.flush();
-    assertEquals(0, setup.aggregator.bucketCount());
+    assertEquals(0, setup.aggregator.tallyCount());
   }
 
   @Test

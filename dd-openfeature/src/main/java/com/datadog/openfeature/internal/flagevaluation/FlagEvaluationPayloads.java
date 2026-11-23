@@ -250,36 +250,36 @@ final class FlagEvaluationPayloads {
     }
 
     /**
-     * The row of a drained bucket. Timestamps that raced the drain (none left, so first is after
+     * The row of a drained tally. Timestamps that raced the drain (none left, so first is after
      * last) read as the flush time.
      */
-    static FlagEvaluationEvent fromBucket(
-        final ConcurrentFlagAggregator.Bucket bucket,
+    static FlagEvaluationEvent fromTally(
+        final ConcurrentFlagAggregator.EvaluationTally tally,
         final long count,
         final long firstEvalMs,
         final long lastEvalMs,
         final boolean runtimeDefaultUsed,
         final long flushTimeMs) {
-      final boolean isFullTier = !bucket.degraded;
+      final boolean isFullTier = !tally.degraded;
       // Consent is the value snapshotted at evaluation time, not the current configuration's: a
       // later configuration may have changed it since these evaluations happened.
-      final boolean observeFullEvaluationData = bucket.observeFullEvaluationData;
+      final boolean observeFullEvaluationData = tally.observeFullEvaluationData;
       final boolean timed = firstEvalMs <= lastEvalMs;
       return new FlagEvaluationEvent(
           flushTimeMs,
-          bucket.flagKey,
+          tally.flagKey,
           timed ? firstEvalMs : flushTimeMs,
           timed ? lastEvalMs : flushTimeMs,
           count,
-          bucket.variant,
-          bucket.allocationKey,
-          resolveTargetingKey(bucket.targetingKey, isFullTier, observeFullEvaluationData),
+          tally.variant,
+          tally.allocationKey,
+          resolveTargetingKey(tally.targetingKey, isFullTier, observeFullEvaluationData),
           runtimeDefaultUsed,
-          bucket.errorMessage,
-          isFullTier && observeFullEvaluationData ? bucket.prunedAttrs : null,
+          tally.errorMessage,
+          isFullTier && observeFullEvaluationData ? tally.prunedAttrs : null,
           // Features come from the flag configuration, so both tiers keep them whatever the
           // consent.
-          bucket.features);
+          tally.features);
     }
 
     private static String resolveTargetingKey(

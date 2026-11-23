@@ -39,7 +39,7 @@ import org.openjdk.jmh.annotations.Warmup;
  * makes every field-count profile measure the same scalar-only work.
  *
  * <p>The worker is never started, so nothing drains: after the first pass over the keys every
- * evaluation lands in an existing bucket, the steady state of a flush window.
+ * evaluation lands in an existing tally, the steady state of a flush window.
  *
  * <p>Run: {@code ./gradlew :dd-openfeature:jmh -Pjmh.includes=FlagEvaluationHotPathBenchmark}.
  */

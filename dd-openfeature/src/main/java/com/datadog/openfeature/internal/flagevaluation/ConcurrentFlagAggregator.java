@@ -15,32 +15,32 @@ import javax.annotation.Nullable;
 /**
  * Aggregates flag evaluations into rows on the evaluating threads, for the worker to flush.
  *
- * <p><b>Tiers.</b> A full-tier bucket is keyed by every dimension: flag, variant, allocation,
- * error, subject, context, consent and features. Without consent the context is dropped on emit, so
- * it neither splits buckets nor is stored. The full tier holds at most {@link #GLOBAL_CAP} buckets,
+ * <p><b>Tiers.</b> A full-tier tally is keyed by every dimension: flag, variant, allocation, error,
+ * subject, context, consent and features. Without consent the context is dropped on emit, so it
+ * neither splits tallies nor is stored. The full tier holds at most {@link #GLOBAL_CAP} tallies,
  * and {@link #PER_FLAG_CAP} per flag. Past either cap an evaluation spills to the degraded tier,
  * keyed without the subject, the context and the consent (degraded rows never carry them), and
  * AND-folds the consent of the evaluations it merges. The degraded tier holds at most {@link
- * #DEGRADED_CAP} buckets; past it an evaluation is dropped and counted in {@link
+ * #DEGRADED_CAP} tallies; past it an evaluation is dropped and counted in {@link
  * #droppedDegradedOverflow}.
  *
  * <p><b>Recording.</b> Each tier is a toolbox {@link ConcurrentHashtable}. An evaluation that lands
- * in an existing bucket costs a lock-free chain scan and a few atomic updates, and allocates
- * nothing. A new bucket is inserted under the table's write lock, which also enforces the tier's
+ * in an existing tally costs a lock-free chain scan and a few atomic updates, and allocates
+ * nothing. A new tally is inserted under the table's write lock, which also enforces the tier's
  * cap. The per-flag cap is checked before that lock, so racing inserts can overshoot it by a few
- * buckets.
+ * tallies.
  *
- * <p><b>Drained in place.</b> Buckets live across flushes. A bucket whose count goes from zero to
- * one pushes itself onto a lock-free stack of the buckets touched since the last drain. {@link
- * #drain} takes the whole stack and, for each bucket, reads and resets its counters. An evaluation
+ * <p><b>Drained in place.</b> Tallies live across flushes. A tally whose count goes from zero to
+ * one pushes itself onto a lock-free stack of the tallies touched since the last drain. {@link
+ * #drain} takes the whole stack and, for each tally, reads and resets its counters. An evaluation
  * racing the drain is never lost: if its increment lands before the reset, this drain emits it; if
- * after, it finds the count at zero and pushes the bucket onto the next drain's stack. Only its
- * timestamps can land in the other flush. A drain costs time in proportion to the buckets touched,
- * not to the table, and busy buckets are not recreated every window.
+ * after, it finds the count at zero and pushes the tally onto the next drain's stack. Only its
+ * timestamps can land in the other flush. A drain costs time in proportion to the tallies touched,
+ * not to the table, and busy tallies are not recreated every window.
  *
- * <p><b>Idle sweep.</b> {@link #sweepIdle} removes the buckets idle for a whole window, which frees
- * their slots under the caps. An evaluation that finds a bucket just as it is swept still counts,
- * in the next drain; a later one creates a fresh bucket.
+ * <p><b>Idle sweep.</b> {@link #sweepIdle} removes the tallies idle for a whole window, which frees
+ * their slots under the caps. An evaluation that finds a tally just as it is swept still counts, in
+ * the next drain; a later one creates a fresh tally.
  */
 final class ConcurrentFlagAggregator {
   // Design assumptions: the scale the caps are sized for.
@@ -58,36 +58,39 @@ final class ConcurrentFlagAggregator {
   static final int DEGRADED_BUCKET_SIZING_BASIS =
       EXPECTED_FLAG_COUNT * EXPECTED_DEGRADED_BUCKETS_PER_FLAG; // 25_000
 
-  // Enforced bucket caps.
+  // Enforced tally caps.
   static final int GLOBAL_CAP = 131_072; // nearest power of two above FULL_BUCKET_SIZING_BASIS
   static final int PER_FLAG_CAP = PER_FLAG_BUCKET_SIZING_BASIS;
   static final int DEGRADED_CAP = 32_768; // nearest power of two above DEGRADED_BUCKET_SIZING_BASIS
 
   /**
-   * The most flags whose full-tier buckets are counted. Counts are never removed, so the
+   * The most flags whose full-tier tallies are counted. Counts are never removed, so the
    * evaluations of further flags go to the degraded tier.
    */
   static final int FLAG_COUNT_CAP = 65_536;
 
   /** Receives each drained row, with the counters it had at the drain. */
   interface Rows {
-    void row(Bucket bucket, long count, long firstEvalMs, long lastEvalMs, boolean defaultUsed);
+    void row(
+        EvaluationTally tally, long count, long firstEvalMs, long lastEvalMs, boolean defaultUsed);
   }
 
-  private static final AtomicReferenceFieldUpdater<ConcurrentFlagAggregator, Bucket> DIRTY =
-      AtomicReferenceFieldUpdater.newUpdater(ConcurrentFlagAggregator.class, Bucket.class, "dirty");
+  private static final AtomicReferenceFieldUpdater<ConcurrentFlagAggregator, EvaluationTally>
+      DIRTY =
+          AtomicReferenceFieldUpdater.newUpdater(
+              ConcurrentFlagAggregator.class, EvaluationTally.class, "dirty");
 
   final AtomicLong droppedDegradedOverflow = new AtomicLong();
-  private final ConcurrentHashtable.State<Bucket> full =
-      ConcurrentHashtable.createBounded(Bucket.class, GLOBAL_CAP);
-  private final ConcurrentHashtable.State<Bucket> degraded =
-      ConcurrentHashtable.createBounded(Bucket.class, DEGRADED_CAP);
+  private final ConcurrentHashtable.State<EvaluationTally> full =
+      ConcurrentHashtable.createBounded(EvaluationTally.class, GLOBAL_CAP);
+  private final ConcurrentHashtable.State<EvaluationTally> degraded =
+      ConcurrentHashtable.createBounded(EvaluationTally.class, DEGRADED_CAP);
   private final ConcurrentHashtable.D1<String, FlagCount> flagCounts =
       ConcurrentHashtable.D1.createBounded(FlagCount.class, FLAG_COUNT_CAP);
 
-  // The buckets touched since the last drain, linked through Bucket.dirtyNext.
-  @Nullable private volatile Bucket dirty;
-  // Written by the draining thread only; read when a bucket is created.
+  // The tallies touched since the last drain, linked through EvaluationTally.dirtyNext.
+  @Nullable private volatile EvaluationTally dirty;
+  // Written by the draining thread only; read when a tally is created.
   private volatile int drains;
 
   /** Records one evaluation, on the evaluating thread. */
@@ -102,13 +105,13 @@ final class ConcurrentFlagAggregator {
       @Nullable final Map<String, Object> attrs,
       @Nullable final Map<String, Object> features) {
     final boolean isDefault = variant == null;
-    // Without consent the context is dropped on emit, so it must not fragment buckets or be
+    // Without consent the context is dropped on emit, so it must not fragment tallies or be
     // stored: a high-cardinality field (request_id, timestamp) would blow out PER_FLAG_CAP and
     // spill every later evaluation into the degraded tier.
     final Map<String, Object> context = observeFullEvaluationData ? attrs : null;
     final long contextHash = observeFullEvaluationData ? contextHash(context) : 0L;
     // Features come from the flag configuration, not the evaluation context, so they split
-    // buckets in both tiers and whatever the consent.
+    // tallies in both tiers and whatever the consent.
     final Map<String, Object> featureMap =
         features == null ? Collections.<String, Object>emptyMap() : features;
     final long featuresHash = featureMap.hashCode();
@@ -123,7 +126,9 @@ final class ConcurrentFlagAggregator {
             contextHash,
             observeFullEvaluationData,
             featuresHash);
-    for (Bucket b = ConcurrentHashtable.bucketFor(full, fullHash); b != null; b = b.next()) {
+    for (EvaluationTally b = ConcurrentHashtable.bucketFor(full, fullHash);
+        b != null;
+        b = b.next()) {
       if (b.keyHash == fullHash
           && b.matchesFull(
               flagKey,
@@ -141,8 +146,8 @@ final class ConcurrentFlagAggregator {
 
     final FlagCount flagCount = flagCounts.tryGetOrCreateOrNull(flagKey, FlagCount::new);
     if (flagCount != null && flagCount.count.get() < PER_FLAG_CAP) {
-      final Bucket bucket =
-          new Bucket(
+      final EvaluationTally tally =
+          new EvaluationTally(
               false,
               fullHash,
               flagKey,
@@ -155,13 +160,13 @@ final class ConcurrentFlagAggregator {
               featureMap,
               flagCount,
               drains);
-      final Bucket inserted;
-      try (ConcurrentHashtable.Reservation<Bucket> reservation =
+      final EvaluationTally inserted;
+      try (ConcurrentHashtable.Reservation<EvaluationTally> reservation =
           ConcurrentHashtable.tryReserve(full, fullHash)) {
-        inserted = reservation.tryGetOrInsertOrNull(bucket);
+        inserted = reservation.tryGetOrInsertOrNull(tally);
       }
       if (inserted != null) {
-        if (inserted == bucket) {
+        if (inserted == tally) {
           flagCount.count.incrementAndGet();
         }
         inserted.merge(this, evalTimeMs, isDefault);
@@ -172,7 +177,7 @@ final class ConcurrentFlagAggregator {
 
     final long degradedHash =
         degradedHash(flagKey, variant, allocationKey, errorMessage, featuresHash);
-    for (Bucket b = ConcurrentHashtable.bucketFor(degraded, degradedHash);
+    for (EvaluationTally b = ConcurrentHashtable.bucketFor(degraded, degradedHash);
         b != null;
         b = b.next()) {
       if (b.keyHash == degradedHash
@@ -181,8 +186,8 @@ final class ConcurrentFlagAggregator {
         return;
       }
     }
-    final Bucket bucket =
-        new Bucket(
+    final EvaluationTally tally =
+        new EvaluationTally(
             true,
             degradedHash,
             flagKey,
@@ -195,10 +200,10 @@ final class ConcurrentFlagAggregator {
             featureMap,
             null,
             drains);
-    final Bucket inserted;
-    try (ConcurrentHashtable.Reservation<Bucket> reservation =
+    final EvaluationTally inserted;
+    try (ConcurrentHashtable.Reservation<EvaluationTally> reservation =
         ConcurrentHashtable.tryReserve(degraded, degradedHash)) {
-      inserted = reservation.tryGetOrInsertOrNull(bucket);
+      inserted = reservation.tryGetOrInsertOrNull(tally);
     }
     if (inserted == null) {
       droppedDegradedOverflow.incrementAndGet();
@@ -207,12 +212,12 @@ final class ConcurrentFlagAggregator {
     }
   }
 
-  private void push(final Bucket bucket) {
-    Bucket head;
+  private void push(final EvaluationTally tally) {
+    EvaluationTally head;
     do {
       head = dirty;
-      bucket.dirtyNext = head;
-    } while (!DIRTY.compareAndSet(this, head, bucket));
+      tally.dirtyNext = head;
+    } while (!DIRTY.compareAndSet(this, head, tally));
   }
 
   /** Whether no evaluation has been recorded since the last drain. */
@@ -221,10 +226,10 @@ final class ConcurrentFlagAggregator {
   }
 
   /**
-   * Passes every bucket touched since the last drain to {@code rows}, with its counters, and resets
+   * Passes every tally touched since the last drain to {@code rows}, with its counters, and resets
    * them. One draining thread at a time.
    *
-   * <p>A row that throws does not stop the drain: every touched bucket is still read and reset, so
+   * <p>A row that throws does not stop the drain: every touched tally is still read and reset, so
    * none is left counting without being on the stack. The first failure is rethrown at the end.
    *
    * @return the number of rows drained.
@@ -234,16 +239,16 @@ final class ConcurrentFlagAggregator {
     drains = drain;
     int drained = 0;
     RuntimeException failure = null;
-    Bucket b = DIRTY.getAndSet(this, null);
+    EvaluationTally b = DIRTY.getAndSet(this, null);
     while (b != null) {
-      // Unlink before resetting the count: once it is zero, an evaluation can push the bucket
+      // Unlink before resetting the count: once it is zero, an evaluation can push the tally
       // again, and that push writes dirtyNext.
-      final Bucket next = b.dirtyNext;
+      final EvaluationTally next = b.dirtyNext;
       b.dirtyNext = null;
-      final long count = Bucket.COUNT.getAndSet(b, 0);
-      final long first = Bucket.FIRST.getAndSet(b, Long.MAX_VALUE);
-      final long last = Bucket.LAST.getAndSet(b, Long.MIN_VALUE);
-      final boolean defaultUsed = Bucket.DEFAULT_USED.getAndSet(b, 0) != 0;
+      final long count = EvaluationTally.COUNT.getAndSet(b, 0);
+      final long first = EvaluationTally.FIRST.getAndSet(b, Long.MAX_VALUE);
+      final long last = EvaluationTally.LAST.getAndSet(b, Long.MIN_VALUE);
+      final boolean defaultUsed = EvaluationTally.DEFAULT_USED.getAndSet(b, 0) != 0;
       b.lastDrain = drain;
       if (count > 0) {
         drained++;
@@ -264,10 +269,10 @@ final class ConcurrentFlagAggregator {
   }
 
   /**
-   * Removes the buckets that saw no evaluation in the last whole window, freeing their slots under
+   * Removes the tallies that saw no evaluation in the last whole window, freeing their slots under
    * the caps. The draining thread only, after {@link #drain}.
    *
-   * @return the number of buckets removed.
+   * @return the number of tallies removed.
    */
   int sweepIdle() {
     final int drain = drains;
@@ -294,8 +299,8 @@ final class ConcurrentFlagAggregator {
     return removed[0];
   }
 
-  /** The number of buckets in both tiers, touched or not. */
-  int bucketCount() {
+  /** The number of tallies in both tiers, touched or not. */
+  int tallyCount() {
     return ConcurrentHashtable.estimateSize(full) + ConcurrentHashtable.estimateSize(degraded);
   }
 
@@ -368,15 +373,15 @@ final class ConcurrentFlagAggregator {
   }
 
   /** One aggregated row: its key, and counters updated by any evaluating thread. */
-  static final class Bucket extends ConcurrentHashtable.Entry<Bucket> {
-    static final AtomicLongFieldUpdater<Bucket> COUNT =
-        AtomicLongFieldUpdater.newUpdater(Bucket.class, "count");
-    static final AtomicLongFieldUpdater<Bucket> FIRST =
-        AtomicLongFieldUpdater.newUpdater(Bucket.class, "firstEvalMs");
-    static final AtomicLongFieldUpdater<Bucket> LAST =
-        AtomicLongFieldUpdater.newUpdater(Bucket.class, "lastEvalMs");
-    static final AtomicIntegerFieldUpdater<Bucket> DEFAULT_USED =
-        AtomicIntegerFieldUpdater.newUpdater(Bucket.class, "defaultUsed");
+  static final class EvaluationTally extends ConcurrentHashtable.Entry<EvaluationTally> {
+    static final AtomicLongFieldUpdater<EvaluationTally> COUNT =
+        AtomicLongFieldUpdater.newUpdater(EvaluationTally.class, "count");
+    static final AtomicLongFieldUpdater<EvaluationTally> FIRST =
+        AtomicLongFieldUpdater.newUpdater(EvaluationTally.class, "firstEvalMs");
+    static final AtomicLongFieldUpdater<EvaluationTally> LAST =
+        AtomicLongFieldUpdater.newUpdater(EvaluationTally.class, "lastEvalMs");
+    static final AtomicIntegerFieldUpdater<EvaluationTally> DEFAULT_USED =
+        AtomicIntegerFieldUpdater.newUpdater(EvaluationTally.class, "defaultUsed");
 
     final boolean degraded;
     final String flagKey;
@@ -386,9 +391,9 @@ final class ConcurrentFlagAggregator {
     @Nullable final String errorMessage;
     @Nullable final Map<String, Object> prunedAttrs;
     final Map<String, Object> features;
-    // The full-tier bucket count of this bucket's flag; null for degraded buckets.
+    // The full-tier tally count of this tally's flag; null for degraded tallies.
     @Nullable final FlagCount flagCount;
-    // Fixed for a full-tier bucket, where consent is a key dimension. A degraded bucket AND-folds
+    // Fixed for a full-tier tally, where consent is a key dimension. A degraded tally AND-folds
     // it, which is benign: degraded rows drop the targeting key and context whatever the consent.
     volatile boolean observeFullEvaluationData;
 
@@ -397,12 +402,12 @@ final class ConcurrentFlagAggregator {
     volatile long lastEvalMs = Long.MIN_VALUE;
     volatile int defaultUsed;
 
-    // The next bucket on the stack of buckets touched since the last drain.
-    @Nullable Bucket dirtyNext;
-    // The drain that last found this bucket touched, or the last drain before it was created.
+    // The next tally on the stack of tallies touched since the last drain.
+    @Nullable EvaluationTally dirtyNext;
+    // The drain that last found this tally touched, or the last drain before it was created.
     int lastDrain;
 
-    Bucket(
+    EvaluationTally(
         final boolean degraded,
         final long keyHash,
         final String flagKey,
@@ -446,7 +451,7 @@ final class ConcurrentFlagAggregator {
         final boolean isDefault,
         final boolean observeFullEvaluationData) {
       if (!observeFullEvaluationData && this.observeFullEvaluationData) {
-        this.observeFullEvaluationData = false; // a mixed bucket stays at consent-off
+        this.observeFullEvaluationData = false; // a mixed tally stays at consent-off
       }
       merge(owner, evalTimeMs, isDefault);
     }
@@ -504,7 +509,7 @@ final class ConcurrentFlagAggregator {
     }
 
     @Override
-    public boolean matches(final Bucket other) {
+    public boolean matches(final EvaluationTally other) {
       return degraded
           ? matchesDegraded(
               other.flagKey, other.variant, other.allocationKey, other.errorMessage, other.features)
@@ -520,7 +525,7 @@ final class ConcurrentFlagAggregator {
     }
   }
 
-  /** The number of full-tier buckets of a flag. */
+  /** The number of full-tier tallies of a flag. */
   static final class FlagCount extends ConcurrentHashtable.D1.Entry<String> {
     final AtomicInteger count = new AtomicInteger();
 

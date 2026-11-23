@@ -22,9 +22,9 @@ import org.slf4j.LoggerFactory;
  * EVP flagevaluation writer for Java.
  *
  * <p>Evaluations are aggregated on the evaluating threads, into a {@link ConcurrentFlagAggregator}
- * (see it for the tiers, the caps and the bucket keys), so no evaluation waits on a queue or is
+ * (see it for the tiers, the caps and the tally keys), so no evaluation waits on a queue or is
  * dropped for lack of room in one. The worker thread only flushes: every flush interval it drains
- * the buckets touched since the last flush into payloads, sweeps out the idle ones, and posts the
+ * the tallies touched since the last flush into payloads, sweeps out the idle ones, and posts the
  * payloads through the same event transport as the exposure pipeline.
  *
  * <p>Shutdown: {@link #requestShutdown} stops accepting evaluations, counting later ones as closed
@@ -127,7 +127,7 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
   /** Counts the evaluations recorded since the worker's last drain as closed drops. */
   private void countResidualEvaluations() {
     final long[] residual = {0};
-    aggregator.drain((bucket, count, first, last, defaultUsed) -> residual[0] += count);
+    aggregator.drain((tally, count, first, last, defaultUsed) -> residual[0] += count);
     countClosedDrops(residual[0]);
   }
 
@@ -287,13 +287,13 @@ public class FlagEvaluationPipeline implements FlagEvaluationWriter, EventPipeli
         final long[] degradedCount = {0};
         // The drain resets the counters it reads: a failed delivery drops this batch rather than
         // retrying it, so one unserializable value cannot block every later flush.
-        aggregator.drain((bucket, count, first, last, defaultUsed) -> {
-          if (bucket.degraded) {
+        aggregator.drain((tally, count, first, last, defaultUsed) -> {
+          if (tally.degraded) {
             degradedCount[0] += count;
           }
           events.add(
-              FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
-                  bucket, count, first, last, defaultUsed, flushTimeMs));
+              FlagEvaluationPayloads.FlagEvaluationEvent.fromTally(
+                  tally, count, first, last, defaultUsed, flushTimeMs));
         });
         aggregator.sweepIdle();
         if (events.isEmpty()) {
