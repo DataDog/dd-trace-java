@@ -45,7 +45,7 @@ abstract class CITagsProviderTest extends Specification {
     def config = Config.get(properties)
     def environment = new CiEnvironmentImpl(env.getAll())
     CIProviderInfoFactory ciProviderInfoFactory = new CIProviderInfoFactory(config, GIT_FOLDER_FOR_TESTS, environment)
-    def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getWorkspacePath())
+    def ciProviderInfo = ciProviderInfoFactory.createCIProviderInfo(getCiSpecWorkspacePath())
     def ciInfo = ciProviderInfo.buildCIInfo()
     def prInfo = CiVisibilityRepoServices.buildPullRequestInfo(config, environment, ciProviderInfo, NoOpGitClient.INSTANCE, true)
     def ciTagsProvider = ciTagsProvider()
@@ -118,16 +118,16 @@ abstract class CITagsProviderTest extends Specification {
 
     then:
     if (isWorkspaceAwareCi()) {
-      tags.get(Tags.GIT_REPOSITORY_URL) == "https://some-host/some-user/some-repo.git"
-      tags.get(Tags.GIT_BRANCH) == "master"
-      tags.get(Tags.GIT_COMMIT_SHA) == "0797c248e019314fc1d91a483e859b32f4509953"
-      tags.get(Tags.GIT_COMMIT_AUTHOR_NAME) == "John Doe"
-      tags.get(Tags.GIT_COMMIT_AUTHOR_EMAIL) == "john@doe.com"
-      tags.get(Tags.GIT_COMMIT_AUTHOR_DATE) == "2021-02-12T13:47:48.000Z"
-      tags.get(Tags.GIT_COMMIT_COMMITTER_NAME) == "Jane Doe"
-      tags.get(Tags.GIT_COMMIT_COMMITTER_EMAIL) == "jane@doe.com"
-      tags.get(Tags.GIT_COMMIT_COMMITTER_DATE) == "2021-02-12T13:48:44.000Z"
-      tags.get(Tags.GIT_COMMIT_MESSAGE) == "This is a commit message\n"
+      assert tags.get(Tags.GIT_REPOSITORY_URL) == "https://some-host/some-user/some-repo.git"
+      assert tags.get(Tags.GIT_BRANCH) == "master"
+      assert tags.get(Tags.GIT_COMMIT_SHA) == "0797c248e019314fc1d91a483e859b32f4509953"
+      assert tags.get(Tags.GIT_COMMIT_AUTHOR_NAME) == "John Doe"
+      assert tags.get(Tags.GIT_COMMIT_AUTHOR_EMAIL) == "john@doe.com"
+      assert tags.get(Tags.GIT_COMMIT_AUTHOR_DATE) == "2021-02-12T13:47:48.000Z"
+      assert tags.get(Tags.GIT_COMMIT_COMMITTER_NAME) == "Jane Doe"
+      assert tags.get(Tags.GIT_COMMIT_COMMITTER_EMAIL) == "jane@doe.com"
+      assert tags.get(Tags.GIT_COMMIT_COMMITTER_DATE) == "2021-02-12T13:48:44.000Z"
+      assert tags.get(Tags.GIT_COMMIT_MESSAGE) == "This is a commit message\n"
     }
   }
 
@@ -186,6 +186,10 @@ abstract class CITagsProviderTest extends Specification {
     return resolvedWS
   }
 
+  Path getCiSpecWorkspacePath() {
+    return getWorkspacePath()
+  }
+
   Path getWorkspacePath() {
     return Paths.get(localFSGitWorkspace)
   }
@@ -195,6 +199,6 @@ abstract class CITagsProviderTest extends Specification {
   }
 
   boolean isWorkspaceAwareCi() {
-    true
+    getWorkspacePath() != null
   }
 }

@@ -7,7 +7,7 @@ class UserSuppliedCIInfoTest extends CITagsProviderTest {
   @TempDir Path emptyWorkspace
 
   @Override
-  Path getWorkspacePath() {
+  Path getCiSpecWorkspacePath() {
     return emptyWorkspace
   }
 
