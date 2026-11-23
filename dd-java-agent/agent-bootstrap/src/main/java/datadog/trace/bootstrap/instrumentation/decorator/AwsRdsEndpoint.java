@@ -124,17 +124,21 @@ public final class AwsRdsEndpoint implements TagContributor {
    * rejecting them early is safe: the gate never rejects a valid RDS endpoint.
    */
   static boolean isPlausibleRdsHostname(final String hostname) {
-    int end = hostname.length();
-    if (end > 0 && hostname.charAt(end - 1) == '.') {
-      end--;
+    int end = stripTrailingDot(hostname, hostname.length());
+    int hostEnd = stripPort(hostname, end);
+    if (hostEnd < end) {
+      hostEnd = stripTrailingDot(hostname, hostEnd);
     }
-    end = stripPort(hostname, end);
     for (String suffix : DNS_SUFFIXES) {
-      if (endsWithIgnoreCase(hostname, end, suffix)) {
+      if (endsWithIgnoreCase(hostname, hostEnd, suffix)) {
         return true;
       }
     }
     return false;
+  }
+
+  private static int stripTrailingDot(final String hostname, final int end) {
+    return end > 0 && hostname.charAt(end - 1) == '.' ? end - 1 : end;
   }
 
   /** Returns the end index with a trailing {@code :port} removed. Bounded to 5 digits. */
@@ -179,14 +183,11 @@ public final class AwsRdsEndpoint implements TagContributor {
 
   private static AwsRdsEndpoint doParse(final String rawHostname) {
     String hostname = rawHostname.toLowerCase(Locale.ROOT);
-    int end = hostname.length();
     // Strip a trailing dot from a fully qualified name and a :port suffix if one leaked in.
-    if (end > 0 && hostname.charAt(end - 1) == '.') {
-      end--;
-    }
+    int end = stripTrailingDot(hostname, hostname.length());
     int colon = hostname.indexOf(':');
     if (colon >= 0) {
-      end = Math.min(end, colon);
+      end = stripTrailingDot(hostname, colon);
     }
 
     // Strip the partition DNS suffix so the remaining labels are the same shape in every
