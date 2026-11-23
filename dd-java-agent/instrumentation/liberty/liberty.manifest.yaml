@@ -1,8 +1,8 @@
 _v: 1
 name: liberty
 display_name: Open Liberty
-description: Instruments Open Liberty HTTP request handling and completion, with request-body, upload, and response
-  inspection for application-security blocking.
+description: Instruments inbound HTTP servlet requests in Open Liberty, creating server spans and enabling Application Security
+  request inspection and blocking.
 packages: []
 category:
 - http.server

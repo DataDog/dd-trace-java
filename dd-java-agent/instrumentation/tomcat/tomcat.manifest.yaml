@@ -1,8 +1,8 @@
 _v: 1
 name: tomcat
 display_name: Apache Tomcat
-description: Instruments Tomcat HTTP request handling and completion, deployment metadata and WebSocket handshake
-  context, with application-security request and response inspection and vulnerability detection.
+description: Instruments Apache Tomcat inbound HTTP request lifecycles, maintains trace context across WebSocket handshakes,
+  and provides AppSec request inspection and blocking plus IAST error-page stacktrace-leak detection and suppression.
 packages:
 - name: org.apache.tomcat:catalina-ha
 - name: org.apache.tomcat:coyote
@@ -17,4 +17,4 @@ packages:
 category:
 - http.server
 systems: []
-creation_date: '2017-06-15'
+creation_date: '2021-01-12'

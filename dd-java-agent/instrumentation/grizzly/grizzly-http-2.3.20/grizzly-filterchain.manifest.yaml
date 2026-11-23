@@ -1,8 +1,7 @@
 _v: 1
 name: grizzly-filterchain
-display_name: grizzly-http
-description: Instruments Grizzly HTTP filter-chain request processing and response completion, including error handling
-  and application-security blocking.
+display_name: Grizzly Filter Chain
+description: Instruments inbound HTTP requests handled by Grizzly filter chains.
 packages:
 - name: org.glassfish.grizzly:grizzly-http
 category:

@@ -1,10 +1,11 @@
 _v: 1
 name: jetty
-display_name: 'Core :: Server'
-description: Instruments Jetty HTTP request handling and client and server WebSocket messages and connection closure,
-  with application-security request and response inspection.
+display_name: Jetty
+description: Instruments Jetty inbound HTTP requests and WebSocket messages sent and received on server endpoints and native
+  client sessions, including Application Security request inspection and blocking.
 packages:
 - name: org.eclipse.jetty.ee10.websocket:jetty-ee10-websocket-jakarta-server
+- name: org.eclipse.jetty.ee10:jetty-ee10-servlet
 - name: org.eclipse.jetty.ee8.websocket:jetty-ee8-websocket-javax-server
 - name: org.eclipse.jetty.ee9.websocket:jetty-ee9-websocket-jakarta-server
 - name: org.eclipse.jetty.websocket:jetty-websocket-jetty-server

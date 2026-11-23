@@ -1,8 +1,8 @@
 _v: 1
 name: netty
-display_name: Netty/All-in-One
-description: Instruments Netty HTTP client and server requests and server WebSocket messages, with connection-error
-  tracing and application-security body inspection and taint propagation.
+display_name: Netty
+description: Instruments Netty HTTP client and server requests, traces WebSocket server frames, processes HTTP request bodies
+  for AppSec, and propagates IAST taint through Netty buffers.
 packages:
 - name: io.netty:netty
 - name: io.netty:netty-all

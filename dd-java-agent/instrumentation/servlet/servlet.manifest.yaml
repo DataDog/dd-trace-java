@@ -1,8 +1,8 @@
 _v: 1
 name: servlet
 display_name: Java Servlet API
-description: Instruments Servlet request handling, dispatch, and response operations, with application-security
-  inspection, vulnerability detection, and browser monitoring script injection.
+description: Traces inbound requests, RequestDispatcher and async dispatches, and sendError/sendRedirect calls on the javax
+  Servlet API, enriches existing server spans for Jakarta Servlet, and provides IAST hooks and optional RUM response injection.
 packages:
 - name: jakarta.servlet:jakarta.servlet-api
 - name: javax.servlet:javax.servlet-api

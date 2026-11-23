@@ -1,7 +1,7 @@
 _v: 1
 name: armeria-jetty
-display_name: Armeria (armeria-jetty9)
-description: Instruments Armeria-hosted Jetty HTTP request completion so server spans finish with asynchronous responses.
+display_name: Armeria Jetty
+description: Instruments Armeria Jetty services to finish Jetty HTTP server spans when asynchronous responses complete.
 packages:
 - name: com.linecorp.armeria:armeria-jetty11
 - name: com.linecorp.armeria:armeria-jetty9
