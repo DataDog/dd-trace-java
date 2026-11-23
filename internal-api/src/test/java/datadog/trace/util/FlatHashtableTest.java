@@ -74,6 +74,28 @@ class FlatHashtableTest {
   }
 
   /**
+   * {@link FlatHashtable#home} folds in a random per-process seed (see its Javadoc) specifically so
+   * an attacker can't precompute a colliding key set against the fixed golden-ratio mix alone. This
+   * pins down that the seed actually participates in the mix: cancelling it out of the input gives
+   * back the old unseeded formula, for every hash. Deterministic for any seed value.
+   */
+  @Test
+  void homeFoldsInProcessSeed() {
+    int mask = 63; // 64-slot table
+    for (long hash : new long[] {0L, 1L, 0x1234_5678_9ABC_DEF0L, -1L, Long.MIN_VALUE}) {
+      assertEquals(
+          unseededHome(hash, mask), FlatHashtable.home(hash ^ FlatHashtable.HASH_SEED, mask));
+    }
+  }
+
+  /** {@link FlatHashtable#home} without the seed. */
+  private static int unseededHome(long hash, int mask) {
+    long mix = hash * 0x9E3779B97F4A7C15L;
+    mix ^= mix >>> 32;
+    return (int) mix & mask;
+  }
+
+  /**
    * Smallest hash {@code >= 1} that the table places on {@code slot} of a {@code mask + 1} table.
    */
   private static long hashLandingOn(int slot, int mask) {
