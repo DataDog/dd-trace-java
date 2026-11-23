@@ -67,14 +67,7 @@ class TaskBlockBridgeCompatibilityTest {
 
   @Test
   void hookWithoutNativeImplementationDisablesEveryHookAndReportsOnce() throws Exception {
-    JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-    assumeTrue(compiler != null, "Compiling the JavaProfiler stub requires a JDK");
-    Path source = tempDir.resolve("src/com/datadoghq/profiler/JavaProfiler.java");
-    Files.createDirectories(source.getParent());
-    Files.write(source, UNLINKED_NATIVE_PROFILER.getBytes(UTF_8));
-    Path classes = Files.createDirectories(tempDir.resolve("classes"));
-    assertEquals(0, compiler.run(null, null, null, "-d", classes.toString(), source.toString()));
-
+    Path classes = compileUnlinkedNativeProfiler();
     try (URLClassLoader loader = isolatedLoader(classes)) {
       Object profiler = loader.loadClass(JAVA_PROFILER).getDeclaredConstructor().newInstance();
       List<String> reports = new ArrayList<>();
@@ -95,6 +88,33 @@ class TaskBlockBridgeCompatibilityTest {
     }
   }
 
+  @Test
+  void failingReporterDoesNotReachTheCaller() throws Exception {
+    Path classes = compileUnlinkedNativeProfiler();
+    try (URLClassLoader loader = isolatedLoader(classes)) {
+      Object profiler = loader.loadClass(JAVA_PROFILER).getDeclaredConstructor().newInstance();
+      Consumer<String> reporter =
+          reason -> {
+            throw new IllegalStateException("reporter failed");
+          };
+      Object bridge = newBridge(loader, profiler, reporter);
+
+      assertEquals(false, invoke(bridge, "parkEnter"));
+      assertEquals(false, invoke(bridge, "hasParkSupport"));
+    }
+  }
+
+  private Path compileUnlinkedNativeProfiler() throws Exception {
+    JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+    assumeTrue(compiler != null, "Compiling the JavaProfiler stub requires a JDK");
+    Path source = tempDir.resolve("src/com/datadoghq/profiler/JavaProfiler.java");
+    Files.createDirectories(source.getParent());
+    Files.write(source, UNLINKED_NATIVE_PROFILER.getBytes(UTF_8));
+    Path classes = Files.createDirectories(tempDir.resolve("classes"));
+    assertEquals(0, compiler.run(null, null, null, "-d", classes.toString(), source.toString()));
+    return classes;
+  }
+
   /** Defines the bridge in the same loader and package as the given {@code JavaProfiler}. */
   private static URLClassLoader isolatedLoader(Path profilerClasses) throws Exception {
     URL bridgeClasses = TaskBlockBridge.class.getProtectionDomain().getCodeSource().getLocation();
@@ -103,7 +123,11 @@ class TaskBlockBridgeCompatibilityTest {
 
   private static Object newBridge(ClassLoader loader, Object profiler, List<String> reports)
       throws Exception {
-    Consumer<String> reporter = reports::add;
+    return newBridge(loader, profiler, (Consumer<String>) reports::add);
+  }
+
+  private static Object newBridge(ClassLoader loader, Object profiler, Consumer<String> reporter)
+      throws Exception {
     return loader
         .loadClass(TaskBlockBridge.class.getName())
         .getConstructor(loader.loadClass(JAVA_PROFILER), Consumer.class)
