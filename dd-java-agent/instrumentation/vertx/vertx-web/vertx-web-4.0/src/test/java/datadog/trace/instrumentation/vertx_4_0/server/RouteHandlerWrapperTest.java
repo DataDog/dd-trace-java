@@ -37,7 +37,8 @@ class RouteHandlerWrapperTest {
         AtomicReference<AgentSpan> spanReference = new AtomicReference<>(span);
         RoutingContext context = mock(RoutingContext.class, withSettings().withoutAnnotations());
         when(context.get(HANDLER_SPAN_CONTEXT_KEY)).thenReturn(spanReference);
-        HttpServerResponse response = mock(HttpServerResponse.class, withSettings().withoutAnnotations());
+        HttpServerResponse response =
+            mock(HttpServerResponse.class, withSettings().withoutAnnotations());
         when(context.response()).thenReturn(response);
         when(response.getStatusCode()).thenReturn(403);
         CountDownLatch ready = new CountDownLatch(2);
