@@ -432,6 +432,12 @@ In priority order:
   - *Acceptance bar (Doug): fusion must be better or neutral everywhere.* "Neutral" has to hold even when C2 would have inlined the per-tag setters
     and coarsened their locks itself (lucky compile order). So compare fused vs unfused in both inlining states, set a minimum run length if 2-tag runs
     don't pay, and account for code-cache and metaspace cost (the 4-tag bulk method compiles to about 21 KB with the dense store). Correctness is covered by the per-tag fallback.
+- **Fused-run benchmark, dense store on (Mario, Temurin 17, 2026-11-23):** `newApiFused` +4.7% / +0.1%, `newApiFusedConservative` +2.8% / +2.4%
+  at 5 / 20 children; all CIs overlap (the 5-child control's forks spread 10%); B/op unchanged. It **meets the better-or-neutral bar but shows no clear gain**: setter-side fusion
+  (one lock and one call per run) is worth little on its own, since uncontended monitors are cheap and the ~21 KB out-of-line bulk method loses the per-tag
+  folding. **Conclusion (Doug): the sizeable gain needs fast insertion and lock coarsening together**: one presence test per run (`occupancy & runMask`), plain
+  appends with no `indexOf`, one capacity check, plus presizing. That needs the bulk append entry point in `DenseIdStore` (store hold: prototype branch only, or wait for the
+  FrozenTags design).
 - **Validation for 3:** differential instrumentation tests (rewrite on/off); a benchmark with JFR `jdk.CompilerInlining`
   confirming "already compiled into a big method" disappears for `setTag` call sites.
 - Compiler-control notes: negative (`inline:-`) directives for our cold helpers are low-risk. Forced inlining can abort the
