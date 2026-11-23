@@ -11,6 +11,57 @@ import javax.annotation.Nullable;
 public final class LongHashingUtils {
   private LongHashingUtils() {}
 
+  /**
+   * Mixes a 64-bit value so that every input bit affects every output bit: the SplitMix64
+   * finalizer. Use it to combine hashes whose raw values are correlated, such as the entries of an
+   * {@linkplain #unorderedEntryHash unordered hash}; to pick a table slot, a cheaper spread is
+   * enough.
+   *
+   * @param z the value to mix.
+   * @return the mixed value.
+   */
+  public static long mix(long z) {
+    z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
+    z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
+    return z ^ (z >>> 31);
+  }
+
+  /**
+   * One entry's share of an order-independent hash of a map: add the shares of all entries (and, to
+   * tell sizes apart cheaply, the size) to get a hash that doesn't depend on iteration order.
+   *
+   * <p>Each entry is mixed before it's added. {@link java.util.Map#hashCode}'s sum of {@code key ^
+   * value} collides easily, because XOR lets one entry's bits cancel another's: {@code {a=0, b=0}}
+   * and {@code {a=1, b=1}} hash the same under it, but not here. No entry object is needed, so a
+   * caller can hash a map's contents, or a map it hasn't built yet, without allocating.
+   *
+   * @param keyHash the entry key's hash.
+   * @param valueHash the entry value's hash, which the caller chooses: for example one that also
+   *     tells value types apart.
+   * @return the entry's share, to add to the others.
+   */
+  public static long unorderedEntryHash(long keyHash, long valueHash) {
+    return mix(keyHash * 0x9E3779B97F4A7C15L + valueHash);
+  }
+
+  /**
+   * An order-independent hash of a map's entries, built from {@link #unorderedEntryHash} with the
+   * keys' and values' own hash codes. Equal maps hash equally whatever their iteration order.
+   *
+   * @param map the map; {@code null} hashes like an empty map.
+   * @return the hash: {@code 0} for an empty map.
+   */
+  public static long unorderedHash(@Nullable java.util.Map<?, ?> map) {
+    if (map == null || map.isEmpty()) {
+      return 0L;
+    }
+    long hash = map.size();
+    for (final java.util.Map.Entry<?, ?> entry : map.entrySet()) {
+      hash += unorderedEntryHash(hash(entry.getKey()), hash(entry.getValue()));
+    }
+    return hash;
+  }
+
   public static final long hash(Object obj) {
     return obj == null ? Long.MIN_VALUE : obj.hashCode();
   }
