@@ -20,21 +20,16 @@ class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
 
   private static final int DEPENDENCIES_DOWNLOAD_RETRIES = 3
 
-  private static final ComparableVersion LATEST_SUREFIRE_MIN_MAVEN_VERSION = new ComparableVersion("3.6.3")
+  private static final ComparableVersion MAVEN_3_6_3 = new ComparableVersion("3.6.3")
 
-  private static final String SUREFIRE_VERSION
-  private static final String FAILSAFE_VERSION
+  // Versions Maven 3.2.5 picks when the POM omits them: the default binding for Surefire and the latest compatible release for Failsafe
+  private static final String SUREFIRE_2_12_4 = "2.12.4"
+  private static final String FAILSAFE_3_2_5 = "3.2.5"
 
-  static {
-    if (getCurrentMavenVersion() >= LATEST_SUREFIRE_MIN_MAVEN_VERSION) {
-      SUREFIRE_VERSION = getLatestMavenSurefireVersion()
-      FAILSAFE_VERSION = SUREFIRE_VERSION
-    } else {
-      // Versions Maven 3.2.5 picks when the POM omits them: the default binding for Surefire and the latest compatible release for Failsafe
-      SUREFIRE_VERSION = "2.12.4"
-      FAILSAFE_VERSION = "3.2.5"
-    }
-  }
+  // Recent Surefire releases require Maven 3.6.3
+  private static final boolean LATEST_SUREFIRE_SUPPORTED = getCurrentMavenVersion() >= MAVEN_3_6_3
+  private static final String SUREFIRE_VERSION = LATEST_SUREFIRE_SUPPORTED ? getLatestMavenSurefireVersion() : SUREFIRE_2_12_4
+  private static final String FAILSAFE_VERSION = LATEST_SUREFIRE_SUPPORTED ? SUREFIRE_VERSION : FAILSAFE_3_2_5
 
   @TempDir
   Path projectFolder
