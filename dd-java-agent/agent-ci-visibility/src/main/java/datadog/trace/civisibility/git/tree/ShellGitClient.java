@@ -168,7 +168,16 @@ public class ShellGitClient implements GitClient {
   }
 
   private static String readPath(InputStream input) throws IOException {
-    return IOUtils.readFully(input, getFilesystemCharset());
+    String path = IOUtils.readFully(input, getFilesystemCharset());
+    if (!path.endsWith("\n")) {
+      return path;
+    }
+    int end = path.length() - 1;
+    // On Unix, a preceding carriage return can be part of the pathname itself.
+    if (isWindows() && end > 0 && path.charAt(end - 1) == '\r') {
+      end--;
+    }
+    return path.substring(0, end);
   }
 
   private static String readMetadata(InputStream input) throws IOException {
@@ -303,10 +312,8 @@ public class ShellGitClient implements GitClient {
     return executeCommand(
         Command.OTHER,
         () ->
-            commandExecutor
-                .executeCommand(
-                    ShellGitClient::readPath, buildGitCommand("rev-parse", "--absolute-git-dir"))
-                .trim());
+            commandExecutor.executeCommand(
+                ShellGitClient::readPath, buildGitCommand("rev-parse", "--absolute-git-dir")));
   }
 
   /**
@@ -325,10 +332,8 @@ public class ShellGitClient implements GitClient {
     return executeCommand(
         Command.OTHER,
         () ->
-            commandExecutor
-                .executeCommand(
-                    ShellGitClient::readPath, buildGitCommand("rev-parse", "--show-toplevel"))
-                .trim());
+            commandExecutor.executeCommand(
+                ShellGitClient::readPath, buildGitCommand("rev-parse", "--show-toplevel")));
   }
 
   /**
@@ -524,11 +529,9 @@ public class ShellGitClient implements GitClient {
           Path recoveryDirectory = Files.createTempDirectory("dd-ci-vis-recovery-");
           try {
             String objects =
-                commandExecutor
-                    .executeCommand(
-                        ShellGitClient::readPath,
-                        buildGitCommand("rev-parse", "--git-path", "objects"))
-                    .trim();
+                commandExecutor.executeCommand(
+                    ShellGitClient::readPath,
+                    buildGitCommand("rev-parse", "--git-path", "objects"));
             Map<String, String> environment = new HashMap<>();
             environment.put("GIT_DIR", recoveryDirectory.toString());
             environment.put("GIT_COMMON_DIR", recoveryDirectory.toString());
@@ -544,11 +547,9 @@ public class ShellGitClient implements GitClient {
                 "--object-format=" + objectFormat,
                 recoveryDirectory.toString());
             String shallowPath =
-                commandExecutor
-                    .executeCommand(
-                        ShellGitClient::readPath,
-                        buildGitCommand("rev-parse", "--git-path", "shallow"))
-                    .trim();
+                commandExecutor.executeCommand(
+                    ShellGitClient::readPath,
+                    buildGitCommand("rev-parse", "--git-path", "shallow"));
             Path checkoutShallow = Paths.get(repoRoot).resolve(shallowPath);
             if (Files.exists(checkoutShallow)) {
               Files.copy(checkoutShallow, recoveryDirectory.resolve("shallow"));

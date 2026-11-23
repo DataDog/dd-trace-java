@@ -85,16 +85,17 @@ class CiVisibilityCheckoutTest {
   }
 
   @TableTest({
-    "Scenario              | root            | module     ",
-    "module with spaces    | repo            | test suite ",
-    "Unicode module        | repo            | módulo-测试",
-    "root with spaces      | repo with space | module     ",
-    "Unicode root          | dépôt-源码      | module     ",
-    "dots within root name | repo..name      | module     "
+    "Scenario              | root            | module      | trailingSpace",
+    "module with spaces    | repo            | test suite  | false        ",
+    "Unicode module        | repo            | módulo-测试 | false        ",
+    "root with spaces      | repo with space | module      | false        ",
+    "Unicode root          | dépôt-源码      | module      | false        ",
+    "dots within root name | repo..name      | module      | false        ",
+    "trailing root space   | repo            | module      | true         "
   })
-  void discoversValidFilesystemPathsWithoutACiWorkspace(String root, String module)
-      throws Exception {
-    Path repository = Files.createDirectories(checkout.resolve(root));
+  void discoversValidFilesystemPathsWithoutACiWorkspace(
+      String root, String module, boolean trailingSpace) throws Exception {
+    Path repository = Files.createDirectories(checkout.resolve(root + (trailingSpace ? " " : "")));
     Path tested = Files.createDirectories(repository.resolve(module));
     Path fixture = Paths.get(getClass().getResource("/ci/git/with_pack/git").toURI());
     copyFolder(fixture, Files.createDirectory(repository.resolve(".git")));

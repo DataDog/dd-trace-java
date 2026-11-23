@@ -4,6 +4,7 @@ import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.OperatingSystem.isWindows;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.singletonList;
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -34,6 +35,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.junit.jupiter.api.parallel.Resources;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 @ResourceLock(Resources.SYSTEM_PROPERTIES)
@@ -258,6 +261,26 @@ class ShellGitClientEncodingTest {
     assertEquals(value, info.getBranch());
     assertEquals(remoteUrl, info.getRepositoryURL());
     assertEquals(sha, info.getCommit().getSha());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"", " ", "\t", "\n", "\r", "\n\n"})
+  void preservesWhitespaceInPathOutput(String suffix) throws Exception {
+    String path = directory + "/checkout" + suffix;
+    String terminator = isWindows() ? "\r\n" : "\n";
+    ShellGitClient client = clientWithOutput((path + terminator).getBytes(UTF_8));
+    assertAll(
+        () -> assertEquals(path, client.getRepoRoot()),
+        () -> assertEquals(path, client.getGitFolder()));
+  }
+
+  @Test
+  void readsUnterminatedPathOutput() throws Exception {
+    String path = directory + "/checkout ";
+    ShellGitClient client = clientWithOutput(path.getBytes(UTF_8));
+    assertAll(
+        () -> assertEquals(path, client.getRepoRoot()),
+        () -> assertEquals(path, client.getGitFolder()));
   }
 
   private ShellGitClient clientWithOutput(byte[] output) throws Exception {
