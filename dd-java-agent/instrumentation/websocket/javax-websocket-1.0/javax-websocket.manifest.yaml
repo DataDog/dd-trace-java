@@ -1,8 +1,8 @@
 _v: 1
 name: javax-websocket
-display_name: WebSocket server API
-description: Instruments Java WebSocket client and server message sending, message handling, and connection closing,
-  linking operations to handshake traces.
+display_name: Java API for WebSocket
+description: Instruments JSR 356 (Java API for WebSocket) client and server endpoints, tracing message send, receive, and
+  session close operations.
 packages:
 - name: javax.websocket:javax.websocket-api
 category:

@@ -1,8 +1,8 @@
 _v: 1
 name: jax-rs
-display_name: javax.ws.rs-api
-description: Instruments JAX-RS HTTP client requests and connection failures, resource methods, asynchronous responses,
-  and request filter aborts, with JSON response inspection and blocking for application security.
+display_name: JAX-RS
+description: Instruments JAX-RS server resource handlers and clients, creating HTTP server and client spans, propagating trace
+  context, and supplying JSON response bodies to AppSec.
 packages:
 - name: com.sun.jersey:jersey-client
 - name: io.dropwizard:dropwizard-client

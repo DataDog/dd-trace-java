@@ -1,8 +1,8 @@
 _v: 1
 name: cxf
-display_name: Apache CXF API
-description: Instruments Apache CXF service invocation to restore HTTP request trace context during asynchronous
-  response handling.
+display_name: Apache CXF
+description: Instruments Apache CXF service invocations to continue servlet request trace context during asynchronous request
+  resumption.
 packages:
 - name: org.apache.cxf:cxf-api
 - name: org.apache.cxf:cxf-core

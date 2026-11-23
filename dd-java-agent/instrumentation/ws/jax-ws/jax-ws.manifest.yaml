@@ -1,8 +1,7 @@
 _v: 1
 name: jax-ws
-display_name: JAX-WS API Package
-description: Instruments JAX-WS annotated SOAP service methods and provider invocations to trace request handling
-  and errors.
+display_name: JAX-WS
+description: Instruments JAX-WS WebService and WebServiceProvider service methods, creating SOAP spans for server-side requests.
 packages:
 - name: javax.jws:javax.jws-api
 - name: javax.xml.ws:jaxws-api
