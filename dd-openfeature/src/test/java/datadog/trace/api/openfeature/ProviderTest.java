@@ -4,10 +4,14 @@ import static java.lang.invoke.MethodHandles.publicLookup;
 import static java.lang.invoke.MethodType.methodType;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
+import dev.openfeature.sdk.Hook;
 import java.lang.invoke.MethodHandle;
+import java.util.HashSet;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /** Checks the deprecated provider alias stays source and binary compatible. */
@@ -42,11 +46,29 @@ class ProviderTest {
         options
             .initTimeout(5, SECONDS)
             .enableEvaluationTelemetryOptOutParameter(true)
+            .evaluationTelemetryEnabled(false)
+            .exposuresEnabled(false)
             .experimentationOptOutMode(com.datadog.openfeature.ExperimentationOptOutMode.IMMEDIATE);
 
     assertSame(options, configured);
     assertEquals(5, configured.getTimeout());
     assertEquals(SECONDS, configured.getUnit());
     assertInstanceOf(com.datadog.openfeature.Provider.class, new Provider(configured));
+  }
+
+  @Test
+  void aliasOptionsTurnOffEvaluationTelemetryAndExposures() {
+    final Provider provider =
+        new Provider(
+            new Provider.Options().evaluationTelemetryEnabled(false).exposuresEnabled(false));
+
+    // The hook classes are package-private in com.datadog.openfeature.
+    final Set<String> hooks = new HashSet<>();
+    for (final Hook<?> hook : provider.getProviderHooks()) {
+      hooks.add(hook.getClass().getSimpleName());
+    }
+    assertFalse(hooks.contains("FlagEvalLoggingHook"), hooks::toString);
+    assertFalse(hooks.contains("FlagEvalMetricsHook"), hooks::toString);
+    assertFalse(hooks.contains("ExposureLoggingHook"), hooks::toString);
   }
 }
