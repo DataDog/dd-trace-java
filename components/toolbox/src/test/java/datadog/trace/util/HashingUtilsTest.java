@@ -270,4 +270,53 @@ public class HashingUtilsTest {
     }
     return clones;
   }
+
+  @org.junit.jupiter.api.Test
+  public void mixSpreadsNearbyInputs() {
+    final java.util.Set<Integer> mixed = new java.util.HashSet<>();
+    for (int i = 0; i < 1_000; i++) {
+      mixed.add(HashingUtils.mix(i));
+    }
+    org.junit.jupiter.api.Assertions.assertEquals(1_000, mixed.size());
+    org.junit.jupiter.api.Assertions.assertNotEquals(
+        HashingUtils.mix(1) >>> 16, HashingUtils.mix(2) >>> 16);
+  }
+
+  @org.junit.jupiter.api.Test
+  public void unorderedHashIgnoresIterationOrder() {
+    final java.util.Map<String, Object> forward = new java.util.LinkedHashMap<>();
+    final java.util.Map<String, Object> backward = new java.util.LinkedHashMap<>();
+    for (int i = 0; i < 20; i++) {
+      forward.put("k" + i, i);
+      backward.put("k" + (19 - i), 19 - i);
+    }
+
+    org.junit.jupiter.api.Assertions.assertEquals(
+        HashingUtils.unorderedHash(forward), HashingUtils.unorderedHash(backward));
+  }
+
+  @org.junit.jupiter.api.Test
+  public void unorderedHashAvoidsMapHashCodesXorCollisions() {
+    final java.util.Map<String, Object> zeros = new java.util.HashMap<>();
+    zeros.put("a", 0);
+    zeros.put("b", 0);
+    final java.util.Map<String, Object> ones = new java.util.HashMap<>();
+    ones.put("a", 1);
+    ones.put("b", 1);
+
+    org.junit.jupiter.api.Assertions.assertEquals(zeros.hashCode(), ones.hashCode());
+    org.junit.jupiter.api.Assertions.assertNotEquals(
+        HashingUtils.unorderedHash(zeros), HashingUtils.unorderedHash(ones));
+  }
+
+  @org.junit.jupiter.api.Test
+  public void unorderedHashOfEmptyNullAndNullEntries() {
+    org.junit.jupiter.api.Assertions.assertEquals(0, HashingUtils.unorderedHash(null));
+    org.junit.jupiter.api.Assertions.assertEquals(
+        0, HashingUtils.unorderedHash(java.util.Collections.emptyMap()));
+    final java.util.Map<String, Object> nulls = new java.util.HashMap<>();
+    nulls.put(null, null);
+    org.junit.jupiter.api.Assertions.assertEquals(
+        1 + HashingUtils.unorderedEntryHash(0, 0), HashingUtils.unorderedHash(nulls));
+  }
 }
