@@ -233,7 +233,8 @@ class W3CHttpCodec {
       }
       W3CTracestate parsed;
       try {
-        parsed = W3CTracestate.parse(tracestate);
+        // merged into a higher-priority context, so only what the merge reads is checked
+        parsed = W3CTracestate.parseForLowerPriorityMerge(tracestate);
       } catch (RuntimeException e) {
         log.debug("Exception when building context", e);
         return null;
