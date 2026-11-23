@@ -68,7 +68,7 @@ public final class TraceInstrumentationConfig {
   public static final String DB_METADATA_FETCHING_ON_QUERY = "trace.db.metadata.fetching.on.query";
   public static final String DB_METADATA_FETCHING_ON_CONNECT =
       "trace.db.metadata.fetching.on.connect";
-  public static final String RDS_TAGS_ENABLED = "rds.tags.enabled";
+  public static final String RDS_TAGS_ENABLED = "trace.rds.tags.enabled";
 
   public static final String JDBC_PREPARED_STATEMENT_CLASS_NAME =
       "trace.jdbc.prepared.statement.class.name";
