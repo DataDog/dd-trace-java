@@ -497,6 +497,46 @@ final class DenseIdStore extends IdStore {
     return prior;
   }
 
+  /**
+   * Prototype (fused tag runs): one presence test (entries and tombstones), one capacity check and
+   * one occupancy update for a whole run, so its tags are then appended with no indexOf scan. The
+   * caller guarantees the run's tags are distinct, at {@code level}, with distinct slots.
+   */
+  @Override
+  public int reserveAbsent(long runMask, int level, int n) {
+    if ((this.occupancy(level) & runMask) != 0L
+        || ((this.tombstoneLevels & level) != 0 && (this.tombstoneMask & runMask) != 0L)) {
+      return -1;
+    }
+    int i = this.used;
+    int need = i + n;
+    if (need > this.serials.length) {
+      this.growFor(need);
+    }
+    this.used = need;
+    this.count += n;
+    this.markLocal(runMask, level);
+    return i;
+  }
+
+  /** Prototype: fills a slot reserved by {@link #reserveAbsent}. */
+  @Override
+  public void appendAt(int index, long tagId, Object value) {
+    this.serials[index] = (char) KnownTagCodec.serialNum(tagId);
+    this.values[index] = value;
+  }
+
+  /** Grows once to hold at least {@code minCapacity} slots. Out of line, as it is rare. */
+  private void growFor(int minCapacity) {
+    if (this.serials.length == 0) {
+      int capacity = Math.max(INIT_CAP, minCapacity);
+      this.serials = new char[capacity];
+      this.values = new Object[capacity];
+    } else {
+      this.growTo(minCapacity);
+    }
+  }
+
   /** Reserves a slot for a new live local tag, returning its index; the caller stores the value. */
   private int appendSlot(char serial, long bit, int level) {
     int i = this.reserveSlot(serial);

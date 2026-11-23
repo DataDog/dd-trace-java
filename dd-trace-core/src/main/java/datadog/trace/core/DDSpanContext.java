@@ -1426,9 +1426,12 @@ public class DDSpanContext
 
   /**
    * Prototype: the bulk setter a build-time fusion of adjacent constant-id setTag calls would
-   * target. The ids are ones the tag registry classifies as never intercepted, and the run takes
-   * the knownTags lock once. A null value, or an id that is unknown or intercepted at run time (the
-   * split-by-tags configuration), sends the whole run through setTag one tag at a time, in order.
+   * target. With the dense store, a run none of whose tags is present yet is inserted with one
+   * presence test and one capacity check (reserveAbsent), then plain appends; otherwise it stores
+   * tag by tag. The ids are ones the tag registry classifies as never intercepted, and the run
+   * takes the knownTags lock once. A null value, or an id that is unknown or intercepted at run
+   * time (the split-by-tags configuration), sends the whole run through setTag one tag at a time,
+   * in order.
    */
   public void setTagsNoIntercept(
       final long k1,
@@ -1441,10 +1444,31 @@ public class DDSpanContext
       final CharSequence v4) {
     if (isPlainTag(k1, v1) && isPlainTag(k2, v2) && isPlainTag(k3, v3) && isPlainTag(k4, v4)) {
       synchronized (knownTags) {
-        knownTags.store(k1, v1);
-        knownTags.store(k2, v2);
-        knownTags.store(k3, v3);
-        knownTags.store(k4, v4);
+        final int level = IdStore.levelOfId(k1);
+        final long runMask =
+            IdStore.slotBitOf(k1)
+                | IdStore.slotBitOf(k2)
+                | IdStore.slotBitOf(k3)
+                | IdStore.slotBitOf(k4);
+        final int i =
+            IdStore.levelOfId(k2) == level
+                    && IdStore.levelOfId(k3) == level
+                    && IdStore.levelOfId(k4) == level
+                    && Long.bitCount(runMask) == 4
+                ? knownTags.reserveAbsent(runMask, level, 4)
+                : -1;
+        if (i >= 0) {
+          // fast insertion: none of the run is present, so plain appends with no indexOf
+          knownTags.appendAt(i, k1, v1);
+          knownTags.appendAt(i + 1, k2, v2);
+          knownTags.appendAt(i + 2, k3, v3);
+          knownTags.appendAt(i + 3, k4, v4);
+        } else {
+          knownTags.store(k1, v1);
+          knownTags.store(k2, v2);
+          knownTags.store(k3, v3);
+          knownTags.store(k4, v4);
+        }
       }
     } else {
       setTag(k1, v1);
@@ -1464,9 +1488,23 @@ public class DDSpanContext
       final CharSequence v3) {
     if (isPlainTag(k1, v1) && isPlainTag(k2, v2) && isPlainTag(k3, v3)) {
       synchronized (knownTags) {
-        knownTags.store(k1, v1);
-        knownTags.store(k2, v2);
-        knownTags.store(k3, v3);
+        final int level = IdStore.levelOfId(k1);
+        final long runMask = IdStore.slotBitOf(k1) | IdStore.slotBitOf(k2) | IdStore.slotBitOf(k3);
+        final int i =
+            IdStore.levelOfId(k2) == level
+                    && IdStore.levelOfId(k3) == level
+                    && Long.bitCount(runMask) == 3
+                ? knownTags.reserveAbsent(runMask, level, 3)
+                : -1;
+        if (i >= 0) {
+          knownTags.appendAt(i, k1, v1);
+          knownTags.appendAt(i + 1, k2, v2);
+          knownTags.appendAt(i + 2, k3, v3);
+        } else {
+          knownTags.store(k1, v1);
+          knownTags.store(k2, v2);
+          knownTags.store(k3, v3);
+        }
       }
     } else {
       setTag(k1, v1);

@@ -130,6 +130,31 @@ public abstract class IdStore {
   public abstract void store(long tagId, double value);
 
   /**
+   * Prototype (fused tag runs): reserves {@code n} slots for a run of distinct known tags at {@code
+   * level} whose slot bits are {@code runMask}, provided none of them may already be local. Returns
+   * the first reserved index, to be filled with {@link #appendAt}, or -1 when the caller must store
+   * the tags one at a time. A store without a bulk path always returns -1.
+   */
+  public int reserveAbsent(long runMask, int level, int n) {
+    return -1;
+  }
+
+  /** Prototype: fills a slot reserved by {@link #reserveAbsent}. */
+  public void appendAt(int index, long tagId, Object value) {
+    throw new UnsupportedOperationException("reserveAbsent never reserves in this store");
+  }
+
+  /** Prototype: {@code tagId}'s slot bit, for building a run's mask. */
+  public static long slotBitOf(long tagId) {
+    return DenseIdStore.slotBit(tagId);
+  }
+
+  /** Prototype: {@code tagId}'s level, for checking a run is all one level. */
+  public static int levelOfId(long tagId) {
+    return DenseIdStore.levelOf(tagId);
+  }
+
+  /**
    * Inserts or replaces a known tag. Does not consult the read-through parent. A store that keeps
    * Entry objects keeps {@code entryReader}'s Entry (free when it is one); a store that doesn't
    * copies its value.
