@@ -1,0 +1,18 @@
+_v: 1
+name: vertx
+display_name: Vert.x
+description: Instruments Vert.x Web HTTP route handling, asynchronous SQL queries to MySQL and PostgreSQL, and Redis commands.
+packages:
+- name: io.vertx:vertx-mysql-client
+- name: io.vertx:vertx-pg-client
+- name: io.vertx:vertx-redis-client
+- name: io.vertx:vertx-sql-client
+- name: io.vertx:vertx-web
+category:
+- db.client
+- http.server
+systems:
+- mysql
+- postgresql
+- redis
+creation_date: '2020-11-12'

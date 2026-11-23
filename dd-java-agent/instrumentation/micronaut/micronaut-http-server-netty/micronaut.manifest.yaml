@@ -1,0 +1,10 @@
+_v: 1
+name: micronaut
+display_name: Micronaut Framework
+description: Instruments inbound HTTP requests handled by Micronaut Netty server routes.
+packages:
+- name: io.micronaut:micronaut-http-server-netty
+category:
+- http.server
+systems: []
+creation_date: '2021-06-03'

@@ -1,0 +1,14 @@
+_v: 1
+name: akka-http
+display_name: Akka HTTP
+description: Instruments Akka HTTP client and server requests, with application-security request-body inspection and blocking,
+  and IAST request-data taint propagation.
+packages:
+- name: com.typesafe.akka:akka-http_2.11
+- name: com.typesafe.akka:akka-http_2.12
+- name: com.typesafe.akka:akka-http_2.13
+category:
+- http.client
+- http.server
+systems: []
+creation_date: '2018-05-18'

@@ -1,0 +1,12 @@
+_v: 1
+name: finatra
+display_name: Finatra
+description: Instruments Finatra HTTP route handling by creating asynchronous controller spans and enriching enclosing server
+  request spans.
+packages:
+- name: com.twitter:finatra-http_2.11
+- name: com.twitter:finatra-http_2.12
+category:
+- http.server
+systems: []
+creation_date: '2020-01-22'

@@ -1,0 +1,10 @@
+_v: 1
+name: spray-http
+display_name: Spray
+description: Instruments inbound HTTP requests handled by Spray routing.
+packages:
+- name: io.spray:spray-routing_2.11
+category:
+- http.server
+systems: []
+creation_date: '2021-06-15'

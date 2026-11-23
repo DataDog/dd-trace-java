@@ -1,0 +1,12 @@
+_v: 1
+name: akka-http-route
+display_name: Akka HTTP Route
+description: Instruments Akka HTTP route directives and path matchers to capture selected route templates on server spans.
+packages:
+- name: com.typesafe.akka:akka-http_2.11
+- name: com.typesafe.akka:akka-http_2.12
+- name: com.typesafe.akka:akka-http_2.13
+category:
+- other
+systems: []
+creation_date: '2026-11-09'

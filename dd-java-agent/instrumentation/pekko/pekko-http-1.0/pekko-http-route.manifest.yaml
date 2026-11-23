@@ -1,0 +1,11 @@
+_v: 1
+name: pekko-http-route
+display_name: Apache Pekko HTTP Route
+description: Instruments Pekko HTTP route matching to apply resolved route templates to server request spans.
+packages:
+- name: org.apache.pekko:pekko-http_2.12
+- name: org.apache.pekko:pekko-http_2.13
+category:
+- other
+systems: []
+creation_date: '2026-11-09'
