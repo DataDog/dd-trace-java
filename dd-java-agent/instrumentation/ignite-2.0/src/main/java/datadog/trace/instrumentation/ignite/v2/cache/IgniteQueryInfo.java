@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -80,7 +81,7 @@ public final class IgniteQueryInfo {
     boolean fragment = prospectiveOperation == null; // SQL fragment if not valid op
     this.operation = prospectiveOperation != null ? prospectiveOperation : DEFAULT_OPERATION;
 
-    if (HEALTH_CHECK_STATEMENTS.containsKey(sql.toUpperCase())) {
+    if (HEALTH_CHECK_STATEMENTS.containsKey(sql.toUpperCase(Locale.ROOT))) {
       // No need to mask health checks
       this.sql = HEALTH_CHECK_STATEMENTS.get(sql);
 
@@ -136,7 +137,7 @@ public final class IgniteQueryInfo {
       }
     }
     if (firstWhitespace > -1) {
-      return sql.subSequence(start, firstWhitespace).toString().toUpperCase();
+      return sql.subSequence(start, firstWhitespace).toString().toUpperCase(Locale.ROOT);
     }
     return null;
   }

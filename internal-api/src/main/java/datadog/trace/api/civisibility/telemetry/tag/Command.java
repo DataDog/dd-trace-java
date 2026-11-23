@@ -1,6 +1,7 @@
 package datadog.trace.api.civisibility.telemetry.tag;
 
 import datadog.trace.api.civisibility.telemetry.TagValue;
+import java.util.Locale;
 
 /** The type of Git command that was executed. */
 public enum Command implements TagValue {
@@ -19,7 +20,7 @@ public enum Command implements TagValue {
   private final String s;
 
   Command() {
-    s = "command:" + name().toLowerCase();
+    s = "command:" + name().toLowerCase(Locale.ROOT);
   }
 
   @Override

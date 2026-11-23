@@ -1,5 +1,6 @@
 package datadog.apt;
 
+import java.util.Locale;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.tools.Diagnostic.Kind;
@@ -11,7 +12,7 @@ public final class LogUtils {
   private static final boolean NOTE = false;
 
   public static void log(ProcessingEnvironment processingEnv, String formatStr, Object... args) {
-    String msg = String.format(formatStr, args);
+    String msg = String.format(Locale.ROOT, formatStr, args);
 
     if (NOTE) {
       processingEnv.getMessager().printMessage(Kind.NOTE, msg);
@@ -34,7 +35,7 @@ public final class LogUtils {
       Kind kind,
       String formatStr,
       Object... args) {
-    String msg = String.format(formatStr, args);
+    String msg = String.format(Locale.ROOT, formatStr, args);
 
     if (kind != Kind.NOTE || NOTE) {
       processingEnv.getMessager().printMessage(kind, msg, element);
