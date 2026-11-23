@@ -11,6 +11,7 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RDS_TAGS_ENABLED;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_INSTANCE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_USER;
@@ -238,6 +239,23 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     verify(span).setTag(AWS_RDS_ENDPOINT_TYPE_NAME, "cluster");
     verify(span).setTag(AWS_REGION_NAME, "us-west-2");
     verify(span).setTag(DBCLUSTERIDENTIFIER_NAME, "orders");
+    verifyNoMoreInteractions(span);
+  }
+
+  @Test
+  @WithConfig(key = RDS_TAGS_ENABLED, value = "false")
+  void testOnConnectionLeavesRdsHostnameUntaggedWhenDisabled() {
+    String hostname = "orders.c9akciq32bzq.us-east-1.rds.amazonaws.com";
+    Map<String, String> session = new HashMap<>();
+    session.put("user", "test-user");
+    session.put("instance", "test-instance");
+    session.put("hostname", hostname);
+
+    newDecorator().onConnection(span, session);
+
+    verify(span).setTag(DB_USER, "test-user");
+    verify(span).setTag(DB_INSTANCE, "test-instance");
+    verify(span).setTag(PEER_HOSTNAME, (CharSequence) hostname);
     verifyNoMoreInteractions(span);
   }
 

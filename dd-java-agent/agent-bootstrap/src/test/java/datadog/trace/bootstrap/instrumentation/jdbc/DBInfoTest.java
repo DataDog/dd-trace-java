@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.jdbc;
 
+import static datadog.trace.api.config.TraceInstrumentationConfig.RDS_TAGS_ENABLED;
 import static datadog.trace.bootstrap.instrumentation.decorator.AwsRdsEndpoint.Type.CLUSTER;
 import static datadog.trace.bootstrap.instrumentation.decorator.AwsRdsEndpoint.Type.INSTANCE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -8,8 +9,12 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import datadog.trace.bootstrap.instrumentation.decorator.AwsRdsEndpoint;
+import datadog.trace.test.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+@ExtendWith(WithConfigExtension.class)
 class DBInfoTest {
 
   private static final String CLUSTER_HOST =
@@ -35,6 +40,15 @@ class DBInfoTest {
         new DBInfo.Builder().type("postgresql").host("db.example.com").build().getRdsEndpoint());
     assertNull(new DBInfo.Builder().type("postgresql").build().getRdsEndpoint());
     assertNull(DBInfo.DEFAULT.getRdsEndpoint());
+  }
+
+  @Test
+  @WithConfig(key = RDS_TAGS_ENABLED, value = "false")
+  void hasNoRdsEndpointWhenTaggingIsDisabled() {
+    DBInfo info = new DBInfo.Builder().type("postgresql").host(CLUSTER_HOST).build();
+
+    assertNull(info.getRdsEndpoint());
+    assertEquals(CLUSTER_HOST, info.getHost());
   }
 
   @Test
