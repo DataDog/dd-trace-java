@@ -82,6 +82,7 @@ docs/                     Developer documentation (see below)
 These rules are strict for shipped runtime code in `dd-trace-core/src/main/` and `internal-api/src/main/`. Elsewhere, including those modules' tests, benchmarks and build files, treat them as advice.
 
 - **Measure performance claims.** A PR that claims to be faster or to allocate less must include JMH before/after results from the same machine, JDK, JVM flags and benchmark settings, with time and allocation (`-Pjmh.profilers=gc`). Without them, reviewers should flag the claim as unmeasured and the author should either add numbers or drop the claim.
+- **Required benchmarks.** A PR that changes code listed in [.github/required-benchmarks.txt](.github/required-benchmarks.txt) must include the listed benchmarks' results for its base and head commits, claim or not. Run `tooling/benchmark_pr.py run` and paste its `## Benchmarks` section into the description. A change that can't affect performance (comments, renames) can carry the `tag: no perf impact` label instead, with the reason in the description.
 
 ## Critical constraints
 
