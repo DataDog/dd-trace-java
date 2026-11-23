@@ -173,10 +173,6 @@ class RecordHeaderAccessTest {
     return seen;
   }
 
-  /**
-   * A {@link RecordHeader} with the accessor the agent installs, its getters reading the same
-   * fields reflectively.
-   */
   /** A header subclass that transforms its value, as a decrypting header might. */
   static final class TransformingHeader extends FieldsHeader {
     TransformingHeader(ByteBuffer keyBuffer, ByteBuffer valueBuffer) {
@@ -204,6 +200,10 @@ class RecordHeaderAccessTest {
     assertNull(RecordHeaderAccess.bufferedFields(new OtherHeader("traceparent", "raw")));
   }
 
+  /**
+   * A {@link RecordHeader} with the accessor the agent installs, its getters reading the same
+   * fields reflectively.
+   */
   static class FieldsHeader extends RecordHeader implements BufferedHeaderFields {
     private static final Field KEY = field("key");
     private static final Field KEY_BUFFER = field("keyBuffer");

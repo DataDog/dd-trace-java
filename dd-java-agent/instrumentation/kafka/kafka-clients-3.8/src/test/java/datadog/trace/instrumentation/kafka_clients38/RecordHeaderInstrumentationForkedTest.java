@@ -3,13 +3,18 @@ package datadog.trace.instrumentation.kafka_clients38;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.api.BufferedHeaderFields;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.internals.RecordHeader;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -32,23 +37,22 @@ class RecordHeaderInstrumentationForkedTest extends AbstractInstrumentationTest 
 
   /**
    * Touches {@code RecordHeader} only from here, so verifying the test class doesn't load it before
-   * the agent is installed.
+   * the agent is installed (imports don't load classes; this nesting does).
    */
   static final class UnderAgent {
     static void checkFetched() {
       Object header =
-          new org.apache.kafka.common.header.internals.RecordHeader(
+          new RecordHeader(
               ByteBuffer.wrap("traceparent".getBytes(UTF_8)),
               ByteBuffer.wrap("00-abc-def-01".getBytes(UTF_8)));
-      assertTrue(header instanceof BufferedHeaderFields, "RecordHeader wasn't instrumented");
-      BufferedHeaderFields fields = (BufferedHeaderFields) header;
+      BufferedHeaderFields fields =
+          assertInstanceOf(BufferedHeaderFields.class, header, "RecordHeader wasn't instrumented");
       assertNull(fields.$$DD$$__key());
       assertEquals(ByteBuffer.wrap("traceparent".getBytes(UTF_8)), fields.$$DD$$__keyBuffer());
       assertNull(fields.$$DD$$__value());
       assertEquals(ByteBuffer.wrap("00-abc-def-01".getBytes(UTF_8)), fields.$$DD$$__valueBuffer());
 
-      org.apache.kafka.common.header.Header asHeader =
-          (org.apache.kafka.common.header.Header) header;
+      Header asHeader = (Header) header;
       assertSame("traceparent", RecordHeaderAccess.key(asHeader, fields));
       assertEquals("00-abc-def-01", RecordHeaderAccess.utf8Value(asHeader, fields));
       // still unmaterialized for the application
@@ -65,13 +69,9 @@ class RecordHeaderInstrumentationForkedTest extends AbstractInstrumentationTest 
           new TransformingHeader(
               ByteBuffer.wrap("traceparent".getBytes(UTF_8)),
               ByteBuffer.wrap("raw".getBytes(UTF_8)));
-      // the agent adds the interface at runtime, so check through Object
-      Object asObject = header;
-      assertTrue(asObject instanceof BufferedHeaderFields, "the subclass inherits the accessor");
-      org.apache.kafka.common.header.internals.RecordHeaders headers =
-          new org.apache.kafka.common.header.internals.RecordHeaders(
-              new org.apache.kafka.common.header.Header[] {header});
-      java.util.Map<String, String> seen = new java.util.HashMap<>();
+      assertInstanceOf(BufferedHeaderFields.class, header, "the subclass inherits the accessor");
+      RecordHeaders headers = new RecordHeaders(new Header[] {header});
+      Map<String, String> seen = new HashMap<>();
       new TextMapExtractAdapter(false)
           .forEachKey(
               headers,
@@ -82,8 +82,7 @@ class RecordHeaderInstrumentationForkedTest extends AbstractInstrumentationTest 
       assertEquals("transformed", seen.get("traceparent"));
     }
 
-    static final class TransformingHeader
-        extends org.apache.kafka.common.header.internals.RecordHeader {
+    static final class TransformingHeader extends RecordHeader {
       TransformingHeader(ByteBuffer key, ByteBuffer value) {
         super(key, value);
       }
@@ -95,9 +94,7 @@ class RecordHeaderInstrumentationForkedTest extends AbstractInstrumentationTest 
     }
 
     static void checkProduced() {
-      Object header =
-          new org.apache.kafka.common.header.internals.RecordHeader(
-              "baggage", "k=v".getBytes(UTF_8));
+      Object header = new RecordHeader("baggage", "k=v".getBytes(UTF_8));
       BufferedHeaderFields fields = (BufferedHeaderFields) header;
       assertEquals("baggage", fields.$$DD$$__key());
       assertNull(fields.$$DD$$__keyBuffer());
