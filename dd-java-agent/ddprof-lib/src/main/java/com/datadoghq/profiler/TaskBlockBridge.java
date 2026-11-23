@@ -141,7 +141,11 @@ public final class TaskBlockBridge {
 
   private void report(String reason) {
     if (REPORTED.compareAndSet(false, true)) {
-      unsupportedReporter.accept(reason);
+      // Reached from park and sleep advice: a failing reporter must not reach application code.
+      try {
+        unsupportedReporter.accept(reason);
+      } catch (RuntimeException ignored) {
+      }
     }
   }
 
