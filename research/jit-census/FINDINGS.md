@@ -402,6 +402,11 @@ In priority order:
   goes on by default in #13514, so **dense-on is the baseline for future experiments.** The fused-run prototype (`setTagsNoIntercept`, one lock
   per run) overlaps with #13030's lock coarsening in `setTagsFrom`. If fusion pays off, its target can be `setTagsFrom`'s path rather than
   a separate bulk API, so plain `setTag` runs and contributors share one path.
+- **Static tag counts as sizing seeds (follow-up after #13513 / #13514 land; no dense store churn now):** a fused run knows its
+  size, a prototype knows its tags, a contributor mask gives `popcount`. Their union per span is an upper bound (slight oversizing is fine, per Doug).
+  Seed #13513's `SizingHint` with it via the `SpanPrototype` (e.g. `initExpectedTags(n)`, generated or declared), and let learning refine it.
+  It fixes what learning can't: first spans, rare operations, and hints evicted from the size-limited table. Steady-state JMH won't show it; measure
+  first-N-span cost or a scenario with many operations.
 - **Validation for 3:** differential instrumentation tests (rewrite on/off); a benchmark with JFR `jdk.CompilerInlining`
   confirming "already compiled into a big method" disappears for `setTag` call sites.
 - Compiler-control notes: negative (`inline:-`) directives for our cold helpers are low-risk. Forced inlining can abort the
