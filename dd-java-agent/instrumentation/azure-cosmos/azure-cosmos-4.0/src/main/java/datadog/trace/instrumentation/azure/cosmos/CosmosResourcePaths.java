@@ -23,8 +23,12 @@ public final class CosmosResourcePaths {
   /**
    * Keeps the ids that follow {@code dbs} and {@code colls} and replaces every other id segment
    * with {@code ?}. Segments alternate {@code key/id}; empty segments are kept as they are.
+   *
+   * <p>When the path isn't name based, its ids are internal resource ids rather than names, as in
+   * the SDK's own partition key range reads ({@code /dbs/<rid>/colls/<rid>/pkranges}), so the
+   * database and container ids are replaced too.
    */
-  public static String normalize(String path) {
+  public static String normalize(String path, boolean nameBased) {
     if (path == null || path.isEmpty()) {
       return path;
     }
@@ -40,8 +44,8 @@ public final class CosmosResourcePaths {
       boolean isId = index >= firstId && (index - firstId) % 2 == 0;
       if (isId
           && segment.length() > 0
-          && !key.equalsIgnoreCase(DATABASES)
-          && !key.equalsIgnoreCase(COLLECTIONS)) {
+          && (!nameBased
+              || (!key.equalsIgnoreCase(DATABASES) && !key.equalsIgnoreCase(COLLECTIONS)))) {
         normalized.append('?');
       } else {
         segment.appendTo(normalized);
