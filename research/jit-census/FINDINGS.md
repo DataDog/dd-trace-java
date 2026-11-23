@@ -322,6 +322,37 @@ Sites exclude the split fast path. "Per 1k" is all addressable sites per 1k clas
 - **Proposed shapes:** HEX_PAD (`format`) and CONTAINS_CLASS (`matches(".*[cls].*")`), under
   Changes to the rule catalog.
 
+## Tracer-side track: setTag shaping (2026-11-23)
+
+The problem: `setTag`/`setTagsFrom` are built to fold with constant keys, but they still hit "already
+compiled into a big method". `InlineSmallCode` checks the callee's *existing* compiled size. So one call site with a
+dynamic key (a `setTagsFrom` loop, a megamorphic call) gets the full `setTag` compiled on its own, and that
+blocks inlining at every constant-key call site.
+
+In priority order:
+1. **FrozenTags is the general solution** (Doug): freeze a source's tags once and apply them to many spans, so most
+   repeated per-span `setTag` work never happens.
+2. **Classify keys as intercepted ahead of time, the shared foundation.** Every key is never / always /
+   config-dependent, from the tag registry as the single source of truth (golden test). It's used by FrozenTags at freeze time
+   (split entries into plain and intercepted) and by item 3. The config-dependent class can change via remote
+   config, so check it against a versioned or volatile bitset at runtime; never bake it in. **First step: audit the interceptors
+   to confirm they decide by key alone.** Any that look at the value or span state put their keys in "always".
+3. **Call-site rewrite at build time (our code only):** `setTag(CONST, v)` → `setTagNoIntercept` /
+   `setTagIntercepted` / guarded. Each target stays small even when compiled on its own, so constant call sites no longer
+   depend on the generic `setTag`'s compiled size. Optional typed-setter dimension (no boxing). Advice is woven from the
+   already-rewritten bytes, so the specialized calls land inside customer methods. It complements the `INTERCEPTED` id bit
+   (#12817), which still pays off at dynamic call sites.
+4. **Contributor/extractor masks (lower priority, only for contributors that still vary per span):** a build-time
+   may-set analysis of the constant keys passed to the sink. Mark the mask unknown on non-constant keys or a sink that escapes. Two uses with different
+   soundness bars: presizing is a hint (an approximate mask is fine, and the store must still grow); skipping interceptors needs a sound
+   mask plus a runtime AND against the current intercepted bitset. Possible layout: `popcount(mask)` slots indexed by rank,
+   with an overflow structure for keys outside the mask. Validate with a sink assertion mode across the instrumentation tests.
+- **Validation for 3:** differential instrumentation tests (rewrite on/off); a benchmark with JFR `jdk.CompilerInlining`
+  confirming "already compiled into a big method" disappears for `setTag` call sites.
+- Compiler-control notes: negative (`inline:-`) directives for our cold helpers are low-risk. Forced inlining can abort the
+  compilation of a big caller (node limit). `@ForceInline` is honored only for boot-loaded classes and is unsupported. All of these rank below
+  build-time shaping.
+
 ## Open questions / next steps
 
 - **Hotness and cost model (planned 2026-11-20, on hold for a few days at Doug's request):**
