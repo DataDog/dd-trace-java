@@ -536,7 +536,8 @@ class W3CHttpCodec {
       }
       W3CTracestate tracestate;
       try {
-        tracestate = W3CTracestate.parse(tracestateHeader);
+        // merged into a higher-priority context, so only what the merge reads is checked
+        tracestate = W3CTracestate.parseForLowerPriorityMerge(tracestateHeader);
       } catch (RuntimeException e) {
         log.debug("Exception when building context", e);
         return null;
