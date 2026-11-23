@@ -15,6 +15,12 @@ class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
 
   private static final int DEPENDENCIES_DOWNLOAD_RETRIES = 3
 
+  // Versions Maven 3.2.5 picks when the POM omits them: the default binding for Surefire and the latest compatible release for Failsafe
+  private static final String MAVEN_3_2_5_SUREFIRE_VERSION = "2.12.4"
+  private static final String MAVEN_3_2_5_FAILSAFE_VERSION = "3.2.5"
+
+  private static final String LATEST_SUREFIRE_VERSION = getLatestMavenSurefireVersion()
+
   @TempDir
   Path projectFolder
 
@@ -191,11 +197,21 @@ class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
 
   private int executeMaven(List<String> args) {
     def arguments = new ArrayList<>(args)
+    arguments.add("-Dsurefire.version=${isLatestDepTest ? LATEST_SUREFIRE_VERSION : MAVEN_3_2_5_SUREFIRE_VERSION}".toString())
+    arguments.add("-Dfailsafe.version=${isLatestDepTest ? LATEST_SUREFIRE_VERSION : MAVEN_3_2_5_FAILSAFE_VERSION}".toString())
     if (System.getenv("MAVEN_REPOSITORY_PROXY") != null) {
       def settingsFile = new File(getClass().getResource("/settings.mirror.xml").toURI())
       arguments.addAll(["-s", settingsFile.absolutePath])
     }
     return new MavenCli().doMain(arguments.toArray(new String[0]), projectFolder.toString(), null, null)
+  }
+
+  private static String getLatestMavenSurefireVersion() {
+    def properties = new Properties()
+    MavenInstrumentationTest.classLoader.getResourceAsStream("latest-tool-versions.properties").withCloseable {
+      properties.load(it)
+    }
+    return properties.getProperty("maven-surefire.latest")
   }
 
   @Override
