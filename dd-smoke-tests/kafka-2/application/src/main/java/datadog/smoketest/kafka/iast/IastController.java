@@ -6,6 +6,7 @@ import static datadog.smoketest.kafka.iast.IastConfiguration.JSON_TOPIC;
 import static datadog.smoketest.kafka.iast.IastConfiguration.STRING_TOPIC;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -18,6 +19,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.requestreply.ReplyingKafkaTemplate;
 import org.springframework.kafka.requestreply.RequestReplyFuture;
 import org.springframework.messaging.handler.annotation.SendTo;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -31,6 +33,7 @@ public class IastController {
   private final ReplyingKafkaTemplate<byte[], byte[], String> byteArrayTemplate;
   private final ReplyingKafkaTemplate<ByteBuffer, ByteBuffer, String> byteBufferTemplate;
   private final ReplyingKafkaTemplate<IastMessage, IastMessage, String> jsonTemplate;
+  private final ThreadPoolTaskScheduler replyTimeoutScheduler;
 
   public IastController(
       @Qualifier("iastStringTemplate")
@@ -40,11 +43,19 @@ public class IastController {
       @Qualifier("iastByteBufferTemplate")
           final ReplyingKafkaTemplate<ByteBuffer, ByteBuffer, String> byteBufferTemplate,
       @Qualifier("iastJsonTemplate")
-          final ReplyingKafkaTemplate<IastMessage, IastMessage, String> jsonTemplate) {
+          final ReplyingKafkaTemplate<IastMessage, IastMessage, String> jsonTemplate,
+      @Qualifier("iastReplyTimeoutScheduler") final ThreadPoolTaskScheduler replyTimeoutScheduler) {
     this.stringTemplate = stringTemplate;
     this.byteArrayTemplate = byteArrayTemplate;
     this.byteBufferTemplate = byteBufferTemplate;
     this.jsonTemplate = jsonTemplate;
+    this.replyTimeoutScheduler = replyTimeoutScheduler;
+  }
+
+  @GetMapping("/iast/kafka/timeouts/idle")
+  public ResponseEntity<Boolean> replyTimeoutsIdle() {
+    ScheduledThreadPoolExecutor executor = replyTimeoutScheduler.getScheduledThreadPoolExecutor();
+    return ResponseEntity.ok(executor.getQueue().isEmpty() && executor.getActiveCount() == 0);
   }
 
   @GetMapping("/iast/health")

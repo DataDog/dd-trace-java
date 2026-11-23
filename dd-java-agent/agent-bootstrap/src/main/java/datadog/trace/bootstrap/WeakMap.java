@@ -2,21 +2,28 @@ package datadog.trace.bootstrap;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.function.Function;
+import javax.annotation.Nonnull;
 
+/**
+ * Map with weakly referenced keys.
+ *
+ * <p>Keys must not be {@code null}: the backing {@code WeakConcurrentMap} rejects null keys and
+ * throws.
+ */
 public interface WeakMap<K, V> {
   int size();
 
-  boolean containsKey(K target);
+  boolean containsKey(@Nonnull K target);
 
-  V get(K key);
+  V get(@Nonnull K key);
 
-  void put(K key, V value);
+  void put(@Nonnull K key, V value);
 
-  void putIfAbsent(K key, V value);
+  void putIfAbsent(@Nonnull K key, V value);
 
-  V computeIfAbsent(K key, Function<? super K, ? extends V> supplier);
+  V computeIfAbsent(@Nonnull K key, Function<? super K, ? extends V> supplier);
 
-  V remove(K key);
+  V remove(@Nonnull K key);
 
   abstract class Supplier {
     private static volatile Supplier SUPPLIER;

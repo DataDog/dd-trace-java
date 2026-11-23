@@ -32,13 +32,6 @@ public class ParameterDirectivesImplInstrumentation extends InstrumenterModule.I
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".helpers.TaintParametersFunction",
-    };
-  }
-
-  @Override
   public Reference[] additionalMuzzleReferences() {
     // just so we can use assertInverse in the muzzle directive
     return new Reference[] {new Reference.Builder(instrumentedType()).build()};

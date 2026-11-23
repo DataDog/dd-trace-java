@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
 import datadog.trace.instrumentation.okhttp3.OkHttpClientDecorator
 import okhttp3.*
 import okhttp3.internal.http.HttpMethod
@@ -30,12 +31,6 @@ abstract class OkHttp3Test extends HttpClientTest {
   @Override
   boolean testAppSecClientRedirect() {
     true
-  }
-
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
   }
 
   OkHttpClient getClient() {
@@ -114,4 +109,23 @@ class OkHttp3V0ForkedTest extends OkHttp3Test {
 
 @Timeout(5)
 class OkHttp3V1ForkedTest extends OkHttp3Test implements TestingGenericHttpNamingConventions.ClientV1 {
+}
+
+@Timeout(5)
+class OkHttp3OtelSemanticsForkedTest extends OkHttp3Test implements TestingOtelHttpSemantics {
+
+  @Override
+  int version() {
+    return 0
+  }
+
+  @Override
+  String service() {
+    return null
+  }
+
+  @Override
+  String operation() {
+    return "okhttp.request"
+  }
 }

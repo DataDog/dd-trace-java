@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.resilience4j;
 
 import datadog.context.ContextScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.github.resilience4j.core.functions.CheckedConsumer;
@@ -216,10 +215,9 @@ public class WrapperWithContext<T> {
       try (ContextScope ignore = activateScope()) {
         return delegate
             .get()
-            .whenComplete(
-                (v, e) -> {
-                  finishSpanIfNeeded();
-                });
+            .whenComplete((v, e) -> {
+              finishSpanIfNeeded();
+            });
       }
     }
   }
@@ -240,10 +238,9 @@ public class WrapperWithContext<T> {
         Future<?> future = delegate.get();
         if (future instanceof CompletableFuture) {
           ((CompletableFuture<?>) future)
-              .whenComplete(
-                  (v, e) -> {
-                    finishSpanIfNeeded();
-                  });
+              .whenComplete((v, e) -> {
+                finishSpanIfNeeded();
+              });
           return future;
         }
         return new FinishOnGetFuture<>(future, this);
@@ -308,7 +305,7 @@ public class WrapperWithContext<T> {
     this.data = data;
   }
 
-  public AgentScope activateScope() {
+  public ContextScope activateScope() {
     AgentSpan current = Resilience4jSpan.current();
     AgentSpan owned = current == null ? Resilience4jSpan.start() : null;
     if (owned != null) {

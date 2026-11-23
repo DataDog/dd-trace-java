@@ -2,6 +2,17 @@ plugins {
   id 'dd-trace-java.module.instrumentation'
 }
 
+// GrEclipse 4.27 cannot format Netty38ServerTest, so use the latest version in this module.
+// TODO: Remove this override when the repository-wide 4.27 pin can be lifted.
+// https://github.com/diffplug/spotless/issues/3013
+spotless {
+  groovy {
+    clearSteps()
+    toggleOffOn()
+    greclipse().configFile(rootProject.file('gradle/enforcement/spotless-groovy.properties'))
+  }
+}
+
 testJvmConstraints {
   maxJavaVersion = JavaVersion.VERSION_1_8
 }

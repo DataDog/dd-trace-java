@@ -2,7 +2,9 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.base.WebsocketServer
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import io.undertow.Handlers
 import io.undertow.Undertow
 import io.undertow.UndertowOptions
@@ -11,10 +13,16 @@ import io.undertow.servlet.api.DeploymentManager
 import io.undertow.servlet.api.ServletContainer
 import io.undertow.servlet.api.ServletInfo
 import io.undertow.websockets.jsr.WebSocketDeploymentInfo
+import okhttp3.MediaType
+import okhttp3.RequestBody
 import spock.lang.IgnoreIf
 
 import javax.servlet.MultipartConfigElement
 import java.nio.ByteBuffer
+
+import static datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType.JSON
+import static java.nio.charset.StandardCharsets.UTF_8
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
@@ -37,6 +45,15 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOC
 
 abstract class UndertowServletTest extends HttpServerTest<Undertow> {
   private static final CONTEXT = "ctx"
+
+  private final static String MULTIPART_CONTENT_TYPE =
+  'multipart/form-data; charset=utf-8; boundary=------------------------943d3207457896a3'
+  private final static String MULTIPART_BODY =
+  '--------------------------943d3207457896a3\r\n' +
+  'Content-Disposition: form-data; name="a"\r\n' +
+  '\r\n' +
+  'x\r\n' +
+  '--------------------------943d3207457896a3--'
 
   class UndertowServer implements WebsocketServer {
     def port = 0
@@ -312,6 +329,56 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
     where:
     method = "GET"
     body = null
+  }
+
+  // Pins the block-telemetry-3 wiring added to FormDataParserInstrumentation (urlencoded body,
+  // DoParseAdvice.after) and MultiPartUploadHandlerInstrumentation (multipart body,
+  // ParseBlockingAdvice.after): both now check the boolean returned by
+  // BlockResponseFunction#tryCommitBlockingResponse and report a block failure to AppSecContext
+  // when it returns false. In this test the reportBlockFailure() branch itself stays unreachable,
+  // because UndertowBlockResponseFunction#tryCommitBlockingResponse always returns true
+  // unconditionally, even on its async dispatch path (see .claude-invariants.md). So this test
+  // only pins the unchanged, already-passing blocking behavior for both request body variants
+  // post block-telemetry-3, the same kind of documented gap as Netty's block-failure tests.
+  def "test blocking of request body parsed by undertow for variant #variant"() {
+    setup:
+    assumeTrue(testBlocking())
+    assumeTrue(executeTest)
+
+    def request = request(
+    endpoint, 'POST',
+    RequestBody.create(MediaType.get(contentType), body))
+    .header(IG_BODY_CONVERTED_HEADER, 'true')
+    .build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.code() == 413
+    response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=(?:utf-8|iso-8859-1))?\z/
+
+    def text = response.body().charStream().text
+    text.contains('"title":"You\'ve been blocked"')
+    text.getBytes(UTF_8).length == BlockingActionHelper.getTemplate(JSON).length
+
+    !handlerRan
+
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    List<DDSpan> spans = TEST_WRITER.flatten()
+    spans.find {
+      it.tags['http.status_code'] == 413
+    } != null
+    spans.find {
+      it.tags['appsec.blocked'] == 'true'
+    } != null
+
+    where:
+    variant      | executeTest          | endpoint         | contentType             | body
+    'urlencoded' | testBodyUrlencoded() | BODY_URLENCODED  | 'application/x-www-form-urlencoded' | 'a=x'
+    'multipart'  | testBodyMultipart()  | BODY_MULTIPART   | MULTIPART_CONTENT_TYPE  | MULTIPART_BODY
   }
 
   @Override

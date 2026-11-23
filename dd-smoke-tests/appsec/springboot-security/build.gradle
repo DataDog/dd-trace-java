@@ -16,9 +16,8 @@ tasks.named("jar", Jar) {
   }
 }
 
-// Use Java 17 to build application
 tasks.withType(JavaCompile).configureEach {
-  configureCompiler(delegate, 17)
+  configureCompiler(delegate, JavaVersion.VERSION_17)
 }
 
 dependencies {
@@ -46,19 +45,4 @@ tasks.withType(Test).configureEach {
         return shadowJarTask.map { ["-Ddatadog.smoketest.appsec.springbootsecurity.shadowJar.path=${it.archiveFile.get()}"] }.get()
       }
     })
-}
-
-tasks.register('testRuntimeActivation', Test) {
-  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
-  jvmArgs '-Dsmoke_test.appsec.enabled=inactive'
-  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
-      @Override
-      Iterable<String> asArguments() {
-        return shadowJarTask.map { ["-Ddatadog.smoketest.appsec.springbootsecurity.shadowJar.path=${it.archiveFile.get()}"] }.get()
-      }
-    })
-}
-
-tasks.named('check') {
-  dependsOn(testRuntimeActivation)
 }

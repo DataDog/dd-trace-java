@@ -10,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.WeakMaps;
 import datadog.trace.api.Config;
 import datadog.trace.api.profiling.TaskBlockInstrumentationConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -36,8 +37,14 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
 
   @Override
   public boolean isEnabled() {
-    return super.isEnabled()
-        && TaskBlockInstrumentationConfig.isEnabled(Config.get(), ConfigProvider.getInstance());
+    if (!super.isEnabled()
+        || !TaskBlockInstrumentationConfig.isEnabled(Config.get(), ConfigProvider.getInstance())) {
+      return false;
+    }
+    // LockSupportHelper keeps unpark attribution in a WeakMap, but the agent only registers the
+    // WeakMap supplier when per-store context maps are enabled.
+    WeakMaps.registerAsSupplier();
+    return true;
   }
 
   @Override

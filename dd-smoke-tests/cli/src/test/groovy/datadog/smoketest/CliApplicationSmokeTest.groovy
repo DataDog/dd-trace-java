@@ -5,6 +5,11 @@ import spock.util.concurrent.PollingConditions
 import static java.util.concurrent.TimeUnit.SECONDS
 
 abstract class CliApplicationSmokeTest extends AbstractSmokeTest {
+  @Override
+  protected boolean expectsProcessAliveBeforeEachTest() {
+    false
+  }
+
   // Estimate for the amount of time instrumentation, plus request, plus some extra
   private static final int TIMEOUT_SECS = 60
 

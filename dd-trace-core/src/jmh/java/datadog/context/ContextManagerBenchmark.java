@@ -334,14 +334,13 @@ public class ContextManagerBenchmark {
       ContextContinuation cont = manager.capture(ctx).hold();
       Semaphore barrier = thread.fanOutBarrier;
       for (int i = 0; i < FAN_OUT; i++) {
-        thread.virtualExecutor.execute(
-            () -> {
-              try (ContextScope resumed = cont.resume()) {
-                // each virtual thread sees the same captured context
-              } finally {
-                barrier.release();
-              }
-            });
+        thread.virtualExecutor.execute(() -> {
+          try (ContextScope resumed = cont.resume()) {
+            // each virtual thread sees the same captured context
+          } finally {
+            barrier.release();
+          }
+        });
       }
       try {
         if (!barrier.tryAcquire(FAN_OUT, 10, SECONDS)) {

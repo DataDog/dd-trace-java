@@ -45,13 +45,6 @@ public class UriRoutingContextInstrumentation extends InstrumenterModule.Iast
     return "org.glassfish.jersey.server.internal.routing.UriRoutingContext";
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JerseyTaintHelper",
-    };
-  }
-
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetPathParametersAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)

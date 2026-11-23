@@ -35,13 +35,6 @@ public class CoreInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SeedNodeHelper", packageName + ".ConnectionStringHelper",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor().and(takesArgument(2, named("java.util.Set"))),

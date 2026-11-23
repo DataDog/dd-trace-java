@@ -180,13 +180,14 @@ public class TestImpl implements DDTest {
       SourcePathResolver sourcePathResolver,
       LinesResolver linesResolver,
       Codeowners codeowners) {
-    if (testClass == null) {
+    Class<?> sourceClass = testMethod != null ? testMethod.getDeclaringClass() : testClass;
+    if (sourceClass == null) {
       return;
     }
 
-    Collection<String> sourcePaths = sourcePathResolver.getSourcePaths(testClass);
+    Collection<String> sourcePaths = sourcePathResolver.getSourcePaths(sourceClass);
     if (sourcePaths.size() != 1) {
-      log.debug("Could not populate source path for {}", testClass);
+      log.debug("Could not populate source path for {}", sourceClass);
       return;
     }
 

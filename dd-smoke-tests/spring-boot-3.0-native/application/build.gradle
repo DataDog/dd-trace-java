@@ -44,6 +44,12 @@ if (hasProperty('agentPath')) {
       main {
         // quick build mode, enough for smoke test
         buildArgs.add("-Ob")
+        // The S3 prefix separates OS/architecture, but not CPU features. Use a common baseline
+        // so cached executables can run on other CI hosts.
+        // x86-64-v3 (AMD64) and armv8.1-a (AArch64) are candidates once all build and execution
+        // hosts of each architecture are guaranteed to support the corresponding CPU features.
+        // https://www.graalvm.org/latest/reference-manual/native-image/optimizations-and-performance/#optimizing-for-specific-machines
+        buildArgs.add("-march=compatibility")
         buildArgs.add("-J-javaagent:$agentPath")
         buildArgs.add("-J-Dnet.bytebuddy.safe=false")
         if (withProfiler && property('profiler') == 'true') {

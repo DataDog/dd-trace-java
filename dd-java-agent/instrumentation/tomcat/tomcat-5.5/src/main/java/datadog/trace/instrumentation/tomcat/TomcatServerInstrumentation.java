@@ -56,6 +56,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       packageName + ".TomcatDecorator$TomcatBlockResponseFunction",
       packageName + ".RequestURIDataAdapter",
       packageName + ".TomcatBlockingHelper",
+      packageName + ".BlockFailureReporter",
     };
   }
 
@@ -133,7 +134,12 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Local("parentScope") ContextScope scope) {
-      scope.close();
+      // scope can be null if extractParent() above threw before assigning it (the throwable is
+      // swallowed by suppress = Throwable.class), which would otherwise NPE here and mask the
+      // real failure.
+      if (scope != null) {
+        scope.close();
+      }
     }
   }
 
@@ -167,7 +173,12 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Local("serverScope") ContextScope serverScope) {
-      serverScope.close();
+      // serverScope can be null if onService() above threw before assigning it (the throwable is
+      // swallowed by suppress = Throwable.class), which would otherwise NPE here and mask the
+      // real failure.
+      if (serverScope != null) {
+        serverScope.close();
+      }
     }
 
     private void muzzleCheck(CoyoteAdapter adapter, Request request, Response response)
@@ -186,9 +197,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterParse(
-        @Advice.Argument(1) Request req,
-        @Advice.Argument(3) Response resp,
-        @Advice.Return(readOnly = false) Boolean ret) {
+        @Advice.Argument(1) Request req, @Advice.Return(readOnly = false) Boolean ret) {
       Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
       if (contextObj instanceof Context) {
         Context context = (Context) contextObj;
@@ -202,8 +211,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
           DECORATE.onRequest(span, req, req, parentContext);
           Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
           if (rba != null) {
-            TomcatBlockingHelper.commitBlockingResponse(
-                span.getRequestContext().getTraceSegment(), req, resp, rba);
+            BlockFailureReporter.tryCommitAndReport(span.getRequestContext(), rba);
             ret = false; // skip pipeline
           }
         }

@@ -23,16 +23,6 @@ public class OkHttp2Instrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".RequestBuilderInjectAdapter",
-      packageName + ".OkHttpClientDecorator",
-      packageName + ".TracingInterceptor",
-      packageName + ".AppSecInterceptor",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor(), OkHttp2Instrumentation.class.getName() + "$OkHttp2ClientAdvice");

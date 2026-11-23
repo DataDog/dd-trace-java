@@ -6,8 +6,20 @@ import java.nio.file.Paths
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING
 
 abstract class MultipleAgentGuardrailsTest extends AbstractSmokeTest {
+  @Override
+  protected boolean expectsProcessAliveBeforeEachTest() {
+    false
+  }
+
   static final String LIB_INJECTION_ENABLED_FLAG = 'DD_INJECTION_ENABLED'
   static final String LIB_INJECTION_FORCE_FLAG = 'DD_INJECT_FORCE'
+
+  @Override
+  protected String skipScopeContinuationCheckReason() {
+    isLibInjectionEnabled() && !isLibInjectionForced()
+      ? 'The diagnostic companion is an additional agent and changes the injection guardrail being tested'
+      : null
+  }
 
   @Override
   ProcessBuilder createProcessBuilder() {

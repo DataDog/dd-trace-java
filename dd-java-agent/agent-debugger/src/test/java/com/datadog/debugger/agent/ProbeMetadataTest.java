@@ -1,6 +1,6 @@
 package com.datadog.debugger.agent;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.datadog.debugger.probe.LogProbe;
 import org.junit.jupiter.api.Test;

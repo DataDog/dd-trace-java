@@ -12,11 +12,10 @@ smokeTestApp {
     artifactPath = 'libs/webflux-2.7-smoketest.jar'
     sysProperty = 'datadog.smoketest.webflux.uberJar.path'
   }
-  projectJar('apiJar', project(':dd-trace-api'))
 }
 
 dependencies {
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {

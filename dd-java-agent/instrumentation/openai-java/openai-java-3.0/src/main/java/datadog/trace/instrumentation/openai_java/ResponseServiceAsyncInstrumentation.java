@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.openai_java;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresField;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -14,8 +15,8 @@ import com.openai.core.http.StreamResponse;
 import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
 import com.openai.models.responses.ResponseStreamEvent;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.CompletableFuture;
 import net.bytebuddy.asm.Advice;
@@ -55,7 +56,7 @@ public class ResponseServiceAsyncInstrumentation
 
   public static class CreateAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(
+    public static ContextScope enter(
         @Advice.Argument(0) final ResponseCreateParams params,
         @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
       AgentSpan span = DECORATE.startSpan(clientOptions);
@@ -65,10 +66,10 @@ public class ResponseServiceAsyncInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Return(readOnly = false) CompletableFuture<HttpResponseFor<Response>> future,
         @Advice.Thrown final Throwable err) {
-      AgentSpan span = scope.span();
+      AgentSpan span = spanFromScope(scope);
       if (err != null || future == null) {
         DECORATE.finishSpan(span, err);
       } else {
@@ -82,7 +83,7 @@ public class ResponseServiceAsyncInstrumentation
   public static class CreateStreamingAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(
+    public static ContextScope enter(
         @Advice.Argument(0) final ResponseCreateParams params,
         @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
       AgentSpan span = DECORATE.startSpan(clientOptions);
@@ -92,11 +93,11 @@ public class ResponseServiceAsyncInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Return(readOnly = false)
             CompletableFuture<HttpResponseFor<StreamResponse<ResponseStreamEvent>>> future,
         @Advice.Thrown final Throwable err) {
-      AgentSpan span = scope.span();
+      AgentSpan span = spanFromScope(scope);
       if (err != null || future == null) {
         DECORATE.finishSpan(span, err);
       } else {

@@ -18,7 +18,8 @@ public interface EventProducerService {
    * AppSecRequestContext, DataBundle, GatewayContext)}.
    *
    * @param newAddresses the addresses contained in the {@link DataBundle} that is to be passed to
-   *     <code>publishDataEvent()</code>.
+   *     <code>
+   *     publishDataEvent()</code>.
    * @return an object describing the callbacks
    */
   DataSubscriberInfo getDataSubscribers(Address<?>... newAddresses);

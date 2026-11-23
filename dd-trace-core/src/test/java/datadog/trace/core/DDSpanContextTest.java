@@ -20,10 +20,12 @@ import static datadog.trace.core.DDSpanContext.SPAN_KIND_VALUES;
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MAX_PER_SECOND_TAG;
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG;
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_RULE_RATE_TAG;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -40,6 +42,7 @@ import datadog.trace.bootstrap.instrumentation.api.ServiceNameSources;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.propagation.ExtractedContext;
+import datadog.trace.core.util.TagsMatcher;
 import datadog.trace.test.junit.utils.tabletest.TableTestTypeConverters;
 import java.util.HashMap;
 import java.util.Map;
@@ -579,5 +582,69 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
   private static String dataTag(String tag) {
     return "_dd." + tag + ".json";
+  }
+
+  @TableTest({
+    "scenario                          | kind     | storedTag         | readTag             ",
+    "server.address on a server span   | server   | http.hostname     | server.address      ",
+    "server.address on a consumer span | consumer | http.hostname     | server.address      ",
+    "server.address on a client span   | client   | peer.hostname     | server.address      ",
+    "server.address on a producer span | producer | peer.hostname     | server.address      ",
+    "network.peer.address inbound      | server   | network.client.ip | network.peer.address"
+  })
+  void readsDirectionScopedNameBySpanKind(String kind, String storedTag, String readTag) {
+    AgentSpan span = tracer.buildSpan("datadog", "fakeOperation").withTag(SPAN_KIND, kind).start();
+    span.setTag(storedTag, "example.com");
+    DDSpanContext context = (DDSpanContext) span.spanContext();
+
+    assertEquals("example.com", span.getTag(readTag));
+    assertEquals("example.com", context.unsafeGetTag(readTag));
+    span.finish();
+  }
+
+  @TableTest({
+    "scenario                          | kind     | storedTag    ",
+    "outbound-only rename, server span | server   | peer.hostname",
+    "inbound-only rename, client span  | client   | http.hostname",
+    "internal span                     | internal | http.hostname",
+    "broker span                       | broker   | peer.hostname"
+  })
+  void leavesDirectionScopedNameUnresolvedWhereItNamesNoTag(String kind, String storedTag) {
+    AgentSpan span = tracer.buildSpan("datadog", "fakeOperation").withTag(SPAN_KIND, kind).start();
+    span.setTag(storedTag, "example.com");
+
+    assertNull(span.getTag("server.address"));
+    span.finish();
+  }
+
+  @Test
+  void leavesDirectionScopedNameUnresolvedWithoutSpanKind() {
+    AgentSpan span = tracer.buildSpan("datadog", "fakeOperation").start();
+    span.setTag("http.hostname", "example.com");
+    span.setTag("peer.hostname", "example.com");
+
+    assertNull(span.getTag("server.address"));
+    span.finish();
+  }
+
+  @Test
+  void prefersTagSetUnderTheLiteralDirectionScopedName() {
+    AgentSpan span =
+        tracer.buildSpan("datadog", "fakeOperation").withTag(SPAN_KIND, "client").start();
+    span.setTag("peer.hostname", "resolved.example.com");
+    span.setTag("server.address", "literal.example.com");
+
+    assertEquals("literal.example.com", span.getTag("server.address"));
+    span.finish();
+  }
+
+  @Test
+  void samplingRuleMatchesDirectionScopedName() {
+    AgentSpan span =
+        tracer.buildSpan("datadog", "fakeOperation").withTag(SPAN_KIND, "client").start();
+    span.setTag("peer.hostname", "db.example.com");
+
+    assertTrue(TagsMatcher.create(singletonMap("server.address", "db.*")).matches((DDSpan) span));
+    span.finish();
   }
 }

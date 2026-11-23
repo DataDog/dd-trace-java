@@ -48,11 +48,10 @@ class RxJava3InteropTest extends AbstractInstrumentationTest {
   @Test
   void fromCompletionStageSync() {
     Integer result =
-        Worker.runUnderParent(
-            () ->
-                Single.fromCompletionStage(CompletableFuture.completedFuture(1))
-                    .map(Worker::child)
-                    .blockingGet());
+        Worker.runUnderParent(() ->
+            Single.fromCompletionStage(CompletableFuture.completedFuture(1))
+                .map(Worker::child)
+                .blockingGet());
     assertEquals(2, result);
 
     assertTraces(
@@ -69,11 +68,10 @@ class RxJava3InteropTest extends AbstractInstrumentationTest {
   @Test
   void fromCompletionStageAsync() {
     Integer result =
-        Worker.runUnderParent(
-            () ->
-                Single.fromCompletionStage(CompletableFuture.supplyAsync(() -> 1))
-                    .map(Worker::child)
-                    .blockingGet());
+        Worker.runUnderParent(() ->
+            Single.fromCompletionStage(CompletableFuture.supplyAsync(() -> 1))
+                .map(Worker::child)
+                .blockingGet());
     assertEquals(2, result);
 
     assertTraces(

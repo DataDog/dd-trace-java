@@ -1,6 +1,7 @@
 package datadog.smoketest;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.LogProbe;
@@ -10,6 +11,7 @@ import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.util.TagsHelper;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -33,10 +35,12 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   protected static final String TEST_APP_CLASS_NAME = "ServerDebuggerTestApplication";
   protected static final String FULL_METHOD_NAME = "fullMethod";
   protected static final String TRACED_METHOD_NAME = "tracedMethod";
+  protected static final Duration HTTP_CLIENT_TIMEOUT = Duration.ofSeconds(30);
 
   protected MockWebServer controlServer;
   protected HttpUrl controlUrl;
-  private OkHttpClient httpClient = new OkHttpClient();
+  private OkHttpClient httpClient =
+      new OkHttpClient.Builder().readTimeout(HTTP_CLIENT_TIMEOUT).build();
   protected String appUrl;
 
   @BeforeEach
@@ -112,15 +116,14 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
     if (waitOnProbeStatuses) {
       AtomicBoolean received = new AtomicBoolean();
       AtomicBoolean installed = new AtomicBoolean();
-      registerProbeStatusListener(
-          probeStatus -> {
-            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
-              received.set(true);
-            }
-            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
-              installed.set(true);
-            }
-          });
+      registerProbeStatusListener(probeStatus -> {
+        if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+          received.set(true);
+        }
+        if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
+          installed.set(true);
+        }
+      });
       processRequests(
           () -> received.get() && installed.get(),
           () -> String.format("timeout received=%s installed=%s", received.get(), installed.get()));
@@ -137,10 +140,9 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
 
   protected void waitForAProbeStatus(ProbeStatus.Status status) throws Exception {
     AtomicBoolean statusResult = new AtomicBoolean();
-    registerProbeStatusListener(
-        probeStatus -> {
-          statusResult.set(probeStatus.getDiagnostics().getStatus() == status);
-        });
+    registerProbeStatusListener(probeStatus -> {
+      statusResult.set(probeStatus.getDiagnostics().getStatus() == status);
+    });
     processRequests(
         statusResult::get, () -> String.format("timeout statusResult=%s", statusResult.get()));
   }
@@ -161,6 +163,7 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
   }
 
   protected String startAppAndAndGetUrl() throws InterruptedException, IOException {
+    assertNull(targetProcess); // make sure we are not calling this method twice
     controlServer.enqueue(EMPTY_200_RESPONSE); // ack response
     targetProcess = createProcessBuilder(logFilePath, controlUrl.toString()).start();
     RecordedRequest recordedRequest = controlServer.takeRequest(30, TimeUnit.SECONDS);

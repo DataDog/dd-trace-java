@@ -11,6 +11,11 @@ import spock.lang.IgnoreIf
   OperatingSystem.isLinux() && OperatingSystem.architecture().isArm64() && JavaVirtualMachine.isJ9()
 })
 class Java9ModulesSmokeTest extends AbstractSmokeTest {
+  @Override
+  protected boolean expectsProcessAliveBeforeEachTest() {
+    false
+  }
+
   // Estimate for the amount of time instrumentation plus some extra
   private static final int TIMEOUT_SECS = 30
 

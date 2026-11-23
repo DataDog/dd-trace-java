@@ -23,17 +23,9 @@ public class ScalatestInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.scalatest.DispatchReporter", "org.scalatest.tools.TestSortingReporter",
-    };
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".execution.SuppressedTestFailedException",
-      packageName + ".ScalatestUtils",
-      packageName + ".RunContext",
-      packageName + ".DatadogReporter",
+      "org.scalatest.DispatchReporter",
+      "org.scalatest.tools.TestSortingReporter",
+      "org.scalatest.tools.SuiteSortingReporter",
     };
   }
 
@@ -75,10 +67,11 @@ public class ScalatestInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   /**
-   * {@link org.scalatest.tools.TestSortingReporter#fireReadyEvents} is triggered asynchronously. It
-   * fires some events that are then delegated to other reporters. We need to suppress them (by
-   * increasing the call depth so that {@link DispatchEventAdvice} is aborted) as the same events
-   * are reported earlier synchronously from {@link org.scalatest.tools.TestSortingReporter#apply}
+   * {@code fireReadyEvents} of {@link org.scalatest.tools.TestSortingReporter} and {@link
+   * org.scalatest.tools.SuiteSortingReporter} releases buffered events, possibly from another
+   * thread. We need to suppress them (by increasing the call depth so that {@link
+   * DispatchEventAdvice} is aborted) as the same events are reported earlier synchronously from
+   * {@code apply}
    */
   public static class SuppressAsyncEventsAdvice {
     @Advice.OnMethodEnter

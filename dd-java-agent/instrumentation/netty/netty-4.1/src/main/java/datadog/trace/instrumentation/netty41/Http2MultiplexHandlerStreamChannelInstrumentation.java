@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.netty41;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import io.netty.channel.Channel;
@@ -39,8 +40,10 @@ public class Http2MultiplexHandlerStreamChannelInstrumentation extends Instrumen
       if (self.parent() != null
           && self.parent().hasAttr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY)
           && !self.hasAttr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY)) {
-        self.attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY)
-            .set(self.parent().attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY).getAndRemove());
+        Context context = self.parent().attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY).getAndSet(null);
+        if (context != null) {
+          self.attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY).set(context);
+        }
       }
     }
   }

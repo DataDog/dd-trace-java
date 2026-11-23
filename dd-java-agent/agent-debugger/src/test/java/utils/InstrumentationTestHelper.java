@@ -4,8 +4,13 @@ import static utils.TestHelper.getFixtureContent;
 import static utils.TestHelper.getFixtureLines;
 
 import com.datadog.debugger.agent.CapturedSnapshotTest;
+import datadog.instrument.classinject.ClassInjector;
+import datadog.trace.agent.tooling.AgentInstaller;
+import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import java.io.IOException;
+import java.lang.instrument.ClassFileTransformer;
+import java.lang.instrument.Instrumentation;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -13,6 +18,7 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +88,19 @@ public class InstrumentationTestHelper {
 
   public static int getLineForLineProbe(String className, ProbeId lineProbeId) {
     return getLineForLineProbe(className, ".java", lineProbeId);
+  }
+
+  /**
+   * Installs the real tracer instrumentation modules (e.g. jax-rs-annotations) on top of the given
+   * {@link Instrumentation}, so that classes defined afterwards (typically via {@link
+   * #compileAndLoadClass}) are woven with actual tracer advice, the same way they would be by the
+   * production agent. Callers must remove the returned transformer once done, e.g. via {@link
+   * Instrumentation#removeTransformer(ClassFileTransformer)}.
+   */
+  public static ClassFileTransformer installTracerInstrumentation(Instrumentation instr) {
+    ClassInjector.enableClassInjection(instr);
+    return AgentInstaller.installBytebuddyAgent(
+        instr, false, EnumSet.of(InstrumenterModule.TargetSystem.TRACING));
   }
 
   public static int getLineForLineProbe(String className, String ext, ProbeId lineProbeId) {

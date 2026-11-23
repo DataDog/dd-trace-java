@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.utils
 
 import datadog.communication.util.IOUtils
+import datadog.trace.test.util.PortableCommand
 import spock.lang.Specification
 import spock.lang.TempDir
 
@@ -18,7 +19,7 @@ class ShellCommandExecutorTest extends Specification {
     def shellCommandExecutor = new ShellCommandExecutor(temporaryFolder, SHELL_COMMAND_TIMEOUT)
 
     when:
-    def output = shellCommandExecutor.executeCommand(IOUtils::readFully, "echo", "this is a test")
+    def output = shellCommandExecutor.executeCommand(IOUtils::readFully, *PortableCommand.echo("this is a test"))
 
     then:
     output.trim() == "this is a test"
@@ -29,7 +30,7 @@ class ShellCommandExecutorTest extends Specification {
     def shellCommandExecutor = new ShellCommandExecutor(temporaryFolder, SHELL_COMMAND_TIMEOUT)
 
     when:
-    def output = shellCommandExecutor.executeCommand(IOUtils::readFully, "this is a test".bytes, "cat")
+    def output = shellCommandExecutor.executeCommand(IOUtils::readFully, "this is a test".bytes, *PortableCommand.cat())
 
     then:
     output.trim() == "this is a test"
@@ -40,7 +41,7 @@ class ShellCommandExecutorTest extends Specification {
     def shellCommandExecutor = new ShellCommandExecutor(temporaryFolder, 1_000)
 
     when:
-    shellCommandExecutor.executeCommand(IOUtils::readFully, "sleep", "2")
+    shellCommandExecutor.executeCommand(IOUtils::readFully, *PortableCommand.sleep(2))
 
     then:
     thrown TimeoutException

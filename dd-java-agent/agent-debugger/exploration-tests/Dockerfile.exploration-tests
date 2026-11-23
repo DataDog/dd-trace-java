@@ -1,17 +1,86 @@
 FROM debian:bookworm-slim
 
+# Eclipse Temurin release names, see https://adoptium.net/temurin/releases
+ARG JAVA_8_VERSION=jdk8u372-b07
+ARG JAVA_11_VERSION=jdk-11.0.32.1+1
+ARG JAVA_17_VERSION=jdk-17.0.21+9
+ARG JAVA_21_VERSION=jdk-21.0.13+9
+# Apache Maven version, see https://maven.apache.org/docs/history.html
+ARG MAVEN_VERSION=3.8.4
+
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates && \
+    apt-get install -y --only-upgrade ca-certificates && \
+    update-ca-certificates -f && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y procps tini build-essential git curl unzip zip && \
     apt-get -y clean && \
     rm -rf /var/lib/apt/lists/*
 
-# install sdkman
-COPY .sdkmanrc .
-RUN curl -s "https://get.sdkman.io" | bash
-RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && \
-    sdk env install && \
-    sdk install java 17.0.10-tem && \
-    sdk flush"
+# install Eclipse Temurin JDKs from Adoptium (checksum verified) into /opt/java/<major>
+RUN set -eu; \
+    case "$(dpkg --print-architecture)" in \
+      amd64) arch=x64 ;; \
+      arm64) arch=aarch64 ;; \
+      *) echo "Unsupported architecture: $(dpkg --print-architecture)" >&2; exit 1 ;; \
+    esac; \
+    api="https://api.adoptium.net/v3"; \
+    for spec in "8 ${JAVA_8_VERSION}" "11 ${JAVA_11_VERSION}" "17 ${JAVA_17_VERSION}" "21 ${JAVA_21_VERSION}"; do \
+      set -- $spec; \
+      major="$1"; \
+      release=$(printf '%s' "$2" | sed 's/+/%2B/g'); \
+      asset="version/${release}/linux/${arch}/jdk/hotspot/normal/eclipse"; \
+      curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused -o /tmp/jdk.tar.gz "${api}/binary/${asset}"; \
+      checksum=$(curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused "${api}/checksum/${asset}" | cut -d' ' -f1); \
+      echo "${checksum}  /tmp/jdk.tar.gz" | sha256sum -c -; \
+      mkdir -p "/opt/java/${major}"; \
+      tar -xzf /tmp/jdk.tar.gz -C "/opt/java/${major}" --strip-components=1; \
+      rm /tmp/jdk.tar.gz; \
+    done
+
+ENV JAVA_8_HOME=/opt/java/8 \
+    JAVA_11_HOME=/opt/java/11 \
+    JAVA_17_HOME=/opt/java/17 \
+    JAVA_21_HOME=/opt/java/21
+# JDK 8 is the default JDK
+ENV JAVA_HOME=$JAVA_8_HOME
+ENV PATH=$JAVA_HOME/bin:$PATH
+
+# install Apache Maven from the Apache archive (checksum verified) into /opt/maven
+RUN set -eu; \
+    url="https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz"; \
+    curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused -o /tmp/maven.tar.gz "${url}"; \
+    checksum=$(curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused "${url}.sha512" | cut -d' ' -f1); \
+    echo "${checksum}  /tmp/maven.tar.gz" | sha512sum -c -; \
+    mkdir -p /opt/maven; \
+    tar -xzf /tmp/maven.tar.gz -C /opt/maven --strip-components=1; \
+    rm /tmp/maven.tar.gz
+
+ENV MAVEN_HOME=/opt/maven
+ENV PATH=$MAVEN_HOME/bin:$PATH
+
+# Keep OkHttp's Java 11 test launcher on the scrubbed image JDK, not a runtime download.
+RUN mkdir -p "$HOME/.gradle" && \
+    printf '%s\n' \
+      "org.gradle.java.installations.paths=$JAVA_11_HOME,$JAVA_8_HOME,$JAVA_17_HOME,$JAVA_21_HOME" \
+      'org.gradle.java.installations.auto-download=false' > "$HOME/.gradle/gradle.properties"
+
+# Distrust the affected roots before Maven or Gradle downloads any build inputs.
+RUN set -eu; \
+    keytool="$JAVA_17_HOME/bin/keytool"; \
+    find /opt/java -type f -path '*/lib/security/cacerts' | \
+    while IFS= read -r store; do \
+      listing=$("$keytool" -list -v -keystore "$store" -storepass changeit); \
+      aliases=$(printf '%s\n' "$listing" | \
+        awk '/^Alias name: / { alias = substr($0, 13) } /^Owner: .*([eE]mSign (ECC )?Root CA - G[123]|AAA Certificate Services)/ { print alias }'); \
+      if [ -n "$aliases" ]; then \
+        printf '%s\n' "$aliases" | while IFS= read -r alias; do \
+          "$keytool" -delete -keystore "$store" -storepass changeit -alias "$alias"; \
+        done; \
+      fi; \
+    done
 
 RUN mkdir exploration-tests
 WORKDIR /exploration-tests
@@ -20,7 +89,7 @@ RUN git clone -b jsoup-1.18.1 https://github.com/jhy/jsoup.git
 COPY jsoup_exploration-tests.patch .
 # fix tests that are failing because checking time to execute
 RUN cd jsoup && git apply /exploration-tests/jsoup_exploration-tests.patch
-RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jsoup && mvn verify -DskipTests=true"
+RUN cd jsoup && mvn verify -DskipTests=true
 
 
 # Jackson
@@ -28,23 +97,52 @@ RUN git clone -b 2.16 https://github.com/FasterXML/jackson-core.git
 COPY jackson-core_exploration-tests.patch .
 # fix tests that are failing because timeout
 RUN cd jackson-core && git apply /exploration-tests/jackson-core_exploration-tests.patch
-RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jackson-core && mvn verify -DskipTests=true"
+RUN cd jackson-core && mvn verify -DskipTests=true
 RUN git clone -b 2.16 https://github.com/FasterXML/jackson-databind.git
 COPY jackson-databind_exploration-tests.patch .
 # fix tests that are failing because too deep recursion
 RUN cd jackson-databind && git apply /exploration-tests/jackson-databind_exploration-tests.patch
-RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd jackson-databind && mvn verify -DskipTests=true"
+RUN cd jackson-databind && mvn verify -DskipTests=true
 
 # Netty
 #RUN git clone https://github.com/netty/netty.git
-#RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd netty && ./mvnw dependency:resolve dependency:resolve-plugins"
+#RUN cd netty && ./mvnw dependency:resolve dependency:resolve-plugins
 
 # Guava
 #RUN git clone https://github.com/google/guava.git
-#RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && cd guava && mvn -B -P!standard-with-extra-repos verify -U -Dmaven.javadoc.skip=true -DskipTests=true"
+#RUN cd guava && mvn -B -P!standard-with-extra-repos verify -U -Dmaven.javadoc.skip=true -DskipTests=true
 
 # okhttp
 RUN git clone -b okhttp_5.3.x https://github.com/square/okhttp.git
 COPY okhttp_exploration-tests.patch .
 RUN cd okhttp && git apply /exploration-tests/okhttp_exploration-tests.patch
-RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && sdk use java 17.0.10-tem && cd okhttp && ./gradlew dependencies"
+RUN cd okhttp && JAVA_HOME=$JAVA_17_HOME PATH=$JAVA_17_HOME/bin:$PATH ./gradlew -Dorg.gradle.java.installations.auto-download=true dependencies
+
+# Older google-api-client artifacts embed independent Google truststores.
+RUN set -eu; \
+    keytool="$JAVA_17_HOME/bin/keytool"; \
+    find "$HOME/.gradle" -type f -name 'google-api-client-*.jar' | \
+    while IFS= read -r archive; do \
+      for entry in com/google/api/client/googleapis/google.p12 com/google/api/client/googleapis/google.jks; do \
+        if unzip -Z1 "$archive" | grep -Fxq "$entry"; then \
+          scratch="$(mktemp -d)"; \
+          mkdir -p "$scratch/com/google/api/client/googleapis"; \
+          unzip -p "$archive" "$entry" > "$scratch/$entry"; \
+          listing=$("$keytool" -list -v -keystore "$scratch/$entry" -storepass notasecret); \
+          aliases=$(printf '%s\n' "$listing" | \
+            awk '/^Alias name: / { alias = substr($0, 13) } /^Owner: .*([eE]mSign (ECC )?Root CA - G[123]|AAA Certificate Services)/ { print alias }'); \
+          if [ -n "$aliases" ]; then \
+            printf '%s\n' "$aliases" | while IFS= read -r alias; do \
+              "$keytool" -delete -keystore "$scratch/$entry" -storepass notasecret -alias "$alias"; \
+            done; \
+            (cd "$scratch" && zip -q "$archive" "$entry"); \
+          fi; \
+          rm -rf "$scratch"; \
+        fi; \
+      done; \
+    done
+
+# Do not publish Gradle's generated API jar with its old embedded CA snapshot.
+RUN if [ -d "$HOME/.gradle/caches" ]; then \
+      find "$HOME/.gradle/caches" -type f -path '*/generated-gradle-jars/gradle-api-*.jar' -delete; \
+    fi

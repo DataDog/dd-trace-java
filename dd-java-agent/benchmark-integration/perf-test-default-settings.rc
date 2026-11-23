@@ -7,6 +7,10 @@ test_time_seconds=90
 test_num_connections=5
 test_num_threads=5
 
+# Repeats per endpoint (one warmup, then N back-to-back measurement windows, no server restart).
+# Default 1 (single sample). Override with PERF_REPEATS.
+test_repeats=1
+
 # endpoionts to test
 declare -A endpoints
 endpoints['<1MS']='http://localhost:8080/work'

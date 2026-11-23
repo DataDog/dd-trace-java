@@ -46,17 +46,6 @@ public class ParameterDirectivesInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".helpers.ScalaToJava",
-      packageName + ".helpers.TaintMultiMapFunction",
-      packageName + ".helpers.TaintMapFunction",
-      packageName + ".helpers.TaintSeqFunction",
-      packageName + ".helpers.TaintSingleParameterFunction",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     // the Java API delegates to the Scala API
     transformDirective(transformer, "parameterMultiMap", "TaintMultiMapDirectiveAdvice");

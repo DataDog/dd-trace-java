@@ -2,7 +2,6 @@ package freemarker.core;
 
 import freemarker.template.TemplateException;
 import java.lang.reflect.Field;
-import java.lang.reflect.UndeclaredThrowableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +36,11 @@ public final class DollarVariable24Helper {
     }
   }
 
+  /**
+   * Returns {@code true} (skip the XSS check) when auto-escaping is on, when the object is not a
+   * {@link DollarVariable}, or when the flag cannot be read. Markup values such as {@code ?no_esc}
+   * are skipped too (known gap, APPSEC-71792).
+   */
   public static boolean fetchAutoEscape(Object dollarVariable) {
     if (AUTO_ESCAPE == null || !(dollarVariable instanceof DollarVariable)) {
       return true;
@@ -44,10 +48,16 @@ public final class DollarVariable24Helper {
     try {
       return (boolean) AUTO_ESCAPE.get(dollarVariable);
     } catch (IllegalAccessException e) {
-      throw new UndeclaredThrowableException(e);
+      log.debug("Failed to read DollarVariable autoEscape", e);
+      return true;
     }
   }
 
+  /**
+   * Returns the interpolated string, or {@code null} when it is not reported: legacy escaping
+   * built-in, evaluation error (FreeMarker reports it when it evaluates the interpolation right
+   * after) or markup output (known gap, APPSEC-71792).
+   */
   public static String fetchCharSec(Object object, Environment environment) {
     if (!(object instanceof DollarVariable)) {
       return null;
@@ -58,14 +68,18 @@ public final class DollarVariable24Helper {
           return null;
         }
       } catch (IllegalAccessException e) {
-        throw new UndeclaredThrowableException(e);
+        log.debug("Failed to read DollarVariable escapedExpression", e);
+        return null;
       }
     }
+    final Object value;
     try {
-      return (String) ((DollarVariable) object).calculateInterpolatedStringOrMarkup(environment);
+      value = ((DollarVariable) object).calculateInterpolatedStringOrMarkup(environment);
     } catch (TemplateException e) {
-      throw new UndeclaredThrowableException(e);
+      // user-caused, FreeMarker reports it when evaluating the interpolation
+      return null;
     }
+    return value instanceof String ? (String) value : null;
   }
 
   public static Integer fetchBeginLine(Object object) {

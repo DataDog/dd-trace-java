@@ -70,7 +70,7 @@ public final class PercentEscaper {
   private static final int DEST_PAD = 32;
 
   private static final String UNSAFE_CHARACTERS_KEY = "\",;\\()/:<=>?@[]{} ";
-  private static final String UNSAFE_CHARACTERS_VALUE = "\",;\\ ";
+  private static final String UNSAFE_CHARACTERS_VALUE = "\",;\\ %";
 
   // Percent escapers output upper case hex digits (uri escapers require this).
   private static final char[] UPPER_HEX_DIGITS = "0123456789ABCDEF".toCharArray();
@@ -115,7 +115,7 @@ public final class PercentEscaper {
     return escape(s, unsafeValOctets);
   }
 
-  private boolean needsEncoding(char c, boolean[] unsafeOctets) {
+  private static boolean needsEncoding(char c, boolean[] unsafeOctets) {
     if (c > '~' || c <= ' ' || c < unsafeOctets.length && unsafeOctets[c]) {
       return true;
     }
@@ -236,8 +236,7 @@ public final class PercentEscaper {
 
   private static int nextEscapeIndex(CharSequence csq, int index, int end, boolean[] unsafeOctets) {
     for (; index < end; index++) {
-      char c = csq.charAt(index);
-      if (c < unsafeOctets.length && unsafeOctets[c]) {
+      if (needsEncoding(csq.charAt(index), unsafeOctets)) {
         break;
       }
     }
@@ -250,7 +249,7 @@ public final class PercentEscaper {
   private static char[] escape(int cp, Escaped escaped, boolean[] unsafeOctets) {
     // We should never get negative values here but if we do it will throw an
     // IndexOutOfBoundsException, so at least it will get spotted.
-    if (cp < unsafeOctets.length && !unsafeOctets[cp]) {
+    if (cp <= '~' && !needsEncoding((char) cp, unsafeOctets)) {
       return null;
     } else if (cp <= 0x7F) {
       // Single byte UTF-8 characters

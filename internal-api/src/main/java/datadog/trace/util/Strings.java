@@ -8,6 +8,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
@@ -17,6 +18,12 @@ public final class Strings {
   private static final byte[] HEX_DIGITS = {
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
   };
+
+  /** Formats text with {@link Locale#ROOT}. */
+  public static String format(String format, Object... args) {
+    // Keep formatted digits, separators and case independent of the application's default locale.
+    return String.format(Locale.ROOT, format, args);
+  }
 
   /** com.foo.Bar -> com/foo/Bar.class */
   public static String getResourceName(final String className) {
@@ -345,12 +352,87 @@ public final class Strings {
    * True if {@code needle} occurs fully within {@code s[beginIndex, endIndex)} -- a range-limited,
    * allocation-free alternative to {@code s.substring(beginIndex, endIndex).contains(needle)}.
    *
-   * <p>{@code indexOf} returns the earliest occurrence at or after {@code beginIndex}; if that one
-   * overshoots {@code endIndex} there is no earlier full occurrence in range, so the bound check is
-   * exact.
+   * <p>The cost depends on the region's length, not the string's. {@code s.indexOf(needle,
+   * beginIndex)} alone would not do: when the needle is missing from the region it keeps searching
+   * to the end of {@code s}, which is slow for a short comment at the start of a long SQL
+   * statement. So {@code indexOf} (a fast JIT intrinsic) is used only when the text after the
+   * region is no longer than the region itself, which caps its extra work at the region's length.
+   * Otherwise a loop that stops at {@code endIndex} is used.
    */
   public static boolean regionContains(String s, int beginIndex, int endIndex, String needle) {
-    int idx = s.indexOf(needle, beginIndex);
-    return idx >= 0 && idx + needle.length() <= endIndex;
+    if (endIndex >= s.length()) {
+      // The region runs to the end of the string, so indexOf has nothing to overshoot.
+      int idx = s.indexOf(needle, beginIndex);
+      return idx >= 0 && idx + needle.length() <= endIndex;
+    }
+    int needleLen = needle.length();
+    int from = Math.max(beginIndex, 0);
+    int end = Math.min(endIndex, s.length());
+    // Last position where the needle can start and still end inside the region.
+    int last = end - needleLen;
+    if (from > last) {
+      return false;
+    }
+    if (needleLen == 0) {
+      return true;
+    }
+    if (s.length() - end <= end - from) {
+      int idx = s.indexOf(needle, from);
+      return idx >= 0 && idx <= last;
+    }
+    char first = needle.charAt(0);
+    for (int i = from; i <= last; i++) {
+      if (s.charAt(i) == first && s.regionMatches(i + 1, needle, 1, needleLen - 1)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * A {@code hashCode} consistent with {@link String#equalsIgnoreCase}: any two strings that are
+   * equal ignoring case produce the same value. Same polynomial as {@link String#hashCode} but over
+   * the case-folded characters, so it never allocates (no {@code toLowerCase} copy).
+   *
+   * <p>Uses the same two-way fold {@code String.equalsIgnoreCase} / {@code
+   * String.regionMatches(ignoreCase)} use ({@code toLowerCase(toUpperCase(c))}), so the two stay
+   * consistent for all inputs, not just ASCII — pairing a one-way fold here with {@code
+   * equalsIgnoreCase} would risk silent false misses on the Unicode characters where they diverge.
+   *
+   * <p>Folds by code point, not by {@code char} (UTF-16 unit). On JDK 9+, {@code equalsIgnoreCase}
+   * itself reconstructs supplementary code points before folding (e.g. it treats U+10400 and
+   * U+10428 as equal), so a per-{@code char} fold would make this hash inconsistent with it for
+   * such pairs -- a supplementary-plane analog of the same silent-false-miss risk called out above.
+   * A per-{@code char} fold matched {@code equalsIgnoreCase} only on JDK 8, where it did not
+   * reconstruct code points; folding by code point keeps the two consistent on every supported JDK.
+   * (On JDK 8, where {@code equalsIgnoreCase} still treats such pairs as distinct, folding them
+   * together here is merely an extra, harmless collision -- consistency only needs to hold in the
+   * equal-hash direction, not the reverse.)
+   */
+  public static int caseInsensitiveHashCode(String s) {
+    int h = 0;
+    final int len = s.length();
+    for (int i = 0; i < len; ) {
+      final char c = s.charAt(i);
+      if (c < 0x80) {
+        // ASCII fast path: case folding is exactly A-Z -> a-z, and every ASCII char is its own
+        // code point, so this is equivalent to (and cheaper than) the code-point fold below.
+        h = 31 * h + ((c >= 'A' && c <= 'Z') ? (c + 32) : c);
+        ++i;
+        continue;
+      }
+      final int cp = s.codePointAt(i);
+      final int folded = Character.toLowerCase(Character.toUpperCase(cp));
+      if (Character.isSupplementaryCodePoint(folded)) {
+        // Fold back into the two chars equalsIgnoreCase itself compares, so the polynomial stays
+        // over the same "characters" for both single- and multi-char inputs.
+        h = 31 * h + Character.highSurrogate(folded);
+        h = 31 * h + Character.lowSurrogate(folded);
+      } else {
+        h = 31 * h + folded;
+      }
+      i += Character.charCount(cp);
+    }
+    return h;
   }
 }

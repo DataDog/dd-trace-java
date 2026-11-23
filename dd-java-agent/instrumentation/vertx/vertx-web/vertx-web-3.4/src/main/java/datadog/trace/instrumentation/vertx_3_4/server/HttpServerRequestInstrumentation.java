@@ -34,14 +34,6 @@ public class HttpServerRequestInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.vertx_3_4.server.WafPublishingBodyHandler",
-      "datadog.trace.instrumentation.vertx_3_4.server.WafPublishingBodyHandler$BufferWrapper",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isPublic()

@@ -5,6 +5,11 @@ import datadog.smoketest.opentracing.IncorrectSetupWithAgentApplication
 import static java.util.concurrent.TimeUnit.SECONDS
 
 class IncorrectSetupWithAgentTest extends AbstractSmokeTest {
+  @Override
+  protected boolean expectsProcessAliveBeforeEachTest() {
+    false
+  }
+
   public static final int TIMEOUT_SECS = 30
 
   @Override

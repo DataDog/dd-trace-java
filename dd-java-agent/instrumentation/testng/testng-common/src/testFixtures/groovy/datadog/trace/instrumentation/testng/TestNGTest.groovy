@@ -7,6 +7,7 @@ import datadog.trace.civisibility.diff.LineDiff
 import org.example.*
 import org.junit.jupiter.api.Assumptions
 import org.testng.TestNG
+import org.testng.IAnnotationTransformer
 import org.testng.xml.SuiteXmlParser
 import org.testng.xml.XmlSuite
 
@@ -15,6 +16,72 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
   static testOutputDir = "build/tmp/test-output"
 
   static currentTestNGVersion = TestNGUtils.getTestNGVersion()
+
+  def "test automation exclusions preserve a blocking failure and execute once"() {
+    given:
+    TestAutomationExcluded.executions = 0
+    def id = new TestFQN("org.example.TestAutomationExcluded", "protected_failure")
+    givenDisabledTests([id])
+    givenQuarantinedTests([id])
+    givenAttemptToFixTests([id])
+    givenFlakyRetryEnabled(true)
+    givenFlakyTests([id])
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
+
+    when:
+    runTests([TestAutomationExcluded], null, false)
+
+    then:
+    TestAutomationExcluded.executions == 1
+    def testSpan = TEST_WRITER.toList().flatten().find { it.getTag("test.name") == "protected_failure" }
+    testSpan != null
+    testSpan.getTag("test.test_management.no_auto_retry") == true
+    testSpan.getTag("test.test_management.prevent_failure_suppression") == true
+    testSpan.getTag("test.test_management.is_test_disabled") == true
+    testSpan.getTag("test.test_management.is_quarantined") == true
+    testSpan.getTag("test.test_management.is_attempt_to_fix") == true
+    testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
+  }
+
+  def "test automation exclusions use effective inherited groups"() {
+    given:
+    TestInheritedGroupsExcluded.executions = 0
+    def id = new TestFQN(TestInheritedGroupsExcluded.name, "inherited_groups")
+    givenDisabledTests([id])
+
+    when:
+    runTests([TestInheritedGroupsExcluded])
+
+    then:
+    TestInheritedGroupsExcluded.executions == 1
+    def testSpan = TEST_WRITER.toList().flatten().find { it.getTag("test.name") == "inherited_groups" }
+    testSpan.getTag("test.status").toString() == "pass"
+    testSpan.getTag("test.test_management.prevent_failure_suppression") == true
+    testSpan.getTag("test.test_management.is_test_disabled") == true
+  }
+
+  def "test automation exclusions use effective transformed groups"() {
+    given:
+    TestTransformedGroupsExcluded.executions = 0
+    def id = new TestFQN(TestTransformedGroupsExcluded.name, "transformed_groups")
+    givenDisabledTests([id])
+    def transformer = [transform: { annotation, testClass, constructor, method ->
+        if (method?.name == "transformed_groups") {
+          annotation.setGroups(["datadog_prevent_failure_suppression"] as String[])
+        }
+      }] as IAnnotationTransformer
+
+    when:
+    runTests([TestTransformedGroupsExcluded], null, true, { TestNG testNG -> testNG.addListener(transformer) })
+
+    then:
+    TestTransformedGroupsExcluded.executions == 1
+    def testSpan = TEST_WRITER.toList().flatten().find { it.getTag("test.name") == "transformed_groups" }
+    testSpan.getTag("test.status").toString() == "pass"
+    testSpan.getTag("test.test_management.prevent_failure_suppression") == true
+    testSpan.getTag("test.test_management.is_test_disabled") == true
+  }
 
   def "test #testcaseName"() {
     runTests(tests, null, success)
@@ -32,16 +99,30 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     "test-parameterized"                     | true    | [TestParameterized]
     "test-parameterized-modifies-params"     | true    | [TestParameterizedModifiesParams]
     "test-success-with-groups"               | true    | [TestSucceedGroups]
-    "test-class-skipped"                     | true    | [TestSkippedClass]
     "test-success-and-skipped"               | true    | [TestSucceedAndSkipped]
     "test-success-and-failure"               | false   | [TestFailedAndSucceed]
     "test-suite-teardown-failure"            | false   | [TestFailedSuiteTearDown]
-    "test-suite-setup-failure"               | false   | [TestFailedSuiteSetup]
     "test-multiple-successful-suites"        | true    | [TestSucceed, TestSucceedAndSkipped]
     "test-successful-suite-and-failed-suite" | false   | [TestSucceed, TestFailedAndSucceed]
     "test-nested-successful-suites"          | true    | [TestSucceedNested, TestSucceedNested.NestedSuite]
-    "test-nested-skipped-suites"             | true    | [TestSkippedNested]
     "test-factory-data-provider"             | true    | [TestSucceedDataProvider]
+  }
+
+  def "test skips without start notification #testcaseName"() {
+    runTests(tests, null, success)
+
+    assertSpansData(testcaseName, [:], ignoreSkipReason ? ["content.meta.['test.skip_reason']"] : [])
+    def skippedTests = TEST_WRITER.flatten().findAll { it.spanType?.toString() == "test" && it.getTag("test.status")?.toString() == "skip" }
+    assert !skippedTests.isEmpty()
+    assert skippedTests.every { it.getTag("test.skip_reason")?.toString()?.trim() }
+
+    where:
+    // the skip reasons for these tests vary across TestNG versions
+    testcaseName                 | success | tests                   | ignoreSkipReason
+    "test-class-skipped"         | true    | [TestSkippedClass]      | TestNGUtils.isTestStartMissingOnSkip(currentTestNGVersion)
+    "test-suite-setup-failure"   | false   | [TestFailedSuiteSetup]  | TestNGUtils.isTestStartMissingOnSkip(currentTestNGVersion)
+    "test-nested-skipped-suites" | true    | [TestSkippedNested]     | TestNGUtils.isTestStartMissingOnSkip(currentTestNGVersion)
+    "test-skipped-dependency"    | false   | [TestSkippedDependency] | true
   }
 
   def "test parallel execution #testcaseName"() {
@@ -281,13 +362,14 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     "test-capabilities-ordering-efd-suppression" | TestNGUtils.capabilities("7.5") | (TestNGUtils.isTestOrderingSupported(currentTestNGVersion) && TestNGUtils.isEFDSupported(currentTestNGVersion) && TestNGUtils.isExceptionSuppressionSupported(currentTestNGVersion))
   }
 
-  protected void runTests(List<Class> testClasses, String parallelMode = null, boolean expectSuccess = true) {
+  protected void runTests(List<Class> testClasses, String parallelMode = null, boolean expectSuccess = true, Closure configure = null) {
     TestEventsHandlerHolder.start()
 
     def testNG = new TestNG()
     testNG.setOutputDirectory(testOutputDir)
     Class[] testClassesArray = testClasses.toArray(new Class[0])
     testNG.setTestClasses(testClassesArray)
+    configure?.call(testNG)
     if (parallelMode != null) {
       testNG.setParallel(parallelMode)
     }

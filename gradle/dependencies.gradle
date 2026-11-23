@@ -24,7 +24,6 @@ final class CachedData {
         filter.exclude(filter.project(':components:environment'))
         filter.exclude(filter.project(':components:json'))
         filter.exclude(filter.project(':products:feature-flagging:feature-flagging-bootstrap'))
-        filter.exclude(filter.project(':products:feature-flagging:feature-flagging-config'))
         filter.exclude(filter.project(':products:metrics:metrics-agent'))
         filter.exclude(filter.project(':products:metrics:metrics-api'))
         filter.exclude(filter.project(':products:metrics:metrics-lib'))
@@ -92,13 +91,23 @@ configurations.configureEach {
   }
 }
 
+// JNR must use our controlled ASM version, matching the core embedded in dd-instrument-java.
+// The following edits JNR-FFI's dependency metadata before resolution to remove ASM.
+dependencies.components.withModule('com.github.jnr:jnr-ffi') {
+  allVariants {
+    withDependencies {
+      removeAll { it.group == 'org.ow2.asm' }
+    }
+  }
+}
+
 CachedData.deps.shared = [
   // Force specific version of okio required by com.squareup.moshi:moshi
   // When all of the dependencies are declared in dd-trace-core, moshi overrides the okhttp's
   // transitive dependency.  Since okhttp is declared here and moshi is not, this lead to an incompatible version
   // TODO: Consider migrating away from Moshi, Okio, etc. to more modern JSON libraries with better (de)serialization support
-  libs.okio,
-  libs.okhttp,
+  libs.datadog.okio,
+  libs.datadog.okhttp,
   libs.dogstatsd,
   libs.jnr.unixsocket,
   libs.moshi,

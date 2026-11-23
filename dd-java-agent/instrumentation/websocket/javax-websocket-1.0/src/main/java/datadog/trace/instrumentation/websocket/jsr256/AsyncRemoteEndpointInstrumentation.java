@@ -10,10 +10,10 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import java.nio.ByteBuffer;
@@ -78,7 +78,7 @@ public class AsyncRemoteEndpointInstrumentation
 
   public static class SendTextAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope before(
+    public static ContextScope before(
         @Advice.This final RemoteEndpoint.Async self,
         @Advice.Argument(0) String text,
         @Advice.Argument(
@@ -108,7 +108,7 @@ public class AsyncRemoteEndpointInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
         @Advice.Thrown final Throwable throwable,
         @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC) Future<Void> future) {
@@ -135,7 +135,7 @@ public class AsyncRemoteEndpointInstrumentation
 
   public static class SendBinaryAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope before(
+    public static ContextScope before(
         @Advice.This final RemoteEndpoint.Async self,
         @Advice.Argument(0) ByteBuffer buffer,
         @Advice.Argument(
@@ -165,7 +165,7 @@ public class AsyncRemoteEndpointInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
         @Advice.Thrown final Throwable throwable,
         @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC) Future<Void> future) {
@@ -192,7 +192,7 @@ public class AsyncRemoteEndpointInstrumentation
 
   public static class SendObjectAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope before(
+    public static ContextScope before(
         @Advice.This final RemoteEndpoint.Async self,
         @Advice.Argument(
                 value = 1,
@@ -219,7 +219,7 @@ public class AsyncRemoteEndpointInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
         @Advice.Thrown final Throwable throwable,
         @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC) Future<Void> future) {

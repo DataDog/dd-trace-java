@@ -6,6 +6,7 @@ import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.RPC_COMMAND_NAME;
 
+import com.amazonaws.AmazonServiceException;
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
@@ -56,6 +57,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
   private static final DDCache<String, String> serviceNameCache = DDCaches.newFixedSizeCache(128);
   private static final Pattern AWS_SERVICE_NAME_PATTERN = Pattern.compile("Amazon\\s?(\\w+)");
+  private static final Pattern TABLE_ARN_PATTERN =
+      Pattern.compile("^arn:[^:]+:dynamodb:[^:]+:[0-9]{12}:table/[^/]+$");
 
   private static final String PUT_RECORD_OPERATION_NAME = "PutRecordRequest";
   private static final String PUT_RECORDS_OPERATION_NAME = "PutRecordsRequest";
@@ -153,6 +156,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     String topicName = null;
     String topicArn = access.getTopicArn(originalRequest);
     if (null != topicArn) {
+      span.setTag(InstrumentationTags.AWS_TOPIC_ARN, topicArn);
       topicName = topicArn.substring(topicArn.lastIndexOf(':') + 1);
       span.setTag(InstrumentationTags.AWS_TOPIC_NAME, topicName);
       span.setTag(InstrumentationTags.TOPIC_NAME, topicName);
@@ -168,6 +172,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     }
     String streamArn = access.getStreamARN(originalRequest);
     if (null != streamArn) {
+      span.setTag(InstrumentationTags.AWS_STREAM_ARN, streamArn);
       int streamNameStart = streamArn.indexOf(":stream/");
       if (streamNameStart >= 0) {
         streamName = streamArn.substring(streamNameStart + 8);
@@ -179,10 +184,27 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     }
     String tableName = access.getTableName(originalRequest);
     if (null != tableName) {
+      if (isTableArn(tableName)) {
+        span.setTag(InstrumentationTags.AWS_TABLE_ARN, tableName);
+      }
       span.setTag(InstrumentationTags.AWS_TABLE_NAME, tableName);
       span.setTag(InstrumentationTags.TABLE_NAME, tableName);
       bestPrecursor = InstrumentationTags.AWS_TABLE_NAME;
       bestPeerService = tableName;
+    }
+    String stateMachineArn = access.getStateMachineArn(originalRequest);
+    if (null != stateMachineArn) {
+      span.setTag(InstrumentationTags.AWS_STATE_MACHINE_ARN, stateMachineArn);
+    }
+    String executionArn = access.getExecutionArn(originalRequest);
+    if (null != executionArn) {
+      span.setTag(InstrumentationTags.AWS_EXECUTION_ARN, executionArn);
+    }
+    if ("AWSLambda".equalsIgnoreCase(awsServiceName)) {
+      String functionName = access.getFunctionName(originalRequest);
+      if (null != functionName) {
+        setFunctionIdentity(span, functionName);
+      }
     }
 
     // Set peer.service based on Config for serverless functions
@@ -245,6 +267,70 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
         }
       }
     }
+  }
+
+  /**
+   * Whether a DynamoDB {@code TableName} is a full table ARN, {@code
+   * arn:<partition>:dynamodb:<region>:<account>:table/<name>}. Cross-account access requires one,
+   * so it names the callee's account and Region.
+   */
+  static boolean isTableArn(String tableName) {
+    return tableName.startsWith("arn:") && TABLE_ARN_PATTERN.matcher(tableName).matches();
+  }
+
+  /**
+   * Normalizes a Lambda {@code FunctionName} request value. {@code aws.function.name} is always the
+   * bare function name (account, {@code function:} prefix and {@code :qualifier} suffix stripped),
+   * and {@code aws.function.arn} is set only when the value is a full ARN. A partial ARN ({@code
+   * account:function:name}) yields the name but no ARN, because its Region and partition are
+   * unknown and must not be invented.
+   */
+  private static void setFunctionIdentity(AgentSpan span, String functionName) {
+    if (functionName == null || functionName.isEmpty()) {
+      return;
+    }
+    if (functionName.startsWith("arn:")) {
+      // arn:<partition>:lambda:<region>:<account>:function:<name>[:<qualifier>]
+      span.setTag(InstrumentationTags.AWS_FUNCTION_ARN, functionName);
+    }
+    span.setTag(InstrumentationTags.AWS_FUNCTION_NAME, lambdaFunctionName(functionName));
+  }
+
+  /** Extracts the bare function name from any accepted {@code FunctionName} form. */
+  static String lambdaFunctionName(String functionName) {
+    int valueEnd = functionName.length();
+    while (valueEnd > 0 && functionName.charAt(valueEnd - 1) == ':') {
+      valueEnd--;
+    }
+    // Leave empty or colon-only input unchanged for the SDK/service to validate.
+    if (valueEnd == 0) {
+      return functionName;
+    }
+    int firstColon = functionName.indexOf(':');
+    if (firstColon < 0) {
+      return functionName;
+    }
+
+    int nameStart = 0;
+    int partStart = firstColon + 1;
+    boolean fullArn = functionName.startsWith("arn:");
+    for (int part = 1; part <= 5 && partStart < valueEnd; part++) {
+      int partEnd = functionName.indexOf(':', partStart);
+      if (partEnd < 0 || partEnd >= valueEnd) {
+        break;
+      }
+      // "function" precedes the name in field 1 of a partial ARN or field 5 of a full ARN.
+      if ((part == 1 || (fullArn && part == 5))
+          && partEnd - partStart == 8
+          && functionName.startsWith("function:", partStart)) {
+        nameStart = partEnd + 1;
+      }
+      partStart = partEnd + 1;
+    }
+    int nameEnd = functionName.indexOf(':', nameStart);
+    return nameEnd < 0
+        ? functionName.substring(nameStart)
+        : functionName.substring(nameStart, nameEnd);
   }
 
   public void onServiceResponse(
@@ -320,6 +406,16 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   @Override
   protected URI url(final Request request) {
     return request.getEndpoint();
+  }
+
+  /** Tags the HTTP status code of a service error, which has no response to read it from. */
+  public void onServiceError(final AgentSpan span, final Exception error) {
+    if (error instanceof AmazonServiceException) {
+      final int status = ((AmazonServiceException) error).getStatusCode();
+      if (status > 0) {
+        span.setHttpStatusCode(status);
+      }
+    }
   }
 
   @Override

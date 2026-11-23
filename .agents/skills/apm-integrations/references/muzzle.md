@@ -2,6 +2,26 @@
 
 > Referenced from `SKILL.md` Step 9.2. Everything about `muzzle { pass { … } fail { … } }` blocks and the traps that fail CI.
 
+## Prerequisite: the `muzzle {}` DSL requires the module-instrumentation plugin
+
+`muzzle { ... }` is not a built-in Gradle block. The plugin that registers it is `dd-trace-java.muzzle` — but you never apply that one directly. Inside `dd-java-agent/instrumentation`, the parent `build.gradle` watches every subproject for the `dd-trace-java.module.instrumentation` plugin and, when it sees it applied, applies `dd-trace-java.muzzle` (and the build-time-instrumentation plugin) on your behalf. So the plugin id you actually need in an instrumentation module's `build.gradle` is the trigger, `dd-trace-java.module.instrumentation`, not `dd-trace-java.muzzle` itself:
+
+```groovy
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  // other plugins (e.g. 'idea', a protobuf/shading plugin) as needed
+}
+```
+
+If you write or regenerate a module's `build.gradle` from scratch and omit this plugin id — for example, substituting a hand-written `apply from: "$rootDir/gradle/..."` line instead — the build fails before any instrumentation code even compiles:
+
+```
+org.gradle.api.resources.MissingResourceException: A problem occurred evaluating project ':dd-java-agent:instrumentation:<module>'.
+Caused by: Could not find method muzzle() for arguments [...] on project ':dd-java-agent:instrumentation:<module>' of type org.gradle.api.Project.
+```
+
+**Rule:** when replacing an existing module's `build.gradle` wholesale, copy its `plugins {}` block's ids forward as a floor — don't rebuild it by inference from a template or from what "looks needed." If you're unsure which plugin registers a given DSL block or triggers another plugin indirectly, check another module's `build.gradle` in the same directory tree rather than guessing — indirection like this (a parent build file reacting to a child's plugin id) won't be visible from the module's own `build.gradle` alone.
+
 ## Muzzle directives (mandatory)
 
 In `build.gradle`, add `muzzle` blocks. **There are three valid patterns** — choose based on whether your version range is open-ended or bounded, and if bounded, why.
@@ -119,6 +139,10 @@ muzzle {
 Add `assertInverse = true` only when you've empirically verified the min via local muzzle sweep. Otherwise, leaving it off is correct.
 
 This is common whenever any instrumentation class in the module is compatible with versions below the declared min — `assertInverse` then contradicts that class's compatibility.
+
+**Especially avoid defaulting `assertInverse = true` when hooking a concrete driver class** (as opposed to a JDK SPI — but note you usually should NOT be hooking a concrete driver at all; see instrumenter-module.md). Concrete driver classes tend to be structurally stable across a much wider version range than the `compileOnly`/`testImplementation` coordinate you happened to pin, so the pinned floor is usually the dependency you selected, not any real API-shape boundary. Do not set `assertInverse` unless you can point to a specific API change at the declared minimum; otherwise omit it.
+
+**Do NOT treat a muzzle pass/inverse result as proof your matcher target exists (or doesn't) on a given version.** Muzzle derives its references from the *advice bytecode* plus any explicit additional references — NOT from the strings in `instrumentedType()` or a `named(...)` matcher. So a concrete class named only in a matcher (e.g. `org.postgresql.jdbc.PgStatement`) is a **muzzle blind spot**: an inverse pass on an old artifact does not confirm the matcher would fire there, and a normal pass does not confirm the class is present. If a rule depends on a matcher target existing on a version, back it with an explicit muzzle reference to that type or with a runtime/latest-dep test — do not infer it from the muzzle result. (This is also why `assertInverse` on a matcher-pinned concrete class is unreliable: the inverse assertion tests advice references, which may resolve on versions where the matched concrete class differs or is absent — PostgreSQL, for instance, splits older `jdbc2`/`jdbc3`/`jdbc4` statement classes from the newer `PgPreparedStatement`.)
 
 ## Muzzle range must exclude incompatible major versions
 

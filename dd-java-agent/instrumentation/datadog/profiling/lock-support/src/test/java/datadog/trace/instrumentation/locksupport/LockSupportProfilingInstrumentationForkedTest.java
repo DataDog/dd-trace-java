@@ -10,8 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.util.concurrent.TimeUnit;
@@ -97,7 +97,7 @@ class LockSupportProfilingInstrumentationForkedTest extends AbstractInstrumentat
 
     AgentSpan span = tracer.startSpan("test", "locksupport.unparker");
     long spanId;
-    try (AgentScope ignored = tracer.activateSpan(span)) {
+    try (ContextScope ignored = tracer.activateSpan(span)) {
       spanId = span.getSpanId();
       // Recorded against the target thread regardless of whether it has parked yet.
       LockSupport.unpark(worker);
@@ -118,7 +118,7 @@ class LockSupportProfilingInstrumentationForkedTest extends AbstractInstrumentat
     worker.start();
 
     AgentSpan span = tracer.startSpan("test", "locksupport.unparker");
-    try (AgentScope ignored = tracer.activateSpan(span)) {
+    try (ContextScope ignored = tracer.activateSpan(span)) {
       LockSupport.unpark(worker);
     } finally {
       span.finish();

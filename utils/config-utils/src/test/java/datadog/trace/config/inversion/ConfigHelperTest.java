@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.test.util.ControllableEnvironmentVariables;
 import java.util.ArrayList;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 public class ConfigHelperTest {
   // Test environment variables
@@ -76,6 +78,17 @@ public class ConfigHelperTest {
   void reset() {
     ConfigHelper.get().resetCache();
     env.clear();
+  }
+
+  @TableTest({
+    "scenario   | otel                           ",
+    "delay      | OTEL_BLRP_SCHEDULE_DELAY       ",
+    "timeout    | OTEL_BLRP_EXPORT_TIMEOUT       ",
+    "queue size | OTEL_BLRP_MAX_QUEUE_SIZE       ",
+    "batch size | OTEL_BLRP_MAX_EXPORT_BATCH_SIZE"
+  })
+  void recognizesStandardBlrpConfigurations(String otel) {
+    assertTrue(new SupportedConfigurationSource().supported(otel));
   }
 
   @Test

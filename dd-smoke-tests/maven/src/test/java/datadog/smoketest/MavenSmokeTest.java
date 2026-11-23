@@ -10,6 +10,7 @@ import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.config.CiVisibilityConfig;
+import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.civisibility.CiVisibilitySmokeTest;
 import datadog.trace.civisibility.CiVisibilityTableTestConverters;
@@ -39,8 +40,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.maven.wrapper.MavenWrapperMain;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.condition.DisabledIf;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.slf4j.Logger;
@@ -78,6 +82,11 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     mockBackend.reset();
   }
 
+  @AfterEach
+  void reportForkedJvmCrashes() {
+    reportJvmCrashLogs(projectHome);
+  }
+
   @AfterAll
   static void closeMockBackend() throws Exception {
     mockBackend.close();
@@ -97,6 +106,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "cucumber-suite-flaky       | test_maven_run_cucumber_suite_flaky_retries       | 3.9.9                        | 8              | 5                 | false         | false         | true         | false          | []                                                               | 17                     ",
     "succeed-junit-platform     | test_successful_maven_run_junit_platform_runner   | 3.9.9                        | 4              | 0                 | true          | false         | false        | false          | []                                                               | 8                      ",
     "succeed-arg-line-property  | test_successful_maven_run_with_arg_line_property  | 3.9.9                        | 4              | 0                 | true          | false         | false        | false          | [\"-DargLine='-Dmy-custom-property=provided-via-command-line'\"] | 8                      ",
+    "succeed-junit4-inheritance | test_successful_maven_run_junit4_inheritance      | 3.9.9                        | 5              | 2                 | true          | false         | false        | false          | []                                                               | 8                      ",
     "succeed-multi-forks-j8     | test_successful_maven_run_multiple_forks          | 3.9.9                        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
     "succeed-multi-forks-j17    | test_successful_maven_run_multiple_forks          | latest                       | 5              | 1                 | true          | true          | false        | true           | []                                                               | 17                     "
   })
@@ -312,6 +322,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "failed-test-replay | test_failed_maven_failed_test_replay | 3.9.9       "
   })
   @ParameterizedTest
+  // Exception Replay is disabled by default on JDK8 due to JVM bug
+  @EnabledForJreRange(min = JRE.JAVA_11)
   void testFailedTestReplay(String projectName, String mavenVersion) throws Exception {
     givenWrapperPropertiesFile(mavenVersion);
     givenMavenProjectFiles(projectName);
@@ -327,6 +339,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     Map<String, String> agentArgs = new HashMap<>();
     agentArgs.put(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT, "3");
     agentArgs.put(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL, mockBackend.getIntakeUrl());
+    agentArgs.put(DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL, "999999");
 
     int exitCode =
         whenRunningMavenBuild(agentArgs, Collections.emptyList(), Collections.emptyMap(), true);
@@ -525,6 +538,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     if (mavenRepositoryProxy != null) {
       processBuilder.environment().put("MAVEN_REPOSITORY_PROXY", mavenRepositoryProxy);
     }
+    disableCdsOnLinuxArm64(processBuilder.environment());
 
     return processBuilder;
   }

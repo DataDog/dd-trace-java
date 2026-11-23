@@ -4,6 +4,7 @@ import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
 
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueType;
@@ -11,6 +12,7 @@ import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.values.CollectionValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.StringValue;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,5 +62,19 @@ public final class LenExpression implements ValueExpression<Value<? extends Numb
   @Override
   public <R> R accept(Visitor<R> visitor) {
     return visitor.visit(this);
+  }
+
+  @Generated
+  @Override
+  public boolean equals(Object o) {
+    if (o == null || getClass() != o.getClass()) return false;
+    LenExpression that = (LenExpression) o;
+    return Objects.equals(source, that.source);
+  }
+
+  @Generated
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(source);
   }
 }

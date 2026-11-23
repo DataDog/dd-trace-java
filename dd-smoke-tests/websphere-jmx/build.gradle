@@ -1,9 +1,12 @@
 plugins {
   id 'dd-trace-java.module.smoke-test'
+  id 'dd-trace-java.testcontainers'
 }
 
 dependencies {
-  testImplementation project(':dd-smoke-tests')
+  testContainerImage(image('icr.io/appcafe/websphere-traditional:latest', 'test.websphere.image'))
+
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation libs.testcontainers
 }
 

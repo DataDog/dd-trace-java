@@ -1,7 +1,9 @@
 package datadog.trace.bootstrap.config.provider.stableconfig;
 
 import static datadog.trace.bootstrap.config.provider.stableconfig.StableConfigMappingException.throwStableConfigMappingException;
-import static java.util.Collections.*;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.unmodifiableList;
 import static java.util.stream.Collectors.toList;
 
 import java.util.List;
@@ -52,18 +54,17 @@ public final class Rule {
         ((List<?>) selectorsObj)
             .stream()
                 .filter(Objects::nonNull)
-                .map(
-                    s -> {
-                      if (!(s instanceof Map)) {
-                        throwStableConfigMappingException(
-                            "Each selector must be a map, but got: "
-                                + s.getClass().getSimpleName()
-                                + ": ",
-                            s);
-                      }
+                .map(s -> {
+                  if (!(s instanceof Map)) {
+                    throwStableConfigMappingException(
+                        "Each selector must be a map, but got: "
+                            + s.getClass().getSimpleName()
+                            + ": ",
+                        s);
+                  }
 
-                      return Selector.from((Map<?, ?>) s);
-                    })
+                  return Selector.from((Map<?, ?>) s);
+                })
                 .collect(toList());
 
     return new Rule(unmodifiableList(selectors), (Map<String, Object>) configObj);

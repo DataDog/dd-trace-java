@@ -1,6 +1,11 @@
 package com.datadog.debugger.probe;
 
-import static datadog.trace.api.DDTags.*;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME_FILE;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME_LINE;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME_METHOD;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME_SIGNATURE;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME_TYPE;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 
@@ -16,6 +21,7 @@ import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.util.Strings;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -119,8 +125,8 @@ public class CodeOriginProbe extends ProbeDefinition {
 
   @Override
   public String toString() {
-    return String.format(
+    return Strings.format(
         "CodeOriginProbe{probeId=%s, entrySpanProbe=%s, signature=%s, where=%s, location=%s}",
-        probeId, entrySpanProbe, signature, where, location);
+        getProbeId(), entrySpanProbe, signature, where, location);
   }
 }

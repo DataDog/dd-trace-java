@@ -28,7 +28,7 @@ public abstract class ProbeDefinition implements ProbeImplementation {
   protected final String language;
   protected final String id;
   protected final int version;
-  protected transient ProbeId probeId;
+  private transient ProbeId probeId;
   protected final Tag[] tags;
   protected final Map<String, String> tagMap = new HashMap<>();
   protected final Where where;

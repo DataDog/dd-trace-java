@@ -13,6 +13,11 @@ public class ForcePrioritySampler implements Sampler, PrioritySampler {
     this.samplingMechanism = samplingMechanism;
   }
 
+  /** Returns the sampling priority forced on every trace. */
+  public int getSamplingPriority() {
+    return prioritySampling;
+  }
+
   @Override
   public <T extends CoreSpan<T>> boolean sample(final T span) {
     return true;

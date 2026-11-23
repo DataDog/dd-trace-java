@@ -8,6 +8,7 @@ import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.util.Strings;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -63,6 +64,8 @@ public class EmbeddingDecorator {
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
 
+    response._usage().asKnown().ifPresent(usage -> withUsage(span, usage));
+
     if (!llmObsEnabled) {
       return;
     }
@@ -75,23 +78,16 @@ public class EmbeddingDecorator {
           firstEmbedding._embedding().asKnown().orElse(Collections.emptyList()).size();
       span.setTag(
           CommonTags.OUTPUT,
-          String.format("[%d embedding(s) returned with size %d]", embeddingCount, embeddingSize));
+          Strings.format("[%d embedding(s) returned with size %d]", embeddingCount, embeddingSize));
     }
+  }
 
-    response
-        ._usage()
+  private static void withUsage(AgentSpan span, CreateEmbeddingResponse.Usage usage) {
+    usage
+        ._promptTokens()
         .asKnown()
-        .ifPresent(
-            usage -> {
-              usage
-                  ._promptTokens()
-                  .asKnown()
-                  .ifPresent(v -> span.setTag(CommonTags.INPUT_TOKENS, v));
-              usage
-                  ._totalTokens()
-                  .asKnown()
-                  .ifPresent(v -> span.setTag(CommonTags.TOTAL_TOKENS, v));
-            });
+        .ifPresent(v -> TokenUsage.set(span, CommonTags.INPUT_TOKENS, v));
+    usage._totalTokens().asKnown().ifPresent(v -> TokenUsage.set(span, CommonTags.TOTAL_TOKENS, v));
   }
 
   private Optional<String> extractEmbeddingModelName(EmbeddingCreateParams params) {

@@ -1,3 +1,5 @@
+import org.gradle.api.attributes.java.TargetJvmVersion
+
 plugins {
   `java-gradle-plugin`
   `kotlin-dsl`
@@ -28,6 +30,10 @@ gradlePlugin {
     create("muzzle-plugin") {
       id = "dd-trace-java.muzzle"
       implementationClass = "datadog.gradle.plugin.muzzle.MuzzlePlugin"
+    }
+    create("muzzle-report-aggregation-plugin") {
+      id = "dd-trace-java.muzzle-report-aggregation"
+      implementationClass = "datadog.gradle.plugin.muzzle.MuzzleReportAggregationPlugin"
     }
     create("call-site-instrumentation-plugin") {
       id = "dd-trace-java.call-site-instrumentation"
@@ -89,8 +95,16 @@ repositories {
 
 dependencies {
   implementation(gradleApi())
+  implementation(libs.forbiddenapis)
+  implementation(libs.errorprone.gradle.plugin)
+  implementation(libs.spotbugs.gradle.plugin) {
+    // Select the plugin's Java 11 variant while buildSrc still has to targets Java 8 for muzzle workers.
+    attributes {
+      attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 11)
+    }
+  }
 
-  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.10")
+  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", libs.versions.byte.buddy.get())
 
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")
@@ -102,7 +116,9 @@ dependencies {
 
   implementation(libs.asm)
   implementation(libs.asm.tree)
+  implementation(libs.testing.okhttp3)
 
+  // Keep aligned with build-logic/tag-registry, which shares these Jackson classes.
   implementation(platform("com.fasterxml.jackson:jackson-bom:2.17.2"))
   implementation("com.fasterxml.jackson.core:jackson-databind")
   implementation("com.fasterxml.jackson.core:jackson-annotations")
@@ -124,6 +140,8 @@ testing {
     named<JvmTestSuite>("test") {
       dependencies {
         implementation(libs.assertj.core)
+        implementation(libs.tabletest)
+        implementation(libs.okhttp3.mockwebserver)
       }
       targets.configureEach {
         testTask.configure {
@@ -134,9 +152,32 @@ testing {
 
     withType(JvmTestSuite::class).configureEach {
       useJUnitJupiter(libs.versions.junit5)
+      dependencies {
+        implementation(platform(libs.junit.bom))
+      }
       targets.configureEach {
         testTask
       }
     }
+  }
+}
+
+spotless {
+  // The ktlint rules are in the repository .editorconfig. Spotless only tracks this build's
+  // root .editorconfig, so point it at the repository one.
+  val editorConfig = rootDir.resolve("../.editorconfig")
+  kotlin {
+    toggleOffOn()
+    target("src/**/*.kt")
+    targetExclude("src/*/resources/**")
+    ktlint().setEditorConfigPath(editorConfig)
+    tableTestFormatter(libs.versions.tabletest.formatter.get())
+  }
+  kotlinGradle {
+    toggleOffOn()
+    // Include the build scripts of the buildSrc subprojects and the precompiled script plugins.
+    target("*.gradle.kts", "*/*.gradle.kts", "src/**/*.gradle.kts")
+    targetExclude("src/*/resources/**")
+    ktlint().setEditorConfigPath(editorConfig)
   }
 }

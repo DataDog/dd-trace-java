@@ -8,6 +8,9 @@ muzzle {
     group = 'org.wildfly'
     module = 'wildfly-ee'
     versions = '[9.0.0.Final,)'
+    // WildFly runtime dependencies not used by this instrumentation. Some versions are unavailable from Maven Central.
+    excludeDependency 'io.undertow:*'
+    excludeDependency 'org.jboss.remoting:*'
     excludeDependency 'org.jboss.xnio:*' // not related and causes issues with missing jar in maven repo
   }
 }
@@ -31,7 +34,6 @@ testJvmConstraints {
 }
 
 addTestSuiteForDir("latestDepTest", "test")
-addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
 
 configurations {
   wildflyTest
@@ -99,9 +101,7 @@ def extractWildflyTask = tasks.register("extractWildfly", Copy) {
 
 def extractLatestWildfly = tasks.register("extractLatestWildfly", Copy) {
   mustRunAfter 'compileLatestDepTestGroovy'
-  mustRunAfter 'compileLatestDepForkedTestGroovy'
   mustRunAfter 'compileLatestDepTestJava'
-  mustRunAfter 'compileLatestDepForkedTestJava'
   mustRunAfter 'compileJava'
   extractWildfly(configurations.named("wildflyLatestDepTest"), "wildfly", it)
 
@@ -125,23 +125,11 @@ tasks.named("latestDepTest", Test) {
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
-  configureCompiler(it, 11)
+  configureCompiler(it, JavaVersion.VERSION_11)
 }
 
-["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each {
-  tasks.named(it, GroovyCompile) {
-    configureCompiler(it, 17)
-  }
-}
-
-tasks.named("compileTestJava", JavaCompile) {
-  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
-}
-
-["compileLatestDepTestJava", "compileLatestDepForkedTestJava"].each {
-  tasks.named(it, JavaCompile) {
-    configureCompiler(it, 17, JavaVersion.VERSION_1_8)
-  }
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  configureCompiler(it, JavaVersion.VERSION_17)
 }
 
 tasks.named("processTestResources", ProcessResources) {
@@ -152,13 +140,11 @@ tasks.named("processTestResources", ProcessResources) {
   }
 }
 
-["processLatestDepTestResources", "processLatestDepForkedTestResources"].each {
-  tasks.named(it, ProcessResources) {
-    filesMatching('**/WEB-INF/web.xml') {
-      expand(
-        'servletClass': 'test.JakartaTestServlet',
-        )
-    }
+tasks.named("processLatestDepTestResources", ProcessResources) {
+  filesMatching('**/WEB-INF/web.xml') {
+    expand(
+      'servletClass': 'test.JakartaTestServlet',
+      )
   }
 }
 
@@ -182,14 +168,10 @@ tasks.named("forkedTest", Test) {
 }
 
 tasks.named("latestDepForkedTest", Test) {
-  testJvmConstraints {
-    minJavaVersion = JavaVersion.VERSION_17
-  }
   jvmArgumentProviders.add(
     objects.newInstance(DistributionLocationProvider).tap {
       distribution = extractLatestWildfly.map { it.destinationDir }
     }
     )
 }
-
 

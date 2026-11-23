@@ -21,6 +21,10 @@ public class TracingSendHandler implements SendHandler {
   @Override
   public void onResult(SendResult sendResult) {
     final AgentSpan wsSpan = handlerContext.getWebsocketSpan();
+    if (wsSpan == null) {
+      delegate.onResult(sendResult);
+      return;
+    }
     try (final ContextScope ignored = activateSpan(wsSpan)) {
       delegate.onResult(sendResult);
     } finally {

@@ -1,12 +1,16 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.trace.api.ProtocolVersion.V0_5;
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
+import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
 
-import datadog.communication.serialization.GrowableBuffer;
+import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.Mapper;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TagMap.EntryReader;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -18,9 +22,9 @@ import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.PendingTrace;
 import java.io.IOException;
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,11 +33,12 @@ import okhttp3.RequestBody;
 public final class TraceMapperV0_5 implements TraceMapper {
 
   private final WritableFormatter dictionaryWriter;
-  private final DictionaryMapper dictionaryMapper = new DictionaryMapper();
+  private final DictionaryMapper dictionaryMapper;
   private final Map<Object, Integer> encoding = new HashMap<>();
-  private final GrowableBuffer dictionary;
+  private final FlushingBuffer dictionary;
 
   private final MetaWriter metaWriter = new MetaWriter();
+
   private final int size;
   private boolean firstSpanWritten;
 
@@ -42,10 +47,17 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   public TraceMapperV0_5(int dictionarySize, int bufferSize) {
-    // growable buffer is implicitly bounded by the fixed size buffer
-    // the messages themselves are written into
-    this.dictionary = new GrowableBuffer(bufferSize);
+    this.dictionary =
+        new FlushingBuffer(
+            dictionarySize,
+            (count, buffer) -> {
+              // Escape the dictionary writer's local reset: completed traces still reference these
+              // entries. The trace writer must publish them before resetting and retrying the
+              // trace.
+              throw new BufferOverflowException();
+            });
     this.dictionaryWriter = new MsgPackWriter(dictionary);
+    this.dictionaryMapper = new DictionaryMapper(dictionarySize);
     this.size = bufferSize;
     reset();
   }
@@ -83,7 +95,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
           metaWriter
               .withWritable(writable)
               .forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten),
-          i == 0);
+          i == 0 ? ROOT_PROPAGATION_TAGS : 0);
       /* 12 */
       writeDictionaryEncoded(writable, span.getType());
       firstSpanWritten = true;
@@ -91,10 +103,12 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   private void writeDictionaryEncoded(final Writable writable, final Object value) {
-    final Object target = null == value ? "" : value;
+    final Object target = dictionaryKey(value);
     final Integer encoded = encoding.get(target);
     if (null == encoded) {
-      dictionaryWriter.format(target, dictionaryMapper);
+      if (!dictionaryWriter.format(target, dictionaryMapper)) {
+        throw new BufferOverflowException();
+      }
       final int dictionaryCode = dictionary.messageCount() - 1;
       encoding.put(target, dictionaryCode);
       // this call can fail, but the dictionary has been written to now
@@ -105,9 +119,37 @@ public final class TraceMapperV0_5 implements TraceMapper {
     }
   }
 
+  /**
+   * The dictionary key for a value: the dictionary only deduplicates values that are {@code
+   * equals}. {@link String} and {@link UTF8BytesString} compare by content; other {@link
+   * CharSequence}s may not (a {@code URIUtils.LazyUrl} hashes its content but keeps identity
+   * equality), and keyed as is, every request's copy of the same URL became its own entry, all in
+   * one hash bucket that {@link HashMap} can't order, so lookups scanned them all.
+   *
+   * <p>A value longer than the dictionary is left as is: {@link DictionaryMapper} rejects it
+   * without converting it.
+   */
+  private Object dictionaryKey(final Object value) {
+    if (null == value) {
+      return "";
+    }
+    if (value instanceof CharSequence
+        && !(value instanceof String)
+        && !(value instanceof UTF8BytesString)
+        && ((CharSequence) value).length() <= dictionaryMapper.capacity) {
+      return value.toString();
+    }
+    return value;
+  }
+
+  @Override
+  public ProtocolVersion protocolVersion() {
+    return V0_5;
+  }
+
   @Override
   public Payload newPayload() {
-    return new PayloadV0_5(dictionary.slice(), dictionary.messageCount());
+    return new PayloadV0_5(dictionary.completedMessages(), dictionary.messageCount());
   }
 
   @Override
@@ -133,18 +175,63 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   @VisibleForTesting
-  GrowableBuffer getDictionary() {
+  FlushingBuffer getDictionary() {
     return dictionary;
   }
 
   private static class DictionaryMapper implements Mapper<Object> {
 
+    private final int capacity;
+
+    private DictionaryMapper(int capacity) {
+      this.capacity = capacity;
+    }
+
     @Override
     public void map(final Object data, final Writable packer) {
+      // Bound temporary UTF-8 allocations as well as the dictionary's backing buffer.
+      if (data instanceof CharSequence && ((CharSequence) data).length() > capacity) {
+        throw new BufferOverflowException();
+      }
+      String value = String.valueOf(data);
+      checkEncodedSize(value);
       if (data instanceof UTF8BytesString) {
         packer.writeObject(data, null);
       } else {
-        packer.writeString(String.valueOf(data), null);
+        packer.writeString(value, null);
+      }
+    }
+
+    private void checkEncodedSize(String value) {
+      // Each UTF-16 code unit needs at most three UTF-8 bytes, plus at most five header bytes.
+      // Avoid scanning ordinary short strings on dictionary misses.
+      if ((long) value.length() * 3 + 5 <= capacity) {
+        return;
+      }
+      long length = value.length();
+      for (int i = 0; i < value.length(); i++) {
+        char c = value.charAt(i);
+        if (c < 0x80) {
+          // One byte, already counted.
+        } else if (c < 0x800) {
+          length++;
+        } else if (Character.isHighSurrogate(c)
+            && i + 1 < value.length()
+            && Character.isLowSurrogate(value.charAt(i + 1))) {
+          length += 2;
+          i++;
+        } else if (!Character.isSurrogate(c)) {
+          length += 2;
+        }
+        // Unpaired surrogates use String.getBytes(UTF_8)'s one-byte replacement ('?').
+        if (length > capacity) {
+          throw new BufferOverflowException();
+        }
+      }
+      // Match MsgPackWriter.writeStringHeader, including its STR8 encoding from 16 bytes.
+      int headerSize = length < 0x10 ? 1 : length < 0x100 ? 2 : length < 0x10000 ? 3 : 5;
+      if (length + headerSize > capacity) {
+        throw new BufferOverflowException();
       }
     }
   }
@@ -160,20 +247,23 @@ public final class TraceMapperV0_5 implements TraceMapper {
     }
 
     @Override
+    public ProtocolVersion protocol() {
+      return V0_5;
+    }
+
+    @Override
     public int sizeInBytes() {
       return 1
           + msgpackArrayHeaderSize(stringCount)
           + dictionary.remaining()
           + msgpackArrayHeaderSize(traceCount())
-          + body.remaining();
+          + bodySize();
     }
 
     @Override
     public void writeTo(WritableByteChannel channel) throws IOException {
       for (ByteBuffer buffer : toList()) {
-        while (buffer.hasRemaining()) {
-          channel.write(buffer);
-        }
+        writeFully(buffer, channel);
       }
     }
 
@@ -183,13 +273,12 @@ public final class TraceMapperV0_5 implements TraceMapper {
     }
 
     private List<ByteBuffer> toList() {
-      return Arrays.asList(
+      return bodyAfter(
           // msgpack array header with 2 elements (FIXARRAY | 2)
           ByteBuffer.allocate(1).put(0, (byte) 0x92),
           msgpackArrayHeader(stringCount),
-          dictionary,
-          msgpackArrayHeader(traceCount()),
-          body);
+          dictionary.duplicate(),
+          msgpackArrayHeader(traceCount()));
     }
   }
 
@@ -219,15 +308,17 @@ public final class TraceMapperV0_5 implements TraceMapper {
       final boolean writeSamplingPriority =
           firstSpanInTrace || lastSpanInTrace || metadata.topLevel();
       final UTF8BytesString processTags = firstSpanInPayload ? metadata.processTags() : null;
+      final UTF8BytesString otlpExport = firstSpanInPayload ? metadata.otlpExportMarker() : null;
 
       TagMap tags = metadata.getTags();
 
       int metaSize =
           metadata.getBaggage().size()
               + tags.size()
-              + (null == metadata.getHttpStatusCode() ? 0 : 1)
+              + (UNSET_STATUS == metadata.getHttpStatusCode() ? 0 : 1)
               + (null == metadata.getOrigin() ? 0 : 1)
               + (null == processTags ? 0 : 1)
+              + (null == otlpExport ? 0 : 1)
               + 1;
       int metricsSize =
           (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
@@ -259,9 +350,9 @@ public final class TraceMapperV0_5 implements TraceMapper {
       }
       writeDictionaryEncoded(writable, THREAD_NAME);
       writeDictionaryEncoded(writable, metadata.getThreadName());
-      if (null != metadata.getHttpStatusCode()) {
+      if (UNSET_STATUS != metadata.getHttpStatusCode()) {
         writeDictionaryEncoded(writable, HTTP_STATUS);
-        writeDictionaryEncoded(writable, metadata.getHttpStatusCode());
+        writeDictionaryEncoded(writable, metadata.getHttpStatusCodeString());
       }
       if (null != metadata.getOrigin()) {
         writeDictionaryEncoded(writable, ORIGIN_KEY);
@@ -270,6 +361,10 @@ public final class TraceMapperV0_5 implements TraceMapper {
       if (null != processTags) {
         writeDictionaryEncoded(writable, PROCESS_TAGS_KEY);
         writeDictionaryEncoded(writable, processTags);
+      }
+      if (null != otlpExport) {
+        writeDictionaryEncoded(writable, SDK_OTLP_EXPORT_KEY);
+        writeDictionaryEncoded(writable, otlpExport);
       }
 
       for (TagMap.EntryReader entry : tags) {

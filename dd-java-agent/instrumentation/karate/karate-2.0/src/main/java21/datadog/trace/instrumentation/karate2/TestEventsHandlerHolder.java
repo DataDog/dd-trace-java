@@ -3,12 +3,12 @@ package datadog.trace.instrumentation.karate2;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
-import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
 import datadog.trace.api.internal.VisibleForTesting;
+import io.karatelabs.core.FeatureRuntime;
 
 public abstract class TestEventsHandlerHolder {
 
-  public static volatile TestEventsHandler<TestSuiteDescriptor, TestDescriptor> TEST_EVENTS_HANDLER;
+  static volatile TestEventsHandler<FeatureRuntime, TestDescriptor> TEST_EVENTS_HANDLER;
 
   static {
     start();

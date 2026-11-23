@@ -20,13 +20,6 @@ public class RedisAPIInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ResponseHandlerWrapper", packageName + ".VertxRedisClientDecorator",
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>();
     contextStores.put("io.vertx.redis.client.RedisAPI", packageName + ".ResponseHandlerWrapper");

@@ -5,8 +5,6 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.core.DDSpan
 import executor.rejectedexecutionhandler.ExecutingRejectedExecutionHandler
 import executor.rejectedexecutionhandler.SwallowingRejectedExecutionHandler
-import io.netty.util.concurrent.DefaultEventExecutor
-import io.netty.util.concurrent.DefaultThreadFactory
 import runnable.JavaAsyncChild
 
 import java.util.concurrent.ArrayBlockingQueue
@@ -176,33 +174,6 @@ class RejectedExecutionTest extends InstrumentationSpecification {
       //  method enter/exit instrumentation points.
       //new ThreadPoolExecutor.DiscardOldestPolicy()
     ]
-  }
-
-  def "trace reported with swallowing netty rejected execution handler" () {
-    setup:
-    DefaultEventExecutor executor = new DefaultEventExecutor(null, new DefaultThreadFactory(DefaultEventExecutor),
-      1, handler)
-    CountDownLatch latch = new CountDownLatch(1)
-    // this task will block the executor thread ensuring the next task gets enqueued
-    executor.submit({
-      latch.await()
-    })
-    // this will sit in the queue
-    executor.submit({})
-
-    when:
-    runUnderTrace("parent") {
-      // must be rejected because the queue will be full until some
-      // time after the first task is released
-      executor.submit((Runnable) new JavaAsyncChild(true, false))
-      latch.countDown()
-    }
-
-    then:
-    expectParentChildTrace()
-
-    where:
-    handler << [new SwallowingRejectedExecutionHandler()]
   }
 
   def expectParentChildTrace() {

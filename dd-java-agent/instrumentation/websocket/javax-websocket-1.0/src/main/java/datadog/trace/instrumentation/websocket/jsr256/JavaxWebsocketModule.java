@@ -34,15 +34,6 @@ public class JavaxWebsocketModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TracingOutputStream",
-      packageName + ".TracingWriter",
-      packageName + ".TracingSendHandler",
-    };
-  }
-
-  @Override
   protected boolean defaultEnabled() {
     return InstrumenterConfig.get().isWebsocketTracingEnabled();
   }

@@ -1,7 +1,7 @@
 plugins {
   id 'java'
   id 'war'
-  id 'org.springframework.boot' version '2.6.0'
+  id 'org.springframework.boot' version '2.7.18'
 }
 
 apply plugin: 'io.spring.dependency-management'

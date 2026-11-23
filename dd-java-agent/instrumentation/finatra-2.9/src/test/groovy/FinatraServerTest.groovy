@@ -8,7 +8,9 @@ import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.finatra.FinatraDecorator
+import spock.lang.Shared
 
+import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
@@ -18,6 +20,9 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 abstract class FinatraServerTest extends HttpServerTest<HttpServer> {
   private static final Duration TIMEOUT = Duration.fromSeconds(5)
   private static final long STARTUP_TIMEOUT = 20 // SECONDS
+
+  @Shared
+  private FutureTask<Void> serverMain
 
   static closeAndWait(Closable closable) {
     if (closable != null) {
@@ -29,13 +34,26 @@ abstract class FinatraServerTest extends HttpServerTest<HttpServer> {
   HttpServer startServer(int port) {
     def testServer = new FinatraServer()
 
-    // Starting the server is blocking so start it in a separate thread
-    Thread startupThread = new Thread({
-      testServer.main("-admin.port=:0", "-http.port=:" + port)
-    })
-    startupThread.setDaemon(true)
-    startupThread.start()
-    testServer.awaitStart(STARTUP_TIMEOUT, TimeUnit.SECONDS)
+    // Starting the server is blocking so start it in a separate thread. nonExitingMain (unlike
+    // main) reports lifecycle errors instead of calling System.exit, which would take down the
+    // whole test worker.
+    serverMain = new FutureTask<Void>({
+      testServer.nonExitingMain("-admin.port=:0", "-http.port=:" + port)
+    }, null)
+    Thread serverThread = new Thread(serverMain, "finatra-server")
+    serverThread.setDaemon(true)
+    serverThread.start()
+
+    boolean started = testServer.awaitStart(STARTUP_TIMEOUT, TimeUnit.SECONDS)
+    if (serverMain.isDone()) {
+      serverMain.get() // rethrows the startup failure, if there was one
+      throw new IllegalStateException("Finatra server exited during startup")
+    }
+    if (!started) {
+      // Close here: the server is never handed over, so stopServer cannot do it
+      closeAndWait(testServer)
+      throw new IllegalStateException("Finatra server did not start within ${STARTUP_TIMEOUT}s")
+    }
 
     return testServer
   }
@@ -53,7 +71,12 @@ abstract class FinatraServerTest extends HttpServerTest<HttpServer> {
 
   @Override
   void stopServer(HttpServer httpServer) {
+    if (httpServer == null) {
+      return // startServer failed before handing the server over, and closed it itself
+    }
     Await.ready(httpServer.close(), TIMEOUT)
+    // Rethrows a shutdown failure reported by the server thread, or times out if it did not stop
+    serverMain.get(TIMEOUT.inMilliseconds(), TimeUnit.MILLISECONDS)
   }
 
   @Override

@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.netty4.promise;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
@@ -16,7 +14,7 @@ public final class ListenerWrapper {
     if (listener == null || listener instanceof GenericWrapper) {
       return listener;
     }
-    ContextContinuation continuation = captureActiveSpan();
+    ContextContinuation continuation = Context.current().capture();
     if (continuation.context() == Context.root()) {
       return listener;
     }

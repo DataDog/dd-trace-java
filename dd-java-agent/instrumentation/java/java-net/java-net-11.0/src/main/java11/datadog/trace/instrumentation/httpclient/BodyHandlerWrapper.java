@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.httpclient;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
-
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -12,6 +10,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 public class BodyHandlerWrapper<T> implements BodyHandler<T> {
   private final BodyHandler<T> delegate;
@@ -29,12 +28,17 @@ public class BodyHandlerWrapper<T> implements BodyHandler<T> {
     if (subscriber instanceof BodySubscriberWrapper) {
       return subscriber;
     }
-    return new BodySubscriberWrapper<>(subscriber, captureSpan(span));
+    return new BodySubscriberWrapper<>(subscriber, span.captureWithContext().hold());
   }
 
   static class BodySubscriberWrapper<T> implements BodySubscriber<T> {
+    private static final AtomicReferenceFieldUpdater<BodySubscriberWrapper, ContextContinuation>
+        CONTINUATION =
+            AtomicReferenceFieldUpdater.newUpdater(
+                BodySubscriberWrapper.class, ContextContinuation.class, "continuation");
+
     private final BodySubscriber<T> delegate;
-    private final ContextContinuation continuation;
+    private volatile ContextContinuation continuation;
 
     public BodySubscriberWrapper(BodySubscriber<T> delegate, ContextContinuation continuation) {
       this.delegate = delegate;
@@ -52,27 +56,87 @@ public class BodyHandlerWrapper<T> implements BodyHandler<T> {
 
     @Override
     public void onSubscribe(Flow.Subscription subscription) {
-      delegate.onSubscribe(subscription);
+      boolean completed = false;
+      try {
+        delegate.onSubscribe(new SubscriptionWrapper(subscription, this));
+        completed = true;
+      } finally {
+        if (!completed) {
+          releaseContinuation();
+        }
+      }
     }
 
     @Override
     public void onNext(List<ByteBuffer> item) {
-      try (ContextScope ignore = continuation.resume()) {
-        delegate.onNext(item);
+      boolean completed = false;
+      try {
+        try (ContextScope ignore = resumeContinuation()) {
+          delegate.onNext(item);
+        }
+        completed = true;
+      } finally {
+        if (!completed) {
+          releaseContinuation();
+        }
       }
     }
 
     @Override
     public void onError(Throwable throwable) {
-      try (ContextScope ignore = continuation.resume()) {
-        delegate.onError(throwable);
+      try {
+        try (ContextScope ignore = resumeContinuation()) {
+          delegate.onError(throwable);
+        }
+      } finally {
+        releaseContinuation();
       }
     }
 
     @Override
     public void onComplete() {
-      try (ContextScope ignore = continuation.resume()) {
-        delegate.onComplete();
+      try {
+        try (ContextScope ignore = resumeContinuation()) {
+          delegate.onComplete();
+        }
+      } finally {
+        releaseContinuation();
+      }
+    }
+
+    private ContextScope resumeContinuation() {
+      ContextContinuation continuation = this.continuation;
+      return continuation == null ? null : continuation.resume();
+    }
+
+    private void releaseContinuation() {
+      ContextContinuation continuation = CONTINUATION.getAndSet(this, null);
+      if (continuation != null) {
+        continuation.release();
+      }
+    }
+  }
+
+  static final class SubscriptionWrapper implements Flow.Subscription {
+    private final Flow.Subscription delegate;
+    private final BodySubscriberWrapper<?> subscriber;
+
+    SubscriptionWrapper(Flow.Subscription delegate, BodySubscriberWrapper<?> subscriber) {
+      this.delegate = delegate;
+      this.subscriber = subscriber;
+    }
+
+    @Override
+    public void request(long count) {
+      delegate.request(count);
+    }
+
+    @Override
+    public void cancel() {
+      try {
+        delegate.cancel();
+      } finally {
+        subscriber.releaseContinuation();
       }
     }
   }

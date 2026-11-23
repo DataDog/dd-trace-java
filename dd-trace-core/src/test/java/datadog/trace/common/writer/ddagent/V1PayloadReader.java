@@ -150,6 +150,21 @@ public final class V1PayloadReader {
     throw new AssertionError("Could not find first chunk in v1 payload");
   }
 
+  /** Decodes the payload-level attribute map (field 10) of an encoded V1 payload. */
+  public static Map<String, Object> readPayloadAttributes(byte[] encoded) throws IOException {
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(encoded));
+    List<String> stringTable = newStringTable();
+    int payloadFieldCount = unpacker.unpackMapHeader();
+    for (int i = 0; i < payloadFieldCount; i++) {
+      int payloadFieldId = unpacker.unpackInt();
+      if (payloadFieldId == PayloadField.ATTRIBUTES) {
+        return readAttributes(unpacker, stringTable);
+      }
+      skipPayloadField(unpacker, payloadFieldId, stringTable);
+    }
+    throw new AssertionError("Could not find payload attributes in v1 payload");
+  }
+
   /** Creates a string table seeded with the empty string at index 0, as the writer expects. */
   public static List<String> newStringTable() {
     List<String> stringTable = new ArrayList<>();
