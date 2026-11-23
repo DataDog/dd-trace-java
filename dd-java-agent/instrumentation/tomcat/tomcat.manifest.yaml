@@ -1,0 +1,20 @@
+_v: 1
+name: tomcat
+display_name: Apache Tomcat
+description: Instruments Apache Tomcat inbound HTTP request lifecycles, maintains trace context across WebSocket handshakes,
+  and provides AppSec request inspection and blocking plus IAST error-page stacktrace-leak detection and suppression.
+packages:
+- name: org.apache.tomcat:catalina-ha
+- name: org.apache.tomcat:coyote
+- name: org.apache.tomcat:tomcat-catalina
+- name: org.apache.tomcat:tomcat-catalina-ha
+- name: org.apache.tomcat:tomcat-coyote
+- name: org.apache.tomcat:tomcat-websocket
+- name: org.glassfish.main.extras:glassfish-embedded-all
+- name: tomcat:catalina
+- name: tomcat:tomcat-coyote
+- name: tomcat:tomcat-util
+category:
+- http.server
+systems: []
+creation_date: '2021-01-12'

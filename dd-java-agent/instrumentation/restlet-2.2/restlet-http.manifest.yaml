@@ -1,0 +1,10 @@
+_v: 1
+name: restlet-http
+display_name: Restlet
+description: Instruments inbound HTTP server requests and Restlet resource handlers.
+packages:
+- name: org.restlet.jse:org.restlet
+category:
+- http.server
+systems: []
+creation_date: '2021-05-04'

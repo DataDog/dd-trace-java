@@ -1,0 +1,18 @@
+_v: 1
+name: netty
+display_name: Netty
+description: Instruments Netty HTTP client and server requests, traces WebSocket server frames, processes HTTP request bodies
+  for AppSec, and propagates IAST taint through Netty buffers.
+packages:
+- name: io.netty:netty
+- name: io.netty:netty-all
+- name: io.netty:netty-buffer
+- name: io.netty:netty-codec-http
+- name: io.netty:netty-codec-http2
+- name: io.vertx:vertx-core
+category:
+- http.client
+- http.server
+- websocket.server
+systems: []
+creation_date: '2018-06-13'

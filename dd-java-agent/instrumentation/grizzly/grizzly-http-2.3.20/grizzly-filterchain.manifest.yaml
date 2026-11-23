@@ -1,0 +1,10 @@
+_v: 1
+name: grizzly-filterchain
+display_name: Grizzly Filter Chain
+description: Instruments inbound HTTP requests handled by Grizzly filter chains.
+packages:
+- name: org.glassfish.grizzly:grizzly-http
+category:
+- http.server
+systems: []
+creation_date: '2020-04-10'

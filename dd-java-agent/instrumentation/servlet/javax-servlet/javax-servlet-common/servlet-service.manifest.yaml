@@ -1,0 +1,12 @@
+_v: 1
+name: servlet-service
+display_name: Java Servlet API
+description: Creates spans for Java Servlet HttpServlet service and do* request-handler method invocations within an existing
+  trace (disabled by default).
+packages:
+- name: javax.servlet:javax.servlet-api
+- name: javax.servlet:servlet-api
+category:
+- http.server
+systems: []
+creation_date: '2019-10-25'

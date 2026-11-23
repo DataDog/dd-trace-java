@@ -1,0 +1,10 @@
+_v: 1
+name: liberty
+display_name: Open Liberty
+description: Instruments inbound HTTP servlet requests in Open Liberty, creating server spans and enabling Application Security
+  request inspection and blocking.
+packages: []
+category:
+- http.server
+systems: []
+creation_date: '2021-04-09'

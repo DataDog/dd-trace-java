@@ -1,0 +1,12 @@
+_v: 1
+name: undertow
+display_name: Undertow
+description: Instruments inbound HTTP requests handled by Undertow, adding servlet route data, propagating asynchronous context,
+  and enabling AppSec request, response, and form-body inspection and blocking.
+packages:
+- name: io.undertow:undertow-servlet
+- name: io.undertow:undertow-servlet-jakarta
+category:
+- http.server
+systems: []
+creation_date: '2022-01-19'

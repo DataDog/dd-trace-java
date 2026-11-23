@@ -1,0 +1,10 @@
+_v: 1
+name: wildfly
+display_name: WildFly
+description: Instruments WildFly deployment processing to apply Datadog tag JNDI environment entries to deployment classloaders.
+packages:
+- name: org.wildfly:wildfly-ee
+category:
+- other
+systems: []
+creation_date: '2025-01-10'

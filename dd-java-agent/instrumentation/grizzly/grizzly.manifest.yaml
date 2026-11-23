@@ -1,0 +1,12 @@
+_v: 1
+name: grizzly
+display_name: Grizzly HTTP Server
+description: Instruments inbound HTTP requests handled by Grizzly HTTP Server and captures request bodies and parsed parameters
+  for AppSec.
+packages:
+- name: org.glassfish.grizzly:grizzly-http
+- name: org.glassfish.grizzly:grizzly-http-server
+category:
+- http.server
+systems: []
+creation_date: '2019-08-12'
