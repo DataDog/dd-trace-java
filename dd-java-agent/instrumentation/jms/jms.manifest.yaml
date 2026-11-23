@@ -1,8 +1,8 @@
 _v: 1
 name: jms
-display_name: Jakarta Messaging API
-description: Instruments Java and Jakarta Messaging message sending, receiving, listener processing, and acknowledgment
-  or transaction completion, including Spring listeners and Data Streams Monitoring for IBM MQ.
+display_name: JMS
+description: Instruments Java Message Service (JMS) message production and consumption with trace-context propagation, message
+  time-in-queue tracking, and IBM MQ Data Streams Monitoring checkpoints.
 packages:
 - name: jakarta.jms:jakarta.jms-api
 - name: javax.jms:javax.jms-api

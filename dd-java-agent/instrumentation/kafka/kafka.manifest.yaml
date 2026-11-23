@@ -1,9 +1,8 @@
 _v: 1
 name: kafka
 display_name: Apache Kafka
-description: Instruments Kafka message production, polling, and processing through clients, Streams, and Connect,
-  with Data Streams Monitoring, Confluent serialization and deserialization schema tracking, and message taint tracking
-  for security analysis.
+description: Instruments Apache Kafka producer, consumer, and Streams message processing to trace message delivery and propagate
+  context, report Data Streams and Confluent Schema Registry usage, and mark Kafka message deserialization as an IAST source.
 packages:
 - name: io.confluent:kafka-schema-registry-client
 - name: org.apache.kafka:connect-runtime
