@@ -157,11 +157,13 @@ public class LruTableBenchmark {
     final int i = order[tables.next(order.length)];
     final String flag = flags[i % FLAGS];
     final String subject = subjects[i];
-    final String variant = tables.linkedHashMap.get(new Key(flag, subject));
+    // One key for the lookup and, on a miss, the insert: the idiomatic LinkedHashMap path.
+    final Key key = new Key(flag, subject);
+    final String variant = tables.linkedHashMap.get(key);
     if (variant != null) {
       return variant;
     }
-    tables.linkedHashMap.put(new Key(flag, subject), "on");
+    tables.linkedHashMap.put(key, "on");
     return flag;
   }
 }
