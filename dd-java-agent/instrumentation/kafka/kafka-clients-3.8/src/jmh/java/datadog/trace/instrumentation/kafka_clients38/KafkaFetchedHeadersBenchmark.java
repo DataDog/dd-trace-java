@@ -101,11 +101,27 @@ public class KafkaFetchedHeadersBenchmark {
     {"correlation-id", "6f1c2a9e-3b7d-4c55-9a1e-0d8f2b4c7e13"},
   };
 
-  @Param({"fetched", "fetchedAccessor", "built"})
+  @Param({"fetchedAccessor"})
   String headerShape;
 
-  @Param({"0", "3"})
+  @Param({"0"})
   int appHeaders;
+
+  /**
+   * SCRATCH: propagation styles, and for Datadog + tracecontext, one piece of the merge dropped:
+   * the eager hex formatting of the Datadog parent id, the tracestate update of the first context,
+   * or the whole W3C merge.
+   */
+  @Param({
+    "datadog",
+    "tracecontext",
+    "dd+tc",
+    "dd+tc-nohex",
+    "dd+tc-notracestateupdate",
+    "dd+tc-nomerge",
+    "default"
+  })
+  String variant;
 
   CoreTracer tracer;
 
@@ -129,6 +145,21 @@ public class KafkaFetchedHeadersBenchmark {
 
   @Setup
   public void setup(Blackhole blackhole) {
+    String styles =
+        variant.startsWith("dd+tc")
+            ? "datadog,tracecontext"
+            : "default".equals(variant) ? null : variant;
+    if (styles != null) {
+      System.setProperty("dd.trace.propagation.style.extract", styles);
+      System.setProperty("dd.trace.propagation.style.inject", styles);
+    }
+    if (variant.endsWith("-nohex")) {
+      System.setProperty("dd.scratch.ablate.nohex", "true");
+    } else if (variant.endsWith("-notracestateupdate")) {
+      System.setProperty("dd.scratch.ablate.notracestateupdate", "true");
+    } else if (variant.endsWith("-nomerge")) {
+      System.setProperty("dd.scratch.ablate.nomerge", "true");
+    }
     shape =
         "fetched".equals(headerShape)
             ? FETCHED

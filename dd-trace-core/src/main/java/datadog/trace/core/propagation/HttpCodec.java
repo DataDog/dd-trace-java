@@ -300,6 +300,9 @@ public class HttpCodec {
       for (final Extractor extractor : this.extractors) {
         TagContext extracted;
         if (context != null && extractor instanceof W3CHttpCodec.TraceContextExtractor) {
+          if (Ablation.NO_MERGE) {
+            continue;
+          }
           // Merging a trace context only needs a few of its parts, so skip building it whole
           W3CHttpCodec.TraceContextExtractor traceContextExtractor =
               (W3CHttpCodec.TraceContextExtractor) extractor;
@@ -372,9 +375,11 @@ public class HttpCodec {
         W3CHttpCodec.TraceContextMerge traceContext,
         ExtractionCache<C> extractionCache) {
       // Propagate newly extracted W3C tracestate to first valid context
-      firstContext
-          .getPropagationTags()
-          .updateW3CTracestateFrom(traceContext.tracestate, traceContext.overridingPriority);
+      if (!Ablation.NO_TRACESTATE_UPDATE) {
+        firstContext
+            .getPropagationTags()
+            .updateW3CTracestateFrom(traceContext.tracestate, traceContext.overridingPriority);
+      }
       // Check if parent spans differ to reconcile them
       if (firstContext.getSpanId() != traceContext.spanId) {
         // Override parent span id with W3C one
@@ -414,8 +419,10 @@ public class HttpCodec {
         for (int i = 0, n = this.indexed.size(); i < n; i++) {
           HeaderSchema header = this.indexed.header(i);
           // a known header is matched by its constant; a key without one, by name
-          if (header == HeaderSchema.X_DATADOG_PARENT_ID
-              || header == null && SPAN_ID_KEY.equalsIgnoreCase(this.indexed.key(i))) {
+          if (!Ablation.NO_HEX && header == HeaderSchema.X_DATADOG_PARENT_ID
+              || !Ablation.NO_HEX
+                  && header == null
+                  && SPAN_ID_KEY.equalsIgnoreCase(this.indexed.key(i))) {
             // parsed from the value as handed, so a transient view isn't copied
             cacheDatadogSpanIdValue(this.indexed.valueView(i));
           }
@@ -472,6 +479,14 @@ public class HttpCodec {
         classifier.accept(keysAndValues.get(i), keysAndValues.get(i + 1));
       }
     }
+  }
+
+  /** SCRATCH (measurement only, never merged): switches that drop one piece of the merge. */
+  static final class Ablation {
+    static final boolean NO_HEX = Boolean.getBoolean("dd.scratch.ablate.nohex");
+    static final boolean NO_MERGE = Boolean.getBoolean("dd.scratch.ablate.nomerge");
+    static final boolean NO_TRACESTATE_UPDATE =
+        Boolean.getBoolean("dd.scratch.ablate.notracestateupdate");
   }
 
   /**
