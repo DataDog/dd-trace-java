@@ -38,6 +38,17 @@ public final class W3CTracestate {
   /** Whether the raw member, written at its position, leaves {@link #tracestate} unchanged. */
   private volatile byte rawPosition;
 
+  /**
+   * Whether the checks leave the raw member unchanged, per pending-check combination: bit {@code c}
+   * says combination {@code c} has been checked, bit {@code c + UNCHANGED_SHIFT} that it leaves the
+   * member unchanged. Injection asks this twice per header (size estimate, then write), and once
+   * per injection of a relayed trace, so the answer is kept rather than recomputed. Racing writers
+   * can only drop each other's bits, which costs a recheck, never a wrong answer.
+   */
+  private volatile byte rawUnchangedByChecks;
+
+  private static final int UNCHANGED_SHIFT = InheritedSamplingState.CHECK_COMBINATIONS;
+
   W3CTracestate(
       String tracestate,
       CharSequence rawOtelTraceState,
@@ -106,14 +117,27 @@ public final class W3CTracestate {
    * case when relaying a trace unchanged, so injection doesn't have to parse it.
    */
   CharSequence otelTraceStateForWrite(byte pendingChecks) {
-    if (!isResolved(pendingChecks)
-        && OtelTraceState.isUnchangedByChecks(
-            rawOtelTraceState,
-            InheritedSamplingState.checksSampled(pendingChecks),
-            InheritedSamplingState.checksNotSampled(pendingChecks))) {
+    if (!isResolved(pendingChecks) && isRawUnchangedByChecks(pendingChecks)) {
       return rawOtelTraceState;
     }
     return otelTraceState(pendingChecks);
+  }
+
+  /** Whether parsing the raw member and applying {@code pendingChecks} would leave it as is. */
+  private boolean isRawUnchangedByChecks(byte pendingChecks) {
+    int bits = rawUnchangedByChecks & 0xFF;
+    int checked = 1 << pendingChecks;
+    int unchanged = checked << UNCHANGED_SHIFT;
+    if ((bits & checked) != 0) {
+      return (bits & unchanged) != 0;
+    }
+    boolean result =
+        OtelTraceState.isUnchangedByChecks(
+            rawOtelTraceState,
+            InheritedSamplingState.checksSampled(pendingChecks),
+            InheritedSamplingState.checksNotSampled(pendingChecks));
+    rawUnchangedByChecks = (byte) (bits | checked | (result ? unchanged : 0));
+    return result;
   }
 
   /** Whether the member has been parsed for {@code pendingChecks}. */
