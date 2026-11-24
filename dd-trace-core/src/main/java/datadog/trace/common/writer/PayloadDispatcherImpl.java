@@ -41,7 +41,11 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
   private RemoteMapper mapper;
   private ChunkedStreamingBuffer buffer;
   private WritableFormatter packer;
+
   // when the last payload was handed over, or the buffer created: the start of any idle period
+  @SuppressFBWarnings(
+      value = "AT_NONATOMIC_64BIT_PRIMITIVE",
+      justification = "confined to the one thread that encodes traces, which also runs the flushes")
   private long lastPayloadTicks;
 
   /**
