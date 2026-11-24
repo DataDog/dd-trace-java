@@ -28,6 +28,7 @@ public class RepoIndex {
       new RepoIndex(
           ClassNameTrie.EMPTY_TRIE,
           Collections.emptyMap(),
+          Collections.emptyMap(),
           Collections.emptyList(),
           Collections.emptyList());
 
@@ -35,16 +36,26 @@ public class RepoIndex {
 
   private final ClassNameTrie trie;
   private final Map<String, List<String>> duplicateTrieKeys;
+
+  /**
+   * Paths of files whose names contain a dot before the extension, such as Kotlin's {@code
+   * Platform.jvm.kt}, by trie key. Such a key cannot be turned back into the path, because it
+   * separates directories with dots too.
+   */
+  private final Map<String, String> pathsOfDottedFileNames;
+
   private final List<SourceRoot> sourceRoots;
   private final List<String> rootPackages;
 
   RepoIndex(
       ClassNameTrie trie,
       Map<String, List<String>> duplicateTrieKeys,
+      Map<String, String> pathsOfDottedFileNames,
       List<SourceRoot> sourceRoots,
       List<String> rootPackages) {
     this.trie = trie;
     this.duplicateTrieKeys = duplicateTrieKeys;
+    this.pathsOfDottedFileNames = pathsOfDottedFileNames;
     this.sourceRoots = sourceRoots;
     this.rootPackages = rootPackages;
   }
@@ -107,6 +118,10 @@ public class RepoIndex {
       log.debug("Could not find source root for {}", key);
       return Collections.emptyList();
     }
+    String path = pathsOfDottedFileNames.get(key);
+    if (path != null) {
+      return Collections.singletonList(path);
+    }
     SourceRoot sourceRoot = sourceRoots.get(sourceRootIdx);
     return Collections.singletonList(sourceRoot.resolveSourcePath(key));
   }
@@ -125,6 +140,7 @@ public class RepoIndex {
     Serializer s = new Serializer();
     s.write(serializedTrie);
     s.write(duplicateTrieKeys, Serializer::write, (ser, paths) -> ser.write(paths));
+    s.write(pathsOfDottedFileNames, Serializer::write, Serializer::write);
     s.write(sourceRoots, SourceRoot::serialize);
     s.write(rootPackages);
     return s.flush();
@@ -149,9 +165,12 @@ public class RepoIndex {
 
     Map<String, List<String>> duplicateTrieKeys =
         Serializer.readMap(buffer, Serializer::readString, Serializer::readStringList);
+    Map<String, String> pathsOfDottedFileNames =
+        Serializer.readMap(buffer, Serializer::readString, Serializer::readString);
     List<SourceRoot> sourceRoots = Serializer.readList(buffer, SourceRoot::deserialize);
     List<String> rootPackages = Serializer.readStringList(buffer);
-    return new RepoIndex(trie, duplicateTrieKeys, sourceRoots, rootPackages);
+    return new RepoIndex(
+        trie, duplicateTrieKeys, pathsOfDottedFileNames, sourceRoots, rootPackages);
   }
 
   static final class SourceRoot {

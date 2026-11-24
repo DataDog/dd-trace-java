@@ -184,6 +184,27 @@ class RepoIndexSourcePathResolverTest extends Specification {
     sourcePaths.containsAll([expectedJavaPath, expectedScalaPath])
   }
 
+  def "test source path resolution for file names that contain dots"() {
+    setup:
+    def jvmPath = givenKotlinFile(repoRoot + "/src/jvmMain/kotlin", "com/example/Platform.jvm.kt")
+    def jvmTestPath = givenKotlinFile(repoRoot + "/src/jvmTest/kotlin", "com/example/Fixture.jvm.kt")
+    def otherJvmTestPath = givenKotlinFile(repoRoot + "/src/otherTest/kotlin", "com/example/Fixture.jvm.kt")
+
+    when:
+    def sourcePathResolver = new RepoIndexSourcePathResolver(new RepoIndexBuilder(config, repoRoot, packageResolver, resourceResolver, fileSystem))
+
+    then:
+    sourcePathResolver.getResourcePaths("com/example/Platform.jvm.kt") == [jvmPath]
+    sourcePathResolver.getResourcePaths("com/example/Fixture.jvm.kt").toSet() == [jvmTestPath, otherJvmTestPath].toSet()
+  }
+
+  private String givenKotlinFile(String sourceRoot, String pathInSourceRoot) {
+    def file = fileSystem.getPath(sourceRoot, pathInSourceRoot)
+    packageResolver.getPackage(file) >> fileSystem.getPath(pathInSourceRoot).getParent()
+    givenRepoFile(file)
+    return fileSystem.getPath(repoRoot).relativize(file).toString()
+  }
+
   private String givenSourceFile(Class c, String sourceRoot, Language language = Language.GROOVY) {
     def classPath = fileSystem.getPath(generateSourceFileName(c, sourceRoot, language))
     packageResolver.getPackage(classPath) >> fileSystem.getPath(sourceRoot).relativize(classPath).getParent()

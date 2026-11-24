@@ -20,7 +20,7 @@ class RepoIndexTest extends Specification {
       new RepoIndex.SourceRoot("myClassSourceRoot", Language.GROOVY),
       new RepoIndex.SourceRoot("myOtherClassSourceRoot", Language.GROOVY))
 
-    def repoIndex = new RepoIndex(trie, Collections.emptyMap(), sourceRoots, Collections.emptyList())
+    def repoIndex = new RepoIndex(trie, Collections.emptyMap(), Collections.emptyMap(), sourceRoots, Collections.emptyList())
 
     when:
     def serialized = repoIndex.serialize()
@@ -50,7 +50,7 @@ class RepoIndexTest extends Specification {
         "sourceRoot2/" + myClassName.replace('.' as char, File.separatorChar) + Language.GROOVY.extension
       ]]
 
-    def repoIndex = new RepoIndex(trie, duplicateKeys, sourceRoots, Collections.emptyList())
+    def repoIndex = new RepoIndex(trie, duplicateKeys, Collections.emptyMap(), sourceRoots, Collections.emptyList())
 
     when:
     def serialized = repoIndex.serialize()
@@ -81,7 +81,7 @@ class RepoIndexTest extends Specification {
     def expectedPath2 = "release/" + myClassName.replace('.' as char, File.separatorChar) + Language.GROOVY.extension
     def duplicateKeys = [(myClassName): [expectedPath1, expectedPath2]]
 
-    def repoIndex = new RepoIndex(trie, duplicateKeys, sourceRoots, Collections.emptyList())
+    def repoIndex = new RepoIndex(trie, duplicateKeys, Collections.emptyMap(), sourceRoots, Collections.emptyList())
 
     when:
     def paths = repoIndex.getSourcePaths(RepoIndexTest)
@@ -102,7 +102,7 @@ class RepoIndexTest extends Specification {
     def sourceRoots = Arrays.asList(
       new RepoIndex.SourceRoot("src/main/groovy", Language.GROOVY))
 
-    def repoIndex = new RepoIndex(trie, Collections.emptyMap(), sourceRoots, Collections.emptyList())
+    def repoIndex = new RepoIndex(trie, Collections.emptyMap(), Collections.emptyMap(), sourceRoots, Collections.emptyList())
 
     when:
     def paths = repoIndex.getSourcePaths(RepoIndexTest)
@@ -110,5 +110,25 @@ class RepoIndexTest extends Specification {
     then:
     paths.size() == 1
     paths.first() == "src/main/groovy/" + myClassName.replace('.' as char, File.separatorChar) + Language.GROOVY.extension
+  }
+
+  def "test serialization and deserialization of a file name that contains dots"() {
+    given:
+    def key = "com.example.Platform.jvm"
+    def path = "src/jvmMain/kotlin/com/example/Platform.jvm.kt"
+
+    def trieBuilder = new ClassNameTrie.Builder()
+    trieBuilder.put(key, 0)
+    def trie = trieBuilder.buildTrie()
+
+    def sourceRoots = Arrays.asList(new RepoIndex.SourceRoot("src/jvmMain/kotlin", Language.KOTLIN))
+
+    def repoIndex = new RepoIndex(trie, Collections.emptyMap(), [(key): path], sourceRoots, Collections.emptyList())
+
+    when:
+    def deserialized = RepoIndex.deserialize(repoIndex.serialize())
+
+    then:
+    deserialized.getSourcePaths("com/example/Platform.jvm.kt") == [path]
   }
 }
