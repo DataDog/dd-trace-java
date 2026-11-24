@@ -13,7 +13,6 @@ class AIGuardSmokeTest extends AbstractAppSecServerSmokeTest {
     // Make sure AI Guard features (e.g. client IP tags collection) do not depend on AppSec.
     '-Ddd.appsec.enabled=false',
     '-Ddd.trace.client-ip.enabled=false',
-    '-Dsmoketest.skipAppSecActivation=true',
     "-Ddd.ai_guard.endpoint=http://localhost:${httpPort}/aiguard".toString(),
   ]
 

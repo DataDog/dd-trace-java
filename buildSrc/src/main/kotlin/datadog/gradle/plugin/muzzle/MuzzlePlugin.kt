@@ -165,19 +165,20 @@ class MuzzlePlugin : Plugin<Project> {
       val muzzleTaskName = buildString {
         append("muzzle-Assert")
         when {
-            muzzleDirective.isCoreJdk -> {
-              append(muzzleDirective)
-            }
-            else -> {
-              append(if (muzzleDirective.assertPass) "Pass" else "Fail")
-              append("-")
-              append(versionArtifact?.groupId)
-              append("-")
-              append(versionArtifact?.artifactId)
-              append("-")
-              append(versionArtifact?.version)
-              append(if (muzzleDirective.name != null) "-${muzzleDirective.nameSlug}" else "")
-            }
+          muzzleDirective.isCoreJdk -> {
+            append(muzzleDirective)
+          }
+
+          else -> {
+            append(if (muzzleDirective.assertPass) "Pass" else "Fail")
+            append("-")
+            append(versionArtifact?.groupId)
+            append("-")
+            append(versionArtifact?.artifactId)
+            append("-")
+            append(versionArtifact?.version)
+            append(if (muzzleDirective.name != null) "-${muzzleDirective.nameSlug}" else "")
+          }
         }
       }
       instrumentationProject.configurations.register(muzzleTaskName) {

@@ -6,11 +6,13 @@ import static datadog.trace.api.ConfigOrigin.DEFAULT;
 import static datadog.trace.api.ConfigOrigin.ENV;
 import static datadog.trace.api.ConfigOrigin.JVM_PROP;
 import static datadog.trace.api.ConfigSetting.DEFAULT_SEQ_ID;
+import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectEnvConfig;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -320,6 +322,64 @@ class ConfigProviderTest {
     assertTrue(jvmSetting.seqId > envSetting.seqId);
     assertTrue(envSetting.seqId > defaultSetting.seqId);
     assertEquals("jvmValue", value);
+  }
+
+  @TableTest({
+    "scenario          | traceOtelEnabled | sdkDisabled | setting          ",
+    "OTel enabled      | true             |             | http://agent:4318",
+    "OTel not enabled  | false            |             |                  ",
+    "OTel SDK disabled | true             | true        |                  "
+  })
+  void getOtelSettingIsOnlyReadWhenOtelIsEnabled(
+      String traceOtelEnabled, String sdkDisabled, String setting) {
+    injectSysConfig(TRACE_OTEL_ENABLED, traceOtelEnabled);
+    if (sdkDisabled != null) {
+      injectEnvConfig("OTEL_SDK_DISABLED", sdkDisabled, false);
+    }
+    injectEnvConfig("OTEL_EXPORTER_OTLP_ENDPOINT", "http://agent:4318", false);
+
+    assertEquals(
+        setting, ConfigProvider.createDefault().getOtelSetting("otel.exporter.otlp.endpoint"));
+  }
+
+  @Test
+  @WithConfig(key = TRACE_OTEL_ENABLED, value = "true")
+  @WithConfig(
+      key = "OTEL_EXPORTER_OTLP_PROTOCOL",
+      value = "http/json",
+      env = true,
+      addPrefix = false)
+  @WithConfig(key = "otel.exporter.otlp.protocol", value = "grpc", addPrefix = false)
+  @WithConfig(
+      key = "OTEL_EXPORTER_OTLP_HEADERS",
+      value = "api-key=secret",
+      env = true,
+      addPrefix = false)
+  @WithConfig(
+      key = "OTEL_EXPORTER_OTLP_ENDPOINT",
+      value = "https://user:secret@collector:4318",
+      env = true,
+      addPrefix = false)
+  void getOtelSettingReportsOtelValuesToTelemetry() {
+    ConfigProvider provider = ConfigProvider.createDefault();
+    // fails on any lookup of an unsupported name, such as DD_OTEL_EXPORTER_OTLP_PROTOCOL
+    ConfigHelper.get().setConfigInversionStrict(StrictnessPolicy.STRICT_TEST);
+    ConfigCollector.get().collect(); // clear previous state
+
+    assertEquals("grpc", provider.getOtelSetting("otel.exporter.otlp.protocol"));
+    assertEquals("api-key=secret", provider.getOtelSetting("otel.exporter.otlp.headers"));
+    assertEquals(
+        singletonMap("api-key", "secret"),
+        provider.getOtelSettingMap("otel.exporter.otlp.headers", '='));
+    assertEquals(emptyMap(), provider.getOtelSettingMap("otel.exporter.otlp.compression", '='));
+    assertEquals(
+        "https://user:secret@collector:4318",
+        provider.getOtelSetting("otel.exporter.otlp.endpoint"));
+    Map<String, ConfigSetting> collected = ConfigCollector.get().collect().get(ENV);
+    assertEquals("grpc", collected.get("otel.exporter.otlp.protocol").stringValue());
+    // sensitive settings, which may hold credentials
+    assertEquals("<hidden>", collected.get("otel.exporter.otlp.headers").stringValue());
+    assertEquals("<hidden>", collected.get("otel.exporter.otlp.endpoint").stringValue());
   }
 
   @Test

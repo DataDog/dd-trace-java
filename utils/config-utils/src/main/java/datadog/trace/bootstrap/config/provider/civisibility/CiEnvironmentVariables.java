@@ -11,6 +11,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Callable;
@@ -125,7 +126,8 @@ public class CiEnvironmentVariables {
                 new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8))) {
           String body = r.lines().collect(Collectors.joining("\n"));
           throw new IOException(
-              String.format("Remote environment request failed (HTTP %d) %s", code, body));
+              String.format(
+                  Locale.ROOT, "Remote environment request failed (HTTP %d) %s", code, body));
         }
       }
 

@@ -8,8 +8,8 @@ import datadog.communication.serialization.Mapper;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.communication.serialization.ValueWriter;
 import datadog.communication.serialization.WritableFormatter;
-import datadog.perfcontract.StaticLifetime;
-import datadog.perfcontract.SuppressPerfContract;
+import datadog.contract.StaticLifetime;
+import datadog.contract.SuppressPerfContract;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
@@ -85,6 +85,11 @@ public class MsgPackWriter implements WritableFormatter {
 
   @Override
   public <T> boolean format(T message, Mapper<T> mapper) {
+    return formatIfRoom(message, mapper) || retryInEmptyBuffer(message, mapper);
+  }
+
+  @Override
+  public <T> boolean formatIfRoom(T message, Mapper<T> mapper) {
     try {
       mapper.map(message, this);
       if (buffer.mark()) {
@@ -97,7 +102,7 @@ public class MsgPackWriter implements WritableFormatter {
       discardFailedMessage(mapper);
       throw failure;
     }
-    return retryInEmptyBuffer(message, mapper);
+    return false;
   }
 
   /**
@@ -106,20 +111,29 @@ public class MsgPackWriter implements WritableFormatter {
    */
   private <T> boolean retryInEmptyBuffer(T message, Mapper<T> mapper) {
     if (buffer.flush()) {
-      try {
-        mapper.reset();
-        mapper.map(message, this, true);
-        if (buffer.mark()) {
-          return true;
-        }
-      } catch (BufferOverflowException fatal) {
-        // rejected below
-      } catch (Throwable failure) {
-        discardFailedMessage(mapper);
-        throw failure;
-      }
-      log.debug("dropping message because it exceeds a serialization buffer's capacity");
+      return formatAsRetry(message, mapper);
     }
+    buffer.reset();
+    // the buffer is now empty, so drop any mapper state from the rejected message
+    mapper.reset();
+    return false;
+  }
+
+  @Override
+  public <T> boolean formatAsRetry(T message, Mapper<T> mapper) {
+    try {
+      mapper.reset();
+      mapper.map(message, this, true);
+      if (buffer.mark()) {
+        return true;
+      }
+    } catch (BufferOverflowException fatal) {
+      // rejected below
+    } catch (Throwable failure) {
+      discardFailedMessage(mapper);
+      throw failure;
+    }
+    log.debug("dropping message because it exceeds a serialization buffer's capacity");
     buffer.reset();
     // the buffer is now empty, so drop any mapper state from the rejected message
     mapper.reset();

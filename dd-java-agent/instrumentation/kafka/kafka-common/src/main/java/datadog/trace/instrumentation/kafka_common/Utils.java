@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.kafka_common;
 
 import datadog.trace.api.datastreams.DataStreamsTransactionTracker;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.Header;
@@ -13,11 +14,38 @@ public final class Utils {
       DSM_TRANSACTION_SOURCE_READER =
           (source, headerName) -> {
             try {
-              return new String(((Headers) source).lastHeader(headerName).value());
+              // Kafka headers declare no charset. Keep the existing JVM default for application
+              // transaction IDs so changing the decoder does not change checkpoint correlation.
+              return new String(
+                  ((Headers) source).lastHeader(headerName).value(), Charset.defaultCharset());
             } catch (Throwable ignored) {
               return null;
             }
           };
+
+  /**
+   * Reads the produce time a producer wrote to its header, as 8 big-endian bytes.
+   *
+   * @throws IllegalArgumentException if {@code bytes} isn't 8 bytes long
+   */
+  public static long readProducedTime(byte[] bytes) {
+    if (bytes.length != Long.BYTES) {
+      throw new IllegalArgumentException("Expected 8 bytes, got " + bytes.length);
+    }
+    long time = 0;
+    for (byte b : bytes) {
+      time = (time << 8) | (b & 0xff);
+    }
+    return time;
+  }
+
+  /**
+   * Whether {@code headers} holds any header. {@link Headers#toArray()} would copy the headers of
+   * every record that has some, just to check.
+   */
+  public static boolean hasHeaders(Headers headers) {
+    return headers.iterator().hasNext();
+  }
 
   // this method is used in kafka-clients and kafka-streams instrumentations
   public static long computePayloadSizeBytes(ConsumerRecord<?, ?> val) {

@@ -1,0 +1,24 @@
+{
+  "actions": [
+    {
+      "id": "block2",
+      "type": "block_request",
+      "parameters": {
+        "status_code": 501,
+        "type": "json"
+      }
+    }
+  ],
+  "rules_override": [
+    {
+      "rules_target": [
+        {
+          "rule_id": "ip_match_rule"
+        }
+      ],
+      "on_match": [
+        "block2"
+      ]
+    }
+  ]
+}

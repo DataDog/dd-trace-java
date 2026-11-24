@@ -6,7 +6,7 @@ plugins {
 dependencies {
   testContainerImage(image('icr.io/appcafe/websphere-traditional:latest', 'test.websphere.image'))
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation libs.testcontainers
 }
 

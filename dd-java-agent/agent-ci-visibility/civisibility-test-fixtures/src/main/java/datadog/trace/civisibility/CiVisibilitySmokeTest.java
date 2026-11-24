@@ -385,10 +385,8 @@ public abstract class CiVisibilitySmokeTest {
       Map<String, Object> snapshotContent = (Map<String, Object>) debuggerMap.get("snapshot");
 
       assertNotNull(snapshotContent, "snapshot must not be null");
-      requiredSnapshotFields.forEach(
-          field ->
-              assertTrue(
-                  snapshotContent.containsKey(field), "snapshot must contain field: " + field));
+      requiredSnapshotFields.forEach(field ->
+          assertTrue(snapshotContent.containsKey(field), "snapshot must contain field: " + field));
     }
   }
 }

@@ -9,11 +9,31 @@ import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.SkipCompletableFutureContextCapture;
 import java.util.concurrent.CompletableFuture.UniCompletion;
 import net.bytebuddy.asm.Advice;
 
 // This class is put into java.util.concurrent to allow access to package private classes.
 public final class CompletableFutureAdvice {
+
+  public static final class UniCallbackConstructor {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void afterInit(
+        @Advice.This UniCompletion zis, @Advice.FieldValue("fn") Object callback) {
+      Context context = currentContext();
+      if (zis.isLive()
+          && context != rootContext()
+          && !(callback instanceof SkipCompletableFutureContextCapture)) {
+        ContextStore<UniCompletion, ConcurrentState> contextStore =
+            InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
+        ConcurrentState.captureContinuation(contextStore, zis, context);
+      }
+    }
+
+    private static void muzzleCheck(final UniCompletion callback) {
+      callback.exec();
+    }
+  }
 
   public static final class UniConstructor {
     @Advice.OnMethodExit(suppress = Throwable.class)

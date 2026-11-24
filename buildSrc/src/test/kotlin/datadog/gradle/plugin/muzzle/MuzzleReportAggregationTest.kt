@@ -18,8 +18,12 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
     )
     descriptions.forEach { (task, description) ->
       val result = run(
-        "help", "--task", ":dd-java-agent:instrumentation:$task",
-        "--configuration-cache", "--configuration-cache-problems=fail", "--stacktrace"
+        "help",
+        "--task",
+        ":dd-java-agent:instrumentation:$task",
+        "--configuration-cache",
+        "--configuration-cache-problems=fail",
+        "--stacktrace"
       )
       assertThat(result.task(":help")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
       assertThat(result.output).contains(description)
@@ -57,8 +61,10 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
       }
       """
     )
-    addAggregationInput("dd-java-agent:instrumentation:nested:other", producerScript(
-      """
+    addAggregationInput(
+      "dd-java-agent:instrumentation:nested:other",
+      producerScript(
+        """
       muzzle {
         pass {
           name = "shared"
@@ -74,7 +80,8 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
         }
       }
       """
-    ))
+      )
+    )
     addAggregationInput("dd-java-agent:instrumentation:empty", producerScript("muzzle { pass { coreJdk() } }"))
     addAggregationInput("dd-java-agent:instrumentation:stubs", """plugins { id("java") }""")
     addSubproject("dd-java-agent:instrumentation:unselected", producerScript("muzzle { pass { coreJdk() } }"))
@@ -83,7 +90,10 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
 
     val args = arrayOf(
       ":dd-java-agent:instrumentation:aggregateMuzzleReports",
-      "--configuration-cache", "--configuration-cache-problems=fail", "--build-cache", "--stacktrace"
+      "--configuration-cache",
+      "--configuration-cache-problems=fail",
+      "--build-cache",
+      "--stacktrace"
     )
     val env = mapOf("MAVEN_REPOSITORY_PROXY" to repo.repoUrl)
     val first = run(*args, env = env)
@@ -140,8 +150,11 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
 
     val failed = run(
       ":dd-java-agent:instrumentation:aggregateMuzzleReports",
-      "--configuration-cache", "--configuration-cache-problems=fail", "--stacktrace",
-      expectFailure = true, env = env
+      "--configuration-cache",
+      "--configuration-cache-problems=fail",
+      "--stacktrace",
+      expectFailure = true,
+      env = env
     )
     assertThat(failed.output).contains("BUILD FAILED")
     assertThat(failed.task(":dd-java-agent:instrumentation:demo:generateMuzzleReport")?.outcome).isEqualTo(FAILED)
@@ -163,12 +176,14 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
   fun `Maven equivalent versions retain the existing last spelling selection`() {
     writeSettings("""rootProject.name = "equivalent-versions"""")
     writeAggregationProject()
-    writeFile("dd-java-agent/instrumentation/build.gradle.kts",
+    writeFile(
+      "dd-java-agent/instrumentation/build.gradle.kts",
       """
       tasks.named<datadog.gradle.plugin.muzzle.tasks.MuzzleAggregateReportTask>("aggregateMuzzleReports") {
         versionReports.from(layout.projectDirectory.file("versions.csv"))
       }
-      """, append = true
+      """,
+      append = true
     )
     val a = "same,example,library,1,2\n"
     val b = "same,example,library,1.0,2.0\n"
@@ -197,8 +212,10 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
       }
       """
     )
-    addAggregationInput("dd-java-agent:instrumentation:other", producerScript(
-      """
+    addAggregationInput(
+      "dd-java-agent:instrumentation:other",
+      producerScript(
+        """
       muzzle {
         pass {
           group = "missing"
@@ -207,10 +224,13 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
         }
       }
       """
-    ))
+      )
+    )
     val args = arrayOf(
       ":dd-java-agent:instrumentation:demo:generateMuzzleReport",
-      "--configuration-cache", "--configuration-cache-problems=fail", "--stacktrace"
+      "--configuration-cache",
+      "--configuration-cache-problems=fail",
+      "--stacktrace"
     )
     val env = mapOf("MAVEN_REPOSITORY_PROXY" to repo.repoUrl)
     val first = run(*args, env = env)
@@ -240,7 +260,9 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
     writeReportingProject("muzzle { pass { coreJdk() } }")
     val result = run(
       ":dd-java-agent:instrumentation:mergeMuzzleReports",
-      "--configuration-cache", "--configuration-cache-problems=fail", "--stacktrace"
+      "--configuration-cache",
+      "--configuration-cache-problems=fail",
+      "--stacktrace"
     )
     assertThat(result.task(":dd-java-agent:instrumentation:mergeMuzzleReports")?.outcome).describedAs(result.output).isEqualTo(SUCCESS)
     assertThat(result.task(":aggregateMuzzleReports")).isNull()
@@ -258,13 +280,15 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
     writeAggregationProject()
     writeFile("dd-java-agent/instrumentation/a.csv", HEADER + "same,example,library,1,2")
     writeFile("dd-java-agent/instrumentation/b.csv", HEADER + "same,example,library,1.0,2.0")
-    writeFile("dd-java-agent/instrumentation/build.gradle.kts",
+    writeFile(
+      "dd-java-agent/instrumentation/build.gradle.kts",
       """
       tasks.named<datadog.gradle.plugin.muzzle.tasks.MuzzleAggregateReportTask>("aggregateMuzzleReports") {
         val reports = if (providers.gradleProperty("reverseReports").isPresent) listOf("b.csv", "a.csv") else listOf("a.csv", "b.csv")
         versionReports.setFrom(reports.map { layout.projectDirectory.file(it) })
       }
-      """, append = true
+      """,
+      append = true
     )
     val args = arrayOf("aggregateMuzzleReports", "--configuration-cache", "--configuration-cache-problems=fail", "--build-cache")
     val first = run(*args)
@@ -289,7 +313,9 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
     )
     val result = run(
       ":dd-java-agent:instrumentation:demo:generateMuzzleReport",
-      "--configuration-cache", "--configuration-cache-problems=fail", "--stacktrace"
+      "--configuration-cache",
+      "--configuration-cache-problems=fail",
+      "--stacktrace"
     )
     assertThat(result.task(":dd-java-agent:instrumentation:demo:generateMuzzleReport")?.outcome)
       .describedAs(result.output).isEqualTo(SUCCESS)
@@ -328,7 +354,8 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
     writeSettings("""rootProject.name = "isolated-reports"""")
     writeAggregationProject()
     addAggregationInput("dd-java-agent:instrumentation:stubs", """plugins { id("java") }""")
-    addAggregationInput("dd-java-agent:instrumentation:isolated",
+    addAggregationInput(
+      "dd-java-agent:instrumentation:isolated",
       """
       import datadog.gradle.plugin.muzzle.tasks.MuzzleGenerateReportTask
       import org.gradle.api.attributes.Category
@@ -347,7 +374,9 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
     )
     val args = arrayOf(
       ":dd-java-agent:instrumentation:aggregateMuzzleReports",
-      "--isolated-projects", "--configuration-cache-problems=fail", "--stacktrace"
+      "--isolated-projects",
+      "--configuration-cache-problems=fail",
+      "--stacktrace"
     )
     val first = run(*args)
     assertThat(first.task(":dd-java-agent:instrumentation:aggregateMuzzleReports")?.outcome).describedAs(first.output).isEqualTo(SUCCESS)
@@ -373,8 +402,10 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
   private fun writeReportingProject(directives: String) {
     writeProject(producerScript(directives))
     writeAggregationProject()
-    writeFile("dd-java-agent/instrumentation/build.gradle.kts",
-      """dependencies { implementation(project(":dd-java-agent:instrumentation:demo")) }""", append = true
+    writeFile(
+      "dd-java-agent/instrumentation/build.gradle.kts",
+      """dependencies { implementation(project(":dd-java-agent:instrumentation:demo")) }""",
+      append = true
     )
     writeJavaSource(
       "datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin",
@@ -393,8 +424,10 @@ class MuzzleReportAggregationTest : MuzzlePluginTestFixture() {
 
   private fun addAggregationInput(projectPath: String, script: String) {
     addSubproject(projectPath, script)
-    writeFile("dd-java-agent/instrumentation/build.gradle.kts",
-      """dependencies { implementation(project(":$projectPath")) }""", append = true
+    writeFile(
+      "dd-java-agent/instrumentation/build.gradle.kts",
+      """dependencies { implementation(project(":$projectPath")) }""",
+      append = true
     )
   }
 

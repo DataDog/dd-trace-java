@@ -75,7 +75,7 @@ public class UrlConnectionDecorator extends UriBasedClientDecorator {
     @Override
     public void extract(URI uri, AgentSpan span) {
       // URLConnection historically records the original URL, including its query and fragment.
-      span.setTag(KnownTags.HTTP_URL_ID, uri.toString());
+      span.setTag(KnownTags.HTTP_URL, uri.toString());
     }
   }
 }

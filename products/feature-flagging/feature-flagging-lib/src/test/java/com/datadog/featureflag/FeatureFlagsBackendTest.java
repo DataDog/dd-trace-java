@@ -25,6 +25,8 @@ import datadog.trace.api.FeatureFlaggingSource;
 import datadog.trace.api.telemetry.CoreMetricCollector;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.common.writer.ListWriter;
+import datadog.trace.core.CoreTracer;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.util.List;
 import java.util.Properties;
@@ -77,6 +79,59 @@ class FeatureFlagsBackendTest {
     assertEquals("true", this.backend.setting(FEATURE_FLAGS_ENABLED));
     assertEquals("agentless", this.backend.setting(FEATURE_FLAGS_CONFIGURATION_SOURCE));
     assertEquals("false", this.backend.setting("flagging.evaluation.counts.enabled"));
+  }
+
+  @TableTest({
+    "Scenario                                | Service | Tags                          | Span tags              | Mapping               | Rule  | Expected  ",
+    "DD_SERVICE only                         | svc     |                               |                        |                       |       | svc       ",
+    "DD_TAGS service without a name          |         | 'service:tagged-svc,team:ffe' |                        |                       |       | tagged-svc",
+    "DD_SERVICE beats DD_TAGS                | svc     | service:tagged-svc            |                        |                       |       | svc       ",
+    "span tags beat DD_SERVICE               | svc     |                               | service:span-svc       |                       |       | span-svc  ",
+    "tag interceptor off keeps a name        | svc     |                               | service:span-svc       |                       | false | svc       ",
+    "mapping of another service              | svc     |                               |                        | other-svc:mapped-svc  |       | svc       ",
+    "mapping of DD_SERVICE                   | svc     |                               |                        | svc:mapped-svc        |       | mapped-svc",
+    "mapping of a DD_TAGS service            |         | service:tagged-svc            |                        | tagged-svc:mapped-svc |       | mapped-svc",
+    "service.name span tag beats DD_SERVICE  | svc     |                               | service.name:alias-svc |                       |       | alias-svc ",
+    "service.name in DD_TAGS with DD_SERVICE | svc     | service.name:alias-svc        |                        |                       |       | alias-svc ",
+    "mapping of a service.name span tag      | svc     |                               | service.name:alias-svc | alias-svc:mapped-svc  |       | mapped-svc"
+  })
+  void resolvesTheServiceOfTheTracerSpans(
+      final String service,
+      final String tags,
+      final String spanTags,
+      final String mapping,
+      final String rule,
+      final String expected) {
+    if (service != null) {
+      WithConfigExtension.injectEnvConfig("SERVICE", service);
+    }
+    if (tags != null) {
+      WithConfigExtension.injectEnvConfig("TAGS", tags);
+    }
+    if (spanTags != null) {
+      WithConfigExtension.injectEnvConfig("TRACE_SPAN_TAGS", spanTags);
+    }
+    if (mapping != null) {
+      WithConfigExtension.injectEnvConfig("SERVICE_MAPPING", mapping);
+    }
+    if (rule != null) {
+      WithConfigExtension.injectEnvConfig("TRACE_SERVICENAMETAGINTERCEPTOR_ENABLED", rule);
+    }
+    final FeatureFlagsBackend backend =
+        new FeatureFlagsBackend(
+            this.sco, Config.get(), this.eventProxy, this.spanEnrichmentWriter, this.metrics, null);
+
+    assertEquals(expected, backend.setting("service"));
+    // A tracer with the same configuration gives its spans the same service.
+    final CoreTracer tracer =
+        CoreTracer.builder().config(Config.get()).writer(new ListWriter()).build();
+    try {
+      final AgentSpan span = tracer.startSpan("test", "operation");
+      span.finish();
+      assertEquals(expected, span.getServiceName());
+    } finally {
+      tracer.close();
+    }
   }
 
   @TableTest({
@@ -172,10 +227,9 @@ class FeatureFlagsBackendTest {
   void closeNotifiesTheShutdownListenersBeforeReleasingResources() throws Exception {
     final List<String> calls = new CopyOnWriteArrayList<>();
     this.backend.subscribeShutdown(() -> calls.add("first"));
-    this.backend.subscribeShutdown(
-        () -> {
-          throw new IllegalStateException("failing listener");
-        });
+    this.backend.subscribeShutdown(() -> {
+      throw new IllegalStateException("failing listener");
+    });
     final AutoCloseable unregistered =
         this.backend.subscribeShutdown(() -> calls.add("unregistered"));
     this.backend.subscribeShutdown(() -> calls.add("last"));

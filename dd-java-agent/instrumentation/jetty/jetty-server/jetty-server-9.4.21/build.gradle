@@ -13,7 +13,6 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 dependencies {
   implementation project(':dd-java-agent:instrumentation:jetty:jetty-common')
@@ -51,9 +50,4 @@ dependencies {
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '9.+'
   latestDepTestImplementation group: 'org.eclipse.jetty.websocket', name: 'javax-websocket-server-impl', version: '9.+'
   latestDepTestImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
-
-  latestDepForkedTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.+'
-  latestDepForkedTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.+'
-  latestDepForkedTestImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '9.+'
-  latestDepForkedTestImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
 }

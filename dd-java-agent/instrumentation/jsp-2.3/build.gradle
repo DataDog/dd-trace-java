@@ -13,6 +13,13 @@ muzzle {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
+tasks.named("test") {
+  testJvmConstraints {
+    // TODO(JDK-28-EA): the JDT compiler of Tomcat 7.0.37 Jasper cannot read Java 28 class files
+    maxJavaVersion = JavaVersion.VERSION_27
+  }
+}
+
 dependencies {
   // compiling against tomcat 7.0.20 because there seems to be some issues with Tomcat's dependency < 7.0.20
   compileOnly group: 'org.apache.tomcat', name: 'tomcat-jasper', version: '7.0.20'

@@ -34,7 +34,6 @@ testJvmConstraints {
 }
 
 addTestSuiteForDir("latestDepTest", "test")
-addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
 
 configurations {
   wildflyTest
@@ -102,9 +101,7 @@ def extractWildflyTask = tasks.register("extractWildfly", Copy) {
 
 def extractLatestWildfly = tasks.register("extractLatestWildfly", Copy) {
   mustRunAfter 'compileLatestDepTestGroovy'
-  mustRunAfter 'compileLatestDepForkedTestGroovy'
   mustRunAfter 'compileLatestDepTestJava'
-  mustRunAfter 'compileLatestDepForkedTestJava'
   mustRunAfter 'compileJava'
   extractWildfly(configurations.named("wildflyLatestDepTest"), "wildfly", it)
 
@@ -131,10 +128,8 @@ tasks.named("compileTestGroovy", GroovyCompile) {
   configureCompiler(it, JavaVersion.VERSION_11)
 }
 
-["compileLatestDepTestGroovy", "compileLatestDepForkedTestGroovy"].each {
-  tasks.named(it, GroovyCompile) {
-    configureCompiler(it, JavaVersion.VERSION_17)
-  }
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  configureCompiler(it, JavaVersion.VERSION_17)
 }
 
 tasks.named("processTestResources", ProcessResources) {
@@ -145,13 +140,11 @@ tasks.named("processTestResources", ProcessResources) {
   }
 }
 
-["processLatestDepTestResources", "processLatestDepForkedTestResources"].each {
-  tasks.named(it, ProcessResources) {
-    filesMatching('**/WEB-INF/web.xml') {
-      expand(
-        'servletClass': 'test.JakartaTestServlet',
-        )
-    }
+tasks.named("processLatestDepTestResources", ProcessResources) {
+  filesMatching('**/WEB-INF/web.xml') {
+    expand(
+      'servletClass': 'test.JakartaTestServlet',
+      )
   }
 }
 
@@ -175,9 +168,6 @@ tasks.named("forkedTest", Test) {
 }
 
 tasks.named("latestDepForkedTest", Test) {
-  testJvmConstraints {
-    minJavaVersion = JavaVersion.VERSION_17
-  }
   jvmArgumentProviders.add(
     objects.newInstance(DistributionLocationProvider).tap {
       distribution = extractLatestWildfly.map { it.destinationDir }

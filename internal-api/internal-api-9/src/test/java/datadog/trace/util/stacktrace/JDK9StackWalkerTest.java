@@ -5,12 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.test.util.DDJavaSpecification;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
-class JDK9StackWalkerTest extends DDJavaSpecification {
+class JDK9StackWalkerTest {
 
   private final JDK9StackWalker walker = new JDK9StackWalker();
 

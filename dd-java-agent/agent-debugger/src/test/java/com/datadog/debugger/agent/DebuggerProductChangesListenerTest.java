@@ -196,10 +196,8 @@ public class DebuggerProductChangesListenerTest {
   }
 
   void acceptMetricProbe(DebuggerProductChangesListener listener, MetricProbe probe) {
-    assertDoesNotThrow(
-        () ->
-            listener.accept(
-                createConfigKey("metricProbe_" + probe.getId()), toContent(probe), NOOP));
+    assertDoesNotThrow(() ->
+        listener.accept(createConfigKey("metricProbe_" + probe.getId()), toContent(probe), NOOP));
   }
 
   void removeMetricProbe(DebuggerProductChangesListener listener, MetricProbe probe) {
@@ -208,9 +206,8 @@ public class DebuggerProductChangesListenerTest {
   }
 
   void acceptLogProbe(DebuggerProductChangesListener listener, LogProbe probe) {
-    assertDoesNotThrow(
-        () ->
-            listener.accept(createConfigKey("logProbe_" + probe.getId()), toContent(probe), NOOP));
+    assertDoesNotThrow(() ->
+        listener.accept(createConfigKey("logProbe_" + probe.getId()), toContent(probe), NOOP));
   }
 
   void removeLogProbe(DebuggerProductChangesListener listener, LogProbe probe) {
@@ -218,24 +215,20 @@ public class DebuggerProductChangesListenerTest {
   }
 
   void acceptSpanProbe(DebuggerProductChangesListener listener, SpanProbe probe) {
-    assertDoesNotThrow(
-        () ->
-            listener.accept(createConfigKey("spanProbe_" + probe.getId()), toContent(probe), NOOP));
+    assertDoesNotThrow(() ->
+        listener.accept(createConfigKey("spanProbe_" + probe.getId()), toContent(probe), NOOP));
   }
 
   void acceptSpanDecorationProbe(
       DebuggerProductChangesListener listener, SpanDecorationProbe probe) {
-    assertDoesNotThrow(
-        () ->
-            listener.accept(
-                createConfigKey("spanDecorationProbe_" + probe.getId()), toContent(probe), NOOP));
+    assertDoesNotThrow(() ->
+        listener.accept(
+            createConfigKey("spanDecorationProbe_" + probe.getId()), toContent(probe), NOOP));
   }
 
   void acceptTriggerProbe(DebuggerProductChangesListener listener, TriggerProbe probe) {
-    assertDoesNotThrow(
-        () ->
-            listener.accept(
-                createConfigKey("triggerProbe_" + probe.getId()), toContent(probe), NOOP));
+    assertDoesNotThrow(() ->
+        listener.accept(createConfigKey("triggerProbe_" + probe.getId()), toContent(probe), NOOP));
   }
 
   void removeSpanProbe(DebuggerProductChangesListener listener, SpanProbe probe) {
