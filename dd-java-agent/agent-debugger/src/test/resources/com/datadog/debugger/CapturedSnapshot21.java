@@ -25,7 +25,7 @@ public class CapturedSnapshot21 {
   public static int main(String arg) {
     AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
     AgentSpan span = tracerAPI.buildSpan("dynamic-instrumentation", "rootProcess").start();
-    try (ContextScope scope = tracerAPI.activateManualSpan(span)) {
+    try (ContextScope scope = tracerAPI.activateSpan(span)) {
       if (arg.equals("sibling")) {
         return new CapturedSnapshot21().rootSiblingProcess(arg);
       }
@@ -43,7 +43,7 @@ public class CapturedSnapshot21 {
     AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
     {
       AgentSpan span = tracerAPI.buildSpan("dynamic-instrumentation", "process1").start();
-      try (ContextScope scope = tracerAPI.activateManualSpan(span)) {
+      try (ContextScope scope = tracerAPI.activateSpan(span)) {
         result += siblingProcess1(arg);
       } finally {
         span.finish();
@@ -51,7 +51,7 @@ public class CapturedSnapshot21 {
     }
     {
       AgentSpan span = tracerAPI.buildSpan("dynamic-instrumentation", "process2").start();
-      try (ContextScope scope = tracerAPI.activateManualSpan(span)) {
+      try (ContextScope scope = tracerAPI.activateSpan(span)) {
         result += siblingProcess2(arg);
       } finally {
         span.finish();
@@ -59,7 +59,7 @@ public class CapturedSnapshot21 {
     }
     {
       AgentSpan span = tracerAPI.buildSpan("dynamic-instrumentation", "process3").start();
-      try (ContextScope scope = tracerAPI.activateManualSpan(span)) {
+      try (ContextScope scope = tracerAPI.activateSpan(span)) {
         result += siblingProcess3(arg);
       } finally {
         span.finish();
@@ -85,7 +85,7 @@ public class CapturedSnapshot21 {
     AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
     for (int i = 0; i < 10; i++) {
       AgentSpan span = tracerAPI.buildSpan("dynamic-instrumentation", "process3").start();
-      try (ContextScope scope = tracerAPI.activateManualSpan(span)) {
+      try (ContextScope scope = tracerAPI.activateSpan(span)) {
         result += process3(arg);
       } finally {
         span.finish();
@@ -97,7 +97,7 @@ public class CapturedSnapshot21 {
   private int rootProcess(String arg) {
     AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
     AgentSpan span = tracerAPI.buildSpan("dynamic-instrumentation", "process1").start();
-    try (ContextScope scope = tracerAPI.activateManualSpan(span)) {
+    try (ContextScope scope = tracerAPI.activateSpan(span)) {
       return process1(arg) + 1;
     } finally {
       span.finish();
@@ -107,7 +107,7 @@ public class CapturedSnapshot21 {
   private int process1(String arg) {
     AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
     AgentSpan span = tracerAPI.buildSpan("dynamic-instrumentation", "process2").start();
-    try (ContextScope scope = tracerAPI.activateManualSpan(span)) {
+    try (ContextScope scope = tracerAPI.activateSpan(span)) {
       return process2(arg) + 1; // beae1817-f3b0-4ea8-a74f-000000000001
     } finally {
       span.finish();
@@ -117,7 +117,7 @@ public class CapturedSnapshot21 {
   private int process2(String arg) {
     AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
     AgentSpan span = tracerAPI.buildSpan("dynamic-instrumentation", "process3").start();
-    try (ContextScope scope = tracerAPI.activateManualSpan(span)) {
+    try (ContextScope scope = tracerAPI.activateSpan(span)) {
       return process3(arg) + 1; // beae1817-f3b0-4ea8-a74f-000000000002
     } finally {
       span.finish();

@@ -4,6 +4,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.Pair;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.normalize.HttpResourceNames;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics;
@@ -22,7 +23,8 @@ public class HttpResourceDecorator {
   private final boolean hasClientPathMappings =
       !Config.get().getHttpClientPathResourceNameMapping().isEmpty();
 
-  private HttpResourceDecorator() {}
+  @VisibleForTesting
+  HttpResourceDecorator() {}
 
   public final void withClientPath(AgentSpan span, CharSequence method, CharSequence path) {
     if (OTEL_SEMANTICS
@@ -68,7 +70,7 @@ public class HttpResourceDecorator {
     if (encoded) {
       routeTag = URIUtils.decode(route.toString());
     }
-    span.setTag(KnownTags.HTTP_ROUTE_ID, routeTag);
+    span.setTag(KnownTags.HTTP_ROUTE, routeTag);
     if (OTEL_SEMANTICS) {
       final CharSequence resourceName =
           HttpResourceNames.join(OtelHttpSemantics.spanNameMethod(method), routeTag);

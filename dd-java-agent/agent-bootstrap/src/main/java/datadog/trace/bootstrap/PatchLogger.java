@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap;
 
 import java.util.ResourceBundle;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 
@@ -129,6 +130,8 @@ public class PatchLogger {
   public void finer(final String msg) {}
 
   public void finest(final String msg) {}
+
+  public void finest(final Supplier<String> msgSupplier) {}
 
   public void throwing(
       final String sourceClass, final String sourceMethod, final Throwable thrown) {}

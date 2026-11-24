@@ -1,5 +1,6 @@
 package dd.trace.instrumentation.springwebflux.client
 
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
 import org.springframework.web.reactive.function.client.WebClient
 import spock.lang.Timeout
 
@@ -14,4 +15,8 @@ class SpringWebfluxHttpClientBasicTest extends SpringWebfluxHttpClientBase {
   @Override
   void check() {
   }
+}
+
+@Timeout(5)
+class SpringWebfluxHttpClientOtelSemanticsForkedTest extends SpringWebfluxHttpClientBasicTest implements TestingOtelHttpSemantics {
 }

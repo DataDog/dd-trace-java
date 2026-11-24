@@ -5,6 +5,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Arrays;
+import java.util.Locale;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -53,9 +54,9 @@ public class PropagationTagsBenchmark {
   public void setUp() {
     factory = PropagationTags.factory();
     CharSequence[] parts = extractHeaderType.split("\\|");
-    extractHT = PropagationTags.HeaderType.valueOf(((String) parts[0]).toUpperCase());
+    extractHT = PropagationTags.HeaderType.valueOf(((String) parts[0]).toUpperCase(Locale.ROOT));
     header = String.join(",", Arrays.stream(parts, 1, parts.length)::iterator);
-    injectHT = PropagationTags.HeaderType.valueOf(injectHeaderType.toUpperCase());
+    injectHT = PropagationTags.HeaderType.valueOf(injectHeaderType.toUpperCase(Locale.ROOT));
   }
 
   @Benchmark

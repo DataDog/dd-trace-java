@@ -149,9 +149,8 @@ class CoreMetricCollectorBaggageTest {
 
   private static CoreMetric findTruncatedMetric(Collection<CoreMetric> metrics, String tag) {
     return metrics.stream()
-        .filter(
-            metric ->
-                "context_header.truncated".equals(metric.metricName) && metric.tags.contains(tag))
+        .filter(metric ->
+            "context_header.truncated".equals(metric.metricName) && metric.tags.contains(tag))
         .findFirst()
         .orElse(null);
   }

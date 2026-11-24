@@ -224,11 +224,10 @@ class InjectingPipeOutputStreamTest {
     InjectingPipeOutputStream piped =
         new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES);
 
-    assertDoesNotThrow(
-        () -> {
-          piped.write(testBytes);
-          piped.close();
-        });
+    assertDoesNotThrow(() -> {
+      piped.write(testBytes);
+      piped.close();
+    });
     assertArrayEquals(testBytes, downstream.toByteArray());
   }
 
@@ -273,10 +272,9 @@ class InjectingPipeOutputStreamTest {
     InjectingPipeOutputStream piped =
         new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES, null, null, null);
 
-    assertDoesNotThrow(
-        () -> {
-          piped.write("<html><head></head><body></body></html>".getBytes(UTF_8));
-          piped.close();
-        });
+    assertDoesNotThrow(() -> {
+      piped.write("<html><head></head><body></body></html>".getBytes(UTF_8));
+      piped.close();
+    });
   }
 }

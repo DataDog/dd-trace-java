@@ -167,10 +167,9 @@ class SpanEnrichmentWriterTest {
   @Test
   void recordingSwallowsResolverErrors() {
     final SpanEnrichmentWriter writer =
-        new SpanEnrichmentWriter(
-            () -> {
-              throw new RuntimeException("resolver boom");
-            });
+        new SpanEnrichmentWriter(() -> {
+          throw new RuntimeException("resolver boom");
+        });
     // Must not propagate — enrichment can never break flag evaluation.
     writer.serialId(5, false, null);
     assertTrue(writer.states().isEmpty());

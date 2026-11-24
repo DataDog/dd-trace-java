@@ -68,6 +68,9 @@ public class DollarVariableInstrumentation extends InstrumenterModule.Iast
         return;
       }
       String charSec = DollarVariable2_3_9Helper.fetchCharSec(self, environment);
+      if (charSec == null) {
+        return;
+      }
       final String templateName = environment.getTemplate().getName();
       final int line = DollarVariable2_3_9Helper.fetchBeginLine(self);
       xssModule.onXss(charSec, templateName, line);

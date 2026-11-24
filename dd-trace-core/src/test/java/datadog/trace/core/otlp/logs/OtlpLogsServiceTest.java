@@ -22,6 +22,6 @@ class OtlpLogsServiceTest {
 
     assertInstanceOf(OtlpLogsJsonCollector.class, service.getCollector());
     OtlpHttpSender sender = assertInstanceOf(OtlpHttpSender.class, service.getSender());
-    assertEquals("http://localhost:4318/v1/logs", sender.url().toString());
+    assertEquals("http://localhost:4318/v1/logs", sender.destination().toString());
   }
 }

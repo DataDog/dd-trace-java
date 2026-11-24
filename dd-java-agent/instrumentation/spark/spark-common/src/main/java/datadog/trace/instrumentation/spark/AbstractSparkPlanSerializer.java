@@ -69,10 +69,9 @@ public abstract class AbstractSparkPlanSerializer {
   public Map<String, String> extractFormattedProduct(SparkPlan plan) {
     HashMap<String, String> result = new HashMap<>();
     safeParseTreeNode(plan, 0)
-        .forEach(
-            (key, value) -> {
-              result.put(key, writeObjectToString(value));
-            });
+        .forEach((key, value) -> {
+          result.put(key, writeObjectToString(value));
+        });
     return result;
   }
 

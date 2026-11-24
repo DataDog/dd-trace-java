@@ -36,7 +36,8 @@ import io.undertow.servlet.api.ServletContainer
 import io.undertow.servlet.api.ServletInfo
 import io.undertow.servlet.util.ImmediateInstanceHandle
 import java.nio.charset.StandardCharsets
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import javax.servlet.AsyncContext
 import javax.servlet.AsyncEvent
 import javax.servlet.AsyncListener
@@ -443,21 +444,23 @@ class TimeoutServlet extends HttpServlet {
   @Override
   protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
     def async = req.startAsync()
-    AtomicReference<Thread> threadRef = new AtomicReference()
+    CountDownLatch finished = new CountDownLatch(1)
     async.addListener(new AsyncListener() {
         @Override
         void onComplete(AsyncEvent event) throws IOException {
+          finished.countDown()
         }
 
         @Override
         void onTimeout(AsyncEvent event) throws IOException {
-          threadRef.get().interrupt()
+          finished.countDown()
           resp.status = 500
           event.asyncContext.complete()
         }
 
         @Override
         void onError(AsyncEvent event) throws IOException {
+          finished.countDown()
         }
 
         @Override
@@ -469,9 +472,13 @@ class TimeoutServlet extends HttpServlet {
     async.start {
       controller(HttpServerTest.ServerEndpoint.forPath(req.servletPath)) {
         try {
-          threadRef.set(Thread.currentThread())
-          Thread.sleep(3600_000)
+          // Remember a timeout that fires before this worker starts, and bound cleanup
+          // even if the container never delivers a terminal callback.
+          if (!finished.await(10, TimeUnit.SECONDS)) {
+            throw new IllegalStateException('Async timeout callback was not delivered')
+          }
         } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt()
         }
       }
     }

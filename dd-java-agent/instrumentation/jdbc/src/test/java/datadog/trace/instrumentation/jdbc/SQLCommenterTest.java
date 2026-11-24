@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class SQLCommenterTest extends AbstractInstrumentationTest {
 
@@ -28,6 +29,21 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
       "00-00000000000000007fffffffffffffff-000000024cb016ea-00";
   private static final String TRACE_PARENT_SAMPLED =
       "00-00000000000000007fffffffffffffff-000000024cb016ea-01";
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "{call dbo.get_user_widgets(1)}",
+        "{ call dbo.get_user_widgets(1) }",
+        "{? = call dbo.get_user_widgets(1)}",
+        " \t{call dbo.get_user_widgets(1)}"
+      })
+  void appendsSqlServerEscapeCallComments(String sql) {
+    configureSizingTest();
+    assertEquals(
+        sql + " /*dddbs='sqlserver',ddh='localhost',dddb='testdb'*/",
+        SQLCommenter.inject(sql, "sqlserver", "sqlserver", "localhost", "testdb", null, false));
+  }
 
   @Test
   void buildsCommentsLargerThanTheOldInitialCapacity() {

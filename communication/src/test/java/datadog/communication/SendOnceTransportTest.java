@@ -38,19 +38,18 @@ class SendOnceTransportTest extends DDJavaSpecification {
     // server.
     intakeClient =
         new OkHttpClient.Builder()
-            .addInterceptor(
-                chain -> {
-                  final Request original = chain.request();
-                  final HttpUrl local =
-                      original
-                          .url()
-                          .newBuilder()
-                          .scheme("http")
-                          .host(server.getHostName())
-                          .port(server.getPort())
-                          .build();
-                  return chain.proceed(original.newBuilder().url(local).build());
-                })
+            .addInterceptor(chain -> {
+              final Request original = chain.request();
+              final HttpUrl local =
+                  original
+                      .url()
+                      .newBuilder()
+                      .scheme("http")
+                      .host(server.getHostName())
+                      .port(server.getPort())
+                      .build();
+              return chain.proceed(original.newBuilder().url(local).build());
+            })
             .build();
   }
 

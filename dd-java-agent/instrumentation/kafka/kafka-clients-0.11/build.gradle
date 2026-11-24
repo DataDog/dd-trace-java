@@ -23,7 +23,6 @@ muzzle {
 }
 
 addTestSuite('latestDepTest')
-addForkedTestTask('latestDepTest')
 addTestSuite('iastLatestDepTest3')
 
 dependencies {
@@ -73,7 +72,9 @@ dependencies {
 }
 
 tasks.named("iastLatestDepTest3", Test) {
-  javaLauncher = getJavaLauncherFor(17)
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
   jvmArgs = ['--add-opens', 'java.base/java.util=ALL-UNNAMED']
 }
 

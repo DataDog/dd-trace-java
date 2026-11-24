@@ -25,16 +25,6 @@ java {
   sourceCompatibility = JavaVersion.VERSION_1_8
 }
 
-// `iastUtilJar` is wired up by the outer `smokeTestApp { projectJar('iastUtilJar', ...) }`
-// block in ../build.gradle: it passes the path of the built `:dd-smoke-tests:iast-util`
-// jar into this nested build as a Gradle property. We add it as a flat-file dependency
-// because the outer build's projects are not addressable from inside the nested build.
-if (hasProperty('iastUtilJar')) {
-  dependencies {
-    implementation files(property('iastUtilJar'))
-  }
-}
-
 dependencies {
   implementation('org.springframework.boot:spring-boot-starter-web')
   implementation('org.springframework.boot:spring-boot-starter-actuator')

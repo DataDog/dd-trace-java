@@ -84,6 +84,16 @@ object AkkaHttpTestWebServer {
     ): Future[ServerBinding]
   }
 
+  val BindRejectedRoute: Binder = new Binder {
+    override def name: String = "single-rejected-route"
+    override def bind(
+        port: Int
+    )(implicit system: ActorSystem, materializer: Materializer): Future[ServerBinding] = {
+      import materializer.executionContext
+      Http().bindAndHandle(path("single" / Segment) { _ => reject }, "localhost", port)
+    }
+  }
+
   val BindAndHandle: Binder = new Binder {
     override def name: String = "bind-and-handle"
 
@@ -205,10 +215,22 @@ object AkkaHttpTestWebServer {
     })
     .result()
 
+  private val opaqueSegment = new PathMatcher[Unit] {
+    override def apply(path: Uri.Path): PathMatcher.Matching[Unit] = path match {
+      case Uri.Path.Segment(_, tail) => PathMatcher.Matched(tail, ())
+      case _                         => PathMatcher.Unmatched
+    }
+  }
+
   def route(implicit ec: ExecutionContext): Route = withController {
     handleRejections(blockingRejectionHandler) {
       respondWithDefaultHeader(defaultHeader) {
-        get {
+        pathPrefix("crud") {
+          pathEnd { concat(get { complete("list") }, post { complete("created") }) } ~
+            path(Segment) { _ =>
+              concat(get { complete("detail") }, delete { complete("deleted") })
+            }
+        } ~ get {
           path(SUCCESS.relativePath) {
             complete(
               HttpResponse(status = SUCCESS.getStatus, entity = SUCCESS.getBody)
@@ -241,6 +263,59 @@ object AkkaHttpTestWebServer {
             complete(HttpResponse(status = ERROR.getStatus, entity = ERROR.getBody))
           } ~ path(EXCEPTION.relativePath) {
             throw new Exception(EXCEPTION.getBody)
+          } ~ pathPrefix("directive-rejection") {
+            path(Segment) { _ =>
+              onSuccess(Future { 1 }) { _ =>
+                parameter("required") { _ => complete("accepted") }
+              }
+            } ~ complete("fallback")
+          } ~ pathPrefix("header-rejection") {
+            path(Segment) { _ =>
+              headerValueByName("authorization") { _ => complete("accepted") }
+            } ~ complete("fallback")
+          } ~ pathPrefix("zero-consumption-rejection") {
+            path(Segment) { _ => reject } ~
+              rawPathPrefix(Segment.?) { _ => complete("fallback") }
+          } ~ pathPrefix("prefix-empty-fallback") {
+            path("detail") { complete("detail") } ~ pathEnd { complete("fallback") }
+          } ~ path("handled-rejection" / Segment) { _ =>
+            handleRejections(
+              RejectionHandler
+                .newBuilder()
+                .handleAll[MissingQueryParamRejection] { _ => complete("handled") }
+                .result()
+            ) {
+              parameter("required") { _ => complete("accepted") }
+            }
+          } ~ pathPrefix("delayed-rejection") {
+            path(Segment) { _ => onSuccess(Future { Thread.sleep(10); 1 }) { _ => reject } } ~
+              path(Segment) { _ => complete("accepted") }
+          } ~ (path("directive-or" / Segment).tfilter(_ => false) |
+            (path("directive-or" / "literal") & provide("literal"))) { _ =>
+            complete("accepted")
+          } ~ pathPrefix("directive-or-empty") {
+            (path(Segment).tfilter(_ => false) | provide("fallback")) { _ => complete("fallback") }
+          } ~ pathPrefix("lookahead") {
+            pathPrefixTest("users") {
+              path("users" / Segment) { _ => complete("accepted") }
+            }
+          } ~ pathPrefix("lookahead-dynamic") {
+            pathPrefixTest(Segment) { _ =>
+              path("users" / Segment) { _ => complete("accepted") }
+            }
+          } ~ path("opaque" / opaqueSegment) {
+            complete("accepted")
+          } ~ path("items" / Segment) { _ =>
+            complete("item")
+          } ~ pathPrefix("route-async" / IntNumber) { id =>
+            onSuccess(Future { id }) { _ =>
+              path("detail" / IntNumber) { detail =>
+                complete(s"$id:$detail")
+              }
+            }
+          } ~ pathPrefix("route-alternative") {
+            pathPrefix(IntNumber) { _ => reject } ~
+              path(IntNumber / "accepted") { id => complete(s"$id") }
           } ~ pathPrefix("injected-id") {
             path("ping" / IntNumber) { id =>
               val traceId = AgentTracer.activeSpan().getTraceId
