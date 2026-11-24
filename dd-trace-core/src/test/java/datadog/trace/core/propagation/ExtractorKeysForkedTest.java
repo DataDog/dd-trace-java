@@ -219,6 +219,28 @@ class ExtractorKeysForkedTest extends DDJavaSpecification {
     assertSame(keys, compound.keys());
   }
 
+  @Test
+  void mergingFromHeaderConstantsMatchesInterpretingEveryKey() {
+    assumeFalse(ContextInterpreter.LOG_EXTRACT_HEADER_NAMES);
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig = DynamicConfig.create().apply();
+    List<HttpCodec.Extractor> parts = new ArrayList<>();
+    parts.add(DatadogHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig));
+    parts.add(W3CHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig));
+    HttpCodec.CompoundExtractor compound = new HttpCodec.CompoundExtractor(parts, false);
+
+    // every traceparent against every tracestate, Datadog headers matching, mismatching or absent
+    List<Map<String, String>> corpus = CompoundExtractionGoldenTest.corpus(true);
+    for (Map<String, String> headers : corpus) {
+      // a String carrier runs the trace context interpreter over every key
+      String interpreted = describe(compound.extract(headers, stringValuesMap()));
+      // the composite propagator's cache knows each key's constant, so the merge reads the trace
+      // context headers straight from it
+      String fromConstants =
+          describe(compound.extract(new Indexed(headers, compound.keys()), WITH_HEADERS));
+      assertEquals(interpreted, fromConstants, headers.toString());
+    }
+  }
+
   /** A carrier that knows each key's header constant, as the composite propagator's cache does. */
   static final class Indexed implements IndexedCarrier {
     final List<String> keys = new ArrayList<>();
