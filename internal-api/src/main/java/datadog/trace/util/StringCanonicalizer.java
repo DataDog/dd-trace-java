@@ -166,13 +166,20 @@ public final class StringCanonicalizer {
     final int mask = strings.length - 1;
     for (int i = 0; i < oldStrings.length; i++) {
       if (oldStrings[i] != null) {
-        // Rehashing places every entry: the table is at most half full, so a slot is near.
+        // The new table is a quarter full, so a free slot is normally near. Rehashing still stops
+        // where a lookup would, so the insert that triggers growth costs at most MAX_PROBES per
+        // entry: an entry with no slot that close is dropped, which only costs sharing it.
         int slot = HashingUtils.hashSpread(oldHashes[i]) & mask;
-        while (strings[slot] != null) {
+        int probes = 0;
+        while (strings[slot] != null && ++probes < MAX_PROBES) {
           slot = (slot + 1) & mask;
         }
-        strings[slot] = oldStrings[i];
-        hashes[slot] = oldHashes[i];
+        if (strings[slot] == null) {
+          strings[slot] = oldStrings[i];
+          hashes[slot] = oldHashes[i];
+        } else {
+          --size;
+        }
       }
     }
   }
