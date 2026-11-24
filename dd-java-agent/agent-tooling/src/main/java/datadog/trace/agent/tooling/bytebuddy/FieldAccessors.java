@@ -3,12 +3,13 @@ package datadog.trace.agent.tooling.bytebuddy;
 import datadog.trace.agent.tooling.context.asm.SerialVersionUIDInjector;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.bootstrap.instrumentation.api.Field;
 import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
@@ -26,9 +27,9 @@ import net.bytebuddy.utility.OpenedClassReader;
 /**
  * Makes the instrumented class implement an accessor interface whose methods each return one of its
  * fields, so agent code can read private fields without reflection: each getter is a plain field
- * read. Install it as type advice with {@code TypeTransformer#installFieldAccessors(Class,
- * String...)}, from an instrumentation that is {@code Instrumenter.WithStructuralChange} with the
- * accessor interface as its marker.
+ * read. Install it as type advice with {@code TypeTransformer#installFieldAccessors(Class)}, from
+ * an instrumentation that is {@code Instrumenter.WithStructuralChange} with the accessor interface
+ * as its marker.
  *
  * <p>All or nothing: the interface and getters are added only if every named field is declared by
  * the class, is non-static and has exactly its getter's return type. Otherwise the class is left as
@@ -46,9 +47,10 @@ import net.bytebuddy.utility.OpenedClassReader;
  * also injects it, as a helper, into the instrumented class's loader, ahead of the class itself. An
  * interface on the bootstrap class path is used as it is. Agent code that reads the accessors must
  * see the same interface, so its helpers must be injected into the same loader (and declare the
- * interface as a helper, or use {@code injectHelperDependencies()}). The interface's methods must
- * all be abstract getters taking no arguments, one per field. Getter names should be prefixed with
- * {@code $$DD$$__} so they can't collide with the class's own methods.
+ * interface as a helper, or use {@code injectHelperDependencies()}). Each of the interface's
+ * abstract methods is a getter taking no arguments: {@code $$DD$$__foo()} returns field {@code
+ * foo}, and a {@link Field} annotation names a field the getter's name doesn't. The {@code
+ * $$DD$$__} prefix also keeps getters from colliding with the class's own methods.
  *
  * <p>Adding an interface and methods changes a {@code Serializable} class's default {@code
  * serialVersionUID}, so a class that declares none gets its original value pinned as a field, as
@@ -64,65 +66,67 @@ public final class FieldAccessors implements AsmVisitorWrapper {
   private final String[] fields;
   private final String[] descriptors;
 
+  /** The getter-name prefix that names a getter's field by convention. */
+  public static final String GETTER_PREFIX = "$$DD$$__";
+
   /**
-   * @param accessorInterface the interface to add
-   * @param methodAndFieldNames pairs of getter method name (declared by the interface, no
-   *     arguments) and the name of the field it returns
+   * @param accessorInterface the interface to add: each abstract method is a getter taking no
+   *     arguments, returning the field named by its {@link Field} annotation or, without one, by
+   *     its name after the {@link #GETTER_PREFIX}
    */
-  public FieldAccessors(Class<?> accessorInterface, String... methodAndFieldNames) {
+  public FieldAccessors(Class<?> accessorInterface) {
     if (!accessorInterface.isInterface()) {
       throw new IllegalArgumentException(accessorInterface + " is not an interface");
     }
-    if (methodAndFieldNames.length == 0 || methodAndFieldNames.length % 2 != 0) {
-      throw new IllegalArgumentException("expected getter method / field name pairs");
-    }
-    int count = methodAndFieldNames.length / 2;
     this.accessorInterface = Type.getInternalName(accessorInterface);
+    List<Method> getters = new ArrayList<>();
+    for (Method method : accessorInterface.getMethods()) {
+      if (method.isDefault() || Modifier.isStatic(method.getModifiers())) {
+        continue;
+      }
+      // only a no-argument getter is generated, so a method taking arguments would be left
+      // unimplemented and throw AbstractMethodError when called (a covariant redeclaration is
+      // fine: javac bridges it with a default method)
+      if (method.getParameterCount() != 0) {
+        throw new IllegalArgumentException(method + " takes arguments");
+      }
+      if (method.getReturnType() == void.class) {
+        throw new IllegalArgumentException(method + " returns nothing");
+      }
+      getters.add(method);
+    }
+    if (getters.isEmpty()) {
+      throw new IllegalArgumentException(accessorInterface + " declares no getters");
+    }
+    // a stable order, so the generated getters and muzzle references don't depend on reflection
+    getters.sort(Comparator.comparing(Method::getName));
+    int count = getters.size();
     this.methods = new String[count];
     this.fields = new String[count];
     this.descriptors = new String[count];
     for (int i = 0; i < count; i++) {
-      String method = methodAndFieldNames[2 * i];
-      this.methods[i] = method;
-      this.fields[i] = methodAndFieldNames[2 * i + 1];
-      this.descriptors[i] = Type.getDescriptor(getter(accessorInterface, method).getReturnType());
-    }
-    // every abstract method gets exactly one field: the same set of names, none repeated
-    Set<String> named = new HashSet<>(Arrays.asList(this.methods));
-    if (named.size() != count) {
-      throw new IllegalArgumentException(
-          "a getter is named more than once: " + Arrays.toString(this.methods));
-    }
-    Set<String> declared = new HashSet<>();
-    for (Method method : accessorInterface.getMethods()) {
-      if (!method.isDefault() && !Modifier.isStatic(method.getModifiers())) {
-        // only the no-argument getter of each name is generated, so an overload taking arguments
-        // would be left unimplemented and throw AbstractMethodError when called (a covariant
-        // redeclaration is fine: javac bridges it with a default method)
-        if (method.getParameterCount() != 0) {
-          throw new IllegalArgumentException(method + " takes arguments");
-        }
-        declared.add(method.getName());
+      Method getter = getters.get(i);
+      if (i > 0 && getter.getName().equals(this.methods[i - 1])) {
+        // two abstract declarations of one name: only one could be generated
+        throw new IllegalArgumentException(getter + " is declared more than once");
       }
-    }
-    if (!declared.equals(named)) {
-      declared.removeAll(named);
-      throw new IllegalArgumentException(
-          accessorInterface + " has abstract methods without a field: " + declared);
+      this.methods[i] = getter.getName();
+      this.fields[i] = fieldName(getter);
+      this.descriptors[i] = Type.getDescriptor(getter.getReturnType());
     }
   }
 
-  private static Method getter(Class<?> accessorInterface, String name) {
-    try {
-      Method method = accessorInterface.getMethod(name);
-      if (method.getReturnType() == void.class) {
-        throw new IllegalArgumentException(method + " returns nothing");
-      }
-      return method;
-    } catch (NoSuchMethodException e) {
-      throw new IllegalArgumentException(
-          accessorInterface + " has no no-argument method " + name, e);
+  private static String fieldName(Method getter) {
+    Field field = getter.getAnnotation(Field.class);
+    if (field != null) {
+      return field.value();
     }
+    String name = getter.getName();
+    if (name.startsWith(GETTER_PREFIX) && name.length() > GETTER_PREFIX.length()) {
+      return name.substring(GETTER_PREFIX.length());
+    }
+    throw new IllegalArgumentException(
+        getter + " needs @Field, or a name of " + GETTER_PREFIX + " and the field");
   }
 
   /** The accessor interface's binary name. */

@@ -25,13 +25,6 @@ class FieldAccessorMuzzleReferencesTest {
     byte[] $$DD$$__bytes();
   }
 
-  private static final String[] SAMPLE_GETTERS = {
-    "$$DD$$__name", "name",
-    "$$DD$$__count", "count",
-    "$$DD$$__total", "total",
-    "$$DD$$__bytes", "bytes",
-  };
-
   static final class AccessorModule extends InstrumenterModule.Tracing
       implements Instrumenter.ForSingleType, Instrumenter.WithStructuralChange {
     AccessorModule() {
@@ -50,7 +43,7 @@ class FieldAccessorMuzzleReferencesTest {
 
     @Override
     public void typeAdvice(TypeTransformer transformer) {
-      transformer.installFieldAccessors(SampleFields.class, SAMPLE_GETTERS);
+      transformer.installFieldAccessors(SampleFields.class);
     }
   }
 
@@ -94,7 +87,7 @@ class FieldAccessorMuzzleReferencesTest {
 
     @Override
     public void typeAdvice(TypeTransformer transformer) {
-      transformer.installFieldAccessors(SampleFields.class, SAMPLE_GETTERS);
+      transformer.installFieldAccessors(SampleFields.class);
     }
   }
 
@@ -128,7 +121,7 @@ class FieldAccessorMuzzleReferencesTest {
 
     @Override
     public void typeAdvice(TypeTransformer transformer) {
-      transformer.installFieldAccessors(SampleFields.class, SAMPLE_GETTERS);
+      transformer.installFieldAccessors(SampleFields.class);
     }
   }
 

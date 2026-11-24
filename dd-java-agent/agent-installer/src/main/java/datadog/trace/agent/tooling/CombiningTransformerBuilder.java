@@ -310,14 +310,14 @@ public final class CombiningTransformerBuilder
    * implements it, wherever the structural change ends up.
    */
   @Override
-  public void installFieldAccessors(Class<?> accessorInterface, String... methodAndFieldNames) {
+  public void installFieldAccessors(Class<?> accessorInterface) {
     if (accessorInterface.getClassLoader() != null
         && !moduleHelperClassNames.contains(accessorInterface.getName())) {
       advice.add(
           new HelperTransformer(
               useAgentCodeSource, adviceShader, requestingName, accessorInterface.getName()));
     }
-    applyAdvice(new FieldAccessors(accessorInterface, methodAndFieldNames));
+    applyAdvice(new FieldAccessors(accessorInterface));
   }
 
   @Override

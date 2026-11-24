@@ -124,7 +124,7 @@ class FieldAccessorInjectionForkedTest {
 
     @Override
     public void typeAdvice(TypeTransformer transformer) {
-      transformer.installFieldAccessors(TargetFields.class, "$$DD$$__name", "name");
+      transformer.installFieldAccessors(TargetFields.class);
     }
 
     @Override
