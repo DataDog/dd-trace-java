@@ -20,16 +20,6 @@ import net.bytebuddy.matcher.ElementMatcher;
 public final class RecordHeaderInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.WithStructuralChange {
 
-  /**
-   * Each getter of {@link BufferedHeaderFields}, then the {@code RecordHeader} field it returns.
-   */
-  static final String[] GETTERS_AND_FIELDS = {
-    "$$DD$$__key", "key",
-    "$$DD$$__keyBuffer", "keyBuffer",
-    "$$DD$$__value", "value",
-    "$$DD$$__valueBuffer", "valueBuffer",
-  };
-
   public RecordHeaderInstrumentation() {
     super("kafka", "kafka-3.8");
   }
@@ -51,6 +41,6 @@ public final class RecordHeaderInstrumentation extends InstrumenterModule.Tracin
 
   @Override
   public void typeAdvice(TypeTransformer transformer) {
-    transformer.installFieldAccessors(BufferedHeaderFields.class, GETTERS_AND_FIELDS);
+    transformer.installFieldAccessors(BufferedHeaderFields.class);
   }
 }

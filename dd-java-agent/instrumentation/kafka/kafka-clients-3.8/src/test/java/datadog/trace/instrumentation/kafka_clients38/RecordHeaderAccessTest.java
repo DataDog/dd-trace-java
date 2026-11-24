@@ -156,8 +156,7 @@ class RecordHeaderAccessTest {
   @Test
   void fieldsMatchWhatTheInstrumentationExpects() {
     assertTrue(
-        new FieldAccessors(
-                BufferedHeaderFields.class, RecordHeaderInstrumentation.GETTERS_AND_FIELDS)
+        new FieldAccessors(BufferedHeaderFields.class)
             .appliesTo(ForLoadedType.of(RecordHeader.class)),
         "RecordHeader's layout changed; the accessor won't be installed");
   }
