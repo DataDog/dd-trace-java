@@ -22,10 +22,7 @@ public class ServerlessInfo {
     }
   }
 
-  @SuppressFBWarnings({
-    "DMI_HARDCODED_ABSOLUTE_FILENAME",
-    "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR"
-  })
+  @SuppressFBWarnings("DMI_HARDCODED_ABSOLUTE_FILENAME")
   public ServerlessInfo() {
     // TODO add more serverless configuration properties
     // support envs other than AWS lambda
