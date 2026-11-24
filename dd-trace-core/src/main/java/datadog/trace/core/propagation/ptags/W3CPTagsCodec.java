@@ -410,7 +410,9 @@ public class W3CPTagsCodec extends PTagsCodec {
         sb.append(';');
       }
       sb.append("p:");
-      if (lastParent instanceof TagValue) {
+      if (lastParent instanceof PaddedHexSpanId) {
+        ((PaddedHexSpanId) lastParent).appendTo(sb);
+      } else if (lastParent instanceof TagValue) {
         sb.append(((TagValue) lastParent).forType(Encoding.W3C));
       } else {
         sb.append(lastParent);
