@@ -16,12 +16,10 @@ muzzle {
   }
 }
 
-addTestSuiteForDir('latestDepTest', 'test')
-
 addTestSuiteForDir("jetty9Test", "test/jetty9")
 addTestSuiteForDir("jetty11Test", "test/jetty11")
-addTestSuiteExtendingForDir("jetty9LatestDepTest", "latestDepTest", "test/jetty9")
-addTestSuiteExtendingForDir("jetty11LatestDepTest", "latestDepTest", "test/jetty11")
+addTestSuiteForDir("jetty9LatestDepTest", "test/jetty9")
+addTestSuiteForDir("jetty11LatestDepTest", "test/jetty11")
 
 ["jetty11Test", "jetty11LatestDepTest"].each { name ->
   tasks.named(name, Test) {
