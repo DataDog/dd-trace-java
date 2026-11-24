@@ -85,11 +85,10 @@ public class VirtualThreadProfilingContextTest extends AbstractInstrumentationTe
     PROFILING_CONTEXT.reset();
 
     Thread thread =
-        Thread.startVirtualThread(
-            () -> {
-              spanIdAtRunnableEntry.set(PROFILING_CONTEXT.activeSpanId());
-              bindingsAtRunnableEntry.set(PROFILING_CONTEXT.bindings());
-            });
+        Thread.startVirtualThread(() -> {
+          spanIdAtRunnableEntry.set(PROFILING_CONTEXT.activeSpanId());
+          bindingsAtRunnableEntry.set(PROFILING_CONTEXT.bindings());
+        });
     try {
       assertTrue(thread.join(TIMEOUT), "virtual thread did not finish in time");
     } catch (InterruptedException e) {

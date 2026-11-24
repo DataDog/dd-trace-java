@@ -6,9 +6,9 @@ import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
-import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.getByType
 import java.net.URLClassLoader
 import java.nio.file.Path
@@ -44,27 +44,27 @@ internal var cachedConfigFields: LoadedConfigFields? = null
 internal fun loadConfigFields(
   mainSourceSetOutput: org.gradle.api.file.FileCollection,
   generatedClassName: String
-): LoadedConfigFields {
-  return cachedConfigFields ?: run {
-    val urls = mainSourceSetOutput.files.map { it.toURI().toURL() }.toTypedArray()
-    URLClassLoader(urls, LoadedConfigFields::class.java.classLoader).use { cl ->
-      val clazz = Class.forName(generatedClassName, true, cl)
+): LoadedConfigFields = cachedConfigFields ?: run {
+  val urls = mainSourceSetOutput.files.map { it.toURI().toURL() }.toTypedArray()
+  URLClassLoader(urls, LoadedConfigFields::class.java.classLoader).use { cl ->
+    val clazz = Class.forName(generatedClassName, true, cl)
 
-      val supportedField = clazz.getField("SUPPORTED").get(null)
-      @Suppress("UNCHECKED_CAST")
-      val supportedSet = when (supportedField) {
-        is Set<*> -> supportedField as Set<String>
-        is Map<*, *> -> supportedField.keys as Set<String>
-        else -> throw IllegalStateException("SUPPORTED field must be either Set<String> or Map<String, Any>, but was ${supportedField?.javaClass}")
-      }
+    val supportedField = clazz.getField("SUPPORTED").get(null)
 
-      @Suppress("UNCHECKED_CAST")
-      val aliasMappingMap = clazz.getField("ALIAS_MAPPING").get(null) as Map<String, String>
-      @Suppress("UNCHECKED_CAST")
-      val aliasesMap = clazz.getField("ALIASES").get(null) as Map<String, List<String>>
-      LoadedConfigFields(supportedSet, aliasMappingMap, aliasesMap)
-    }.also { cachedConfigFields = it }
-  }
+    @Suppress("UNCHECKED_CAST")
+    val supportedSet = when (supportedField) {
+      is Set<*> -> supportedField as Set<String>
+      is Map<*, *> -> supportedField.keys as Set<String>
+      else -> throw IllegalStateException("SUPPORTED field must be either Set<String> or Map<String, Any>, but was ${supportedField?.javaClass}")
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    val aliasMappingMap = clazz.getField("ALIAS_MAPPING").get(null) as Map<String, String>
+
+    @Suppress("UNCHECKED_CAST")
+    val aliasesMap = clazz.getField("ALIASES").get(null) as Map<String, List<String>>
+    LoadedConfigFields(supportedSet, aliasMappingMap, aliasesMap)
+  }.also { cachedConfigFields = it }
 }
 
 /** Registers `logEnvVarUsages` (scan for DD_/OTEL_ tokens and fail if unsupported). */
@@ -134,51 +134,47 @@ private fun registerLogEnvVarUsages(target: Project, extension: SupportedTracerC
 }
 
 /** Registers `checkEnvironmentVariablesUsage` (forbid EnvironmentVariables.get(...)). */
-private fun registerCheckEnvironmentVariablesUsage(project: Project): TaskProvider<Task> {
-  return project.tasks.register("checkEnvironmentVariablesUsage") {
-    group = "verification"
-    description = "Scans src/main/java for direct usages of EnvironmentVariables.get(...)"
+private fun registerCheckEnvironmentVariablesUsage(project: Project): TaskProvider<Task> = project.tasks.register("checkEnvironmentVariablesUsage") {
+  group = "verification"
+  description = "Scans src/main/java for direct usages of EnvironmentVariables.get(...)"
 
-    doLast {
-      val repoRoot: Path = project.projectDir.toPath()
-      val javaFiles = project.fileTree(project.projectDir) {
-        include("**/src/main/java/**/*.java")
-        exclude("**/build/**")
-        exclude("utils/config-utils/src/main/java/datadog/trace/config/inversion/ConfigHelper.java")
-        exclude("dd-java-agent/agent-bootstrap/**")
-        exclude("dd-java-agent/src/main/java/datadog/trace/bootstrap/**")
-      }
+  doLast {
+    val repoRoot: Path = project.projectDir.toPath()
+    val javaFiles = project.fileTree(project.projectDir) {
+      include("**/src/main/java/**/*.java")
+      exclude("**/build/**")
+      exclude("utils/config-utils/src/main/java/datadog/trace/config/inversion/ConfigHelper.java")
+      exclude("dd-java-agent/agent-bootstrap/**")
+      exclude("dd-java-agent/src/main/java/datadog/trace/bootstrap/**")
+    }
 
-      val pattern = Regex("""EnvironmentVariables\.get\s*\(""")
-      val matches = buildList {
-        javaFiles.forEach { f ->
-          val relative = repoRoot.relativize(f.toPath())
-          f.readLines().forEachIndexed { idx, line ->
-            if (pattern.containsMatchIn(line)) {
-              add("$relative:${idx + 1} -> ${line.trim()}")
-            }
+    val pattern = Regex("""EnvironmentVariables\.get\s*\(""")
+    val matches = buildList {
+      javaFiles.forEach { f ->
+        val relative = repoRoot.relativize(f.toPath())
+        f.readLines().forEachIndexed { idx, line ->
+          if (pattern.containsMatchIn(line)) {
+            add("$relative:${idx + 1} -> ${line.trim()}")
           }
         }
       }
+    }
 
-      if (matches.isNotEmpty()) {
-        project.logger.lifecycle("\nFound forbidden usages of EnvironmentVariables.get(...):")
-        matches.forEach { project.logger.lifecycle(it) }
-        throw GradleException("Forbidden usage of EnvironmentVariables.get(...) found in Java files.")
-      } else {
-        project.logger.info("No forbidden EnvironmentVariables.get(...) usages found in src/main/java.")
-      }
+    if (matches.isNotEmpty()) {
+      project.logger.lifecycle("\nFound forbidden usages of EnvironmentVariables.get(...):")
+      matches.forEach { project.logger.lifecycle(it) }
+      throw GradleException("Forbidden usage of EnvironmentVariables.get(...) found in Java files.")
+    } else {
+      project.logger.info("No forbidden EnvironmentVariables.get(...) usages found in src/main/java.")
     }
   }
 }
 
 // Helper functions for checking Config Strings
-internal fun normalize(configValue: String) =
-  "DD_" + configValue.uppercase().replace("-", "_").replace(".", "_")
+internal fun normalize(configValue: String) = "DD_" + configValue.uppercase().replace("-", "_").replace(".", "_")
 
 // Checking "public" "static" "final"
-internal fun NodeWithModifiers<*>.hasModifiers(vararg mods: Modifier.Keyword) =
-  mods.all { hasModifier(it) }
+internal fun NodeWithModifiers<*>.hasModifiers(vararg mods: Modifier.Keyword) = mods.all { hasModifier(it) }
 
 /** Registers `checkConfigStrings` to validate config definitions against documented supported configurations. */
 private fun registerCheckConfigStringsTask(project: Project, extension: SupportedTracerConfigurations): TaskProvider<Task> {
@@ -202,7 +198,6 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
   }
 }
 
-
 /** Registers `checkInstrumenterModuleConfigurations` to verify each InstrumenterModule's integration name has proper entries in SUPPORTED and ALIASES. */
 private fun registerCheckInstrumenterModuleConfigurations(project: Project, extension: SupportedTracerConfigurations): TaskProvider<CheckInstrumenterModuleConfigTask> {
   val ownerPath = extension.configOwnerPath
@@ -212,15 +207,19 @@ private fun registerCheckInstrumenterModuleConfigurations(project: Project, exte
     group = "verification"
     description = "Validates that InstrumenterModule integration names have corresponding entries in SUPPORTED and ALIASES"
 
-    mainSourceSetOutput.from(ownerPath.map {
-      project.project(it)
-        .extensions.getByType<SourceSetContainer>()
-        .named(SourceSet.MAIN_SOURCE_SET_NAME)
-        .map { main -> main.output }
-    })
-    instrumentationFiles.from(project.fileTree(project.rootProject.projectDir) {
-      include("dd-java-agent/instrumentation/**/src/main/java/**/*.java")
-    })
+    mainSourceSetOutput.from(
+      ownerPath.map {
+        project.project(it)
+          .extensions.getByType<SourceSetContainer>()
+          .named(SourceSet.MAIN_SOURCE_SET_NAME)
+          .map { main -> main.output }
+      }
+    )
+    instrumentationFiles.from(
+      project.fileTree(project.rootProject.projectDir) {
+        include("dd-java-agent/instrumentation/**/src/main/java/**/*.java")
+      }
+    )
     generatedClassName.set(generatedFile)
     errorHeader.set("\nFound InstrumenterModule integration names with missing SUPPORTED/ALIASES entries:")
     errorMessage.set("InstrumenterModule integration names are missing from SUPPORTED or ALIASES in '${extension.jsonFile.get()}'.")
@@ -237,15 +236,19 @@ private fun registerCheckDecoratorAnalyticsConfigurations(project: Project, exte
     group = "verification"
     description = "Validates that Decorator instrumentationNames have corresponding analytics entries in SUPPORTED and ALIASES"
 
-    mainSourceSetOutput.from(ownerPath.map {
-      project.project(it)
-        .extensions.getByType<SourceSetContainer>()
-        .named(SourceSet.MAIN_SOURCE_SET_NAME)
-        .map { main -> main.output }
-    })
-    instrumentationFiles.from(project.fileTree(project.rootProject.projectDir) {
-      include("dd-java-agent/instrumentation/**/src/main/java/**/*.java")
-    })
+    mainSourceSetOutput.from(
+      ownerPath.map {
+        project.project(it)
+          .extensions.getByType<SourceSetContainer>()
+          .named(SourceSet.MAIN_SOURCE_SET_NAME)
+          .map { main -> main.output }
+      }
+    )
+    instrumentationFiles.from(
+      project.fileTree(project.rootProject.projectDir) {
+        include("dd-java-agent/instrumentation/**/src/main/java/**/*.java")
+      }
+    )
     generatedClassName.set(generatedFile)
     errorHeader.set("\nFound Decorator instrumentationNames with missing analytics SUPPORTED/ALIASES entries:")
     errorMessage.set("Decorator instrumentationNames are missing analytics entries from SUPPORTED or ALIASES in '${extension.jsonFile.get()}'.")

@@ -357,12 +357,11 @@ public final class CodeHotspotsTest {
     }
     spanSampleCnt.values().stream()
         .map(AtomicLong::get)
-        .forEach(
-            v -> {
-              summaryStats.addValue(v);
-              p99.increment(v);
-              p50.increment(v);
-            });
+        .forEach(v -> {
+          summaryStats.addValue(v);
+          p99.increment(v);
+          p50.increment(v);
+        });
 
     /*
      Qualified samples are scaled according to 'idleness' -

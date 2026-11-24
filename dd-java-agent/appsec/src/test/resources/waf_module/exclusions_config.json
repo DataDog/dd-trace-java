@@ -1,0 +1,29 @@
+{
+  "exclusions": [
+    {
+      "id": "1",
+      "rules_target": [
+        {
+          "tags": {
+            "type": "security_scanner"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "operator": "exact_match",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "http.client_ip"
+              }
+            ],
+            "list": [
+              "192.168.0.1"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

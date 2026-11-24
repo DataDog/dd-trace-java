@@ -71,6 +71,42 @@ public final class ExposureHook implements Hook<Object> {
     }
 
     /**
+     * Gets the evaluated flag key.
+     *
+     * @return the flag key.
+     */
+    public String getFlagKey() {
+      return this.delegate.getFlagKey();
+    }
+
+    /**
+     * Gets the selected variant.
+     *
+     * @return the variant key, or {@code null} when the evaluation did not select one.
+     */
+    public String getVariant() {
+      return this.delegate.getVariant();
+    }
+
+    /**
+     * Gets the key of the selected allocation.
+     *
+     * @return the allocation key, or {@code null} when the evaluation did not select one.
+     */
+    public String getAllocationKey() {
+      return this.delegate.getAllocationKey();
+    }
+
+    /**
+     * Gets the targeting key of the evaluation context.
+     *
+     * @return the targeting key, or {@code null} when the context has none.
+     */
+    public String getTargetingKey() {
+      return this.delegate.getTargetingKey();
+    }
+
+    /**
      * Tells whether the evaluation is an exposure, whether or not this subject was already exposed.
      *
      * @return {@code true} when the evaluation succeeded and selected an allocation that logs

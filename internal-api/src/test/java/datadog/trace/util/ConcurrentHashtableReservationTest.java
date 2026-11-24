@@ -388,13 +388,12 @@ class ConcurrentHashtableReservationTest {
     ExecutorService executor = Executors.newSingleThreadExecutor();
     try {
       Future<TestEntry> secondFuture =
-          executor.submit(
-              () -> {
-                try (ConcurrentHashtable.Reservation<TestEntry> second =
-                    ConcurrentHashtable.tryReserve(state, 1)) {
-                  return second.tryGetOrInsertOrNull(new TestEntry(1));
-                }
-              });
+          executor.submit(() -> {
+            try (ConcurrentHashtable.Reservation<TestEntry> second =
+                ConcurrentHashtable.tryReserve(state, 1)) {
+              return second.tryGetOrInsertOrNull(new TestEntry(1));
+            }
+          });
 
       // A buggy fast-reject would complete this immediately (with a null result) instead of
       // blocking on the still-held write lock.
