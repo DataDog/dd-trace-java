@@ -90,6 +90,28 @@ final class LazyLoadDiagnostics {
     log.warn(
         "Lazy-load diagnostics: matched integration names: {}", String.join(",", matchedNames));
     log.warn("Lazy-load diagnostics: matched module classes: {}", String.join(",", matchedModules));
+    // modules where every transformation is known-type: lazily loadable without memoizer changes
+    Map<String, boolean[]> knownOnly = new TreeMap<>(); // module class -> {allKnownType, matched}
+    for (Map.Entry<Integer, Entry> e : entries.entrySet()) {
+      String moduleClass = e.getValue().module.substring(0, e.getValue().module.indexOf('|'));
+      boolean[] flags = knownOnly.computeIfAbsent(moduleClass, k -> new boolean[] {true, false});
+      flags[0] &= "data: known type names".equals(e.getValue().category);
+      flags[1] |= matched.get(e.getKey());
+    }
+    java.util.Set<String> keep = new java.util.TreeSet<>();
+    int lazyKnownOnly = 0;
+    for (Map.Entry<String, boolean[]> m : knownOnly.entrySet()) {
+      if (m.getValue()[0] && !m.getValue()[1]) {
+        lazyKnownOnly++; // known-type only and never matched: would never be loaded
+      } else {
+        keep.add(m.getKey());
+      }
+    }
+    log.warn(
+        "Lazy-load diagnostics: {} modules are known-type only and unmatched; keep-list size {}",
+        lazyKnownOnly,
+        keep.size());
+    log.warn("Lazy-load diagnostics: keep modules (step 2): {}", String.join(",", keep));
     log.warn(
         "Lazy-load diagnostics: {} transformations in {} modules; {} modules matched at least once",
         entries.size(),
