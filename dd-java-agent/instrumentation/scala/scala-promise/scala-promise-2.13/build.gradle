@@ -34,13 +34,9 @@ spotless {
 // Ensure the common project is evaluated before we access its source sets
 evaluationDependsOn(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common')
 
-addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteForDir('latestDepTest', 'test', false) // latestDepForkedTest is declared below from other sources
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'forkedTest')
 addTestSuite('scala21317Test')
-
-tasks.named("latestDepTest", Test) {
-  finalizedBy 'latestDepForkedTest'
-}
 
 sourceSets {
   latestDepTest.java.srcDir 'src/scala21317Test/java'

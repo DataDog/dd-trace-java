@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTimeout;
 
@@ -175,6 +176,25 @@ class URIUtilsTest {
     assertEquals(raw.hashCode(), invalid.hashCode());
     assertEquals("ei", invalid.subSequence(1, 3).toString());
     assertEquals('r', invalid.charAt(3));
+  }
+
+  @Test
+  void lazyUrlsWithTheSameRenderingAreEqual() {
+    // Equality follows hashCode: two LazyUrls are equal when they render the same URL, whichever
+    // way they were built, so hash-keyed collections deduplicate them.
+    LazyUrl url = URIUtils.lazyValidURL("http", "localhost", 8080, "/owners/1");
+    LazyUrl sameParts = URIUtils.lazyValidURL("http", "localhost", 8080, "/owners/1");
+    LazyUrl sameRendering = URIUtils.lazyInvalidUrl("http://localhost:8080/owners/1");
+    LazyUrl otherPath = URIUtils.lazyValidURL("http", "localhost", 8080, "/owners/2");
+
+    assertEquals(url, sameParts);
+    assertEquals(url.hashCode(), sameParts.hashCode());
+    assertEquals(url, sameRendering);
+    assertEquals(sameRendering, url);
+    assertNotEquals(url, otherPath);
+    // Not equal to a String: String.equals can't return true for a LazyUrl, so this keeps equals
+    // symmetric.
+    assertNotEquals(url, "http://localhost:8080/owners/1");
   }
 
   @TableTest({

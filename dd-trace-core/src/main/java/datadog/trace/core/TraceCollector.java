@@ -103,5 +103,12 @@ public abstract class TraceCollector implements AgentTraceCollector {
 
   abstract DDSpan getRootSpan();
 
+  /**
+   * Called exactly once per span when it ends ({@code finish()} or {@code phasedFinish()}), always
+   * before {@link #onPublish}; for a phased finish, {@link #onPublish} runs later on {@code
+   * publish()}.
+   */
+  abstract void onEnd();
+
   abstract PublishState onPublish(final DDSpan span);
 }

@@ -37,7 +37,6 @@ import datadog.trace.api.telemetry.WafMetricCollector.WafErrorCode;
 import datadog.trace.api.telemetry.WafMetricCollector.WafInitRawMetric;
 import datadog.trace.api.telemetry.WafMetricCollector.WafMetric;
 import datadog.trace.api.telemetry.WafMetricCollector.WafUpdatesRawMetric;
-import datadog.trace.test.util.DDJavaSpecification;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -63,7 +62,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.tabletest.junit.TableTest;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-class WafMetricCollectorTest extends DDJavaSpecification {
+class WafMetricCollectorTest {
 
   /**
    * Call-path tags every ai_guard metric carries. Both are constant while a direct SDK call is the
@@ -213,23 +212,21 @@ class WafMetricCollectorTest extends DDJavaSpecification {
     int limit = 1024;
 
     // when
-    assertDoesNotThrow(
-        () -> {
-          for (int index = 0; index <= limit * 2; index++) {
-            collector.wafInit("foo", "bar", true);
-          }
-        });
+    assertDoesNotThrow(() -> {
+      for (int index = 0; index <= limit * 2; index++) {
+        collector.wafInit("foo", "bar", true);
+      }
+    });
 
     // then
     assertEquals(limit, collector.drain().size());
 
     // when
-    assertDoesNotThrow(
-        () -> {
-          for (int index = 0; index <= limit * 2; index++) {
-            collector.wafUpdates("bar", true);
-          }
-        });
+    assertDoesNotThrow(() -> {
+      for (int index = 0; index <= limit * 2; index++) {
+        collector.wafUpdates("bar", true);
+      }
+    });
 
     // then
     assertEquals(limit, collector.drain().size());
@@ -302,12 +299,11 @@ class WafMetricCollectorTest extends DDJavaSpecification {
 
     // when
     for (int index = 0; index < count; index++) {
-      executors.submit(
-          () -> {
-            latch.await();
-            collector.missingUserId(SPRING_SECURITY);
-            return null;
-          });
+      executors.submit(() -> {
+        latch.await();
+        collector.missingUserId(SPRING_SECURITY);
+        return null;
+      });
     }
 
     latch.countDown();
@@ -851,12 +847,11 @@ class WafMetricCollectorTest extends DDJavaSpecification {
   private void submitMissingUserLogin(
       ExecutorService executors, CountDownLatch latch, LoginEvent event, int count) {
     for (int index = 0; index < count; index++) {
-      executors.submit(
-          () -> {
-            latch.await();
-            collector.missingUserLogin(SPRING_SECURITY, event);
-            return null;
-          });
+      executors.submit(() -> {
+        latch.await();
+        collector.missingUserLogin(SPRING_SECURITY, event);
+        return null;
+      });
     }
   }
 

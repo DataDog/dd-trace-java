@@ -42,24 +42,23 @@ class RegistryExtension :
     server.useHttps(certificates.sslSocketFactory(), false)
     server.setDispatcher(
       object : Dispatcher() {
-        override fun dispatch(request: RecordedRequest): MockResponse =
-          when {
-            unavailable -> {
-              MockResponse().setResponseCode(503)
-            }
-
-            !request.path!!.startsWith("/v2/") -> {
-              MockResponse().setResponseCode(404)
-            }
-
-            else -> {
-              val body = manifest()
-              MockResponse()
-                .setHeader("Content-Type", "application/vnd.oci.image.manifest.v1+json")
-                .setHeader("Docker-Content-Digest", digest(body))
-                .setBody(body)
-            }
+        override fun dispatch(request: RecordedRequest): MockResponse = when {
+          unavailable -> {
+            MockResponse().setResponseCode(503)
           }
+
+          !request.path!!.startsWith("/v2/") -> {
+            MockResponse().setResponseCode(404)
+          }
+
+          else -> {
+            val body = manifest()
+            MockResponse()
+              .setHeader("Content-Type", "application/vnd.oci.image.manifest.v1+json")
+              .setHeader("Docker-Content-Digest", digest(body))
+              .setBody(body)
+          }
+        }
       },
     )
     server.start(InetAddress.getByName("127.0.0.1"), 0)
@@ -69,11 +68,9 @@ class RegistryExtension :
     server.shutdown()
   }
 
-  private fun manifest() =
-    """{"schemaVersion":2,"mediaType":"application/vnd.oci.image.manifest.v1+json","config":{"mediaType":"application/vnd.oci.image.config.v1+json","digest":"${digest(
-      imageVersion.toString(),
-    )}","size":2},"layers":[]}"""
+  private fun manifest() = """{"schemaVersion":2,"mediaType":"application/vnd.oci.image.manifest.v1+json","config":{"mediaType":"application/vnd.oci.image.config.v1+json","digest":"${digest(
+    imageVersion.toString(),
+  )}","size":2},"layers":[]}"""
 
-  private fun digest(body: String) =
-    "sha256:" + MessageDigest.getInstance("SHA-256").digest(body.toByteArray()).joinToString("") { "%02x".format(it) }
+  private fun digest(body: String) = "sha256:" + MessageDigest.getInstance("SHA-256").digest(body.toByteArray()).joinToString("") { "%02x".format(it) }
 }

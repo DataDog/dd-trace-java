@@ -47,6 +47,19 @@ class KarateV2Test extends CiVisibilityInstrumentationTest {
     testSpan.getTag("test.test_management.attempt_to_fix_passed") == null
   }
 
+  def "test overlapping runs of a feature report one suite each"() {
+    when:
+    runTests([TestSucceedOverlappingRunnersKarate], true)
+
+    then:
+    def spans = TEST_WRITER.toList().flatten()
+    def suiteIds = spans.findAll { it.getTag("span.kind") == "test_suite_end" }.collect { it.getTag("test_suite_id") }
+    def testSuiteIds = spans.findAll { it.getTag("span.kind") == "test" }.collect { it.getTag("test_suite_id") }
+    suiteIds.size() == 2
+    suiteIds.toSet().size() == 2
+    testSuiteIds.toSet() == suiteIds.toSet()
+  }
+
   def "test #testcaseName"() {
     runTests(tests, success)
 
@@ -62,6 +75,7 @@ class KarateV2Test extends CiVisibilityInstrumentationTest {
     "test-fail-expected"    | true    | [TestFailedExpectedKarate]
     "test-fail-unexpected"  | false   | [TestFailedUnexpectedKarate]
     "test-skipped-feature"  | true    | [TestSkippedFeatureKarate]
+    "test-retried-after-feature" | true | [TestFailedRetriedAfterFeatureKarate]
   }
 
   def "test ITR #testcaseName"() {

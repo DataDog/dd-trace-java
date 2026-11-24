@@ -1,6 +1,6 @@
 package datadog.trace.api;
 
-import datadog.apicontract.Restricted;
+import datadog.contract.Restricted;
 import datadog.trace.api.TagMap.BucketGroup;
 import datadog.trace.api.TagMap.Entry;
 import datadog.trace.api.TagMap.EntryReader;

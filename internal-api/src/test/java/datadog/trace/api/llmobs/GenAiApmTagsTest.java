@@ -29,17 +29,15 @@ class GenAiApmTagsTest {
     span = mock(AgentSpan.class);
     when(span.getTag(anyString())).thenAnswer(call -> tags.get(call.<String>getArgument(0)));
     when(span.setTag(anyString(), anyString()))
-        .thenAnswer(
-            call -> {
-              tags.put(call.getArgument(0), call.getArgument(1));
-              return span;
-            });
+        .thenAnswer(call -> {
+          tags.put(call.getArgument(0), call.getArgument(1));
+          return span;
+        });
     when(span.setMetric(any(CharSequence.class), anyDouble()))
-        .thenAnswer(
-            call -> {
-              tags.put(call.<CharSequence>getArgument(0).toString(), call.getArgument(1));
-              return span;
-            });
+        .thenAnswer(call -> {
+          tags.put(call.<CharSequence>getArgument(0).toString(), call.getArgument(1));
+          return span;
+        });
   }
 
   @Test

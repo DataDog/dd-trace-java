@@ -19,7 +19,6 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.test.util.DDJavaSpecification;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
@@ -28,7 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 @SuppressWarnings("unchecked")
-class StoredBodyFactoriesTest extends DDJavaSpecification {
+class StoredBodyFactoriesTest {
   private AgentTracer.TracerAPI originalTracer;
 
   private AgentTracer.TracerAPI tracerAPI;
