@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -295,10 +296,16 @@ class LockSupportHelperTest {
   void virtualParkExitReportsLongParkWithoutUnblockingSpan() {
     ProfilingContextIntegration profiling = virtualParkProfiling(true);
 
-    LockSupportHelper.virtualParkExit(System.nanoTime() - TimeUnit.MILLISECONDS.toNanos(5), 42L);
+    Object blocker = new Object();
+    LockSupportHelper.virtualParkExit(
+        System.nanoTime() - TimeUnit.MILLISECONDS.toNanos(5), blocker);
 
     ArgumentCaptor<Long> elapsed = ArgumentCaptor.forClass(Long.class);
-    verify(profiling).virtualParkExit(elapsed.capture(), eq(42L), eq(0L));
+    verify(profiling)
+        .virtualParkExit(
+            elapsed.capture(),
+            eq(Integer.toUnsignedLong(System.identityHashCode(blocker))),
+            eq(0L));
     assertTrue(elapsed.getValue() >= TimeUnit.MILLISECONDS.toNanos(5));
   }
 
@@ -306,8 +313,8 @@ class LockSupportHelperTest {
   void virtualParkBelowThresholdIsNotReported() {
     ProfilingContextIntegration profiling = virtualParkProfiling(true);
 
-    LockSupportHelper.reportVirtualPark(LockSupportHelper.MIN_VIRTUAL_PARK_NANOS - 1, 0L);
-    LockSupportHelper.reportVirtualPark(LockSupportHelper.MIN_VIRTUAL_PARK_NANOS, 0L);
+    LockSupportHelper.reportVirtualPark(LockSupportHelper.MIN_VIRTUAL_PARK_NANOS - 1, null);
+    LockSupportHelper.reportVirtualPark(LockSupportHelper.MIN_VIRTUAL_PARK_NANOS, null);
 
     assertEquals(1_000_000L, LockSupportHelper.MIN_VIRTUAL_PARK_NANOS);
     verify(profiling, times(1)).virtualParkExit(anyLong(), anyLong(), anyLong());
@@ -318,7 +325,7 @@ class LockSupportHelperTest {
   void untimedVirtualParkIsNotReported() {
     ProfilingContextIntegration profiling = virtualParkProfiling(true);
 
-    LockSupportHelper.virtualParkExit(0L, 0L);
+    LockSupportHelper.virtualParkExit(0L, null);
 
     verify(profiling, never()).virtualParkExit(anyLong(), anyLong(), anyLong());
   }
@@ -331,31 +338,64 @@ class LockSupportHelperTest {
 
     onVirtualThread(() -> {
       LockSupportHelper.markPinnedPark();
-      LockSupportHelper.virtualParkExit(System.nanoTime() - longAgo, 1L);
+      LockSupportHelper.virtualParkExit(System.nanoTime() - longAgo, null);
       return null;
     });
     verify(profiling, never()).virtualParkExit(anyLong(), anyLong(), anyLong());
 
     onVirtualThread(() -> {
-      LockSupportHelper.virtualParkExit(System.nanoTime() - longAgo, 2L);
+      LockSupportHelper.virtualParkExit(System.nanoTime() - longAgo, null);
       return null;
     });
-    verify(profiling).virtualParkExit(anyLong(), eq(2L), eq(0L));
+    verify(profiling).virtualParkExit(anyLong(), eq(0L), eq(0L));
   }
 
   @Test
-  void stalePinDoesNotHideALaterPark() throws Exception {
+  void pinMarkIsConsumedByTheExitEvenWhenThePlatformPathIsDisabled() throws Exception {
     assumeTrue(ThreadSupport.supportsVirtualThreads(), "Virtual threads are unavailable");
-    ProfilingContextIntegration profiling = virtualParkProfiling(true);
+    ProfilingContextIntegration profiling = virtualParkProfiling(false);
+    long longAgo = TimeUnit.MILLISECONDS.toNanos(5);
 
     onVirtualThread(() -> {
-      LockSupportHelper.markPinnedPark(); // e.g. a pinned Thread.sleep
-      long start = LockSupportHelper.virtualParkStart();
-      LockSupportHelper.virtualParkExit(start - TimeUnit.MILLISECONDS.toNanos(5), 3L);
+      LockSupportHelper.markPinnedPark();
+      long start = LockSupportHelper.virtualParkStart(); // 0: the profiler disables it
+      LockSupportHelper.virtualParkExit(start, null);
       return null;
     });
+    verify(profiling, never()).virtualParkExit(anyLong(), anyLong(), anyLong());
 
-    verify(profiling).virtualParkExit(anyLong(), eq(3L), eq(0L));
+    when(profiling.isVirtualParkEnabled()).thenReturn(true);
+    onVirtualThread(() -> {
+      LockSupportHelper.virtualParkExit(
+          LockSupportHelper.virtualParkStart() - longAgo, new Object());
+      return null;
+    });
+    verify(profiling).virtualParkExit(anyLong(), anyLong(), eq(0L));
+  }
+
+  @Test
+  void virtualReportIsNotSkippedWhenPlatformBookkeepingThrows() {
+    ProfilingContextIntegration profiling = virtualParkProfiling(true);
+    ProfilingContextIntegration accepted = mock(ProfilingContextIntegration.class);
+    WeakMap<Thread, LockSupportHelper.UnparkState> throwing =
+        new TestWeakMap<Thread, LockSupportHelper.UnparkState>() {
+          @Override
+          public LockSupportHelper.UnparkState get(Thread key) {
+            throw new IllegalStateException("boom");
+          }
+        };
+
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            LockSupportHelper.parkExit(
+                accepted,
+                0L,
+                throwing,
+                System.nanoTime() - TimeUnit.MILLISECONDS.toNanos(5),
+                null));
+
+    verify(profiling).virtualParkExit(anyLong(), eq(0L), eq(0L));
   }
 
   @Test
@@ -363,9 +403,9 @@ class LockSupportHelperTest {
     ProfilingContextIntegration profiling = virtualParkProfiling(true);
 
     LockSupportHelper.markPinnedPark();
-    LockSupportHelper.virtualParkExit(System.nanoTime() - TimeUnit.MILLISECONDS.toNanos(5), 4L);
+    LockSupportHelper.virtualParkExit(System.nanoTime() - TimeUnit.MILLISECONDS.toNanos(5), null);
 
-    verify(profiling).virtualParkExit(anyLong(), eq(4L), eq(0L));
+    verify(profiling).virtualParkExit(anyLong(), eq(0L), eq(0L));
   }
 
   @Test
@@ -378,7 +418,8 @@ class LockSupportHelperTest {
         .virtualParkExit(anyLong(), anyLong(), anyLong());
 
     assertEquals(0L, onVirtualThread(LockSupportHelper::virtualParkStart));
-    assertDoesNotThrow(() -> LockSupportHelper.reportVirtualPark(TimeUnit.SECONDS.toNanos(1), 0L));
+    assertDoesNotThrow(
+        () -> LockSupportHelper.reportVirtualPark(TimeUnit.SECONDS.toNanos(1), null));
   }
 
   private static ProfilingContextIntegration virtualParkProfiling(boolean enabled) {
@@ -431,7 +472,7 @@ class LockSupportHelperTest {
     return tracer;
   }
 
-  private static final class TestWeakMap<K, V> implements WeakMap<K, V> {
+  private static class TestWeakMap<K, V> implements WeakMap<K, V> {
     private final ConcurrentMap<K, V> delegate = new ConcurrentHashMap<>();
 
     @Override

@@ -43,6 +43,15 @@ class LockSupportVirtualParkForkedTest extends AbstractInstrumentationTest {
     static void touch() {}
   }
 
+  /** Same, through a blocker variant that the JDK delegates to the untimed variant. */
+  static final class ParksWithBlockerInClassInitializer {
+    static {
+      LockSupport.parkUntil(new Object(), System.currentTimeMillis() + 20L);
+    }
+
+    static void touch() {}
+  }
+
   @BeforeEach
   void clearProfilingContextIntegration() {
     assumeTrue(ThreadSupport.supportsVirtualThreads(), "Virtual threads are unavailable");
@@ -75,8 +84,6 @@ class LockSupportVirtualParkForkedTest extends AbstractInstrumentationTest {
 
   @Test
   void everyParkVariantIsReportedOnVirtualThreads() throws Exception {
-    // The JDK may re-park internally, so each variant must add at least one report rather than
-    // exactly one.
     List<Runnable> variants = new ArrayList<>();
     variants.add(() -> LockSupport.parkNanos(PARK_NANOS));
     variants.add(() -> LockSupport.parkNanos(new Object(), PARK_NANOS));
@@ -90,21 +97,19 @@ class LockSupportVirtualParkForkedTest extends AbstractInstrumentationTest {
       unparkLater(Thread.currentThread());
       LockSupport.park(new Object());
     });
-    int[] reportsAfter =
-        onVirtualThread(() -> {
-          int[] marks = new int[variants.size()];
-          for (int i = 0; i < marks.length; i++) {
-            variants.get(i).run();
-            marks[i] = testProfilingContextIntegration.getVirtualParkExits().size();
-          }
-          return marks;
-        });
+    onVirtualThread(() -> {
+      for (Runnable variant : variants) {
+        variant.run();
+      }
+      return null;
+    });
 
-    int previous = 0;
-    for (int i = 0; i < reportsAfter.length; i++) {
-      assertTrue(reportsAfter[i] > previous, "park variant " + i + " was not reported");
-      previous = reportsAfter[i];
+    StringBuilder reported = new StringBuilder();
+    for (VirtualParkExit exit : testProfilingContextIntegration.getVirtualParkExits()) {
+      reported.append(exit.lockSupportMethod).append(exit.blocker == 0 ? "()" : "(B)").append(' ');
     }
+    assertEquals(
+        "parkNanos() parkNanos(B) parkUntil() parkUntil(B) park() park(B) ", reported.toString());
   }
 
   @Test
@@ -147,6 +152,16 @@ class LockSupportVirtualParkForkedTest extends AbstractInstrumentationTest {
   void pinnedVirtualParkIsNotReported() throws Exception {
     onVirtualThread(() -> {
       ParksInClassInitializer.touch();
+      return null;
+    });
+
+    assertTrue(testProfilingContextIntegration.getVirtualParkExits().isEmpty());
+  }
+
+  @Test
+  void pinnedDelegatedParkIsNotReportedByTheOuterVariant() throws Exception {
+    onVirtualThread(() -> {
+      ParksWithBlockerInClassInitializer.touch();
       return null;
     });
 

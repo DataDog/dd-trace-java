@@ -101,7 +101,6 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
         @Advice.Local("virtualStart") long virtualStart) {
       virtualStart = LockSupportHelper.virtualParkStart();
       if (virtualStart != 0L) {
-        blockerHash = Integer.toUnsignedLong(System.identityHashCode(blocker));
         return null;
       }
       ProfilingContextIntegration profiling = LockSupportHelper.parkEnter();
@@ -115,10 +114,10 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(
         @Advice.Enter ProfilingContextIntegration profiling,
+        @Advice.Argument(0) Object blocker,
         @Advice.Local("blockerHash") long blockerHash,
         @Advice.Local("virtualStart") long virtualStart) {
-      LockSupportHelper.parkExit(profiling, blockerHash);
-      LockSupportHelper.virtualParkExit(virtualStart, blockerHash);
+      LockSupportHelper.parkExit(profiling, blockerHash, virtualStart, blocker);
     }
   }
 
@@ -137,8 +136,7 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
     public static void after(
         @Advice.Enter ProfilingContextIntegration profiling,
         @Advice.Local("virtualStart") long virtualStart) {
-      LockSupportHelper.parkExit(profiling, 0L);
-      LockSupportHelper.virtualParkExit(virtualStart, 0L);
+      LockSupportHelper.parkExit(profiling, 0L, virtualStart, null);
     }
   }
 
@@ -155,7 +153,6 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
       }
       virtualStart = LockSupportHelper.virtualParkStart();
       if (virtualStart != 0L) {
-        blockerHash = Integer.toUnsignedLong(System.identityHashCode(blocker));
         return null;
       }
       ProfilingContextIntegration profiling = LockSupportHelper.parkEnter();
@@ -168,10 +165,10 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(
         @Advice.Enter ProfilingContextIntegration profiling,
+        @Advice.Argument(0) Object blocker,
         @Advice.Local("blockerHash") long blockerHash,
         @Advice.Local("virtualStart") long virtualStart) {
-      LockSupportHelper.parkExit(profiling, blockerHash);
-      LockSupportHelper.virtualParkExit(virtualStart, blockerHash);
+      LockSupportHelper.parkExit(profiling, blockerHash, virtualStart, blocker);
     }
   }
 
@@ -191,8 +188,7 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
     public static void after(
         @Advice.Enter ProfilingContextIntegration profiling,
         @Advice.Local("virtualStart") long virtualStart) {
-      LockSupportHelper.parkExit(profiling, 0L);
-      LockSupportHelper.virtualParkExit(virtualStart, 0L);
+      LockSupportHelper.parkExit(profiling, 0L, virtualStart, null);
     }
   }
 
@@ -209,7 +205,6 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
       }
       virtualStart = LockSupportHelper.virtualParkStart();
       if (virtualStart != 0L) {
-        blockerHash = Integer.toUnsignedLong(System.identityHashCode(blocker));
         return null;
       }
       ProfilingContextIntegration profiling = LockSupportHelper.parkEnter();
@@ -222,10 +217,10 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(
         @Advice.Enter ProfilingContextIntegration profiling,
+        @Advice.Argument(0) Object blocker,
         @Advice.Local("blockerHash") long blockerHash,
         @Advice.Local("virtualStart") long virtualStart) {
-      LockSupportHelper.parkExit(profiling, blockerHash);
-      LockSupportHelper.virtualParkExit(virtualStart, blockerHash);
+      LockSupportHelper.parkExit(profiling, blockerHash, virtualStart, blocker);
     }
   }
 
@@ -245,8 +240,7 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
     public static void after(
         @Advice.Enter ProfilingContextIntegration profiling,
         @Advice.Local("virtualStart") long virtualStart) {
-      LockSupportHelper.parkExit(profiling, 0L);
-      LockSupportHelper.virtualParkExit(virtualStart, 0L);
+      LockSupportHelper.parkExit(profiling, 0L, virtualStart, null);
     }
   }
 

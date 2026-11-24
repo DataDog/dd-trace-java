@@ -117,8 +117,22 @@ public class TestProfilingContextIntegration implements ProfilingContextIntegrat
   @Override
   public boolean virtualParkExit(long elapsedNanos, long blocker, long unblockingSpanId) {
     virtualParkExits.add(
-        new VirtualParkExit(Thread.currentThread(), elapsedNanos, blocker, unblockingSpanId));
+        new VirtualParkExit(
+            Thread.currentThread(),
+            elapsedNanos,
+            blocker,
+            unblockingSpanId,
+            lockSupportMethod(new Throwable().getStackTrace())));
     return true;
+  }
+
+  private static String lockSupportMethod(StackTraceElement[] stack) {
+    for (StackTraceElement frame : stack) {
+      if (frame.getClassName().equals("java.util.concurrent.locks.LockSupport")) {
+        return frame.getMethodName();
+      }
+    }
+    return "";
   }
 
   public void setVirtualParkEnabled(boolean enabled) {
@@ -136,7 +150,16 @@ public class TestProfilingContextIntegration implements ProfilingContextIntegrat
     public final long blocker;
     public final long unblockingSpanId;
 
-    VirtualParkExit(Thread thread, long elapsedNanos, long blocker, long unblockingSpanId) {
+    /** The {@code LockSupport} method whose advice reported the park. */
+    public final String lockSupportMethod;
+
+    VirtualParkExit(
+        Thread thread,
+        long elapsedNanos,
+        long blocker,
+        long unblockingSpanId,
+        String lockSupportMethod) {
+      this.lockSupportMethod = lockSupportMethod;
       this.thread = thread;
       this.elapsedNanos = elapsedNanos;
       this.blocker = blocker;
