@@ -5,6 +5,7 @@ import datadog.context.ContextScope;
 public class StreamTaskContext {
   private ContextScope scope;
   private String applicationId;
+  private String clusterId;
 
   public StreamTaskContext() {}
 
@@ -22,5 +23,13 @@ public class StreamTaskContext {
 
   public String getApplicationId() {
     return applicationId;
+  }
+
+  public void setClusterId(String clusterId) {
+    this.clusterId = clusterId;
+  }
+
+  public String getClusterId() {
+    return clusterId;
   }
 }

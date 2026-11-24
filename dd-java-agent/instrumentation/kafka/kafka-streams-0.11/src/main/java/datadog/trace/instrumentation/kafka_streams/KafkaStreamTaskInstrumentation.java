@@ -5,7 +5,7 @@ import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEX
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
-import static datadog.trace.api.datastreams.DataStreamsTags.createWithGroup;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -44,13 +44,13 @@ import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator;
+import datadog.trace.instrumentation.kafka_common.TracingIterableDelegator;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.streams.StreamsConfig;
+import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.internals.ProcessorNode;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
@@ -72,7 +72,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator",
+      "datadog.trace.instrumentation.kafka_common.TracingIterableDelegator",
       "datadog.trace.instrumentation.kafka_common.Utils",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
       packageName + ".KafkaStreamsDecorator",
@@ -112,6 +112,17 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(
         isConstructor().and(takesArgument(6, named("org.apache.kafka.streams.StreamsConfig"))),
         KafkaStreamTaskInstrumentation.class.getName() + "$Constructor6Advice");
+
+    // From 2.6 on the processor context is the 12th argument of StreamTask's constructor. It is the
+    // only source of the application id from 3.2 on, where StreamsConfig is no longer an argument.
+    transformer.applyAdvice(
+        isConstructor()
+            .and(
+                takesArgument(
+                    11,
+                    named(
+                        "org.apache.kafka.streams.processor.internals.InternalProcessorContext"))),
+        KafkaStreamTaskInstrumentation.class.getName() + "$ConstructorProcessorContextAdvice");
 
     transformer.applyAdvice(
         isMethod().and(named("addRecords")).and(takesArgument(1, named("java.lang.Iterable"))),
@@ -206,9 +217,28 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
     }
   }
 
+  public static class ConstructorProcessorContextAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void captureGroup(
+        @Advice.This StreamTask task, @Advice.Argument(11) ProcessorContext processorContext) {
+      String applicationId = processorContext.applicationId();
+
+      if (applicationId != null && !applicationId.isEmpty()) {
+        StreamTaskContext context =
+            InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+        if (context == null) {
+          context = new StreamTaskContext();
+        }
+        context.setApplicationId(applicationId);
+        InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).put(task, context);
+      }
+    }
+  }
+
   public static class UnwrapIterableAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
+        @Advice.This StreamTask task,
         @Advice.Argument(value = 1, readOnly = false) Iterable<ConsumerRecord<?, ?>> records) {
       // This method adds the records to a queue, so we want to bypass the kafka instrumentation
       // since the resulting spans are very short and uninteresting.
@@ -216,7 +246,21 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
 
       // Expecting a TracingList because TaskManager.addRecordsToTasks calls records(partition).
       if (records instanceof TracingIterableDelegator) {
-        records = ((TracingIterableDelegator) records).getDelegate();
+        TracingIterableDelegator delegator = (TracingIterableDelegator) records;
+        records = delegator.getDelegate();
+        // Keep the cluster id for the consume checkpoints of these records. All the partitions of
+        // a task are read by the same consumer, from the same cluster.
+        String clusterId = delegator.getClusterId();
+        if (clusterId != null) {
+          StreamTaskContext context =
+              InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
+          if (context == null) {
+            context = new StreamTaskContext();
+            InstrumentationContext.get(StreamTask.class, StreamTaskContext.class)
+                .put(task, context);
+          }
+          context.setClusterId(clusterId);
+        }
       }
     }
   }
@@ -295,23 +339,25 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       }
 
       String applicationId = null;
+      String clusterId = null;
       if (streamTaskContext != null) {
         applicationId = streamTaskContext.getApplicationId();
+        clusterId = streamTaskContext.getClusterId();
       }
-      DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
+      // The application id is the group id of the consumer reading the source topics
+      DataStreamsTags tags = create("kafka", INBOUND, record.topic(), applicationId, clusterId);
 
       final long payloadSize =
           traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(record.value) : 0;
-      if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
-        AgentTracer.get()
-            .getDataStreamsMonitoring()
-            .setCheckpoint(span, create(tags, record.timestamp, payloadSize));
-      } else {
-        if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
-          Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-          DataStreamsContext dsmContext = create(tags, record.timestamp, payloadSize);
-          dsmPropagator.inject(span.with(dsmContext), record, SR_SETTER);
-        }
+      // The one consume checkpoint for this record in this streams hop: UnwrapIterableAdvice keeps
+      // the kafka-clients instrumentation from setting another. Internal topics are skipped, they
+      // are an implementation detail of the topology. The pathway is also written into the record
+      // headers, which Kafka Streams forwards to the records it produces downstream, so that the
+      // produce checkpoint (and a hop on another instance) chains to this consume.
+      if (!STREAMING_CONTEXT.isInternalTopic(record.topic())) {
+        Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+        DataStreamsContext dsmContext = create(tags, record.timestamp, payloadSize);
+        dsmPropagator.inject(span.with(dsmContext), record, SR_SETTER);
       }
 
       CONSUMER_DECORATE.afterStart(span);
@@ -362,10 +408,13 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       }
 
       String applicationId = null;
+      String clusterId = null;
       if (streamTaskContext != null) {
         applicationId = streamTaskContext.getApplicationId();
+        clusterId = streamTaskContext.getClusterId();
       }
-      DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
+      // The application id is the group id of the consumer reading the source topics
+      DataStreamsTags tags = create("kafka", INBOUND, record.topic(), applicationId, clusterId);
 
       long payloadSize = 0;
       // we have to go through Object to get the RecordMetadata here because the class of `record`
@@ -375,16 +424,15 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
         payloadSize = metadata.serializedKeySize() + metadata.serializedValueSize();
       }
 
-      if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
-        AgentTracer.get()
-            .getDataStreamsMonitoring()
-            .setCheckpoint(span, create(tags, record.timestamp(), payloadSize));
-      } else {
-        if (STREAMING_CONTEXT.isSourceTopic(record.topic())) {
-          Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-          DataStreamsContext dsmContext = create(tags, record.timestamp(), payloadSize);
-          dsmPropagator.inject(span.with(dsmContext), record, PR_SETTER);
-        }
+      // The one consume checkpoint for this record in this streams hop: UnwrapIterableAdvice keeps
+      // the kafka-clients instrumentation from setting another. Internal topics are skipped, they
+      // are an implementation detail of the topology. The pathway is also written into the record
+      // headers, which Kafka Streams forwards to the records it produces downstream, so that the
+      // produce checkpoint (and a hop on another instance) chains to this consume.
+      if (!STREAMING_CONTEXT.isInternalTopic(record.topic())) {
+        Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
+        DataStreamsContext dsmContext = create(tags, record.timestamp(), payloadSize);
+        dsmPropagator.inject(span.with(dsmContext), record, PR_SETTER);
       }
 
       CONSUMER_DECORATE.afterStart(span);

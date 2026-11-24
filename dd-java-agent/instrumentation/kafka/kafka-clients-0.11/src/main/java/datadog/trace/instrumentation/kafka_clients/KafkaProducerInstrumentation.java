@@ -227,9 +227,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
               : null;
       try {
         defaultPropagator().inject(span, record.headers(), setter);
-        if (tags != null
-            && (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
-                || STREAMING_CONTEXT.isSinkTopic(record.topic()))) {
+        if (tags != null && !STREAMING_CONTEXT.isInternalTopic(record.topic())) {
           // inject the context in the headers, but delay sending the stats until we know the
           // message size.
           // The stats are saved in the pathway context and sent in PayloadSizeAdvice.
@@ -249,9 +247,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
                 record.headers());
 
         defaultPropagator().inject(span, record.headers(), setter);
-        if (tags != null
-            && (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
-                || STREAMING_CONTEXT.isSinkTopic(record.topic()))) {
+        if (tags != null && !STREAMING_CONTEXT.isInternalTopic(record.topic())) {
           Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
           DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(tags);
           dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);

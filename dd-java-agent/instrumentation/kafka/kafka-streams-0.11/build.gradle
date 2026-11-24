@@ -14,6 +14,8 @@ muzzle {
 }
 
 addTestSuite('latestDepTest')
+// Kafka Streams 3.x with kafka-clients >= 3.8, which the kafka-clients-3.8 instrumentation handles
+addTestSuite('kafka38Test')
 
 dependencies {
   compileOnly group: 'org.apache.kafka', name: 'kafka-streams', version: '0.11.0.0'
@@ -28,6 +30,8 @@ dependencies {
   testImplementation group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
   testImplementation group: 'org.mockito', name: 'mockito-core', version: '2.19.0'
 
+  // Registers the topology topics (StreamingContext), as the agent does at runtime
+  latestDepTestImplementation project(':dd-java-agent:instrumentation:kafka:kafka-streams-1.0')
   // Include latest version of kafka itself along with latest version of client libs.
   // This seems to help with jar compatibility hell.
   latestDepTestImplementation group: 'org.apache.kafka', name: 'kafka_2.13', version: '2.+'
@@ -36,4 +40,29 @@ dependencies {
   // spring-kafka 2.8.x pulls in kafka-clients/streams 3.x which behaves differently
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '2.7+'
   latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '2.7+'
+
+  kafka38TestImplementation project(':dd-java-agent:instrumentation:kafka:kafka-streams-1.0')
+  kafka38TestImplementation project(':dd-java-agent:instrumentation:kafka:kafka-clients-3.8')
+  kafka38TestImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '3.8.1'
+  kafka38TestImplementation group: 'org.apache.kafka', name: 'kafka-streams', version: '3.8.1'
+  kafka38TestImplementation 'org.apache.kafka:kafka-server-common:3.8.1:test'
+  kafka38TestImplementation 'org.apache.kafka:kafka-clients:3.8.1:test'
+  kafka38TestImplementation 'org.apache.kafka:kafka_2.13:3.8.1'
+  kafka38TestImplementation 'org.apache.kafka:kafka_2.13:3.8.1:test'
+  kafka38TestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '3.3.4', {
+    exclude group: 'org.apache.kafka'
+  }
+  kafka38TestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '3.3.4', {
+    exclude group: 'org.apache.kafka'
+  }
+}
+
+tasks.named("compileKafka38TestGroovy", GroovyCompile) {
+  configureCompiler(it, JavaVersion.VERSION_17)
+}
+
+tasks.named("kafka38Test", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
 }
