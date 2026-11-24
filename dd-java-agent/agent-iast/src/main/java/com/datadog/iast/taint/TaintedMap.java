@@ -245,7 +245,11 @@ public interface TaintedMap extends Iterable<TaintedObject> {
 
     private Iterator<TaintedObject> iterator(final int start, final int stop) {
       return new Iterator<TaintedObject>() {
+        @SuppressFBWarnings(
+            value = "AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE",
+            justification = "Each iterator has its own traversal state and requires serial use")
         int currentIndex = start;
+
         @Nullable TaintedObject currentSubPos;
 
         @Override
