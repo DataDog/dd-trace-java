@@ -449,6 +449,16 @@ In priority order:
   B/op is unchanged (C/5's −114 B comes from one fork, not established). Caveats: the previous and new runs ran one after the other, not interleaved
   (same machine); only 4 of the 7 jdbc tags take the fast path (`component` is pre-seeded), so a fusion pass that sees whole spans could do better.
   Next steps when the store hold lifts: presizing from the run's known tag count (target zero expansions per span), and checking a 2-tag minimum run length.
+- **Follow-up idea (Doug, 2026-11-23): collection presizing, the collections version of fusion's presizing.** Skip copy-and-double growth by sizing
+  at construction. *Finding sites:* allocation profiles attribute the waste to `ArrayList.grow`, `HashMap.resize`, `AbstractStringBuilder.ensureCapacityInternal`,
+  `ArrayDeque.grow`; the stack names the site. *Size source:* (1) structural, N adds right after construction; (2) learned per-site hints from the fleet
+  (like `SizingHint.forOperation`), tracking the high end. **Must be careful (Doug):**
+  - Order-safe: `ArrayList`, `ArrayDeque`, `StringBuilder`, `LinkedHashMap`/`LinkedHashSet`; capacity is not observable except memory.
+  - **`HashMap`/`HashSet` iteration order depends on table size.** Presizing reorders iteration and breaks code that (wrongly but commonly) depends on it.
+    Either exclude hashed collections or presize only to the table size growth would have reached, so final capacity and order are unchanged.
+  - `HashMap(int)` takes a capacity, not an expected size: convert (`n / 0.75 + 1`, as `HashMap.newHashMap` on 19+), or it still resizes once.
+  - Oversizing long-lived collections costs live set (caches, registries). Gate hints on allocation-site lifetime: presize only sites whose collections die young.
+  - Crawl stage: run the census on the tracer's own allocation profile first.
 - **Validation for 3:** differential instrumentation tests (rewrite on/off); a benchmark with JFR `jdk.CompilerInlining`
   confirming "already compiled into a big method" disappears for `setTag` call sites.
 - Compiler-control notes: negative (`inline:-`) directives for our cold helpers are low-risk. Forced inlining can abort the
