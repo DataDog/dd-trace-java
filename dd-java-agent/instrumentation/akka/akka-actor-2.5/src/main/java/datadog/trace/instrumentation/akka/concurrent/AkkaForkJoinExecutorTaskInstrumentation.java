@@ -98,12 +98,12 @@ public final class AkkaForkJoinExecutorTaskInstrumentation
   }
 
   public static final class RunWithField {
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope before(@Advice.FieldValue("runnable") Runnable wrapped) {
       return startTaskScope(InstrumentationContext.get(Runnable.class, State.class), wrapped);
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(@Advice.Enter ContextScope scope) {
       endTaskScope(scope);
     }
