@@ -50,6 +50,25 @@ class OtelMemberForWriteTest {
   }
 
   @Test
+  void repeatedWritesUnderEachCheckKeepMatchingTheParsedMember() {
+    // one instance per member, written under every check combination twice: the second pass reads
+    // remembered answers, which must still be per combination
+    for (String member : MEMBERS) {
+      W3CTracestate reused = member(member);
+      for (int pass = 0; pass < 2; ++pass) {
+        for (int checks = 0; checks < 4; ++checks) {
+          CharSequence parsed = member(member).otelTraceState(pending(checks));
+          CharSequence written = reused.otelTraceStateForWrite(pending(checks));
+          assertEquals(
+              parsed == null ? null : parsed.toString(),
+              written == null ? null : written.toString(),
+              member + " checks=" + checks + " pass=" + pass);
+        }
+      }
+    }
+  }
+
+  @Test
   void unchangedMemberIsWrittenRawWithoutParsing() {
     W3CTracestate consistent = member("rv:c8b1e2d3f4a596;th:8");
     CharSequence written = consistent.otelTraceStateForWrite(sampledCheck());
