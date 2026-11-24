@@ -101,6 +101,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final LongAdder clientStatsRequests = new LongAdder();
   private final LongAdder clientStatsErrors = new LongAdder();
   private final LongAdder clientStatsDowngrades = new LongAdder();
+  private final LongAdder clientStatsDroppedPayloads = new LongAdder();
 
   private final LongAdder statsAggregateDropped = new LongAdder();
   private final LongAdder statsInboxFull = new LongAdder();
@@ -371,6 +372,11 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
+  public void onClientStatPayloadDropped() {
+    clientStatsDroppedPayloads.increment();
+  }
+
+  @Override
   public void onStatsAggregateDropped() {
     statsAggregateDropped.increment();
     statsd.count("datadog.tracer.stats.collapsed_spans", 1, COLLAPSED_WHOLE_KEY_TAGS);
@@ -408,7 +414,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     private static final String[] ORG_GUARD_STRICT_MISSING_TAGS =
         new String[] {"reason:strict_missing"};
 
-    private final long[] previousCounts = new long[54];
+    private final long[] previousCounts = new long[55];
 
     @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
     private int countIndex;
@@ -541,6 +547,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
             target.statsd, "stats.dropped_p0_spans", target.clientStatsP0DroppedSpans, NO_TAGS);
         reportIfChanged(target.statsd, "stats.flush_payloads", target.clientStatsRequests, NO_TAGS);
         reportIfChanged(target.statsd, "stats.flush_errors", target.clientStatsErrors, NO_TAGS);
+        reportIfChanged(
+            target.statsd, "stats.dropped_payloads", target.clientStatsDroppedPayloads, NO_TAGS);
         reportIfChanged(
             target.statsd, "stats.agent_downgrades", target.clientStatsDowngrades, NO_TAGS);
         reportIfChanged(
@@ -677,6 +685,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         + clientStatsErrors.sum()
         + "\nclientStatsDowngrades="
         + clientStatsDowngrades.sum()
+        + "\nclientStatsDroppedPayloads="
+        + clientStatsDroppedPayloads.sum()
         + "\nclientStatsP0DroppedSpans="
         + clientStatsP0DroppedSpans.sum()
         + "\nclientStatsP0DroppedTraces="

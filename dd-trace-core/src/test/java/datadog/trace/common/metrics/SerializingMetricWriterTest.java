@@ -9,6 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import datadog.metrics.api.Histograms;
@@ -20,6 +22,7 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -653,9 +656,10 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
           @Override
           public void register(EventListener listener) {}
         };
+    HealthMetrics healthMetrics = mock(HealthMetrics.class);
     SerializingMetricWriter writer =
         new SerializingMetricWriter(
-            wellKnownTags, sink, 128, 4096, GitInfoProvider.INSTANCE, false);
+            wellKnownTags, sink, 128, 4096, GitInfoProvider.INSTANCE, false, healthMetrics);
 
     // a bucket well past the 4 KiB cap is dropped, without throwing
     writer.startBucket(2000, startTime, duration);
@@ -664,11 +668,13 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
     }
     writer.finishBucket();
     assertTrue(sent.isEmpty());
+    verify(healthMetrics).onClientStatPayloadDropped();
 
     writer.startBucket(1, startTime, duration);
     writer.add(entry);
     writer.finishBucket();
     assertEquals(Collections.singletonList(1), sent);
+    verifyNoMoreInteractions(healthMetrics);
   }
 
   static final class ValidatingSink implements Sink {

@@ -105,6 +105,9 @@ public abstract class HealthMetrics implements AutoCloseable {
 
   public void onClientStatDowngraded() {}
 
+  /** A stats payload was larger than the writer's cap, so it was dropped instead of sent. */
+  public void onClientStatPayloadDropped() {}
+
   public void onStatsAggregateDropped() {}
 
   /**

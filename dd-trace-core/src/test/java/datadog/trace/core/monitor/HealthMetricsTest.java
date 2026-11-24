@@ -419,6 +419,19 @@ class HealthMetricsTest {
     verifyNoMoreInteractions(statsD);
   }
 
+  @Test
+  void testOnClientStatPayloadDropped() throws InterruptedException {
+    CountDownLatch latch = new CountDownLatch(1);
+    try (TracerHealthMetrics healthMetrics =
+        new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)) {
+      healthMetrics.start();
+      healthMetrics.onClientStatPayloadDropped();
+      assertTrue(latch.await(5, TimeUnit.SECONDS));
+    }
+    verify(statsD).count("stats.dropped_payloads", 1L);
+    verifyNoMoreInteractions(statsD);
+  }
+
   private static class Latched implements StatsDClient {
     private final StatsDClient delegate;
     private final CountDownLatch latch;

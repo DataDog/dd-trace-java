@@ -257,6 +257,13 @@ public final class CompositeHealthMetrics extends HealthMetrics {
   }
 
   @Override
+  public void onClientStatPayloadDropped() {
+    for (HealthMetrics delegate : delegates) {
+      delegate.onClientStatPayloadDropped();
+    }
+  }
+
+  @Override
   public void onStatsAggregateDropped() {
     for (HealthMetrics delegate : delegates) {
       delegate.onStatsAggregateDropped();
