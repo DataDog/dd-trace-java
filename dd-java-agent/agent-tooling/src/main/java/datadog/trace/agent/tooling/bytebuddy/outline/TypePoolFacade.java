@@ -68,8 +68,15 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
    */
   public static byte[] unparsedOutlineBytecode(TypeDescription type) {
     TypeDescription outline = type;
-    if (outline instanceof TypeFactory.LazyType) {
-      outline = ((TypeFactory.LazyType) outline).resolvedDelegate();
+    // unwrap lazy and caching layers without triggering resolution
+    for (int depth = 0; depth < 4; depth++) {
+      if (outline instanceof TypeFactory.LazyType) {
+        outline = ((TypeFactory.LazyType) outline).resolvedDelegate();
+      } else if (outline instanceof CachingType) {
+        outline = ((CachingType) outline).wrapped();
+      } else {
+        break;
+      }
     }
     return outline instanceof TypeOutline ? ((TypeOutline) outline).unparsedBytecode() : null;
   }

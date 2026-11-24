@@ -36,6 +36,11 @@ final class CachingType extends WithName {
     return delegate;
   }
 
+  /** The wrapped description, without caching anything. */
+  TypeDescription wrapped() {
+    return delegate;
+  }
+
   @Override
   public Generic getSuperClass() {
     if (superClass == UNSET_SUPER_CLASS) {

@@ -120,7 +120,7 @@ public final class NameMatchers {
 
   public static final class StartsWith<T extends NamedElement>
       extends ElementMatcher.Junction.ForNonNullValues<T> {
-    private final String name;
+    final String name;
 
     StartsWith(String name) {
       this.name = name;

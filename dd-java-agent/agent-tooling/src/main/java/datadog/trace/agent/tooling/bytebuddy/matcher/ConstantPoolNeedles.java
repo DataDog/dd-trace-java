@@ -11,8 +11,10 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.AnnotationTypeMatcher;
 import net.bytebuddy.matcher.CollectionItemMatcher;
 import net.bytebuddy.matcher.DeclaringAnnotationMatcher;
+import net.bytebuddy.matcher.DeclaringTypeMatcher;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.EqualityMatcher;
+import net.bytebuddy.matcher.ErasureMatcher;
 import net.bytebuddy.matcher.MethodSortMatcher;
 import net.bytebuddy.matcher.NameMatcher;
 import net.bytebuddy.matcher.StringMatcher;
@@ -26,8 +28,14 @@ import net.bytebuddy.matcher.StringMatcher;
  * {@code null} means the matcher can't be lowered, so callers must not filter on it. Unknown
  * matcher types, negations, and failures while inspecting byte-buddy internals all lower to {@code
  * null}, which keeps lowering sound.
+ *
+ * <p>A needle ending in {@link #PREFIX} is a prefix: any Utf8 entry starting with the rest of it
+ * counts as present. Reading a needle as a prefix only widens it, so it can never cause a miss.
  */
 public final class ConstantPoolNeedles {
+  /** Marks a needle as a prefix. */
+  public static final char PREFIX = '*';
+
   private static final String CONSTRUCTOR = "<init>";
   private static final String TYPE_INITIALIZER = "<clinit>";
 
@@ -44,6 +52,8 @@ public final class ConstantPoolNeedles {
   private static final Field COLLECTION_ITEM = field(CollectionItemMatcher.class, "matcher");
   private static final Field ANNOTATION_TYPE = field(AnnotationTypeMatcher.class, "matcher");
   private static final Field EQUALITY_VALUE = field(EqualityMatcher.class, "value");
+  private static final Field DECLARING_TYPE = field(DeclaringTypeMatcher.class, "matcher");
+  private static final Field ERASURE = field(ErasureMatcher.class, "matcher");
 
   private ConstantPoolNeedles() {}
 
@@ -82,6 +92,34 @@ public final class ConstantPoolNeedles {
     }
   }
 
+  /**
+   * For {@code isDeclaredBy(X)} (optionally through {@code erasure}), returns X; else {@code null}.
+   * On a type's own members the declaring type is the type itself, so X applies to that type.
+   */
+  public static ElementMatcher<?> declaringTypeMatcher(ElementMatcher<?> matcher) {
+    try {
+      if (matcher instanceof DeclaringTypeMatcher && null != DECLARING_TYPE) {
+        Object inner = DECLARING_TYPE.get(matcher);
+        if (inner instanceof ErasureMatcher && null != ERASURE) {
+          inner = ERASURE.get(inner);
+        }
+        return inner instanceof ElementMatcher ? (ElementMatcher<?>) inner : null;
+      }
+    } catch (Throwable ignored) {
+      // can't inspect it
+    }
+    return null;
+  }
+
+  private static boolean hasPrefix(Set<String> needles) {
+    for (String needle : needles) {
+      if (!needle.isEmpty() && needle.charAt(needle.length() - 1) == PREFIX) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /** Lowered needles; {@code byName} means they're names, of which an element has exactly one. */
   private static final class Lowered {
     final Set<String> needles;
@@ -113,7 +151,9 @@ public final class ConstantPoolNeedles {
       }
       Set<String> descriptors = new HashSet<>();
       for (String typeName : typeNames) {
-        descriptors.add('L' + typeName.replace('.', '/') + ';');
+        String internal = typeName.replace('.', '/');
+        // a prefix of a type name is a prefix of its descriptor, without the closing ';'
+        descriptors.add(hasPrefix(singleton(typeName)) ? 'L' + internal : 'L' + internal + ';');
       }
       return new Lowered(descriptors, false);
     }
@@ -157,7 +197,7 @@ public final class ConstantPoolNeedles {
       return new Lowered(needles, byName);
     }
     Set<String> names = lowerName(matcher);
-    return null != names ? new Lowered(names, true) : null;
+    return null != names ? new Lowered(names, !hasPrefix(names)) : null;
   }
 
   /** Names accepted by a matcher on an element's name; {@code null} if not a name matcher. */
@@ -168,6 +208,9 @@ public final class ConstantPoolNeedles {
     }
     if (matcher instanceof NameMatchers.OneOf) {
       return ((NameMatchers.OneOf<?>) matcher).names;
+    }
+    if (matcher instanceof NameMatchers.StartsWith) {
+      return singleton(((NameMatchers.StartsWith<?>) matcher).name + PREFIX);
     }
     if (matcher instanceof EqualityMatcher && null != EQUALITY_VALUE) {
       Object value = EQUALITY_VALUE.get(matcher);
@@ -183,21 +226,33 @@ public final class ConstantPoolNeedles {
           && STRING_MODE.get(stringMatcher) == StringMatcher.Mode.EQUALS_FULLY) {
         return singleton((String) STRING_VALUE.get(stringMatcher));
       }
+      if (stringMatcher instanceof StringMatcher
+          && null != STRING_MODE
+          && STRING_MODE.get(stringMatcher) == StringMatcher.Mode.STARTS_WITH) {
+        return singleton(STRING_VALUE.get(stringMatcher) + String.valueOf(PREFIX));
+      }
       return null;
     }
     if (matcher instanceof ElementMatcher.Junction.Conjunction && null != JUNCTION_MATCHERS_AND) {
-      Set<String> names = null;
+      // exact names can be intersected; prefixes can't, so fall back to the smallest set
+      Set<String> exact = null;
+      Set<String> prefixed = null;
       for (ElementMatcher<?> part : (List<ElementMatcher<?>>) JUNCTION_MATCHERS_AND.get(matcher)) {
         Set<String> lowered = lowerName(part);
-        if (null != lowered) {
-          if (null == names) {
-            names = new HashSet<>(lowered);
-          } else {
-            names.retainAll(lowered);
+        if (null == lowered) {
+          continue;
+        }
+        if (hasPrefix(lowered)) {
+          if (null == prefixed || lowered.size() < prefixed.size()) {
+            prefixed = lowered;
           }
+        } else if (null == exact) {
+          exact = new HashSet<>(lowered);
+        } else {
+          exact.retainAll(lowered);
         }
       }
-      return names;
+      return null != exact ? exact : prefixed;
     }
     if (matcher instanceof ElementMatcher.Junction.Disjunction && null != JUNCTION_MATCHERS_OR) {
       Set<String> names = new HashSet<>();

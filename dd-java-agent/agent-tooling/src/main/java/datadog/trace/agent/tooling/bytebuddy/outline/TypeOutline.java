@@ -79,6 +79,9 @@ final class TypeOutline extends WithName {
       return; // another thread parsed them first
     }
     long fromTick = InstrumenterMetrics.tick();
+    if (MemberParseDiagnostics.ENABLED) {
+      MemberParseDiagnostics.recordParse();
+    }
     declareMembers(ClassFile.outline(bytecode));
     unparsedBytecode = null; // publishes the members declared above
     InstrumenterMetrics.parseOutlineMembers(fromTick);

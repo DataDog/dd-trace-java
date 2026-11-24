@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static java.util.Arrays.asList;
@@ -7,6 +8,7 @@ import static java.util.Collections.emptySet;
 import static java.util.Collections.singleton;
 import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -80,7 +82,31 @@ class ConstantPoolNeedlesTest {
   void lowersByteBuddyNameMatchers() {
     assertEquals(
         singleton("execute"), ConstantPoolNeedles.forMember(ElementMatchers.named("execute")));
-    assertNull(ConstantPoolNeedles.forMember(ElementMatchers.nameStartsWith("exec")));
+    assertEquals(
+        singleton("exec*"), ConstantPoolNeedles.forMember(ElementMatchers.nameStartsWith("exec")));
+    assertNull(ConstantPoolNeedles.forMember(ElementMatchers.nameEndsWith("ute")));
+  }
+
+  @Test
+  void lowersPrefixesWithoutIntersectingThem() {
+    assertEquals(singleton("exec*"), ConstantPoolNeedles.forMember(nameStartsWith("exec")));
+    assertEquals(
+        singleton("exec*"), ConstantPoolNeedles.forMember(isMethod().and(nameStartsWith("exec"))));
+    // an exact name is more selective than a prefix, and prefixes are never intersected
+    assertEquals(
+        singleton("execute"),
+        ConstantPoolNeedles.forMember(nameStartsWith("exec").and(named("execute"))));
+    assertEquals(
+        set("run", "exec*"),
+        ConstantPoolNeedles.forMember(named("run").or(nameStartsWith("exec"))));
+  }
+
+  @Test
+  void unwrapsDeclaringTypeMatchers() {
+    ElementMatcher<TypeDescription> typeMatcher = named("a.B");
+    assertEquals(typeMatcher, ConstantPoolNeedles.declaringTypeMatcher(isDeclaredBy(typeMatcher)));
+    assertNull(ConstantPoolNeedles.declaringTypeMatcher(named("run")));
+    assertNull(ConstantPoolNeedles.forMember(isDeclaredBy(typeMatcher)));
   }
 
   @Test
@@ -96,7 +122,10 @@ class ConstantPoolNeedlesTest {
         singleton(MARKED),
         ConstantPoolNeedles.forMember(isAnnotatedWith(named(Marked.class.getName()))));
     assertEquals(singleton(MARKED), ConstantPoolNeedles.forMember(isAnnotatedWith(Marked.class)));
-    assertNull(ConstantPoolNeedles.forMember(isAnnotatedWith(ElementMatchers.nameStartsWith("x"))));
+    assertEquals(
+        singleton("Lx*"),
+        ConstantPoolNeedles.forMember(isAnnotatedWith(ElementMatchers.nameStartsWith("x"))));
+    assertNull(ConstantPoolNeedles.forMember(isAnnotatedWith(ElementMatchers.nameEndsWith("x"))));
   }
 
   @Test
@@ -170,6 +199,8 @@ class ConstantPoolNeedlesTest {
     matchers.add(isAnnotatedWith(Marked.class));
     matchers.add(isAnnotatedWith(Marked.class).and(isAnnotatedWith(Other.class)));
     matchers.add(named("call").and(isAnnotatedWith(Other.class)));
+    matchers.add(nameStartsWith("exe"));
+    matchers.add(isMethod().and(nameStartsWith("ca")));
     for (ElementMatcher<? super MethodDescription> matcher : matchers) {
       Set<String> needles = ConstantPoolNeedles.forMember(matcher);
       boolean anyMatch = false;

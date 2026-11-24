@@ -71,6 +71,27 @@ class ConstantPoolSieveTest {
   }
 
   @Test
+  void prefixNeedlesMatchAnyEntryStartingWithThem() throws IOException {
+    ConstantPoolSieve sieve = new ConstantPoolSieve(asList("alp*", "gam*", "beta"));
+    BitSet present = new BitSet();
+
+    assertTrue(sieve.scan(bytecodeOf(Fixture.class), present));
+
+    assertTrue(present.get(sieve.id("alp*")));
+    assertFalse(present.get(sieve.id("gam*")));
+    assertTrue(present.get(sieve.id("beta")));
+    assertEquals(3, sieve.size());
+  }
+
+  @Test
+  void emptyPrefixIsNotLookedFor() {
+    ConstantPoolSieve sieve = new ConstantPoolSieve(asList("*"));
+
+    assertEquals(0, sieve.size());
+    assertEquals(-1, sieve.id("*"));
+  }
+
+  @Test
   void deduplicatesNames() {
     ConstantPoolSieve sieve = new ConstantPoolSieve(asList("run", "run", "call"));
 

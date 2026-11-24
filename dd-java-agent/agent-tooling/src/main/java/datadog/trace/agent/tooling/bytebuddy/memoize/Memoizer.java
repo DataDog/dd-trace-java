@@ -1,6 +1,5 @@
 package datadog.trace.agent.tooling.bytebuddy.memoize;
 
-import static java.util.Arrays.asList;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.instrument.utils.ClassNameFilter;
@@ -9,6 +8,7 @@ import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache;
 import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache.SharedTypeInfo;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ConstantPoolNeedles;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ConstantPoolSieve;
+import datadog.trace.agent.tooling.bytebuddy.outline.MemberParseDiagnostics;
 import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
 import datadog.trace.agent.tooling.bytebuddy.outline.WithLocation;
 import datadog.trace.api.InstrumenterConfig;
@@ -215,6 +215,10 @@ public final class Memoizer {
       fromTick += (InstrumenterMetrics.tick() - superTick); // adjust to exclude super-type ticks
       MemberSieve sieve = memberSieve;
       BitSet present = null != sieve ? sieve.scan(type) : null;
+      if (MemberParseDiagnostics.enabled()) {
+        MemberParseDiagnostics.count(
+            null == present ? "memo without sieve (no unparsed bytes)" : "memo with sieve");
+      }
       // only ask for members if a matcher might apply, so unneeded members are never parsed
       BitSet annotationIds = candidates(sieve, annotationMatcherIds, present);
       if (!annotationIds.isEmpty()) {
@@ -286,7 +290,7 @@ public final class Memoizer {
     collectNames(fieldMatcherIds, false, names, allNames);
     collectNames(methodMatcherIds, false, names, allNames);
     memberSieve = new MemberSieve(new ConstantPoolSieve(allNames), names);
-    if (log.isDebugEnabled()) {
+    if (log.isDebugEnabled() || MemberParseDiagnostics.enabled()) {
       log.debug("Member sieve covers {} names", allNames.size());
       logUnsieved("annotation", annotationMatcherIds, names);
       logUnsieved("field", fieldMatcherIds, names);
@@ -309,24 +313,26 @@ public final class Memoizer {
         total,
         kind,
         unsieved);
+    if (MemberParseDiagnostics.enabled()) {
+      for (int id = matcherIds.nextSetBit(0); id >= 0; id = matcherIds.nextSetBit(id + 1)) {
+        if (null == names[id]) {
+          log.warn(
+              "Sieve diagnostics: unsieved {} matcher #{} = {}",
+              kind,
+              id,
+              describe(matchers.get(id)));
+        }
+      }
+    }
   }
 
   private static void collectNames(
       BitSet matcherIds, boolean annotationTypes, String[][] names, Set<String> allNames) {
     for (int id = matcherIds.nextSetBit(0); id >= 0; id = matcherIds.nextSetBit(id + 1)) {
-      Set<String> lowered =
-          annotationTypes
-              ? ConstantPoolNeedles.forTypeName(matchers.get(id))
-              : ConstantPoolNeedles.forMember(matchers.get(id));
-      if (null != lowered) {
-        String[] needles = new String[lowered.size()];
-        int i = 0;
-        for (String name : lowered) {
-          // annotation types appear in the constant pool as descriptors, e.g. Ljavax/ws/rs/Path;
-          needles[i++] = annotationTypes ? 'L' + name.replace('.', '/') + ';' : name;
-        }
-        names[id] = needles;
-        allNames.addAll(asList(needles));
+      Set<String> needles = annotationTypes ? annotationNeedles(id) : memberNeedles(id, 0);
+      if (null != needles) {
+        names[id] = needles.toArray(new String[0]);
+        allNames.addAll(needles);
       }
     }
   }
@@ -361,6 +367,67 @@ public final class Memoizer {
     }
   }
 
+  /** Diagnostics: describes a matcher, expanding memoized matchers it wraps by their id. */
+  private static String describe(Object matcher) {
+    String text = String.valueOf(matcher);
+    try {
+      for (java.lang.reflect.Field f : matcher.getClass().getDeclaredFields()) {
+        f.setAccessible(true);
+        Object inner = f.get(matcher);
+        if (inner instanceof MemoizingMatcher) {
+          int innerId = ((MemoizingMatcher) inner).matcherId;
+          text += " [" + f.getName() + " -> #" + innerId + " " + matchers.get(innerId) + "]";
+        } else if (inner instanceof ElementMatcher && inner != matcher) {
+          text += " {" + f.getName() + ": " + describe(inner) + "}";
+        }
+      }
+    } catch (Throwable ignored) {
+      // best effort
+    }
+    return text;
+  }
+
+  /** Needles for an annotation matcher: descriptors of the annotation types it accepts. */
+  private static Set<String> annotationNeedles(int id) {
+    Set<String> typeNames = ConstantPoolNeedles.forTypeName(matchers.get(id));
+    if (null == typeNames) {
+      return null;
+    }
+    Set<String> needles = new HashSet<>();
+    for (String typeName : typeNames) {
+      String internal = typeName.replace('.', '/');
+      // annotation types appear in the constant pool as descriptors, e.g. Ljavax/ws/rs/Path;
+      needles.add(
+          typeName.charAt(typeName.length() - 1) == ConstantPoolNeedles.PREFIX
+              ? 'L' + internal
+              : 'L' + internal + ';');
+    }
+    return needles;
+  }
+
+  /**
+   * Needles for a field or method matcher. {@code isDeclaredBy(X)} on a type's own members means X
+   * applies to the type itself, so when X is a memoized annotation, field, or method matcher the
+   * type must contain X's needles.
+   */
+  private static Set<String> memberNeedles(int id, int depth) {
+    ElementMatcher<?> matcher = matchers.get(id);
+    ElementMatcher<?> declaringType = ConstantPoolNeedles.declaringTypeMatcher(matcher);
+    if (null != declaringType) {
+      if (declaringType instanceof MemoizingMatcher && depth < 4) {
+        int typeMatcherId = ((MemoizingMatcher) declaringType).matcherId;
+        if (annotationMatcherIds.get(typeMatcherId)) {
+          return annotationNeedles(typeMatcherId);
+        }
+        if (fieldMatcherIds.get(typeMatcherId) || methodMatcherIds.get(typeMatcherId)) {
+          return memberNeedles(typeMatcherId, depth + 1);
+        }
+      }
+      return null; // e.g. a hierarchy condition, which this type's constant pool can't decide
+    }
+    return ConstantPoolNeedles.forMember(matcher);
+  }
+
   /** Narrows the given matcher ids to those whose names may be present; all if not sieved. */
   private static BitSet candidates(MemberSieve sieve, BitSet matcherIds, BitSet present) {
     if (null == present) {
@@ -370,6 +437,9 @@ public final class Memoizer {
     for (int id = matcherIds.nextSetBit(0); id >= 0; id = matcherIds.nextSetBit(id + 1)) {
       if (sieve.mayMatch(id, present)) {
         candidates.set(id);
+        if (MemberParseDiagnostics.enabled()) {
+          MemberParseDiagnostics.count("member matcher passed sieve: " + matchers.get(id));
+        }
       }
     }
     return candidates;
