@@ -20,18 +20,18 @@ muzzle {
   }
 }
 
-// TODO APMLP-2195: no forked latest dependency tests until thread registration works with the latest Netty
-addTestSuiteForDir('latestDep4Test', 'test', false)
-addTestSuiteForDir('latestDepTest', 'test', false)
-
+addTestSuiteForDir('latestDep4Test', 'test')
+addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
-  testImplementation group: 'io.netty', name: 'netty-all', version: '4.1.108.Final'
-  testImplementation group: 'io.netty', name: 'netty-transport', version: '4.1.108.Final'
+  testImplementation 'io.netty:netty-all:4.1.108.Final'
+  testImplementation 'io.grpc:grpc-netty-shaded:1.78.0'
 
-  latestDep4TestImplementation group: 'io.netty', name: 'netty-transport', version: '4.+'
-  latestDepTestImplementation group: 'io.netty', name: 'netty-transport', version: '+'
+  latestDep4TestImplementation 'io.netty:netty-all:4.+'
+  latestDep4TestImplementation 'io.grpc:grpc-netty-shaded:+'
+  latestDepTestImplementation 'io.netty:netty-all:+'
+  latestDepTestImplementation 'io.grpc:grpc-netty-shaded:+'
 }
 
 tasks.named("latestDepTest", Test) {

@@ -1,4 +1,11 @@
+import static org.junit.jupiter.api.Assumptions.assumeTrue
+
 import datadog.trace.agent.test.InstrumentationSpecification
+import io.netty.channel.EventLoopGroup
+import io.netty.channel.epoll.Epoll
+import io.netty.channel.epoll.EpollEventLoopGroup
+import io.netty.channel.kqueue.KQueue
+import io.netty.channel.kqueue.KQueueEventLoopGroup
 import io.netty.channel.nio.NioEventLoopGroup
 
 import java.util.concurrent.CountDownLatch
@@ -24,8 +31,8 @@ class RegistrationForkedTest extends InstrumentationSpecification {
 
     when: "run nio event loop"
     TEST_PROFILING_CONTEXT_INTEGRATION.clear()
-    nioEventLoopGroup.execute {}
-    boolean shutdownGracefully = nioEventLoopGroup.shutdownGracefully().await(5, TimeUnit.SECONDS)
+    nioEventLoopGroup.submit({}).get(5, TimeUnit.SECONDS)
+    boolean shutdownGracefully = nioEventLoopGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).await(5, TimeUnit.SECONDS)
 
     then:
     shutdownGracefully
@@ -57,7 +64,51 @@ class RegistrationForkedTest extends InstrumentationSpecification {
     TEST_PROFILING_CONTEXT_INTEGRATION.detachments.get() == 2
 
     cleanup:
+    nioEventLoopGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).await(5, TimeUnit.SECONDS)
     executorService.shutdownNow()
     TEST_PROFILING_CONTEXT_INTEGRATION.clear()
+  }
+
+  def "test #transport event loop thread filter updates"() {
+    setup:
+    assumeTrue(isAvailable(), "${transport} is not available")
+    def group = createGroup()
+    assumeTrue(group != null, "${transport} is not on classpath")
+
+    when:
+    TEST_PROFILING_CONTEXT_INTEGRATION.clear()
+    group.submit({}).get(5, TimeUnit.SECONDS)
+    boolean shutdownGracefully = group.shutdownGracefully(0, 5, TimeUnit.SECONDS).await(5, TimeUnit.SECONDS)
+
+    then:
+    shutdownGracefully
+    TEST_PROFILING_CONTEXT_INTEGRATION.attachments.get() == 1
+    TEST_PROFILING_CONTEXT_INTEGRATION.detachments.get() == 1
+
+    cleanup:
+    group?.shutdownGracefully(0, 5, TimeUnit.SECONDS)?.await(5, TimeUnit.SECONDS)
+    TEST_PROFILING_CONTEXT_INTEGRATION.clear()
+
+    where:
+    transport                                         | isAvailable                                                       | createGroup
+    "epoll"                                           | { Epoll.isAvailable() }                                           | { new EpollEventLoopGroup(1) }
+    "kqueue"                                          | { KQueue.isAvailable() }                                          | { new KQueueEventLoopGroup(1) }
+    "grpc shaded nio"                                 | { true }                                                          | { new io.grpc.netty.shaded.io.netty.channel.nio.NioEventLoopGroup(1) }
+    "grpc shaded epoll"                               | { io.grpc.netty.shaded.io.netty.channel.epoll.Epoll.isAvailable() } | { new io.grpc.netty.shaded.io.netty.channel.epoll.EpollEventLoopGroup(1) }
+    "Netty 4.2 MultiThreadIoEventLoopGroup (NIO)"     | { true }                                                          | { newNetty42IoEventLoopGroup("io.netty.channel.nio.NioIoHandler") }
+    "Netty 4.2 MultiThreadIoEventLoopGroup (Epoll)"   | { Epoll.isAvailable() }                                           | { newNetty42IoEventLoopGroup("io.netty.channel.epoll.EpollIoHandler") }
+    "Netty 4.2 MultiThreadIoEventLoopGroup (KQueue)"  | { KQueue.isAvailable() }                                          | { newNetty42IoEventLoopGroup("io.netty.channel.kqueue.KQueueIoHandler") }
+  }
+
+  private static EventLoopGroup newNetty42IoEventLoopGroup(String ioHandlerClassName) {
+    try {
+      Class<?> groupClass = Class.forName("io.netty.channel.MultiThreadIoEventLoopGroup")
+      Class<?> factoryClass = Class.forName("io.netty.channel.IoHandlerFactory")
+      Class<?> handlerClass = Class.forName(ioHandlerClassName)
+      Object factory = handlerClass.getMethod("newFactory").invoke(null)
+      return (EventLoopGroup) groupClass.getConstructor(int.class, factoryClass).newInstance(1, factory)
+    } catch (ClassNotFoundException ignored) {
+      return null
+    }
   }
 }
