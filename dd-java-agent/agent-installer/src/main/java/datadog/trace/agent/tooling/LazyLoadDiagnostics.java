@@ -77,11 +77,19 @@ final class LazyLoadDiagnostics {
       }
     }
     int modulesMatched = 0;
-    for (int[] m : modules.values()) {
-      if (m[1] > 0) {
+    java.util.Set<String> matchedNames = new java.util.TreeSet<>();
+    java.util.Set<String> matchedModules = new java.util.TreeSet<>();
+    for (Map.Entry<String, int[]> m : modules.entrySet()) {
+      if (m.getValue()[1] > 0) {
         modulesMatched++;
+        String key = m.getKey();
+        matchedNames.add(key.substring(key.indexOf('|') + 1));
+        matchedModules.add(key.substring(0, key.indexOf('|')));
       }
     }
+    log.warn(
+        "Lazy-load diagnostics: matched integration names: {}", String.join(",", matchedNames));
+    log.warn("Lazy-load diagnostics: matched module classes: {}", String.join(",", matchedModules));
     log.warn(
         "Lazy-load diagnostics: {} transformations in {} modules; {} modules matched at least once",
         entries.size(),

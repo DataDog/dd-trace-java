@@ -47,6 +47,19 @@ import org.slf4j.LoggerFactory;
  * TargetSystem values.
  */
 final class InstrumenterIndex {
+  // PROTOTYPE ONLY: emulates lazy loading by never loading modules outside this list
+  @SuppressWarnings("SystemGetProperty")
+  private static final java.util.Set<String> PROTOTYPE_ONLY_MODULES = prototypeOnlyModules();
+
+  @SuppressWarnings("SystemGetProperty")
+  private static java.util.Set<String> prototypeOnlyModules() {
+    String modules = System.getProperty("dd.prototype.only-modules");
+    if (null == modules || modules.isEmpty()) {
+      return null;
+    }
+    return new java.util.HashSet<>(java.util.Arrays.asList(modules.split(",")));
+  }
+
   private static final Logger log = LoggerFactory.getLogger(InstrumenterIndex.class);
 
   private static final String INSTRUMENTER_INDEX_NAME = "instrumenter.index";
@@ -232,7 +245,10 @@ final class InstrumenterIndex {
     } else {
       memberName = null;
     }
-    if (filter.test(moduleName, moduleTargetSystems, needsEarlyLoad)) {
+    if (filter.test(moduleName, moduleTargetSystems, needsEarlyLoad)
+        && (null == PROTOTYPE_ONLY_MODULES
+            || needsEarlyLoad
+            || PROTOTYPE_ONLY_MODULES.contains(moduleName))) {
       if (module == null) {
         module = buildModule();
         modules[instrumentationId] = module;
