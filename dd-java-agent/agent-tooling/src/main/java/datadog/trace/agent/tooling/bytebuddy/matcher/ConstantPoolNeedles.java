@@ -111,6 +111,27 @@ public final class ConstantPoolNeedles {
     return null;
   }
 
+  /** Parts of an {@code and}/{@code or} junction, or {@code null} if it isn't one (diagnostics). */
+  @SuppressWarnings("unchecked")
+  public static List<ElementMatcher<?>> junctionParts(ElementMatcher<?> matcher) {
+    try {
+      if (matcher instanceof ElementMatcher.Junction.Conjunction && null != JUNCTION_MATCHERS_AND) {
+        return (List<ElementMatcher<?>>) JUNCTION_MATCHERS_AND.get(matcher);
+      }
+      if (matcher instanceof ElementMatcher.Junction.Disjunction && null != JUNCTION_MATCHERS_OR) {
+        return (List<ElementMatcher<?>>) JUNCTION_MATCHERS_OR.get(matcher);
+      }
+    } catch (Throwable ignored) {
+      // can't inspect it
+    }
+    return null;
+  }
+
+  /** Whether a type matcher only tests the type's own name (diagnostics). */
+  public static boolean isTypeNameMatcher(ElementMatcher<?> matcher) {
+    return null != forTypeName(matcher);
+  }
+
   private static boolean hasPrefix(Set<String> needles) {
     for (String needle : needles) {
       if (!needle.isEmpty() && needle.charAt(needle.length() - 1) == PREFIX) {

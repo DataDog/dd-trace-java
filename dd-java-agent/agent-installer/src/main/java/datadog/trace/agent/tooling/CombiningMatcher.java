@@ -35,6 +35,9 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
 
   private static final boolean DEFER_ALL = DEFERRED_CLASSLOADER_NAMES.isEmpty();
 
+  private static final boolean LAZY_LOAD_DIAGNOSTICS =
+      InstrumenterConfig.get().isResolverDeclaredMethodSieveVerify();
+
   // optimization to avoid repeated allocations inside BitSet as matched ids are set
   static final int MAX_COMBINED_ID_HINT = 512;
 
@@ -103,6 +106,10 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
     }
 
     InstrumenterMetrics.matchType(fromTick);
+
+    if (LAZY_LOAD_DIAGNOSTICS && !ids.isEmpty()) {
+      LazyLoadDiagnostics.recordMatches(ids);
+    }
 
     return !ids.isEmpty();
   }

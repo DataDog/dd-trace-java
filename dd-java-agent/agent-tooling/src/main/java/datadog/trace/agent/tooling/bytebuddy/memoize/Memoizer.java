@@ -367,6 +367,54 @@ public final class Memoizer {
     }
   }
 
+  /**
+   * Diagnostics: classifies a type matcher as expressible as data (names, flags, memoized matchers
+   * that lower to names or needles) or as code. Returns null for data, else the first code leaf.
+   */
+  public static String codeLeaf(ElementMatcher<?> matcher) {
+    if (matcher instanceof MemoizingMatcher) {
+      int id = ((MemoizingMatcher) matcher).matcherId;
+      if (id < INTERNAL_MATCHERS) {
+        return null; // isClass, isConcrete, isPartial: flags/structure
+      }
+      if (annotationMatcherIds.get(id)) {
+        return null != annotationNeedles(id) ? null : "annotation:" + matchers.get(id);
+      }
+      if (fieldMatcherIds.get(id) || methodMatcherIds.get(id)) {
+        return null != memberNeedles(id, 0) ? null : "member:" + matchers.get(id);
+      }
+      // class / interface / type hierarchy matchers: data if they only test supertype names
+      return ConstantPoolNeedles.isTypeNameMatcher(matchers.get(id))
+          ? null
+          : "hierarchy:" + matchers.get(id);
+    }
+    List<ElementMatcher<?>> parts = ConstantPoolNeedles.junctionParts(matcher);
+    if (null != parts) {
+      for (ElementMatcher<?> part : parts) {
+        String leaf = codeLeaf(part);
+        if (null != leaf) {
+          return leaf;
+        }
+      }
+      return null;
+    }
+    if (matcher instanceof net.bytebuddy.matcher.NegatingMatcher) {
+      try {
+        java.lang.reflect.Field f =
+            net.bytebuddy.matcher.NegatingMatcher.class.getDeclaredField("matcher");
+        f.setAccessible(true);
+        return codeLeaf((ElementMatcher<?>) f.get(matcher));
+      } catch (Throwable e) {
+        return "negation";
+      }
+    }
+    if (ConstantPoolNeedles.isTypeNameMatcher(matcher)
+        || matcher instanceof net.bytebuddy.matcher.ModifierMatcher) {
+      return null; // the type's own name or flags
+    }
+    return matcher.getClass().getName();
+  }
+
   /** Diagnostics: describes a matcher, expanding memoized matchers it wraps by their id. */
   private static String describe(Object matcher) {
     String text = String.valueOf(matcher);

@@ -87,6 +87,10 @@ public final class CombiningTransformerBuilder
   private Advice.PostProcessor.Factory postProcessor;
   private MuzzleCheck muzzle;
   private String instrumentationClass;
+  private String currentModuleName;
+
+  private static final boolean LAZY_LOAD_DIAGNOSTICS =
+      InstrumenterConfig.get().isResolverDeclaredMethodSieveVerify();
 
   // temporary buffer for collecting advice; reset for each instrumenter
   private final List<AgentBuilder.Transformer> advice = new ArrayList<>();
@@ -139,6 +143,7 @@ public final class CombiningTransformerBuilder
 
   /** Prepares shared matchers and transformers defined by an instrumentation module. */
   private void prepareInstrumentation(InstrumenterModule module, int instrumentationId) {
+    currentModuleName = module.getClass().getName();
     ignoredMethods = module.methodIgnoreMatcher();
     classLoaderMatcher = module.classLoaderMatcher();
     contextStore = module.contextStore();
@@ -195,6 +200,9 @@ public final class CombiningTransformerBuilder
     memberHierarchyMatchers.clear();
     buildTypeMatcher(member, transformationId);
     buildTypeAdvice(member, transformationId);
+    if (LAZY_LOAD_DIAGNOSTICS) {
+      classifyForLazyLoading(member, transformationId);
+    }
     memberHierarchyMatchers.clear();
   }
 
@@ -320,6 +328,39 @@ public final class CombiningTransformerBuilder
       structuralChange.typeAdvice(this);
       finishAdviceStack(structuralTransformationId);
     }
+  }
+
+  /** Diagnostics: could this transformation be matched from data, without loading its classes? */
+  private void classifyForLazyLoading(Instrumenter member, int transformationId) {
+    String category;
+    String codeLeaf = null;
+    if (member instanceof Instrumenter.ForSingleType
+        || member instanceof Instrumenter.ForKnownTypes) {
+      category = "data: known type names";
+    } else if (member instanceof Instrumenter.ForTypeHierarchy) {
+      boolean gated = false;
+      for (MatchRecorder.ForHierarchy matcher : memberHierarchyMatchers) {
+        gated |= null != matcher.declaredMethodNames();
+      }
+      try {
+        codeLeaf =
+            datadog.trace.agent.tooling.bytebuddy.memoize.Memoizer.codeLeaf(
+                ((Instrumenter.ForTypeHierarchy) member).hierarchyMatcher());
+      } catch (Throwable e) {
+        codeLeaf = "error:" + e;
+      }
+      if (null == codeLeaf) {
+        category = gated ? "data: hierarchy + advised-method gate" : "data: hierarchy (ungated)";
+      } else {
+        category = gated ? "code hierarchy, but gated" : "code: hierarchy";
+      }
+    } else if (member instanceof Instrumenter.ForCallSite) {
+      category = "call site (caller type matcher)";
+    } else {
+      category = "other: " + member.getClass().getSimpleName();
+    }
+    LazyLoadDiagnostics.classify(
+        transformationId, currentModuleName, member.getClass().getName(), category, codeLeaf);
   }
 
   /** Gates this instrumenter's hierarchy matchers on the names of its advised methods. */
