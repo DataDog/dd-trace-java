@@ -963,6 +963,16 @@ public class PTagsFactory implements PropagationTags.Factory {
     @Override
     public String headerValue(
         HeaderType headerType, CharSequence lastParentIdOverride, SamplingState samplingState) {
+      // x-datadog-tags depends only on the trace's tags and the sampling state, so it is cached per
+      // state: the injection path, which passes the state it read, reuses a header seeded at
+      // extraction (seedDatadogHeader) or encoded by an earlier injection of the same trace.
+      boolean cacheable = headerType == DATADOG && lastParentIdOverride == null;
+      if (cacheable) {
+        String cached = getCachedHeader(DATADOG, samplingState);
+        if (cached != null) {
+          return cached.isEmpty() ? null : cached;
+        }
+      }
       String header =
           PTagsCodec.headerValue(
               factory.getDecoderEncoder(headerType),
@@ -970,7 +980,21 @@ public class PTagsFactory implements PropagationTags.Factory {
               lastParentIdOverride,
               null,
               samplingState);
+      if (cacheable) {
+        setCachedHeader(DATADOG, samplingState, header == null ? EMPTY : header);
+      }
       return (header == null || header.isEmpty()) ? null : header;
+    }
+
+    /**
+     * Records {@code header}, an x-datadog-tags value just parsed into this object with nothing
+     * dropped or merged, as this trace's encoded header for its current sampling state. Injecting
+     * the trace before anything changes then sends the header as it arrived: re-encoding would
+     * write the same members, possibly in another order. Called only during extraction, before the
+     * object is shared.
+     */
+    void seedDatadogHeader(String header) {
+      setCachedHeader(DATADOG, samplingState, header);
     }
 
     @Override

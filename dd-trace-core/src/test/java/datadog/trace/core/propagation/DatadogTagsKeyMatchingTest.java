@@ -19,7 +19,7 @@ class DatadogTagsKeyMatchingTest extends DDJavaSpecification {
     "scenario                   | headerValue                               | expectedHeaderValue                      | tags                                           ",
     "prefix only key ignored    | '_dd.p.=x,_dd.p.dm=-4'                    | '_dd.p.dm=-4'                            | [_dd.p.dm: '-4']                               ",
     "unprefixed key ignored     | 'foo=bar,_dd.p.dm=-4'                     | '_dd.p.dm=-4'                            | [_dd.p.dm: '-4']                               ",
-    "near miss key is unknown   | '_dd.p.dmx=1,_dd.p.dm=-4'                 | '_dd.p.dm=-4,_dd.p.dmx=1'                | [_dd.p.dmx: '1', _dd.p.dm: '-4']               ",
+    "near miss key is unknown   | '_dd.p.dmx=1,_dd.p.dm=-4'                 | '_dd.p.dmx=1,_dd.p.dm=-4'                | [_dd.p.dmx: '1', _dd.p.dm: '-4']               ",
     "unknown key kept           | '_dd.p.dm=-4,_dd.p.xyz=1'                 | '_dd.p.dm=-4,_dd.p.xyz=1'                | [_dd.p.dm: '-4', _dd.p.xyz: '1']               ",
     "upstream services dropped  | '_dd.p.upstream_services=abc,_dd.p.dm=-4' | '_dd.p.dm=-4'                            | [_dd.p.dm: '-4']                               ",
     "tid with dm                | '_dd.p.dm=-4,_dd.p.tid=640cfd8d00000000'  | '_dd.p.dm=-4,_dd.p.tid=640cfd8d00000000' | [_dd.p.dm: '-4', _dd.p.tid: '640cfd8d00000000']",

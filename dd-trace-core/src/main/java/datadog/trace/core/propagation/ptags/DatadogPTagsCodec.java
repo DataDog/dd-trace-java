@@ -73,6 +73,10 @@ final class DatadogPTagsCodec extends PTagsCodec {
     List<TagElement> tagPairs = null;
     int len = value.length();
     int tagPos = 0;
+    // Whether every member was kept as written, so re-encoding would give back the same members.
+    // A dropped member or a repeated known key (only one copy survives) means it wouldn't.
+    boolean verbatim = true;
+    int seenKnownKeys = 0;
     TagValue decisionMakerTagValue = null;
     long traceIdHighOrderBits = 0;
     TagValue zeroTraceIdTagValue = null;
@@ -100,9 +104,18 @@ final class DatadogPTagsCodec extends PTagsCodec {
       }
       // Known keys are matched on the raw range, by length and then characters, so they aren't
       // interned; only other propagated keys go through TagKey.from.
-      switch (knownKey(value, tagPos, tagKeyEndsAt)) {
+      int known = knownKey(value, tagPos, tagKeyEndsAt);
+      if (known >= 0) {
+        int bit = 1 << known;
+        if ((seenKnownKeys & bit) != 0) {
+          verbatim = false;
+        }
+        seenKnownKeys |= bit;
+      }
+      switch (known) {
         case NOT_PROPAGATED: // not a _dd.p.* key: TagKey.from would reject it
         case KNOWN_UPSTREAM_SERVICES: // deprecated, dropped
+          verbatim = false;
           break;
         case KNOWN_DECISION_MAKER:
           {
@@ -142,6 +155,9 @@ final class DatadogPTagsCodec extends PTagsCodec {
               return invalidTagValue(tagsFactory, value, tagValuePos);
             }
             traceSource = ProductTraceSource.parseBitfieldHex(tagValue.toString());
+            if (traceSource == ProductTraceSource.UNSET) {
+              verbatim = false; // a zero trace source isn't written back
+            }
             break;
           }
         case KNOWN_ORG_PROPAGATION_MARKER:
@@ -194,7 +210,9 @@ final class DatadogPTagsCodec extends PTagsCodec {
             TagKey tagKey = TagKey.from(Encoding.DATADOG, value, tagPos, tagKeyEndsAt);
             TagValue tagValue =
                 tagValue(Encoding.DATADOG, tagKey, value, tagValuePos, tagValueEndsAt);
-            if (tagKey != null) {
+            if (tagKey == null) {
+              verbatim = false;
+            } else {
               if (!validateTagValue(tagKey, tagValue)) {
                 return invalidTagValue(tagsFactory, value, tagValuePos);
               }
@@ -209,23 +227,35 @@ final class DatadogPTagsCodec extends PTagsCodec {
       }
       tagPos = tagValueEndsAt + 1;
     }
-    return tagsFactory.createValid(
-        tagPairs,
-        decisionMakerTagValue,
-        traceIdHighOrderBits,
-        zeroTraceIdTagValue,
-        traceSource,
-        samplingPriority,
-        orgPropagationMarkerTagValue,
-        LLMObsTagValues.of(
-            llmObsTraceIdTagValue,
-            llmObsMlAppTagValue,
-            llmObsSessionIdTagValue,
-            llmObsParentAgentSpanIdTagValue,
-            llmObsParentAgentNameTagValue,
-            llmObsParentIdTagValue,
-            llmObsSampleRateTagValue,
-            llmObsSamplingDecisionTagValue));
+    PropagationTags tags =
+        tagsFactory.createValid(
+            tagPairs,
+            decisionMakerTagValue,
+            traceIdHighOrderBits,
+            zeroTraceIdTagValue,
+            traceSource,
+            samplingPriority,
+            orgPropagationMarkerTagValue,
+            LLMObsTagValues.of(
+                llmObsTraceIdTagValue,
+                llmObsMlAppTagValue,
+                llmObsSessionIdTagValue,
+                llmObsParentAgentSpanIdTagValue,
+                llmObsParentAgentNameTagValue,
+                llmObsParentIdTagValue,
+                llmObsSampleRateTagValue,
+                llmObsSamplingDecisionTagValue));
+    if (verbatim
+        && len > 0
+        // a trailing separator isn't written back
+        && value.charAt(len - 1) != TAGS_SEPARATOR
+        && !tagsFactory.isPropagationTagsDisabled()) {
+      // Nothing was dropped or merged, so injecting this trace unchanged can send the header as it
+      // arrived instead of encoding it again. The seed is keyed on the starting sampling state, so
+      // any decision or other change that would alter the header discards it.
+      ((PTagsFactory.PTags) tags).seedDatadogHeader(value);
+    }
+    return tags;
   }
 
   private static PropagationTags invalidTagValue(
