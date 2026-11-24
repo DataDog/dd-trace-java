@@ -31,6 +31,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -202,11 +204,10 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
     AutoCloseable observable =
         meter
             .counterBuilder("observable-long-counter")
-            .buildWithCallback(
-                m -> {
-                  m.record(1);
-                  m.record(2, SOME_ATTRIBUTES);
-                });
+            .buildWithCallback(m -> {
+              m.record(1);
+              m.record(2, SOME_ATTRIBUTES);
+            });
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1L, points.get("test:observable-long-counter"));
@@ -228,11 +229,10 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
         meter
             .counterBuilder("observable-double-counter")
             .ofDoubles()
-            .buildWithCallback(
-                m -> {
-                  m.record(1.2);
-                  m.record(3.4, SOME_ATTRIBUTES);
-                });
+            .buildWithCallback(m -> {
+              m.record(1.2);
+              m.record(3.4, SOME_ATTRIBUTES);
+            });
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1.2, points.get("test:observable-double-counter"));
@@ -253,11 +253,10 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
     AutoCloseable observable =
         meter
             .upDownCounterBuilder("observable-long-up-down-counter")
-            .buildWithCallback(
-                m -> {
-                  m.record(1);
-                  m.record(2, SOME_ATTRIBUTES);
-                });
+            .buildWithCallback(m -> {
+              m.record(1);
+              m.record(2, SOME_ATTRIBUTES);
+            });
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1L, points.get("test:observable-long-up-down-counter"));
@@ -279,11 +278,10 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
         meter
             .upDownCounterBuilder("observable-double-up-down-counter")
             .ofDoubles()
-            .buildWithCallback(
-                m -> {
-                  m.record(1.2);
-                  m.record(3.4, SOME_ATTRIBUTES);
-                });
+            .buildWithCallback(m -> {
+              m.record(1.2);
+              m.record(3.4, SOME_ATTRIBUTES);
+            });
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1.2, points.get("test:observable-double-up-down-counter"));
@@ -305,11 +303,10 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
         meter
             .gaugeBuilder("observable-long-gauge")
             .ofLongs()
-            .buildWithCallback(
-                m -> {
-                  m.record(1);
-                  m.record(2, SOME_ATTRIBUTES);
-                });
+            .buildWithCallback(m -> {
+              m.record(1);
+              m.record(2, SOME_ATTRIBUTES);
+            });
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1L, points.get("test:observable-long-gauge"));
@@ -323,17 +320,34 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
     AutoCloseable observable =
         meter
             .gaugeBuilder("observable-double-gauge")
-            .buildWithCallback(
-                m -> {
-                  m.record(1.2);
-                  m.record(3.4, SOME_ATTRIBUTES);
-                });
+            .buildWithCallback(m -> {
+              m.record(1.2);
+              m.record(3.4, SOME_ATTRIBUTES);
+            });
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1.2, points.get("test:observable-double-gauge"));
     assertEquals(3.4, points.get("test:observable-double-gauge" + WITH_ATTRS));
 
     closeQuietly(observable);
+  }
+
+  @Test
+  void testObservableGaugeStopsExportingUnobservedAttributes() {
+    assertStopsExportingUnobservedAttributes(
+        "test:observable-gauge-unobserved",
+        points,
+        meterReader,
+        meter.gaugeBuilder("observable-gauge-unobserved").ofLongs()::buildWithCallback);
+  }
+
+  @Test
+  void testObservableUpDownCounterStopsExportingUnobservedAttributes() {
+    assertStopsExportingUnobservedAttributes(
+        "test:observable-up-down-counter-unobserved",
+        points,
+        meterReader,
+        meter.upDownCounterBuilder("observable-up-down-counter-unobserved")::buildWithCallback);
   }
 
   @Test
@@ -358,6 +372,36 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
     points.clear();
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
     assertEquals(0L, points.get("test:observable-long-counter-delta-changing"));
+
+    closeQuietly(observable);
+  }
+
+  @Test
+  void testObservableCounterDeltaReportsFullValueAfterGap() {
+    boolean[] report = {true};
+    AutoCloseable observable =
+        meter
+            .counterBuilder("observable-counter-delta-gap")
+            .buildWithCallback(m -> {
+              if (report[0]) {
+                m.record(2);
+              }
+            });
+
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(2L, points.get("test:observable-counter-delta-gap"));
+
+    // not reported: no data point, and the previous value is forgotten
+    report[0] = false;
+    points.clear();
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertNull(points.get("test:observable-counter-delta-gap"));
+
+    // reported again: full value, as in OTel Java, not 0 against the stale previous value
+    report[0] = true;
+    points.clear();
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(2L, points.get("test:observable-counter-delta-gap"));
 
     closeQuietly(observable);
   }
@@ -542,22 +586,63 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
     assertNull(points.get("test:long-counter-observer" + WITH_ATTRS));
     assertNull(points.get("test:double-counter-observer"));
     assertNull(points.get("test:double-counter-observer" + WITH_ATTRS));
-    // up-down counters stay cumulative: they continue to show the last count set
-    assertEquals(4L, points.get("test:long-up-down-counter-observer"));
-    assertEquals(40L, points.get("test:long-up-down-counter-observer" + WITH_ATTRS));
-    assertEquals(5.6, (double) points.get("test:double-up-down-counter-observer"), 0.001);
-    assertEquals(
-        50.6, (double) points.get("test:double-up-down-counter-observer" + WITH_ATTRS), 0.001);
-    // gauges also stay cumulative: they continue to show the latest value set
-    assertEquals(7L, points.get("test:long-gauge-observer"));
-    assertEquals(70L, points.get("test:long-gauge-observer" + WITH_ATTRS));
-    assertEquals(8.9, points.get("test:double-gauge-observer"));
-    assertEquals(80.9, points.get("test:double-gauge-observer" + WITH_ATTRS));
+    // up-down counters and gauges: nothing was observed, so no data point (OTel SDK spec)
+    assertNull(points.get("test:long-up-down-counter-observer"));
+    assertNull(points.get("test:long-up-down-counter-observer" + WITH_ATTRS));
+    assertNull(points.get("test:double-up-down-counter-observer"));
+    assertNull(points.get("test:double-up-down-counter-observer" + WITH_ATTRS));
+    assertNull(points.get("test:long-gauge-observer"));
+    assertNull(points.get("test:long-gauge-observer" + WITH_ATTRS));
+    assertNull(points.get("test:double-gauge-observer"));
+    assertNull(points.get("test:double-gauge-observer" + WITH_ATTRS));
 
     noopCallback.close();
   }
 
-  private static void closeQuietly(AutoCloseable closeable) {
+  /**
+   * Checks that an observable exports the attribute set {@link #SOME_ATTRIBUTES} only in the
+   * collections where its callback reports it. The callback always reports {@code 1} without
+   * attributes, and reports {@code 2} with attributes in the first and third collections only.
+   *
+   * @param metric the exported metric key, as {@code scope:instrument}
+   * @param points the data points collected by {@code meterReader}, cleared between collections
+   * @param meterReader the visitor that fills {@code points}
+   * @param register builds the observable instrument from the given callback
+   */
+  static void assertStopsExportingUnobservedAttributes(
+      String metric,
+      Map<String, Object> points,
+      MeterReader meterReader,
+      Function<Consumer<ObservableLongMeasurement>, AutoCloseable> register) {
+    boolean[] reportAttrs = {true};
+    AutoCloseable observable =
+        register.apply(m -> {
+          m.record(1);
+          if (reportAttrs[0]) {
+            m.record(2, SOME_ATTRIBUTES);
+          }
+        });
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(1L, points.get(metric));
+    assertEquals(2L, points.get(metric + WITH_ATTRS));
+
+    reportAttrs[0] = false;
+    points.clear();
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(1L, points.get(metric));
+    assertNull(points.get(metric + WITH_ATTRS));
+
+    // reported again: exported with its full value (for observable counters under delta, see
+    // testObservableCounterDeltaReportsFullValueAfterGap)
+    reportAttrs[0] = true;
+    points.clear();
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(2L, points.get(metric + WITH_ATTRS));
+
+    closeQuietly(observable);
+  }
+
+  static void closeQuietly(AutoCloseable closeable) {
     try {
       closeable.close();
     } catch (Exception e) {

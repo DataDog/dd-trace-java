@@ -88,9 +88,10 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
     "scenario      | annotation                  | trigger             ",
     "orchestration | DurableOrchestrationTrigger | DurableOrchestration",
     "activity      | DurableActivityTrigger      | DurableActivity     ",
-    "entity        | DurableEntityTrigger        | DurableEntity       "
+    "entity        | DurableEntityTrigger        | DurableEntity       ",
+    "cosmos db     | CosmosDBTrigger             | CosmosDB            "
   })
-  void createsSpanForDurableTrigger(String annotation, String trigger) throws Exception {
+  void createsSpanForTrigger(String annotation, String trigger) throws Exception {
     MiddlewareContext context = contextFor(annotation, "MyFunction");
 
     if ("DurableOrchestration".equals(trigger)) {
@@ -100,16 +101,45 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
       new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));
     }
 
-    assertTraces(trace(durableSpan("MyFunction", trigger)));
+    assertTraces(trace(invocationSpan("MyFunction", trigger)));
   }
 
   @Test
-  void doesNotCreateSpanForNonDurableFunction() throws Exception {
+  void doesNotCreateSpanForUnsupportedTrigger() throws Exception {
     MiddlewareContext context = contextFor(null, "HttpFunction");
 
     new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));
 
     assertTraces();
+  }
+
+  @Test
+  void cosmosDbTriggerSpanStartsNewTraceAndRecordsFailure() throws Exception {
+    MiddlewareContext context = contextFor("CosmosDBTrigger", "CosmosFunction");
+    TraceContext traceContext = mock(TraceContext.class);
+    when(traceContext.getTraceparent())
+        .thenReturn("00-0000000000000000000000000000002a-000000000000002b-00");
+    when(context.getTraceContext()).thenReturn(traceContext);
+    MiddlewareChain chain = mock(MiddlewareChain.class);
+    doAnswer(
+            invocation -> {
+              throw new InvocationTargetException(new IllegalStateException("failure"));
+            })
+        .when(chain)
+        .doNext(context);
+
+    assertThrows(
+        InvocationTargetException.class,
+        () -> new FunctionExecutionMiddleware().invoke(context, chain));
+
+    writer.waitForTraces(1);
+    DDSpan span = writer.firstTrace().get(0);
+    assertNotEquals("42", span.getTraceId().toString());
+    assertEquals(0L, span.getParentId());
+    assertNotEquals(SAMPLER_DROP, span.samplingPriority());
+    assertEquals("CosmosDB CosmosFunction", span.getResourceName().toString());
+    assertTrue(span.isError());
+    assertEquals(IllegalStateException.class.getName(), span.getTag("error.type"));
   }
 
   @Test
@@ -172,7 +202,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
     invokeOrchestration(
         context, emptyList(), singletonList(executionStarted()), mock(MiddlewareChain.class));
 
-    assertTraces(trace(durableSpan("Orchestrator", "DurableOrchestration")));
+    assertTraces(trace(invocationSpan("Orchestrator", "DurableOrchestration")));
   }
 
   @Test
@@ -457,7 +487,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
         singletonList(failureEvent(subOrchestration)),
         mock(MiddlewareChain.class));
 
-    assertTraces(trace(durableSpan("Orchestrator", "DurableOrchestration")));
+    assertTraces(trace(invocationSpan("Orchestrator", "DurableOrchestration")));
   }
 
   @Test
@@ -474,7 +504,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
         singletonList(entityFailure),
         mock(MiddlewareChain.class));
 
-    assertTraces(trace(durableSpan("Orchestrator", "DurableOrchestration")));
+    assertTraces(trace(invocationSpan("Orchestrator", "DurableOrchestration")));
   }
 
   @Test
@@ -849,7 +879,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
 
     invokeOrchestration(context, emptyList(), singletonList(executionStarted()), chain);
 
-    assertTraces(trace(durableSpan("Orchestrator", "DurableOrchestration")));
+    assertTraces(trace(invocationSpan("Orchestrator", "DurableOrchestration")));
   }
 
   @Test
@@ -938,7 +968,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
                     tag("aas.function.trigger", is("DurableActivity")))));
   }
 
-  private SpanMatcher durableSpan(String functionName, String trigger) {
+  private SpanMatcher invocationSpan(String functionName, String trigger) {
     return span()
         .root()
         .operationName(Pattern.compile(Pattern.quote(operation())))

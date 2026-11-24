@@ -1,5 +1,6 @@
 package datadog.telemetry.dependency;
 
+import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
@@ -222,7 +223,7 @@ public final class Dependency {
       md.reset();
       is = new DigestInputStream(is, md);
       while (is.read(buf, 0, buf.length) > 0) {}
-      hash = String.format("%040X", new BigInteger(1, md.digest()));
+      hash = Strings.format("%040X", new BigInteger(1, md.digest()));
     }
     log.debug("No maven dependency added {}.{} jar name {} hash {}", name, version, source, hash);
     return new Dependency(name, version, source, hash);

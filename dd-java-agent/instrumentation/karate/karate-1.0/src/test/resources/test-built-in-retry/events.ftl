@@ -119,7 +119,7 @@
       "test.framework" : "karate",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "karate-1.0",
-      "test.status" : "skip",
+      "test.status" : "fail",
       "test.suite" : "[org/example/test_failed] test failed",
       "test.type" : "test",
       "test_session.name" : "session-name"

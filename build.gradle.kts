@@ -36,7 +36,7 @@ spotlessPredeclare {
     removeUnusedImports()
     forbidWildcardImports()
 
-    googleJavaFormat(libs.versions.google.java.format.get())
+    googleJavaFormat()
     tableTestFormatter(libs.versions.tabletest.formatter.get())
   }
   groovyGradle {
@@ -53,13 +53,13 @@ spotlessPredeclare {
     greclipse()
   }
   kotlinGradle {
-    ktlint(libs.versions.ktlint.get())
+    ktlint()
   }
   kotlin {
-    ktlint(libs.versions.ktlint.get())
+    ktlint()
   }
   scala {
-    scalafmt(libs.versions.scalafmt.get())
+    scalafmt()
   }
 }
 apply(from = rootDir.resolve("gradle/spotless.gradle"))
@@ -174,7 +174,13 @@ allprojects {
 testAggregate("smoke", listOf(":dd-smoke-tests"), emptyList())
 testAggregate("instrumentation", listOf(":dd-java-agent:instrumentation"), emptyList())
 testAggregate("profiling", listOf(":dd-java-agent:agent-profiling"), emptyList())
-testAggregate("debugger", listOf(":dd-java-agent:agent-debugger"), forceCoverage = true)
+// Flaky-only runs do not exercise the full suite required by the coverage thresholds.
+testAggregate(
+  "debugger",
+  listOf(":dd-java-agent:agent-debugger"),
+  forceCoverage = !providers.gradleProperty("runFlakyTests").isPresent ||
+    providers.gradleProperty("skipFlakyTests").isPresent
+)
 testAggregate(
   "base",
   listOf(":"),

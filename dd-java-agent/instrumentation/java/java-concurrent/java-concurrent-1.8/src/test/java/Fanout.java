@@ -23,10 +23,9 @@ public class Fanout {
     try {
       Stream<CompletableFuture<?>> futures =
           IntStream.range(0, tasks)
-              .mapToObj(
-                  i ->
-                      CompletableFuture.runAsync(
-                          traceChild ? this::tracedWork : this::untracedWork, executor));
+              .mapToObj(i ->
+                  CompletableFuture.runAsync(
+                      traceChild ? this::tracedWork : this::untracedWork, executor));
       // Wait for those threads to finish work
       CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).get();
     } catch (InterruptedException | ExecutionException e) {
@@ -38,12 +37,10 @@ public class Fanout {
     try {
       Stream<CompletableFuture<?>> futures =
           IntStream.range(0, tasks)
-              .mapToObj(
-                  i ->
-                      CompletableFuture.runAsync(
-                              traceChild ? this::tracedWork : this::untracedWork, executor)
-                          .thenRunAsync(
-                              traceChild ? this::tracedWork : this::untracedWork, executor));
+              .mapToObj(i ->
+                  CompletableFuture.runAsync(
+                          traceChild ? this::tracedWork : this::untracedWork, executor)
+                      .thenRunAsync(traceChild ? this::tracedWork : this::untracedWork, executor));
       // Wait for those threads to finish work
       CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).get();
     } catch (InterruptedException | ExecutionException e) {

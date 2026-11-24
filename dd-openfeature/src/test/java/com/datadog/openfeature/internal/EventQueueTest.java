@@ -62,11 +62,10 @@ class EventQueueTest {
     final EventQueue<String> queue = new EventQueue<>(1);
     final ExecutorService executor = Executors.newSingleThreadExecutor();
     try {
-      executor.submit(
-          () -> {
-            MILLISECONDS.sleep(50);
-            return queue.offer("late");
-          });
+      executor.submit(() -> {
+        MILLISECONDS.sleep(50);
+        return queue.offer("late");
+      });
 
       assertEquals("late", queue.poll(5, TimeUnit.SECONDS));
     } finally {
@@ -119,16 +118,15 @@ class EventQueueTest {
     final AtomicInteger accepted = new AtomicInteger();
     try {
       for (int p = 0; p < producers; p++) {
-        executor.submit(
-            () -> {
-              start.await();
-              for (int i = 0; i < 500; i++) {
-                if (queue.offer(i)) {
-                  accepted.incrementAndGet();
-                }
-              }
-              return null;
-            });
+        executor.submit(() -> {
+          start.await();
+          for (int i = 0; i < 500; i++) {
+            if (queue.offer(i)) {
+              accepted.incrementAndGet();
+            }
+          }
+          return null;
+        });
       }
       start.countDown();
       executor.shutdown();

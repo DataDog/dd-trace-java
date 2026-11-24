@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.servlet3;
 
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.TIMEOUT;
+import static datadog.trace.api.KnownTags.TIMEOUT;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DECORATE;
 
 import datadog.context.ContextScope;

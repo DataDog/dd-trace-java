@@ -1,0 +1,28 @@
+{
+  "version": "2.2",
+  "metadata": {
+    "rules_version": "1.99.0"
+  },
+  "rules": [
+    {
+      "id": "invalid-rule",
+      "name": "Invalid Rule",
+      "tags": {
+        "type": "attack_attempt",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "operator": "invalid_operator",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.query"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

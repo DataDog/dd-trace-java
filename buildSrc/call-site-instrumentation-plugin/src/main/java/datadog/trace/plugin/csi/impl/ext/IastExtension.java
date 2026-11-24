@@ -466,11 +466,10 @@ public class IastExtension implements Extension {
     private static AdviceMetadata findAdviceMetadata(final BodyDeclaration<?> target) {
       return target.getAnnotations().stream()
           .filter(AdviceMetadata::isAdviceAnnotation)
-          .map(
-              annotation -> {
-                final Expression tag = getAnnotationExpression(annotation);
-                return new AdviceMetadata(annotation, tag);
-              })
+          .map(annotation -> {
+            final Expression tag = getAnnotationExpression(annotation);
+            return new AdviceMetadata(annotation, tag);
+          })
           .findFirst()
           .orElse(null);
     }

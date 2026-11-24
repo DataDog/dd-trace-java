@@ -29,11 +29,10 @@ class ReferenceCreatorConversionTest {
       assertNotNull(type, advice.getName());
       assertTrue(
           Stream.of(type.methods)
-              .anyMatch(
-                  method ->
-                      method.name.equals("getType")
-                          && method.methodType.equals(
-                              "(Ljava/lang/Class;)Lnet/bytebuddy/jar/asm/Type;")),
+              .anyMatch(method ->
+                  method.name.equals("getType")
+                      && method.methodType.equals(
+                          "(Ljava/lang/Class;)Lnet/bytebuddy/jar/asm/Type;")),
           advice.getName());
       assertFalse(references.keySet().stream().anyMatch(name -> name.startsWith("[")));
     }
