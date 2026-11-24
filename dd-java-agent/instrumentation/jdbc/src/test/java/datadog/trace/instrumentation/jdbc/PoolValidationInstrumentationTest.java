@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.jdbc;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -9,9 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.DDSpan;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -65,15 +62,20 @@ public class PoolValidationInstrumentationTest extends AbstractInstrumentationTe
       DataSource ds = p.dataSource;
       // warm up so the traced borrow reuses an idle connection, which the pool must validate
       ds.getConnection().close();
+      // Hikari only re-validates once time has passed since the connection's last use, even with
+      // its bypass window at 0
       Thread.sleep(10);
 
       int pingsBefore = PINGS.get();
-      runUnderTrace(() -> {
-        try (Connection connection = ds.getConnection();
-            Statement statement = connection.createStatement()) {
-          statement.execute("SELECT 2 AS app_query");
-        }
-      });
+      runUnderTrace(
+          "parent",
+          () -> {
+            try (Connection connection = ds.getConnection();
+                Statement statement = connection.createStatement()) {
+              statement.execute("SELECT 2 AS app_query");
+            }
+            return null;
+          });
       assertTrue(PINGS.get() > pingsBefore, "the pool didn't validate on borrow");
     }
 
@@ -90,7 +92,12 @@ public class PoolValidationInstrumentationTest extends AbstractInstrumentationTe
     org.apache.tomcat.jdbc.pool.DataSource ds = tomcatDataSource();
     ds.setInitSQL("SELECT 3 AS init_sql");
     try {
-      runUnderTrace(() -> ds.getConnection().close());
+      runUnderTrace(
+          "parent",
+          () -> {
+            ds.getConnection().close();
+            return null;
+          });
     } finally {
       ds.close();
     }
@@ -187,20 +194,6 @@ public class PoolValidationInstrumentationTest extends AbstractInstrumentationTe
     @Override
     public void close() throws Exception {
       closer.close();
-    }
-  }
-
-  @FunctionalInterface
-  private interface Body {
-    void run() throws Exception;
-  }
-
-  private static void runUnderTrace(Body body) throws Exception {
-    AgentSpan span = startSpan("test", "parent");
-    try (ContextScope scope = activateSpan(span)) {
-      body.run();
-    } finally {
-      span.finish();
     }
   }
 }
