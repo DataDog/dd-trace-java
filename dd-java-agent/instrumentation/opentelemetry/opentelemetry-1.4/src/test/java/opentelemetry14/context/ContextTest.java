@@ -1,5 +1,7 @@
 package opentelemetry14.context;
 
+import static datadog.context.Context.isCaptureEnabled;
+import static datadog.context.Context.setCaptureEnabled;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -22,8 +24,38 @@ import java.util.Map;
 import opentelemetry14.AbstractOpenTelemetry14Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 public class ContextTest extends AbstractOpenTelemetry14Test {
+
+  @Test
+  void firstManualAttachmentDefaultsToCaptureEnabled() {
+    Context context = Context.root().with(ContextKey.named("test-key"), "value");
+    try (Scope ignored = context.makeCurrent()) {
+      assertTrue(isCaptureEnabled());
+    }
+  }
+
+  @TableTest({
+    "Scenario                         | captureEnabled | sameContext",
+    "Enabled parent, new context      | true           | false      ",
+    "Disabled parent, new context     | false          | false      ",
+    "Enabled parent, current context  | true           | true       ",
+    "Disabled parent, current context | false          | true       "
+  })
+  void manualAttachmentInheritsCaptureFlag(boolean captureEnabled, boolean sameContext) {
+    ContextKey<String> key = ContextKey.named("test-key");
+    Context parent = Context.root().with(key, "parent");
+    try (Scope ignored = parent.makeCurrent()) {
+      setCaptureEnabled(captureEnabled);
+      Context child = sameContext ? parent : parent.with(key, "child");
+      try (Scope ignored2 = child.makeCurrent()) {
+        assertEquals(captureEnabled, isCaptureEnabled());
+      }
+      assertEquals(captureEnabled, isCaptureEnabled());
+    }
+    assertTrue(isCaptureEnabled());
+  }
 
   @DisplayName("test Span.current/makeCurrent()")
   @Test
@@ -53,7 +85,7 @@ public class ContextTest extends AbstractOpenTelemetry14Test {
 
     // After activating DD span: Datadog span must be current span
     AgentSpan ddSpan = tracer.startSpan("dd-api", "other-name");
-    ContextScope ddScope = tracer.activateManualSpan(ddSpan);
+    ContextScope ddScope = tracer.activateSpan(ddSpan);
     currentSpan = Span.current();
 
     assertSpanEquals(ddSpan, currentSpan);
@@ -95,7 +127,7 @@ public class ContextTest extends AbstractOpenTelemetry14Test {
   @Test
   void testContextMakeCurrentWithAnotherActiveSpan() {
     AgentSpan ddSpan = tracer.startSpan("dd-api", "some-name");
-    ContextScope ddScope = tracer.activateManualSpan(ddSpan);
+    ContextScope ddScope = tracer.activateSpan(ddSpan);
     Span otelSpan = this.otelTracer.spanBuilder("other-name").startSpan();
 
     // DD span is active: current OTel span reflects DD span
@@ -125,7 +157,7 @@ public class ContextTest extends AbstractOpenTelemetry14Test {
   @Test
   void testContextMakeCurrentAlreadyActiveSpan() {
     AgentSpan ddSpan = tracer.startSpan("dd-api", "some-name");
-    ContextScope ddScope = tracer.activateManualSpan(ddSpan);
+    ContextScope ddScope = tracer.activateSpan(ddSpan);
     Span currentSpan = Span.current();
 
     assertNotNull(currentSpan);
@@ -180,7 +212,7 @@ public class ContextTest extends AbstractOpenTelemetry14Test {
 
     // Activate DD child span and verify OTel current span
     AgentSpan ddChildSpan = tracer.startSpan("dd-api", "other-name");
-    ContextScope ddChildScope = tracer.activateManualSpan(ddChildSpan);
+    ContextScope ddChildScope = tracer.activateSpan(ddChildSpan);
     Span current = Span.current();
 
     assertEquals(

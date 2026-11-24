@@ -14,6 +14,12 @@ final class ThreadLocalContextManager implements ContextManager {
   private static final NoopContextContinuation ROOT_CONTINUATION =
       new NoopContextContinuation(Context.root());
 
+  @SuppressWarnings("unused")
+  // ensure these helpers are preloaded along with ThreadLocalContextManager
+  private static final Class<?>[] PRELOAD_HELPERS = {ContextCheckpoint.class};
+
+  private static final byte SUPPRESS_CAPTURE = 1;
+
   private final Object listenersWriteLock = new Object();
   volatile ContextListener[] listeners = {};
 
@@ -40,30 +46,69 @@ final class ThreadLocalContextManager implements ContextManager {
       return context.asScope(); // convert to scope without attaching
     }
 
+    byte flags = holder.flags;
     holder.current = context;
+    holder.flags = 0;
     notifyUpdate(listeners, beforeAttach, context);
     return continuation == null
-        ? new ContextScopeImpl(context, beforeAttach)
-        : new ResumedScopeImpl(context, beforeAttach, continuation);
+        ? new ContextScopeImpl(context, beforeAttach, flags)
+        : new ResumedScopeImpl(context, beforeAttach, flags, continuation);
   }
 
   @Override
-  public Context swap(Context context) {
-    ContextHolder holder = CONTEXT_HOLDER.get();
+  public ContextHandle checkpoint(Context context) {
+    return checkpoint(context, CONTEXT_HOLDER.get().flags);
+  }
 
-    Context beforeSwap = holder.current;
-    if (context == beforeSwap) {
-      return beforeSwap;
+  @Override
+  public ContextHandle swap(ContextHandle handle) {
+    byte seedFlags = 0;
+    Context context;
+    if (handle instanceof Context) {
+      context = (Context) handle;
+    } else {
+      seedFlags = ((ContextCheckpoint) handle).flags;
+      context = ((ContextCheckpoint) handle).context;
     }
 
-    holder.current = context;
-    notifyUpdate(listeners, beforeSwap, context);
-    return beforeSwap;
+    ContextHolder holder = CONTEXT_HOLDER.get();
+    Context beforeSwap = holder.current;
+    byte flags = holder.flags;
+
+    // Keep the current flags when the context is unchanged.
+    if (context != beforeSwap) {
+      holder.flags = seedFlags;
+      holder.current = context;
+      notifyUpdate(listeners, beforeSwap, context);
+    }
+
+    return checkpoint(beforeSwap, flags);
+  }
+
+  private static ContextHandle checkpoint(Context context, byte flags) {
+    return flags == 0 ? context : new ContextCheckpoint(context, flags);
   }
 
   @Override
   public ContextContinuation capture(Context context) {
-    return context == Context.root() ? ROOT_CONTINUATION : new ContextContinuationImpl(context);
+    return context == Context.root() || !isCaptureEnabled()
+        ? ROOT_CONTINUATION
+        : new ContextContinuationImpl(context);
+  }
+
+  @Override
+  public boolean isCaptureEnabled() {
+    return (CONTEXT_HOLDER.get().flags & SUPPRESS_CAPTURE) == 0;
+  }
+
+  @Override
+  public void setCaptureEnabled(boolean enabled) {
+    ContextHolder holder = CONTEXT_HOLDER.get();
+    if (enabled) {
+      holder.flags &= ~SUPPRESS_CAPTURE;
+    } else {
+      holder.flags |= SUPPRESS_CAPTURE;
+    }
   }
 
   @Override
@@ -119,11 +164,14 @@ final class ThreadLocalContextManager implements ContextManager {
   private static class ContextScopeImpl implements ContextScope {
     private final Context context;
     private final Context beforeAttach;
+    private final byte flags;
+
     private boolean closed;
 
-    ContextScopeImpl(Context context, Context beforeAttach) {
+    ContextScopeImpl(Context context, Context beforeAttach, byte flags) {
       this.context = context;
       this.beforeAttach = beforeAttach;
+      this.flags = flags;
     }
 
     @Override
@@ -138,6 +186,7 @@ final class ThreadLocalContextManager implements ContextManager {
         // check for out-of-order close to avoid corrupting the current state
         if (context == holder.current) {
           holder.current = beforeAttach;
+          holder.flags = flags;
           notifyUpdate(INSTANCE.listeners, context, beforeAttach);
           closed = true;
         }
@@ -149,8 +198,11 @@ final class ThreadLocalContextManager implements ContextManager {
     @Nullable private ContextContinuationImpl continuation;
 
     ResumedScopeImpl(
-        Context context, Context beforeAttach, @Nullable ContextContinuationImpl continuation) {
-      super(context, beforeAttach);
+        Context context,
+        Context beforeAttach,
+        byte flags,
+        @Nullable ContextContinuationImpl continuation) {
+      super(context, beforeAttach, flags);
       this.continuation = continuation;
     }
 
@@ -259,5 +311,6 @@ final class ThreadLocalContextManager implements ContextManager {
 
   private static final class ContextHolder {
     Context current = Context.root();
+    byte flags; // execution-unit flags
   }
 }

@@ -147,23 +147,22 @@ class SparkAggregatedTaskMetrics {
             externalAccumulableHistograms = new RemoveEldestHashMap<>(MAX_ACCUMULATOR_SIZE);
           }
 
-          externalAccumulators.forEach(
-              acc -> {
-                HistogramWithSum hist = externalAccumulableHistograms.get(acc.id());
-                if (hist == null) {
-                  hist =
-                      Histogram.newHistogramWithSum(
-                          HISTOGRAM_RELATIVE_ACCURACY, HISTOGRAM_MAX_NUM_BINS);
-                }
+          externalAccumulators.forEach(acc -> {
+            HistogramWithSum hist = externalAccumulableHistograms.get(acc.id());
+            if (hist == null) {
+              hist =
+                  Histogram.newHistogramWithSum(
+                      HISTOGRAM_RELATIVE_ACCURACY, HISTOGRAM_MAX_NUM_BINS);
+            }
 
-                try {
-                  // As of spark 3.5, all SQL metrics are Long, safeguard if it changes in new
-                  // versions
-                  hist.accept(((Number) acc.value()).doubleValue());
-                  externalAccumulableHistograms.put(acc.id(), hist);
-                } catch (ClassCastException ignored) {
-                }
-              });
+            try {
+              // As of spark 3.5, all SQL metrics are Long, safeguard if it changes in new
+              // versions
+              hist.accept(((Number) acc.value()).doubleValue());
+              externalAccumulableHistograms.put(acc.id(), hist);
+            } catch (ClassCastException ignored) {
+            }
+          });
         }
       }
     }

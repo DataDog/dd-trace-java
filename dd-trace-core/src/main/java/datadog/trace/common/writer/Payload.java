@@ -8,6 +8,7 @@ import static datadog.communication.serialization.msgpack.MsgPackWriter.MAP16;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.MAP32;
 import static java.util.Collections.singletonList;
 
+import datadog.trace.api.ProtocolVersion;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -45,6 +46,14 @@ public abstract class Payload {
   public Payload withDroppedSpans(long droppedSpanCount) {
     this.droppedSpans += droppedSpanCount;
     return this;
+  }
+
+  /**
+   * The trace protocol the body is encoded in, or {@code null} for payloads that aren't sent to a
+   * Datadog Agent trace endpoint. Agent trace payloads override it.
+   */
+  public ProtocolVersion protocol() {
+    return null;
   }
 
   public int traceCount() {

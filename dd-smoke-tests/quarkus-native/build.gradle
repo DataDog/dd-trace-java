@@ -11,7 +11,7 @@ plugins {
 description = 'Quarkus Native Smoke Tests.'
 
 dependencies {
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation libs.bundles.jmc
 }
 

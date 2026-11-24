@@ -6,6 +6,7 @@ import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -490,22 +491,33 @@ public class JsonReader implements AutoCloseable {
   private IOException unexpectedSyntaxError(String expected, String found) {
     return new IOException(
         String.format(
+            Locale.ROOT,
             "Syntax error at line %d, position %d: expected %s but found '%s'",
-            this.lineNumber, this.linePosition, expected, found));
+            this.lineNumber,
+            this.linePosition,
+            expected,
+            found));
   }
 
   private IOException unexpectedSyntaxError(String expected, char found) {
     return new IOException(
         String.format(
+            Locale.ROOT,
             "Syntax error at line %d, position %d: expected %s but found '%s'",
-            this.lineNumber, this.linePosition, expected, found));
+            this.lineNumber,
+            this.linePosition,
+            expected,
+            found));
   }
 
   private IOException syntaxError(String message) {
     return new IOException(
         String.format(
+            Locale.ROOT,
             "Syntax error at line %d, position %d: %s",
-            this.lineNumber, this.linePosition, message));
+            this.lineNumber,
+            this.linePosition,
+            message));
   }
 
   @Override

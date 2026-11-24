@@ -1,0 +1,31 @@
+{
+  "custom_rules": [
+    {
+      "id": "ua0-600-12x-copy",
+      "name": "Arachni",
+      "tags": {
+        "category": "attack_attempt",
+        "type": "security_scanner2"
+      },
+      "conditions": [
+        {
+          "operator": "match_regex",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              }
+            ],
+            "regex": "^Arachni/v"
+          }
+        }
+      ],
+      "on_match": [
+        "block"
+      ]
+    }
+  ]
+}

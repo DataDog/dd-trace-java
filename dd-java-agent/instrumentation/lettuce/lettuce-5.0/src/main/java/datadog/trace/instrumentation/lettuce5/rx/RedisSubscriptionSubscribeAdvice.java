@@ -1,11 +1,9 @@
 package datadog.trace.instrumentation.lettuce5.rx;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.expectsResponse;
 
-import datadog.context.ContextScope;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.lettuce5.LettuceClientDecorator;
@@ -16,33 +14,18 @@ import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Subscription;
 
 public class RedisSubscriptionSubscribeAdvice {
-  public static final class State {
-    public final ContextScope parentScope;
-    public final AgentSpan span;
-
-    public State(ContextScope parentScope, AgentSpan span) {
-      this.parentScope = parentScope;
-      this.span = span;
-    }
-  }
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static State beforeSubscribe(
+  public static AgentSpan beforeSubscribe(
       @Advice.This Subscription subscription,
       @Advice.FieldValue("command") RedisCommand command,
       @Advice.FieldValue("subscriptionCommand") RedisCommand subscriptionCommand) {
 
-    ContextScope parentScope = null;
     RedisSubscriptionState state =
         (RedisSubscriptionState)
             InstrumentationContext.get(
                     "io.lettuce.core.RedisPublisher$RedisSubscription",
                     "datadog.trace.instrumentation.lettuce5.rx.RedisSubscriptionState")
                 .get(subscription);
-    AgentSpan parentSpan = state != null ? state.parentSpan : null;
-    if (parentSpan != null) {
-      parentScope = activateSpan(parentSpan);
-    }
     AgentSpan span =
         startSpan(
             LettuceClientDecorator.REDIS_CLIENT.toString(), LettuceClientDecorator.OPERATION_NAME);
@@ -56,24 +39,21 @@ public class RedisSubscriptionSubscribeAdvice {
     }
     DECORATE.onCommand(span, command);
 
-    return new State(parentScope, span);
+    return span;
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterSubscribe(
       @Advice.FieldValue("command") RedisCommand command,
       @Advice.FieldValue("subscriptionCommand") RedisCommand subscriptionCommand,
-      @Advice.Enter State state,
+      @Advice.Enter AgentSpan span,
       @Advice.Thrown Throwable throwable) {
     if (throwable != null || !expectsResponse(command)) {
-      DECORATE.onError(state.span, throwable);
-      DECORATE.beforeFinish(state.span);
-      state.span.finish();
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
+      span.finish();
       InstrumentationContext.get(RedisCommand.class, AgentSpan.class)
           .put(subscriptionCommand, null);
-    }
-    if (state.parentScope != null) {
-      state.parentScope.close();
     }
   }
 }

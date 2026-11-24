@@ -5,10 +5,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.api.Config;
-import datadog.trace.test.util.DDJavaSpecification;
 import org.junit.jupiter.api.Test;
 
-class IntakeTest extends DDJavaSpecification {
+class IntakeTest {
 
   @Test
   void intakeUrlsAreGeneratedCorrectly() {

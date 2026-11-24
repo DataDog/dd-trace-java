@@ -50,6 +50,7 @@ public final class ClassLoaderMatchers {
       case "org.openjdk.nashorn.internal.runtime.ScriptLoader":
       case "jdk.nashorn.internal.runtime.ScriptLoader":
       case "org.codehaus.janino.ByteArrayClassLoader":
+      case "org.codehaus.commons.compiler.util.reflect.ByteArrayClassLoader":
       case "org.eclipse.persistence.internal.jaxb.JaxbClassLoader":
       case "com.alibaba.fastjson.util.ASMClassLoader":
       case "datadog.trace.bootstrap.DatadogClassLoader":
