@@ -173,6 +173,10 @@ final class MethodProbeInserter {
     return true;
   }
 
+  /**
+   * An instruction belongs to the line of the last line table entry before it, so of several
+   * entries at one offset only the last one counts.
+   */
   private boolean readLines() {
     lineOf = new int[insns.length];
     int line = -1;
@@ -422,30 +426,61 @@ final class MethodProbeInserter {
     blockProbe = new int[blockCount];
     Arrays.fill(blockNode, -1);
     Arrays.fill(blockProbe, -1);
-    int[] lines = new int[8];
+    LineList lines = new LineList();
     for (int block = 0; block < blockCount; block++) {
-      int count = 0;
+      lines.clear();
       for (int i = blockFirst[block]; i <= blockLast[block]; i++) {
-        int line = lineOf[i];
-        if (insns[i].getOpcode() < 0 || line < 0 || contains(lines, count, line)) {
-          continue;
+        if (insns[i].getOpcode() >= 0) {
+          addLinesAt(i, lines);
         }
-        if (count == lines.length) {
-          lines = Arrays.copyOf(lines, count * 2);
-        }
-        lines[count++] = line;
       }
-      blockLines[block] = Arrays.copyOf(lines, count);
+      blockLines[block] = lines.toArray();
     }
   }
 
-  private static boolean contains(int[] values, int count, int value) {
-    for (int i = 0; i < count; i++) {
-      if (values[i] == value) {
-        return true;
+  private void addLinesAt(int i, LineList lines) {
+    lines.add(lineOf[i]);
+  }
+
+  private boolean startsNewLine(int i, LineList lines) {
+    return lineOf[i] >= 0 && !lines.contains(lineOf[i]);
+  }
+
+  /** Line numbers in the order they were added, without duplicates. */
+  private static final class LineList {
+    private int[] lines = new int[8];
+    private int count;
+
+    void add(int line) {
+      if (line < 0 || contains(line)) {
+        return;
       }
+      if (count == lines.length) {
+        lines = Arrays.copyOf(lines, count * 2);
+      }
+      lines[count++] = line;
     }
-    return false;
+
+    boolean contains(int line) {
+      for (int k = 0; k < count; k++) {
+        if (lines[k] == line) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    int size() {
+      return count;
+    }
+
+    int[] toArray() {
+      return Arrays.copyOf(lines, count);
+    }
+
+    void clear() {
+      count = 0;
+    }
   }
 
   /**
@@ -633,8 +668,7 @@ final class MethodProbeInserter {
 
   private void insertExceptionProbes(
       int block, boolean[] uninitializedThis, List<TryCatchBlockNode> originalHandlers) {
-    int[] lines = new int[blockLines[block].length];
-    int lineCount = 0;
+    LineList lines = new LineList();
     int segmentFirst = -1;
     int segmentLast = -1;
     boolean segmentThrows = false;
@@ -643,12 +677,11 @@ final class MethodProbeInserter {
       if (insn.getOpcode() < 0) {
         continue;
       }
-      int line = lineOf[i];
-      if (line >= 0 && !contains(lines, lineCount, line)) {
+      if (startsNewLine(i, lines)) {
         if (segmentThrows) {
-          addSegment(block, segmentFirst, segmentLast, lines, lineCount, originalHandlers);
+          addSegment(block, segmentFirst, segmentLast, lines, originalHandlers);
         }
-        lines[lineCount++] = line;
+        addLinesAt(i, lines);
         segmentFirst = -1;
         segmentThrows = false;
       }
@@ -662,21 +695,20 @@ final class MethodProbeInserter {
       segmentThrows |= mayThrow(insn);
     }
     if (segmentThrows) {
-      addSegment(block, segmentFirst, segmentLast, lines, lineCount, originalHandlers);
+      addSegment(block, segmentFirst, segmentLast, lines, originalHandlers);
     }
   }
 
+  /**
+   * Records, when an exception leaves instructions {@code first} to {@code last}, the lines the
+   * block has started so far.
+   */
   private void addSegment(
-      int block,
-      int first,
-      int last,
-      int[] lines,
-      int lineCount,
-      List<TryCatchBlockNode> originalHandlers) {
+      int block, int first, int last, LineList lines, List<TryCatchBlockNode> originalHandlers) {
     int probe =
-        lineCount == blockLines[block].length
+        lines.size() == blockLines[block].length
             ? blockProbe(block)
-            : probes.newProbe(Arrays.copyOf(lines, lineCount), parentNode(block));
+            : probes.newProbe(lines.toArray(), parentNode(block));
 
     LabelNode start = new LabelNode();
     LabelNode end = new LabelNode();

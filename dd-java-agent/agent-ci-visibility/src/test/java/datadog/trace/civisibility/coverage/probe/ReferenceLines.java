@@ -15,9 +15,9 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
 /**
- * Reference line coverage for tests: a call before every instruction records the instruction's
- * line, so a line counts as soon as any of its instructions starts. It shares no logic with the
- * probes.
+ * Reference line coverage for tests: a call before every instruction records the line of the last
+ * line table entry before it, so a line counts as soon as any of its code starts. It shares no
+ * logic with the probes.
  */
 public final class ReferenceLines {
 
@@ -25,8 +25,15 @@ public final class ReferenceLines {
 
   private ReferenceLines() {}
 
-  public static synchronized void hit(String sourceFile, int line) {
-    LINES.computeIfAbsent(sourceFile, file -> new BitSet()).set(line);
+  public static synchronized void hit(String sourcePath, int line) {
+    LINES.computeIfAbsent(sourcePath, path -> new BitSet()).set(line);
+  }
+
+  /**
+   * The package directory of a class followed by its source file, such as {@code okio/Buffer.kt}.
+   */
+  static String sourcePath(String className, String sourceFile) {
+    return className.substring(0, className.lastIndexOf('/') + 1) + sourceFile;
   }
 
   static synchronized Map<String, BitSet> drain() {
@@ -40,18 +47,15 @@ public final class ReferenceLines {
     ClassReader reader = new ClassReader(source);
     ClassNode classNode = new ClassNode();
     reader.accept(classNode, ClassReader.EXPAND_FRAMES);
-    String sourceFile = classNode.sourceFile;
+    String sourcePath = sourcePath(classNode.name, classNode.sourceFile);
     for (MethodNode method : classNode.methods) {
-      if (!isCovered(method)) {
-        continue;
-      }
       int line = -1;
       for (AbstractInsnNode insn : method.instructions.toArray()) {
         if (insn instanceof LineNumberNode) {
           line = ((LineNumberNode) insn).line;
         } else if (insn.getOpcode() >= 0 && line >= 0) {
           InsnList call = new InsnList();
-          call.add(new LdcInsnNode(sourceFile));
+          call.add(new LdcInsnNode(sourcePath));
           call.add(new LdcInsnNode(line));
           call.add(
               new MethodInsnNode(
@@ -68,16 +72,5 @@ public final class ReferenceLines {
     ClassWriter writer = new ClassWriter(reader, 0);
     classNode.accept(writer);
     return writer.toByteArray();
-  }
-
-  /** The same methods as the probes cover; which methods count is a separate question. */
-  private static boolean isCovered(MethodNode method) {
-    if ((method.access & Opcodes.ACC_BRIDGE) != 0) {
-      return false;
-    }
-    if ((method.access & Opcodes.ACC_SYNTHETIC) != 0) {
-      return method.name.startsWith("lambda$") || method.name.endsWith("$default");
-    }
-    return true;
   }
 }

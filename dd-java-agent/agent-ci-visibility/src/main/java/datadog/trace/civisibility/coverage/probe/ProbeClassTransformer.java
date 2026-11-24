@@ -101,6 +101,9 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
       Map<String, Integer> reductions) {
     ClassNode classNode = new ClassNode();
     reader.accept(classNode, ClassReader.EXPAND_FRAMES);
+    if (classNode.sourceFile == null) {
+      return null; // lines are reported per source file
+    }
 
     ClassProbesBuilder probes = new ClassProbesBuilder();
     MethodNode initializer = null;
@@ -108,7 +111,7 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
     for (MethodNode method : classNode.methods) {
       if ("<clinit>".equals(method.name)) {
         initializer = method;
-      } else if (hasSourceLines(method)) {
+      } else {
         instrumented |= instrument(classNode, method, classId, probes, false, frames, reductions);
       }
     }
@@ -149,16 +152,5 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
             frames,
             reduction < NO_EXCEPTION_PROBES)
         .instrument();
-  }
-
-  /** Bridges and accessors are compiler plumbing; lambda bodies and default arguments are code. */
-  private static boolean hasSourceLines(MethodNode method) {
-    if ((method.access & Opcodes.ACC_BRIDGE) != 0) {
-      return false;
-    }
-    if ((method.access & Opcodes.ACC_SYNTHETIC) != 0) {
-      return method.name.startsWith("lambda$") || method.name.endsWith("$default");
-    }
-    return true;
   }
 }
