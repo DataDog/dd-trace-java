@@ -177,6 +177,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
           PR_SUMMARY: ${{ steps.validate-lockfiles.outputs.summary_instrumentation }}
+          PR_BUMPS: ${{ steps.validate-lockfiles.outputs.bumps_instrumentation }}
         run: |
           gh pr create --title "Update instrumentation Gradle dependencies" \
             --base master \
@@ -191,6 +192,8 @@ jobs:
           # Motivation
 
           Refresh Gradle dependencies to make sure to test latest versions of dependencies within their supported versions.
+
+          ${PR_BUMPS}
 
           ${PR_SUMMARY}
 

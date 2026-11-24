@@ -506,5 +506,139 @@ class DependencyAgeScriptTest(unittest.TestCase):
         self.assertNotIn("updated to the previous version", summary)
 
 
+    def _write_lockfiles(self, root: Path, files: dict[str, str]) -> None:
+        for rel_path, content in files.items():
+            path = root / rel_path
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+
+    def _bumps(self, *, baseline: dict[str, str], current: dict[str, str], path_filter=lambda p: True):
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp, True)
+        self._write_lockfiles(tmp / "before", baseline)
+        self._write_lockfiles(tmp / "after", current)
+        return dependency_age.collect_latest_dependency_bumps(
+            baseline_dir=tmp / "before", current_dir=tmp / "after", path_filter=path_filter
+        )
+
+    MONGO_LOCKFILE = "dd-java-agent/instrumentation/mongo/mongo-driver/mongo-driver-4.0/gradle.lockfile"
+
+    def test_bumps_keep_primary_library_and_drop_transitive_and_tooling(self) -> None:
+        baseline = (
+            "# lockfile\n"
+            "org.mongodb:mongodb-driver-sync:4.0.0=compileClasspath\n"
+            "org.mongodb:mongodb-driver-sync:5.13.0=latestDepForkedTestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath\n"
+            "io.projectreactor:reactor-core:3.5.0=latestDepTestRuntimeClasspath,mongo410TestRuntimeClasspath\n"
+            "de.thetaphi:forbiddenapis:3.10=compileClasspath,latestDepTestCompileClasspath\n"
+            "com.datadoghq:dd-instrument-java:0.0.5=compileClasspath,latestDepTestCompileClasspath\n"
+            "empty=spotbugsPlugins\n"
+        )
+        current = (
+            "# lockfile\n"
+            "org.mongodb:mongodb-driver-sync:4.0.0=compileClasspath\n"
+            "org.mongodb:mongodb-driver-sync:5.14.0=latestDepForkedTestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath\n"
+            "io.projectreactor:reactor-core:3.5.0=mongo410TestRuntimeClasspath\n"
+            "io.projectreactor:reactor-core:3.8.7=latestDepTestRuntimeClasspath\n"
+            "de.thetaphi:forbiddenapis:3.11=compileClasspath,latestDepTestCompileClasspath\n"
+            "com.datadoghq:dd-instrument-java:0.0.6=compileClasspath,latestDepTestCompileClasspath\n"
+            "empty=spotbugsPlugins\n"
+        )
+        bumps = self._bumps(baseline={self.MONGO_LOCKFILE: baseline}, current={self.MONGO_LOCKFILE: current})
+        # one row despite three latestDep configurations moving together
+        self.assertEqual(
+            bumps,
+            [dependency_age.DependencyBump("org.mongodb:mongodb-driver-sync", "mongo-driver-4.0", "5.13.0", "5.14.0")],
+        )
+
+    def test_bumps_report_each_latest_configuration_version_pair(self) -> None:
+        lockfile = "dd-java-agent/instrumentation/aerospike-4.0/gradle.lockfile"
+        baseline = (
+            "com.aerospike:aerospike-client:4.0.0=compileClasspath\n"
+            "com.aerospike:aerospike-client:7.2.1=latest7DepTestCompileClasspath\n"
+            "com.aerospike:aerospike-client:9.0.0=latestDepTestCompileClasspath\n"
+        )
+        current = (
+            "com.aerospike:aerospike-client:4.0.0=compileClasspath\n"
+            "com.aerospike:aerospike-client:7.2.2=latest7DepTestCompileClasspath\n"
+            "com.aerospike:aerospike-client:9.0.0=latestDepTestCompileClasspath\n"
+        )
+        bumps = self._bumps(baseline={lockfile: baseline}, current={lockfile: current})
+        self.assertEqual(
+            bumps,
+            [dependency_age.DependencyBump("com.aerospike:aerospike-client", "aerospike-4.0", "7.2.1", "7.2.2")],
+        )
+
+    def test_bumps_mark_newly_added_dependencies(self) -> None:
+        lockfile = "dd-java-agent/instrumentation/foo-1.0/gradle.lockfile"
+        baseline = "com.example:foo:1.0.0=compileClasspath\n"
+        current = "com.example:foo:1.0.0=compileClasspath\ncom.example:foo:2.0.0=latestDepTestRuntimeClasspath\n"
+        bumps = self._bumps(baseline={lockfile: baseline}, current={lockfile: current})
+        self.assertEqual(bumps, [dependency_age.DependencyBump("com.example:foo", "foo-1.0", None, "2.0.0")])
+
+    def test_bumps_ignore_annotation_processors_and_filtered_paths(self) -> None:
+        inst = "dd-java-agent/instrumentation/foo-1.0/gradle.lockfile"
+        core = "dd-trace-core/gradle.lockfile"
+        baseline = "com.example:foo:1.0.0=compileClasspath,latestDepTestAnnotationProcessor\ncom.example:foo:2.0.0=latestDepTestRuntimeClasspath\n"
+        current = "com.example:foo:1.0.0=compileClasspath\ncom.example:foo:2.1.0=latestDepTestAnnotationProcessor,latestDepTestRuntimeClasspath\n"
+        bumps = self._bumps(
+            baseline={inst: baseline, core: baseline},
+            current={inst: current, core: current},
+            path_filter=dependency_age.is_instrumentation_path,
+        )
+        self.assertEqual(bumps, [dependency_age.DependencyBump("com.example:foo", "foo-1.0", "2.0.0", "2.1.0")])
+
+    def test_bump_table_renders_rows_with_published_dates(self) -> None:
+        table = dependency_age.render_bump_table(
+            bumps=[
+                dependency_age.DependencyBump("org.mongodb:mongodb-driver-sync", "mongo-driver-4.0", "5.13.0", "5.14.0"),
+                dependency_age.DependencyBump("com.example:foo", "foo-1.0", None, "2.0.0"),
+            ],
+            published_at={"org.mongodb:mongodb-driver-sync:5.14.0": datetime(2026, 10, 28, 9, 0, tzinfo=timezone.utc)},
+        )
+        self.assertEqual(
+            table,
+            "## Package Version Updates\n"
+            "\n"
+            "| Package | Integration | Previous | New | Published |\n"
+            "| --- | --- | --- | --- | --- |\n"
+            "| org.mongodb:mongodb-driver-sync | mongo-driver-4.0 | 5.13.0 | 5.14.0 | 2026-10-28 |\n"
+            "| com.example:foo | foo-1.0 | (new) | 2.0.0 |  |",
+        )
+
+    def test_bump_table_without_bumps_keeps_heading(self) -> None:
+        self.assertEqual(
+            dependency_age.render_bump_table(bumps=[], published_at={}),
+            "## Package Version Updates\n\nNo latest-dependency version changed.",
+        )
+
+    def test_bump_table_truncates_to_max_chars(self) -> None:
+        bumps = [dependency_age.DependencyBump(f"com.example:lib-{i:03d}", "foo-1.0", "1.0.0", "1.0.1") for i in range(100)]
+        full = dependency_age.render_bump_table(bumps=bumps, published_at={}, max_chars=1_000_000)
+        self.assertNotIn("more rows omitted", full)
+        self.assertLessEqual(len(dependency_age.render_bump_table(bumps=bumps, published_at={}, max_chars=len(full))), len(full))
+        self.assertNotIn("more rows omitted", dependency_age.render_bump_table(bumps=bumps, published_at={}, max_chars=len(full)))
+
+        truncated = dependency_age.render_bump_table(bumps=bumps, published_at={}, max_chars=2000)
+        self.assertLessEqual(len(truncated), 2000)
+        lines = truncated.splitlines()
+        rows = [line for line in lines if line.startswith("| com.example:")]
+        self.assertEqual(lines[-1], f"… {100 - len(rows)} more rows omitted")
+        self.assertGreater(len(rows), 0)
+
+    def test_validate_lockfiles_emits_bump_table_after_downgrades(self) -> None:
+        lockfile = "dd-java-agent/instrumentation/foo-1.0/gradle.lockfile"
+        baseline_content = "com.example:foo:1.0.0=compileClasspath\ncom.example:foo:2.0.0=latestDepTestRuntimeClasspath\n"
+        current_content = "com.example:foo:1.0.0=compileClasspath\ncom.example:foo:2.1.0=latestDepTestRuntimeClasspath\n"
+        result, _ = self.run_validate_lockfiles(
+            baseline={lockfile: baseline_content},
+            current={lockfile: current_content},
+            metadata={"com.example:foo:2.1.0": "2026-04-20T12:00:00Z"},
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("bumps_instrumentation=## Package Version Updates", result.stdout)
+        self.assertIn("| com.example:foo | foo-1.0 | 2.0.0 | 2.1.0 | 2026-04-20 |", result.stdout)
+        self.assertIn("bumps_core=## Package Version Updates\n\nNo latest-dependency version changed.", result.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()
