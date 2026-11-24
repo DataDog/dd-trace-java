@@ -12,7 +12,6 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
-import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
@@ -25,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.propagation.PropagationTags.SamplingState;
+import datadog.trace.core.propagation.ptags.PaddedHexSpanId;
 import datadog.trace.core.propagation.ptags.W3CTracestate;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -95,7 +95,7 @@ class W3CHttpCodec {
       String tracestate =
           propagationTags.headerValue(
               W3C,
-              DDSpanId.toHexStringPadded(context.getSpanId()),
+              new PaddedHexSpanId(context.getSpanId()),
               LLMObsInternal.propagationValuesFor(context),
               samplingState);
       if (tracestate != null && !tracestate.isEmpty()) {
