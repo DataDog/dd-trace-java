@@ -130,6 +130,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGA
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_METADATA_FETCHING_ON_CONNECT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_METADATA_FETCHING_ON_QUERY;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RDS_TAGS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
@@ -1083,8 +1084,8 @@ class ConfigTest {
 
   @TableTest({
     "scenario                                    | exporter | metricsEnabled | metricsExporter | override | expected",
-    "metrics defaults to otlp                    | otlp     | true           |                 |          | true    ",
-    "otlp traces and metrics                     | otlp     | true           | otlp            |          | true    ",
+    "metrics defaults to otlp                    | otlp     | true           |                 |          | false   ",
+    "otlp traces and metrics                     | otlp     | true           | otlp            |          | false   ",
     "metrics exporter explicitly disabled        | otlp     | true           | none            |          | false   ",
     "metrics feature flag off overrides exporter | otlp     | false          | otlp            |          | false   ",
     "no trace export, default metrics exporter   | none     | true           |                 |          | false   ",
@@ -1092,7 +1093,7 @@ class ConfigTest {
     "explicit override wins (enabled)            | none     | false          | none            | true     | true    ",
     "explicit override wins (disabled)           | otlp     | true           | otlp            | false    | false   "
   })
-  void tracesSpanMetricsTriStateDefault(
+  void tracesSpanMetricsRequireExplicitOptIn(
       String exporter,
       String metricsEnabled,
       String metricsExporter,
@@ -1110,8 +1111,6 @@ class ConfigTest {
 
     Config config = newConfig();
 
-    // Unset: emit iff OTLP trace export and OTLP metrics export are both on. An explicit
-    // dd.otel.traces.span.metrics.enabled always wins.
     assertEquals(expected, config.isOtelTracesSpanMetricsEnabled());
   }
 
@@ -1517,8 +1516,7 @@ class ConfigTest {
     assertEquals(5002, config.getOtlpTracesTimeout());
 
     assertTrue(config.isTraceOtelSemanticsEnabled());
-    // tri-state default: OTLP trace export + OTel metrics both on
-    assertTrue(config.isOtelTracesSpanMetricsEnabled());
+    assertFalse(config.isOtelTracesSpanMetricsEnabled());
   }
 
   @Test
@@ -3971,6 +3969,27 @@ class ConfigTest {
     Config config = newConfig();
 
     assertEquals(expected, config.isDbMetadataFetchingOnConnectEnabled());
+  }
+
+  @TableTest({
+    "scenario                                 | sys   | env   | expected",
+    "default is true                          |       |       | true    ",
+    "env true                                 |       | true  | true    ",
+    "env false                                |       | false | false   ",
+    "sys true                                 | true  |       | true    ",
+    "sys false                                | false |       | false   ",
+    "sys prop takes precedence over env false | true  | false | true    ",
+    "sys prop takes precedence over env true  | false | true  | false   "
+  })
+  void rdsTagsEnabledWithSysEnv(String sys, String env, boolean expected) throws Exception {
+    if (sys != null) {
+      System.setProperty(PREFIX + RDS_TAGS_ENABLED, sys);
+    }
+    if (env != null) {
+      setEnv("DD_TRACE_RDS_TAGS_ENABLED", env);
+    }
+
+    assertEquals(expected, newConfig().isRdsTagsEnabled());
   }
 
   @TableTest({

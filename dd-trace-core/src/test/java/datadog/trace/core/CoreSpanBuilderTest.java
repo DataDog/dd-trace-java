@@ -493,6 +493,67 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     span.finish();
   }
 
+  @Test
+  void rootSpanHasNoParentOrigin() {
+    DDSpan span = (DDSpan) tracer.buildSpan("test", "root").start();
+
+    assertEquals(DDSpanContext.PARENT_ORIGIN_NONE, span.spanContext().getParentOrigin());
+    span.finish();
+  }
+
+  @Test
+  void childOfLocalSpanHasLocalParentOrigin() {
+    DDSpan root = (DDSpan) tracer.buildSpan("test", "root").start();
+    DDSpan child = (DDSpan) tracer.buildSpan("test", "child").asChildOf(root.spanContext()).start();
+
+    assertEquals(DDSpanContext.PARENT_ORIGIN_LOCAL, child.spanContext().getParentOrigin());
+    child.finish();
+    root.finish();
+  }
+
+  @Test
+  void childOfExtractedContextHasRemoteParentOrigin() {
+    DDSpan span =
+        (DDSpan) tracer.buildSpan("test", "server").asChildOf(remoteParentContext()).start();
+
+    assertEquals(DDSpanContext.PARENT_ORIGIN_REMOTE, span.spanContext().getParentOrigin());
+    span.finish();
+  }
+
+  @Test
+  void childOfTagContextWithoutTraceHasNoParentOrigin() {
+    DDSpan span = (DDSpan) tracer.buildSpan("test", "server").asChildOf(new TagContext()).start();
+
+    assertEquals(DDSpanContext.PARENT_ORIGIN_NONE, span.spanContext().getParentOrigin());
+    span.finish();
+  }
+
+  @Test
+  @WithConfig(key = "trace.propagation.behavior.extract", value = "restart")
+  void remoteParentDroppedOnRestartHasNoParentOrigin() {
+    DDSpan span =
+        (DDSpan) tracer.buildSpan("test", "server").asChildOf(remoteParentContext()).start();
+
+    assertEquals(DDSpanId.ZERO, span.getParentId());
+    assertEquals(DDSpanContext.PARENT_ORIGIN_NONE, span.spanContext().getParentOrigin());
+    span.finish();
+  }
+
+  private static ExtractedContext remoteParentContext() {
+    return new ExtractedContext(
+        DDTraceId.ONE,
+        2,
+        PrioritySampling.SAMPLER_KEEP,
+        null,
+        0,
+        Collections.<String, String>emptyMap(),
+        Collections.<String, Object>emptyMap(),
+        null,
+        PropagationTags.factory().empty(),
+        null,
+        DATADOG);
+  }
+
   @TableTest({
     "scenario      | origin      | tagMap      ",
     "empty tag map |             | [:]         ",

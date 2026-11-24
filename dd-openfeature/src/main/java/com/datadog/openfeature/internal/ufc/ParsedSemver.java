@@ -17,6 +17,14 @@ public final class ParsedSemver {
   /** Sentinel returned by {@link #parse(String)} when the input is not a valid semantic version. */
   public static final ParsedSemver INVALID = null;
 
+  /**
+   * Sentinel returned by {@link #compare(String, ParsedSemver)} when the version is not a valid
+   * semantic version. No valid comparison returns it.
+   */
+  public static final int INVALID_ORDERING = Integer.MIN_VALUE;
+
+  private static final long MAX_UNSIGNED_DIV_10 = Long.divideUnsigned(-1L, 10);
+
   private final long[] core; // unsigned, with omitted minor and patch normalized to zero
   private final int coreLength;
   private final String prerelease;
@@ -45,7 +53,7 @@ public final class ParsedSemver {
       }
       final long component;
       try {
-        component = Long.parseUnsignedLong(version.substring(next, end));
+        component = Long.parseUnsignedLong(version, next, end, 10);
       } catch (final NumberFormatException e) {
         return INVALID; // overflow
       }
@@ -60,35 +68,13 @@ public final class ParsedSemver {
       next++;
     }
     final int coreLength = Math.max(3, coreSize);
-    if (next == version.length()) {
-      return new ParsedSemver(core, coreLength, "");
-    }
-
-    // Parse prerelease and/or build metadata.
-    String remainder = version.substring(next);
-    String prerelease = "";
-    if (remainder.charAt(0) == '-') {
-      remainder = remainder.substring(1);
-      final int buildStart = remainder.indexOf('+');
-      if (buildStart == -1) {
-        if (!validSemverIdentifiers(remainder, false)) {
-          return INVALID;
-        }
-        return new ParsedSemver(core, coreLength, remainder);
-      }
-      prerelease = remainder.substring(0, buildStart);
-      if (!validSemverIdentifiers(prerelease, false)) {
-        return INVALID;
-      }
-      remainder = remainder.substring(buildStart + 1);
-    } else if (remainder.charAt(0) == '+') {
-      remainder = remainder.substring(1);
-    } else {
+    // Validate prerelease and/or build metadata in place; only the prerelease is copied.
+    final int prereleaseEnd = suffixPrereleaseEnd(version, next);
+    if (prereleaseEnd == -1) {
       return INVALID;
     }
-    if (!validSemverIdentifiers(remainder, true)) {
-      return INVALID;
-    }
+    final String prerelease =
+        prereleaseEnd == next ? "" : version.substring(next + 1, prereleaseEnd);
     return new ParsedSemver(core, coreLength, prerelease);
   }
 
@@ -109,6 +95,99 @@ public final class ParsedSemver {
       }
     }
     return comparePrerelease(left.prerelease, right.prerelease);
+  }
+
+  /**
+   * Compares a version string with a parsed comparand by precedence, without parsing the string
+   * into a {@link ParsedSemver}. The string is validated and compared without allocating: its core
+   * components are read digit by digit and its prerelease is compared as a range of the string.
+   * Build metadata is validated but ignored.
+   *
+   * <p>The result is exactly {@code compare(parse(version), comparand)} when {@code version} is
+   * valid, and {@link #INVALID_ORDERING} when {@link #parse(String)} would reject it.
+   *
+   * @param version the version string to validate and compare
+   * @param comparand the right operand
+   * @return negative, zero or positive as for {@link #compare(ParsedSemver, ParsedSemver)}, or
+   *     {@link #INVALID_ORDERING} if {@code version} is not a valid semantic version
+   */
+  public static int compare(final String version, final ParsedSemver comparand) {
+    final int length = version.length();
+    int ordering = 0;
+    int component = 0;
+    int next = 0;
+    while (true) {
+      // Read one core component with the leading zero and unsigned 64-bit overflow checks of parse
+      if (next >= length || !isASCIIDigit(version.charAt(next))) {
+        return INVALID_ORDERING;
+      }
+      long value = version.charAt(next++) - '0';
+      if (value != 0) {
+        while (next < length && isASCIIDigit(version.charAt(next))) {
+          if (Long.compareUnsigned(value, MAX_UNSIGNED_DIV_10) > 0) {
+            return INVALID_ORDERING; // overflow
+          }
+          final long shifted = value * 10;
+          value = shifted + (version.charAt(next++) - '0');
+          if (Long.compareUnsigned(value, shifted) < 0) {
+            return INVALID_ORDERING; // overflow
+          }
+        }
+      }
+      if (ordering == 0) {
+        ordering = Long.compareUnsigned(value, comparand.coreComponent(component));
+      }
+      component++;
+      if (next == length || version.charAt(next) != '.') {
+        break;
+      }
+      next++;
+    }
+    // Components the version omits are zero
+    for (; ordering == 0 && component < comparand.coreLength; component++) {
+      ordering = Long.compareUnsigned(0, comparand.core[component]);
+    }
+
+    final int prereleaseEnd = suffixPrereleaseEnd(version, next);
+    if (prereleaseEnd == -1) {
+      return INVALID_ORDERING;
+    }
+    if (ordering != 0) {
+      return ordering;
+    }
+    final int prereleaseStart = prereleaseEnd == next ? next : next + 1;
+    final String right = comparand.prerelease;
+    return comparePrerelease(version, prereleaseStart, prereleaseEnd, right, 0, right.length());
+  }
+
+  /**
+   * Validates the prerelease and build metadata that follow the core, which ends at {@code
+   * coreEnd}. Returns the end of the prerelease, {@code coreEnd} if there is none, or -1 if the
+   * suffix is invalid.
+   */
+  private static int suffixPrereleaseEnd(final String version, final int coreEnd) {
+    final int length = version.length();
+    if (coreEnd == length) {
+      return coreEnd;
+    }
+    final int buildStart;
+    final int prereleaseEnd;
+    if (version.charAt(coreEnd) == '-') {
+      buildStart = version.indexOf('+', coreEnd + 1);
+      prereleaseEnd = buildStart == -1 ? length : buildStart;
+      if (!validSemverIdentifiers(version, coreEnd + 1, prereleaseEnd, false)) {
+        return -1;
+      }
+    } else if (version.charAt(coreEnd) == '+') {
+      buildStart = coreEnd;
+      prereleaseEnd = coreEnd;
+    } else {
+      return -1;
+    }
+    if (buildStart != -1 && !validSemverIdentifiers(version, buildStart + 1, length, true)) {
+      return -1;
+    }
+    return prereleaseEnd;
   }
 
   /**
@@ -153,11 +232,11 @@ public final class ParsedSemver {
    * prerelease identifiers reject them.
    */
   private static boolean validSemverIdentifiers(
-      final String value, final boolean allowLeadingZeros) {
-    int identifierStart = 0;
+      final String value, final int start, final int end, final boolean allowLeadingZeros) {
+    int identifierStart = start;
     boolean identifierNumeric = true;
-    for (int i = 0; i <= value.length(); i++) {
-      if (i == value.length() || value.charAt(i) == '.') {
+    for (int i = start; i <= end; i++) {
+      if (i == end || value.charAt(i) == '.') {
         if (i == identifierStart) {
           return false; // empty identifier
         }
@@ -187,25 +266,37 @@ public final class ParsedSemver {
     if (left.equals(right)) {
       return 0;
     }
-    if (left.isEmpty()) {
-      return 1; // release > prerelease
+    return comparePrerelease(left, 0, left.length(), right, 0, right.length());
+  }
+
+  /**
+   * Compares the prereleases {@code left[leftStart, leftEnd)} and {@code right[rightStart,
+   * rightEnd)}, where an empty range is a release.
+   */
+  private static int comparePrerelease(
+      final String left,
+      final int leftStart,
+      final int leftEnd,
+      final String right,
+      final int rightStart,
+      final int rightEnd) {
+    if (leftStart == leftEnd) {
+      return rightStart == rightEnd ? 0 : 1; // release > prerelease
     }
-    if (right.isEmpty()) {
+    if (rightStart == rightEnd) {
       return -1; // prerelease < release
     }
 
-    int leftPos = 0;
-    int rightPos = 0;
+    int leftPos = leftStart;
+    int rightPos = rightStart;
     while (true) {
-      // Extract next identifier from each side
-      int leftDot = left.indexOf('.', leftPos);
-      int rightDot = right.indexOf('.', rightPos);
-      final String leftIdentifier =
-          leftDot == -1 ? left.substring(leftPos) : left.substring(leftPos, leftDot);
-      final String rightIdentifier =
-          rightDot == -1 ? right.substring(rightPos) : right.substring(rightPos, rightDot);
+      // Compare the next identifier of each side in place
+      final int leftDot = indexOfDot(left, leftPos, leftEnd);
+      final int rightDot = indexOfDot(right, rightPos, rightEnd);
+      final int leftIdEnd = leftDot == -1 ? leftEnd : leftDot;
+      final int rightIdEnd = rightDot == -1 ? rightEnd : rightDot;
 
-      final int ordering = compareIdentifier(leftIdentifier, rightIdentifier);
+      final int ordering = compareIdentifier(left, leftPos, leftIdEnd, right, rightPos, rightIdEnd);
       if (ordering != 0) {
         return ordering;
       }
@@ -224,29 +315,52 @@ public final class ParsedSemver {
     }
   }
 
-  private static int compareIdentifier(final String left, final String right) {
-    final boolean leftNumeric = isNumericIdentifier(left);
-    final boolean rightNumeric = isNumericIdentifier(right);
+  /** Returns the index of the first '.' in {@code value[start, end)}, or -1 if there is none. */
+  private static int indexOfDot(final String value, final int start, final int end) {
+    final int dot = value.indexOf('.', start);
+    return dot < end ? dot : -1;
+  }
+
+  /**
+   * Compares the identifiers {@code left[leftStart, leftEnd)} and {@code right[rightStart,
+   * rightEnd)}.
+   */
+  private static int compareIdentifier(
+      final String left,
+      final int leftStart,
+      final int leftEnd,
+      final String right,
+      final int rightStart,
+      final int rightEnd) {
+    final boolean leftNumeric = isNumericIdentifier(left, leftStart, leftEnd);
+    final boolean rightNumeric = isNumericIdentifier(right, rightStart, rightEnd);
+    final int leftLength = leftEnd - leftStart;
+    final int rightLength = rightEnd - rightStart;
 
     if (leftNumeric && rightNumeric) {
       // Numeric identifiers: compare by length first (longer = larger), then lexicographically
-      if (left.length() < right.length()) {
-        return -1;
+      if (leftLength != rightLength) {
+        return leftLength < rightLength ? -1 : 1;
       }
-      if (left.length() > right.length()) {
-        return 1;
-      }
-      return left.compareTo(right);
     } else if (leftNumeric) {
       return -1; // numeric < alphanumeric
     } else if (rightNumeric) {
       return 1; // alphanumeric > numeric
     }
-    return left.compareTo(right);
+    // Lexicographic by character, then by length, as String.compareTo
+    final int length = Math.min(leftLength, rightLength);
+    for (int i = 0; i < length; i++) {
+      final char l = left.charAt(leftStart + i);
+      final char r = right.charAt(rightStart + i);
+      if (l != r) {
+        return l - r;
+      }
+    }
+    return leftLength - rightLength;
   }
 
-  private static boolean isNumericIdentifier(final String value) {
-    for (int i = 0; i < value.length(); i++) {
+  private static boolean isNumericIdentifier(final String value, final int start, final int end) {
+    for (int i = start; i < end; i++) {
       if (!isASCIIDigit(value.charAt(i))) {
         return false;
       }

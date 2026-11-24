@@ -4,6 +4,8 @@ import static datadog.trace.core.otlp.common.OtlpPayload.PROTOBUF_CONTENT_TYPE;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mockStatic;
@@ -14,6 +16,7 @@ import datadog.trace.common.writer.RemoteApi;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.function.Function;
+import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.Protocol;
 import okhttp3.Request;
@@ -32,6 +35,32 @@ class OtlpHttpSenderTest {
   @AfterEach
   void shutdown() {
     sender.shutdown();
+  }
+
+  @Test
+  void destinationIsTheConfiguredEndpoint() {
+    HttpUrl destination = sender.destination();
+
+    assertNotNull(destination);
+    assertEquals("localhost", destination.host());
+    assertEquals(4318, destination.port());
+    assertEquals("/v1/traces", destination.encodedPath());
+  }
+
+  @Test
+  void destinationIsNullOverUnixDomainSocket() {
+    OtlpHttpSender unixSender =
+        new OtlpHttpSender(
+            "unix:///var/run/otel-collector.sock",
+            "/v1/traces",
+            emptyMap(),
+            5_000,
+            Compression.NONE);
+    try {
+      assertNull(unixSender.destination());
+    } finally {
+      unixSender.shutdown();
+    }
   }
 
   @Test

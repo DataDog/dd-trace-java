@@ -19,6 +19,12 @@ Check [Adding a New Configuration](docs/add_new_configurations.md) for instructi
 
 ## Code contributions
 
+### Agent instruction changes
+
+For changes to `AGENTS.md` or other agent guidance, follow the
+[instruction review and validation guide](.llm-validation/README.md).
+Check conventions, context growth, and whether detailed guidance belongs in a skill or scoped documentation.
+
 ### Development environment quick check
 
 Prior to contributing to the project, you can quickly check your development environment using the `./setup.sh` command

@@ -9,6 +9,7 @@ import com.datadog.openfeature.internal.FeatureFlagsRuntime.RemoteConfigurationU
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridges;
 import com.datadog.openfeature.internal.config.Settings;
+import com.datadog.openfeature.internal.delivery.FlagSelectionRequest;
 import com.datadog.openfeature.internal.evaluation.ExperimentationOptOut;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import dev.openfeature.sdk.ErrorCode;
@@ -44,8 +45,12 @@ public class Provider extends EventProvider implements Metadata {
   private final AgentBridge bridge;
   private final Settings settings;
   private final ExperimentationOptOutMode experimentationOptOutMode;
+  private final FlagSelectionRequest flagSelection;
   private final AtomicReference<InitializationState> initializationState =
       new AtomicReference<>(InitializationState.NOT_STARTED);
+  private final boolean evaluationTelemetryEnabled;
+  private final boolean exposuresEnabled;
+  private final boolean spanEnrichmentEnabled;
   private final FlagEvalMetrics flagEvalMetrics;
   private final FlagEvalMetricsHook flagEvalMetricsHook;
   // Span enrichment: null unless the gate is on, so the feature has no idle overhead when off.
@@ -88,26 +93,36 @@ public class Provider extends EventProvider implements Metadata {
         this.settings.isEnabled()
             ? ExperimentationOptOut.resolve(options.experimentationOptOutMode, this.settings)
             : ExperimentationOptOutMode.DISABLED;
+    final FlagSelection selection = options.flagSelection;
+    this.flagSelection =
+        selection == null
+            ? FlagSelectionRequest.NONE
+            : FlagSelectionRequest.of(selection.tags, selection.keyPatterns);
+    this.evaluationTelemetryEnabled = options.evaluationTelemetryEnabled;
+    this.exposuresEnabled = options.exposuresEnabled;
     FlagEvalMetrics metrics = null;
     FlagEvalMetricsHook hook = null;
-    try {
-      metrics = new FlagEvalMetrics();
-      hook = new FlagEvalMetricsHook(metrics);
-    } catch (LinkageError | Exception e) {
-      // This outer catch fires when the metrics helper itself can't load (OTel API absent).
-      log.warn("Evaluation metrics unavailable — OTel API classes not on classpath", e);
+    if (this.evaluationTelemetryEnabled) {
+      try {
+        metrics = new FlagEvalMetrics();
+        hook = new FlagEvalMetricsHook(metrics);
+      } catch (LinkageError | Exception e) {
+        // This outer catch fires when the metrics helper itself can't load (OTel API absent).
+        log.warn("Evaluation metrics unavailable — OTel API classes not on classpath", e);
+      }
     }
     this.flagEvalMetrics = metrics;
     this.flagEvalMetricsHook = hook;
 
-    // Span enrichment is wired ONLY when the gate is on — off means no capture hook and no idle
-    // per-evaluation overhead.
-    final boolean spanEnrichmentEnabled =
-        spanEnrichmentEnabledOverride != null
-            ? spanEnrichmentEnabledOverride
-            : this.settings.isSpanEnrichmentEnabled();
+    // Span enrichment is wired ONLY when the gate is on and evaluation telemetry is enabled — off
+    // means no capture hook and no idle per-evaluation overhead.
+    this.spanEnrichmentEnabled =
+        this.evaluationTelemetryEnabled
+            && (spanEnrichmentEnabledOverride != null
+                ? spanEnrichmentEnabledOverride
+                : this.settings.isSpanEnrichmentEnabled());
     this.spanEnrichmentHook =
-        spanEnrichmentEnabled ? new SpanEnrichmentHook(this.bridge.spanEnricher()) : null;
+        this.spanEnrichmentEnabled ? new SpanEnrichmentHook(this.bridge.spanEnricher()) : null;
 
     // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
     // allocates nothing, including when the gate is off.
@@ -115,9 +130,12 @@ public class Provider extends EventProvider implements Metadata {
     if (flagEvalMetricsHook != null) {
       hooks.add(flagEvalMetricsHook);
     }
-    // EVP flagevaluation hook: always registered; no-op when the pipeline is absent (killswitch
-    // off or provider not initialized). The pipeline is resolved lazily on each call.
-    hooks.add(new FlagEvalLoggingHook<>(this::flagEvaluationPipeline));
+    // EVP flagevaluation hook: registered when evaluation telemetry is enabled; no-op when the
+    // pipeline is absent (killswitch off or provider not initialized). The pipeline is resolved
+    // lazily on each call.
+    if (this.evaluationTelemetryEnabled) {
+      hooks.add(new FlagEvalLoggingHook<>(this::flagEvaluationPipeline));
+    }
     if (spanEnrichmentHook != null) {
       hooks.add(spanEnrichmentHook);
     }
@@ -140,10 +158,14 @@ public class Provider extends EventProvider implements Metadata {
             DebugLoggingHook.class.getName());
       }
     }
-    // Exposure hook: always registered last, and independent of evaluation telemetry opt-out; no-op
-    // when the evaluator is not a Datadog one or is
-    // not initialized.
-    hooks.add(new ExposureLoggingHook<>(this::datadogEvaluator));
+    // Exposure hook: registered last when exposures are enabled, and independent of evaluation
+    // telemetry; no-op when the evaluator is not a Datadog one or is not initialized. With
+    // exposures disabled, the evaluator also reports no evaluation as an exposure, so neither the
+    // shared deduplication cache nor application exposure hooks treat this provider's evaluations
+    // as exposures.
+    if (this.exposuresEnabled) {
+      hooks.add(new ExposureLoggingHook<>(this::datadogEvaluator));
+    }
     this.providerHooks =
         hooks.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(hooks);
 
@@ -158,6 +180,13 @@ public class Provider extends EventProvider implements Metadata {
         "{} experimentation opt-out mode: {}",
         METADATA,
         this.experimentationOptOutMode.name().toLowerCase(Locale.ROOT));
+    if (!this.evaluationTelemetryEnabled || !this.exposuresEnabled) {
+      log.info(
+          "{} evaluation telemetry {}, exposures {}",
+          METADATA,
+          this.evaluationTelemetryEnabled ? "enabled" : "disabled",
+          this.exposuresEnabled ? "enabled" : "disabled");
+    }
   }
 
   @Override
@@ -304,12 +333,22 @@ public class Provider extends EventProvider implements Metadata {
     }
   }
 
-  private Evaluator buildEvaluator() {
+  /**
+   * Returns the injected evaluator, or a Datadog evaluator built with the options this provider
+   * captured. Package-private for tests.
+   */
+  Evaluator buildEvaluator() {
     if (evaluator != null) {
       return evaluator;
     }
     return new DDEvaluator(
-        this::onConfigurationChange, this.bridge, this.settings, this.experimentationOptOutMode);
+        this::onConfigurationChange,
+        this.bridge,
+        this.settings,
+        this.experimentationOptOutMode,
+        this.flagSelection,
+        this.spanEnrichmentEnabled,
+        this.exposuresEnabled);
   }
 
   private FlagEvaluationWriter flagEvaluationPipeline() {
@@ -347,6 +386,16 @@ public class Provider extends EventProvider implements Metadata {
   // Visible for tests: expose whether span enrichment is wired (gate-on) without leaking the impl.
   SpanEnrichmentHook spanEnrichmentHook() {
     return spanEnrichmentHook;
+  }
+
+  /** Tells whether this provider produces evaluation telemetry, as captured at construction. */
+  boolean isEvaluationTelemetryEnabled() {
+    return evaluationTelemetryEnabled;
+  }
+
+  /** Tells whether this provider's evaluations are exposures, as captured at construction. */
+  boolean isExposuresEnabled() {
+    return exposuresEnabled;
   }
 
   @Override
@@ -404,7 +453,52 @@ public class Provider extends EventProvider implements Metadata {
     private long timeout = 30;
     private TimeUnit unit = SECONDS;
     private Boolean evaluationTelemetryOptOutParameterEnabled;
+    private boolean evaluationTelemetryEnabled = true;
+    private boolean exposuresEnabled = true;
     private ExperimentationOptOutMode experimentationOptOutMode = ExperimentationOptOutMode.DEFAULT;
+    private FlagSelection flagSelection;
+
+    /**
+     * Sets whether this provider produces evaluation telemetry: flag evaluation events, evaluation
+     * metrics, and span enrichment. Enabled by default.
+     *
+     * <p>This does not change flag results, assignment, exposures, application hooks, or ordinary
+     * application tracing. Use {@link #exposuresEnabled(boolean)} to control exposures. To turn
+     * flag evaluation events off for the whole process instead, use {@code
+     * DD_FLAGGING_EVALUATION_COUNTS_ENABLED=false}, which does not stop evaluation metrics or span
+     * enrichment.
+     *
+     * @param enabled whether to produce evaluation telemetry; configure before constructing the
+     *     provider.
+     * @return these options.
+     */
+    public Options evaluationTelemetryEnabled(final boolean enabled) {
+      this.evaluationTelemetryEnabled = enabled;
+      return this;
+    }
+
+    /**
+     * Sets whether evaluations through this provider are exposures. Enabled by default.
+     *
+     * <p>When disabled, an evaluation is not recorded, deduplicated, sent to Datadog, or reported
+     * to an {@link ExposureHook} as an exposure, and it does not suppress a later exposure of the
+     * same subject through a provider with exposures enabled. Flag results and assignment are
+     * unchanged, so a provider with exposures disabled can look up the variant a subject would get
+     * before the subject experiences it. With span enrichment on, the span records the evaluation
+     * but not the subject.
+     *
+     * <p>This differs from {@code DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false}, which
+     * applies to the whole process, keeps exposures for exposure hooks and deduplication, and only
+     * stops sending them to Datadog. Use {@link #evaluationTelemetryEnabled(boolean)} to control
+     * evaluation telemetry.
+     *
+     * @param enabled whether evaluations are exposures; configure before constructing the provider.
+     * @return these options.
+     */
+    public Options exposuresEnabled(final boolean enabled) {
+      this.exposuresEnabled = enabled;
+      return this;
+    }
 
     /**
      * Sets per-subject experimentation opt-out. {@link ExperimentationOptOutMode#DEFAULT} reads
@@ -461,6 +555,34 @@ public class Provider extends EventProvider implements Metadata {
         return this.evaluationTelemetryOptOutParameterEnabled;
       }
       return settings.isEvaluationTelemetryPerSubjectOptOutEnabled();
+    }
+
+    /**
+     * Loads only the selected flags: the flags that have any of the selection's tags, or whose key
+     * matches any of its key patterns. Evaluating a flag outside the selection returns the default
+     * value with {@code FLAG_NOT_FOUND}. Without a selection, or with an empty one, all the flags
+     * are loaded.
+     *
+     * <p>Leading and trailing Unicode white space is trimmed from every value, empty values are
+     * dropped, and duplicates are removed. A null list is treated as absent. Each list accepts at
+     * most 31 values, and each tag and key pattern is at most 200 UTF-8 bytes after trimming. A
+     * selection over a limit, holding a null or non-String value or an unpaired UTF-16 surrogate,
+     * or making the request URL longer than 8192 bytes once percent-encoded, is not sent: the
+     * provider logs an error and loads all the flags. The server can also ignore a selection, and
+     * then returns all the flags.
+     *
+     * <p>The provider captures the selection at construction. The providers of a class loader share
+     * one flag configuration: the first provider initialized decides the selection until the last
+     * one shuts down, and a later provider with a different selection uses the first one. The first
+     * such provider logs a warning, once per class loader. The {@code remote_config} configuration
+     * source does not support a selection and loads all the flags.
+     *
+     * @param selection the flag selection, or {@code null} for all the flags.
+     * @return these options.
+     */
+    public Options flagSelection(final FlagSelection selection) {
+      this.flagSelection = selection;
+      return this;
     }
 
     /**

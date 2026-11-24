@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mockStatic;
@@ -17,6 +18,7 @@ import datadog.trace.api.config.OtlpConfig.Compression;
 import datadog.trace.common.writer.RemoteApi;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.Protocol;
 import okhttp3.Request;
@@ -33,6 +35,31 @@ class OtlpGrpcSenderTest {
 
   private static final String SIGNAL_PATH =
       "/opentelemetry.proto.collector.trace.v1.TraceService/Export";
+
+  @Test
+  void destinationIsTheConfiguredEndpoint() {
+    OtlpGrpcSender sender = sender("http://otel-collector:4317");
+    try {
+      HttpUrl destination = sender.destination();
+
+      assertNotNull(destination);
+      assertEquals("otel-collector", destination.host());
+      assertEquals(4317, destination.port());
+      assertEquals(SIGNAL_PATH, destination.encodedPath());
+    } finally {
+      sender.shutdown();
+    }
+  }
+
+  @Test
+  void destinationIsNullOverUnixDomainSocket() {
+    OtlpGrpcSender sender = sender("unix:///var/run/otel-collector.sock");
+    try {
+      assertNull(sender.destination());
+    } finally {
+      sender.shutdown();
+    }
+  }
 
   @TableTest({
     "scenario                 | grpcStatus | contentType                      ",
@@ -65,7 +92,9 @@ class OtlpGrpcSenderTest {
 
     assertFalse(result.success());
     assertFalse(result.status().isPresent());
-    IOException error = assertInstanceOf(IOException.class, result.exception().orElse(null));
+    OtlpGrpcStatusException error =
+        assertInstanceOf(OtlpGrpcStatusException.class, result.exception().orElse(null));
+    assertEquals(expectedCode, error.statusCode());
     assertTrue(error.getMessage().startsWith("gRPC status " + expectedCode));
     if (grpcMessage != null) {
       assertTrue(error.getMessage().endsWith(": " + grpcMessage));

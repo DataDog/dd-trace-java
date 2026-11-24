@@ -36,6 +36,7 @@ public final class OtlpGrpcSender implements OtlpSender {
       new HttpRetryPolicy.Factory(5, 100, 2.0, true);
 
   private final HttpUrl url;
+  private final boolean unixDomainSocket;
   private final Map<String, String> headers;
   private final boolean gzip;
 
@@ -57,6 +58,8 @@ public final class OtlpGrpcSender implements OtlpSender {
       this.url = HttpUrl.get(endpoint + signalPath); // GRPC endpoint does not include signal path
     }
 
+    this.unixDomainSocket = unixDomainSocketPath != null;
+
     this.headers = headers;
     this.gzip = compression == Compression.GZIP;
 
@@ -75,7 +78,7 @@ public final class OtlpGrpcSender implements OtlpSender {
             response.message());
         return failed(response.code());
       }
-      IOException grpcError = grpcError(response);
+      OtlpGrpcStatusException grpcError = grpcError(response);
       if (grpcError != null) {
         RATELIMITED_LOGGER.warn(
             "OTLP export to {} failed with {}", request.url(), grpcError.getMessage());
@@ -94,9 +97,10 @@ public final class OtlpGrpcSender implements OtlpSender {
     client.connectionPool().evictAll();
   }
 
-  // only used by tests
-  public HttpUrl url() {
-    return url;
+  @Override
+  @Nullable
+  public HttpUrl destination() {
+    return unixDomainSocket ? null : url;
   }
 
   private Request makeRequest(OtlpPayload payload) {
@@ -120,14 +124,15 @@ public final class OtlpGrpcSender implements OtlpSender {
    * UNKNOWN}.
    */
   @Nullable
-  private static IOException grpcError(okhttp3.Response response) {
+  private static OtlpGrpcStatusException grpcError(okhttp3.Response response) {
     String status = response.header("grpc-status");
     if (status == null) {
       String contentType = response.header("Content-Type");
       if (isGrpcContentType(contentType)) {
         return null; // status is in the trailers, which we can't read
       }
-      return new IOException(
+      return new OtlpGrpcStatusException(
+          GRPC_UNKNOWN,
           "gRPC status " + GRPC_UNKNOWN + " (no grpc-status, content-type: " + contentType + ")");
     }
     int code;
@@ -140,7 +145,8 @@ public final class OtlpGrpcSender implements OtlpSender {
       return null;
     }
     String grpcMessage = response.header("grpc-message");
-    return new IOException(
+    return new OtlpGrpcStatusException(
+        code,
         "gRPC status " + code + (grpcMessage == null ? "" : ": " + decodeGrpcMessage(grpcMessage)));
   }
 

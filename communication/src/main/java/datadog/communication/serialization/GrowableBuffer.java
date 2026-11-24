@@ -44,6 +44,14 @@ public final class GrowableBuffer implements StreamingBuffer {
     buffer.limit(buffer.capacity());
   }
 
+  /** Resets the buffer, releasing backing storage larger than maxCapacity. */
+  public void reset(int maxCapacity) {
+    if (buffer.capacity() > maxCapacity) {
+      buffer = ByteBuffer.allocate(initialCapacity);
+    }
+    reset();
+  }
+
   @Override
   public void rewind() {
     buffer.position(mark);

@@ -2,7 +2,6 @@ package datadog.trace.util;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -10,8 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.test.util.GCUtils;
 import java.lang.ref.WeakReference;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
@@ -92,40 +89,78 @@ class AgentTaskSchedulerTest {
     assertEquals(0, scheduler.taskCount());
   }
 
-  private static boolean delta(long first, long second, float ratio, long expected) {
-    long difference = first - second;
-    long interval = (long) (difference * ratio);
-    return difference >= expected - interval && difference <= expected + interval;
-  }
-
   @Test
   void testFixedDelay() throws InterruptedException {
-    CountDownLatch latch = new CountDownLatch(3);
-    List<Long> timestamps = new ArrayList<>();
+    CountDownLatch workerStarted = new CountDownLatch(1);
+    CountDownLatch releaseWorker = new CountDownLatch(1);
+    CountDownLatch completed = new CountDownLatch(3);
+
+    long[] starts = new long[3];
+    long[] finishes = new long[3];
+
     AgentTaskScheduler.Task<CountDownLatch> task =
         new AgentTaskScheduler.Task<CountDownLatch>() {
+          private int execution;
+
           @Override
           public void run(CountDownLatch target) {
-            timestamps.add(System.nanoTime());
+            if (execution == starts.length) {
+              return;
+            }
+
+            int index = execution++;
+            starts[index] = System.nanoTime();
+
             try {
               Thread.sleep(100);
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
+              return;
             }
+
+            finishes[index] = System.nanoTime();
             target.countDown();
           }
         };
 
     assertFalse(scheduler.isShutdown());
 
-    scheduler.scheduleWithFixedDelay(task, latch, 0, 200, MILLISECONDS);
-    assertEquals(1, scheduler.taskCount());
+    scheduler.execute(() -> {
+      workerStarted.countDown();
 
-    assertTrue(latch.await(1000, MILLISECONDS));
-    assertTrue(
-        delta(timestamps.get(1), timestamps.get(0), 0.15f, NANOSECONDS.convert(300, MILLISECONDS)));
-    assertTrue(
-        delta(timestamps.get(2), timestamps.get(1), 0.15f, NANOSECONDS.convert(300, MILLISECONDS)));
+      try {
+        releaseWorker.await();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    });
+
+    AgentTaskScheduler.Scheduled<CountDownLatch> scheduled = null;
+    try {
+      assertTrue(workerStarted.await(10, SECONDS), "Scheduler worker did not start");
+
+      scheduled = scheduler.scheduleWithFixedDelay(task, completed, 0, 200, MILLISECONDS);
+
+      // Keep the worker blocked so it cannot take the zero-delay task before taskCount() runs.
+      assertEquals(1, scheduler.taskCount());
+
+      releaseWorker.countDown();
+
+      assertTrue(completed.await(10, SECONDS), "Periodic task did not complete three executions");
+
+      for (int i = 1; i < starts.length; i++) {
+        long delay = starts[i] - finishes[i - 1];
+        assertTrue(
+            delay >= MILLISECONDS.toNanos(200),
+            "Execution " + (i + 1) + " started too soon after completion: " + delay + " ns");
+      }
+    } finally {
+      if (scheduled != null) {
+        scheduled.cancel();
+      }
+
+      releaseWorker.countDown();
+    }
   }
 
   @Test

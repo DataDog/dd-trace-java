@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.jdbc;
 
+import datadog.trace.bootstrap.instrumentation.decorator.AwsRdsEndpoint;
 import datadog.trace.util.HashingUtils;
 import java.util.Objects;
 
@@ -17,6 +18,8 @@ public final class DBInfo {
   private final Integer port;
   private final String warehouse;
   private final String schema;
+  // Derived from host, so it is left out of equals and hashCode.
+  private final AwsRdsEndpoint rdsEndpoint;
 
   DBInfo(
       String type,
@@ -41,6 +44,7 @@ public final class DBInfo {
     this.port = port;
     this.warehouse = warehouse;
     this.schema = schema;
+    this.rdsEndpoint = AwsRdsEndpoint.parse(host);
   }
 
   public static final class Builder {
@@ -198,6 +202,11 @@ public final class DBInfo {
 
   public String getSchema() {
     return schema;
+  }
+
+  /** The Amazon RDS endpoint the host names, or {@code null} when it is not an RDS endpoint. */
+  public AwsRdsEndpoint getRdsEndpoint() {
+    return rdsEndpoint;
   }
 
   public Builder toBuilder() {

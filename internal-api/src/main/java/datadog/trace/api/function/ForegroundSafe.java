@@ -1,7 +1,7 @@
 package datadog.trace.api.function;
 
-import datadog.perfcontract.PerfContract;
-import datadog.perfcontract.SuppressPerfContract;
+import datadog.contract.PerfContract;
+import datadog.contract.SuppressPerfContract;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

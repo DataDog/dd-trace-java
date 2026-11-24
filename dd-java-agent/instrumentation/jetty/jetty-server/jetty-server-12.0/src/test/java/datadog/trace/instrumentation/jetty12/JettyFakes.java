@@ -112,6 +112,9 @@ final class JettyFakes {
     RuntimeException writeThrows;
     Throwable writeFailure;
 
+    /** Runs at the start of every write, before {@link #writeThrows} is checked. */
+    Runnable onWrite;
+
     FakeResponse() {
       this.proxy =
           proxy(
@@ -136,6 +139,9 @@ final class JettyFakes {
                     headers.clear();
                     return null;
                   case "write":
+                    if (onWrite != null) {
+                      onWrite.run();
+                    }
                     if (writeThrows != null) {
                       throw writeThrows;
                     }
@@ -165,6 +171,7 @@ final class JettyFakes {
     final TraceSegment proxy;
     int effectivelyBlockedCalls;
     RuntimeException failure;
+    Runnable onEffectivelyBlocked;
 
     FakeSegment() {
       this.proxy =
@@ -173,6 +180,9 @@ final class JettyFakes {
               (name, args) -> {
                 if ("effectivelyBlocked".equals(name)) {
                   effectivelyBlockedCalls++;
+                  if (onEffectivelyBlocked != null) {
+                    onEffectivelyBlocked.run();
+                  }
                   if (failure != null) {
                     throw failure;
                   }

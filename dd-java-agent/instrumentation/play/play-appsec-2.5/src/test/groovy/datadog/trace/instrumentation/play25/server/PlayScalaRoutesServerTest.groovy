@@ -158,7 +158,7 @@ class PlayRouteTracingFilterOtelSemanticsForkedTest extends InstrumentationSpeci
     def serverScope = serverContext.attach()
     def filter = TEST_TRACER.startSpan('test', 'filter1')
     filter.setResourceName('filter1')
-    def filterScope = TEST_TRACER.activateManualSpan(filter)
+    def filterScope = TEST_TRACER.activateSpan(filter)
     def playScope
     def play
 
