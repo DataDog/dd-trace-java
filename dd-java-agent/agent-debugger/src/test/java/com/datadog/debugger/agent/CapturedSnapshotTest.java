@@ -244,10 +244,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
         createMethodProbe(PROBE_ID2, CLASS_NAME, "main", "int (java.lang.String)");
     TestSnapshotListener listener = installProbes(lineProbe, methodProbe);
     DebuggerAgentHelper.injectSink(listener);
-    DebuggerContext.initProbeResolver(
-        probeIndex -> {
-          throw new IllegalArgumentException("oops");
-        });
+    DebuggerContext.initProbeResolver(probeIndex -> {
+      throw new IllegalArgumentException("oops");
+    });
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
@@ -2601,7 +2600,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     assertEquals(0, listener.snapshots.size());
     InstrumentationResult instrumentationResult =
         instrumentationListener.results.get(PROBE_ID.getId());
-    assertTrue(instrumentationResult.isBlocked());
+    assertTrue(instrumentationResult.isBlocked(PROBE_ID));
   }
 
   @Test
@@ -2712,7 +2711,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   public void ensureCallingSamplingProbeConditionError() throws IOException, URISyntaxException {
-    doSamplingTest(this::nullCondition, 1, 1);
+    doSamplingTest(this::nullCondition, ProbeRateLimiter::setGlobalSnapshotRate, 0, 0, 1);
   }
 
   @Test
@@ -2734,7 +2733,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void ensureCallingSamplingLogTemplateOnlyConditionError()
       throws IOException, URISyntaxException {
-    doSamplingTest(this::nullConditionTemplateOnly, ProbeRateLimiter::setGlobalLogRate, 1, 0, 1);
+    doSamplingTest(this::nullConditionTemplateOnly, ProbeRateLimiter::setGlobalLogRate, 0, 0, 1);
   }
 
   @Test
@@ -2754,9 +2753,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     doSamplingTest(
         this::captureExpressionsWithNullCondition,
         ProbeRateLimiter::setGlobalSnapshotRate,
-        1,
-        1,
-        0);
+        0,
+        0,
+        1);
   }
 
   private void doSamplingTest(TestMethod testRun, int expectedGlobalCount, int expectedProbeCount)
@@ -2779,12 +2778,11 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     MockSampler probeSampler = new MockSampler();
     MockSampler errorSampler = new MockSampler();
     MockSampler globalSampler = new MockSampler();
-    ProbeRateLimiter.setSamplerSupplier(
-        rate -> {
-          if (rate < 2) return errorSampler;
-          if (rate < 101) return probeSampler;
-          return globalSampler;
-        });
+    ProbeRateLimiter.setSamplerSupplier(rate -> {
+      if (rate < 2) return errorSampler;
+      if (rate < 101) return probeSampler;
+      return globalSampler;
+    });
     globalRateSetter.accept(1000);
     try {
       testRun.run();
@@ -2870,7 +2868,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
             .add(TriggerProbe.builder().probeId(PROBE_ID4).where(where).build())
             .build();
 
-    CoreTracer tracer = CoreTracer.builder().build();
+    tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     TestTraceInterceptor traceInterceptor = new TestTraceInterceptor();
     tracer.addTraceInterceptor(traceInterceptor);

@@ -19,7 +19,6 @@ testJvmConstraints {
 
 // there are tests with jersey2 and grizzly on the grizzly-http-2.3.20 module
 addTestSuiteForDir('jersey2JettyTest', 'jersey2JettyTest')
-addForkedTestTask('jersey2JettyTest')
 addTestSuiteForDir('jersey3JettyTest', 'jersey3JettyTest')
 addTestSuiteForDir('latestDepTest', 'test')
 
@@ -29,13 +28,6 @@ tasks.named("compileJersey3JettyTestGroovy", GroovyCompile) {
 
 tasks.named("compileTestJava") {
   configureCompiler(it, JavaVersion.VERSION_11)
-}
-
-tasks.named("jersey3JettyTest", Test) {
-  javaLauncher = getJavaLauncherFor(11)
-}
-tasks.named("test", Test) {
-  javaLauncher = getJavaLauncherFor(11)
 }
 
 def jersey2Version = '2.18'

@@ -1,21 +1,22 @@
 package datadog.gradle.plugin.muzzle
 
+import org.assertj.core.api.Assertions.assertThat
 import org.eclipse.aether.repository.RemoteRepository
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
-import org.assertj.core.api.Assertions.assertThat
 
 class MuzzleDirectiveTest {
 
   @ParameterizedTest(name = "[{index}] nameSlug(''{0}'') == ''{1}''")
   @CsvSource(
     value =
-      [
-        "simple,          simple",
-        "My Directive,    My-Directive",
-        "foo/bar@baz#123, foo-bar-baz-123",
-      ])
+    [
+      "simple,          simple",
+      "My Directive,    My-Directive",
+      "foo/bar@baz#123, foo-bar-baz-123",
+    ]
+  )
   fun `nameSlug replaces non-alphanumeric characters with dashes`(input: String, expected: String) {
     val directive = MuzzleDirective().apply { name = input }
     assertThat(directive.nameSlug).isEqualTo(expected.trim())
@@ -58,8 +59,7 @@ class MuzzleDirectiveTest {
         extraRepository("otherrepo", "https://other.example.com/repo", "default")
       }
     val defaults =
-      listOf(
-        RemoteRepository.Builder("central", "default", "https://repo1.maven.org/maven2/").build())
+      listOf(RemoteRepository.Builder("central", "default", "https://repo1.maven.org/maven2/").build())
 
     val repos = directive.getRepositories(defaults)
 
@@ -87,10 +87,11 @@ class MuzzleDirectiveTest {
   @ParameterizedTest(name = "[{index}] coreJdk={0}, assertPass={1} → {2}")
   @CsvSource(
     value =
-      [
-        "true,  true,  Pass-core-jdk",
-        "true,  false, Fail-core-jdk",
-      ])
+    [
+      "true,  true,  Pass-core-jdk",
+      "true,  false, Fail-core-jdk",
+    ]
+  )
   fun `toString for coreJdk directive`(isCoreJdk: Boolean, assertPass: Boolean, expected: String) {
     val directive =
       MuzzleDirective().apply {
@@ -103,10 +104,11 @@ class MuzzleDirectiveTest {
   @ParameterizedTest(name = "[{index}] assertPass={0} → prefix ''{1}''")
   @CsvSource(
     value =
-      [
-        "true,  pass",
-        "false, fail",
-      ])
+    [
+      "true,  pass",
+      "false, fail",
+    ]
+  )
   fun `toString for non-coreJdk directive includes group module versions`(
     assertPass: Boolean,
     prefix: String

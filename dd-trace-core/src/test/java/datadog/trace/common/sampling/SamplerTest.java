@@ -153,11 +153,10 @@ class SamplerTest extends DDJavaSpecification {
     assertInstanceOf(ApmTracingDisabledSampler.class, sampler);
 
     // the trickle is one per minute, so only the first of the two traces is kept
-    withAppSecActive(
-        () ->
-            assertEquals(
-                asList((int) SAMPLER_KEEP, (int) SAMPLER_DROP),
-                samplingPrioritiesOfTraces(sampler, 2)));
+    withAppSecActive(() ->
+        assertEquals(
+            asList((int) SAMPLER_KEEP, (int) SAMPLER_DROP),
+            samplingPrioritiesOfTraces(sampler, 2)));
   }
 
   /** Deactivating AppSec at runtime puts the drop back. */
@@ -166,10 +165,8 @@ class SamplerTest extends DDJavaSpecification {
   void apmTracesDroppedWhenAppSecIsDeactivatedAtRuntime() {
     Sampler sampler = Sampler.Builder.forConfig(Config.get(), null);
 
-    withAppSecActive(
-        () ->
-            assertEquals(
-                singletonList((int) SAMPLER_KEEP), samplingPrioritiesOfTraces(sampler, 1)));
+    withAppSecActive(() ->
+        assertEquals(singletonList((int) SAMPLER_KEEP), samplingPrioritiesOfTraces(sampler, 1)));
 
     assertEquals(singletonList((int) SAMPLER_DROP), samplingPrioritiesOfTraces(sampler, 1));
   }

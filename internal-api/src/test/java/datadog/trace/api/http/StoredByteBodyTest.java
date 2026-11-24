@@ -237,11 +237,10 @@ class StoredByteBodyTest {
     storedByteBody.appendData(body, 0, body.length);
     storedByteBody.maybeNotify();
 
-    assertDoesNotThrow(
-        () -> {
-          storedByteBody.appendData(body, 0, body.length);
-          storedByteBody.maybeNotify();
-        });
+    assertDoesNotThrow(() -> {
+      storedByteBody.appendData(body, 0, body.length);
+      storedByteBody.maybeNotify();
+    });
   }
 
   private static byte[] repeat(char value, int count) {

@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.squareup.moshi.Moshi;
 import datadog.json.JsonMapper;
 import datadog.trace.api.Config;
+import datadog.trace.common.sampling.Sampler;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.io.IOException;
@@ -117,14 +118,18 @@ public class StatusLoggerTest extends DDJavaSpecification {
     assertTrue(flag(startupLog(), "otlp_metrics_export_enabled"));
   }
 
-  private static Map<String, Object> startupLog() throws IOException {
-    String json =
-        new Moshi.Builder()
-            .add(new StatusLogger())
-            .build()
-            .adapter(Config.class)
-            .toJson(Config.get());
-    return JsonMapper.fromJsonToMap(json);
+  static Map<String, Object> startupLog() throws IOException {
+    return JsonMapper.fromJsonToMap(startupLogJson());
+  }
+
+  /** Renders the startup log of the current {@link Config} and its root sampler. */
+  static String startupLogJson() {
+    Config config = Config.get();
+    return new Moshi.Builder()
+        .add(new StatusLogger(Sampler.Builder.forConfig(config, null)))
+        .build()
+        .adapter(Config.class)
+        .toJson(config);
   }
 
   private static boolean flag(Map<String, Object> startupLog, String name) {

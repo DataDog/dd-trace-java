@@ -27,11 +27,10 @@ public class IastVerticle extends AbstractVerticle {
     final Router router = Router.router(vertx);
     router.route().handler(BodyHandler.create());
     Arrays.stream(IastHandler.values())
-        .forEach(
-            handler -> {
-              handler.init(vertx);
-              router.route(handler.path).handler(handler);
-            });
+        .forEach(handler -> {
+          handler.init(vertx);
+          router.route(handler.path).handler(handler);
+        });
     vertx
         .createHttpServer(new HttpServerOptions().setHandle100ContinueAutomatically(true))
         .requestHandler(router)

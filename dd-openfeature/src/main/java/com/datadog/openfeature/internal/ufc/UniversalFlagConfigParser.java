@@ -579,6 +579,7 @@ public final class UniversalFlagConfigParser {
               throw new IllegalArgumentException(
                   "flag \"" + flagKey + "\" has a non-list condition");
             }
+            condition.membership = MembershipIndex.build(condition.value);
             break;
           case IS_NULL:
             if (!(condition.value instanceof Boolean)) {

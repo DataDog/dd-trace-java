@@ -25,7 +25,7 @@ public final class LocalHttpServer implements AutoCloseable {
   private final ConcurrentLinkedQueue<Response> responses = new ConcurrentLinkedQueue<>();
   private final List<Request> requests = new CopyOnWriteArrayList<>();
   private final BlockingQueue<Request> received = new LinkedBlockingQueue<>();
-  private volatile Response fallback = new Response(404, null, Map.of(), false);
+  private volatile Response fallback = new Response(404, null, List.of(), false);
 
   public LocalHttpServer() throws IOException {
     this.server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
@@ -79,11 +79,12 @@ public final class LocalHttpServer implements AutoCloseable {
 
   private static Response response(
       final int status, final String body, final boolean gzip, final String... headers) {
-    final Map<String, String> headerMap = new java.util.HashMap<>();
+    // A list rather than a map, so that a header name can repeat.
+    final List<Map.Entry<String, String>> headerList = new java.util.ArrayList<>();
     for (int i = 0; i < headers.length; i += 2) {
-      headerMap.put(headers[i], headers[i + 1]);
+      headerList.add(new java.util.AbstractMap.SimpleImmutableEntry<>(headers[i], headers[i + 1]));
     }
-    return new Response(status, body, headerMap, gzip);
+    return new Response(status, body, headerList, gzip);
   }
 
   private void handle(final HttpExchange exchange) throws IOException {
@@ -99,7 +100,7 @@ public final class LocalHttpServer implements AutoCloseable {
     if (response == null) {
       response = this.fallback;
     }
-    for (final Map.Entry<String, String> header : response.headers.entrySet()) {
+    for (final Map.Entry<String, String> header : response.headers) {
       exchange.getResponseHeaders().add(header.getKey(), header.getValue());
     }
     byte[] body = response.body == null ? new byte[0] : response.body.getBytes(UTF_8);
@@ -146,13 +147,13 @@ public final class LocalHttpServer implements AutoCloseable {
   private static final class Response {
     final int status;
     final String body;
-    final Map<String, String> headers;
+    final List<Map.Entry<String, String>> headers;
     final boolean gzip;
 
     Response(
         final int status,
         final String body,
-        final Map<String, String> headers,
+        final List<Map.Entry<String, String>> headers,
         final boolean gzip) {
       this.status = status;
       this.body = body;

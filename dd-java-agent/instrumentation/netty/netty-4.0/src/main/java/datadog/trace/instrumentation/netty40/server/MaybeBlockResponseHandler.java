@@ -128,14 +128,13 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
     requestContext.getTraceSegment().effectivelyBlocked();
     log.debug("About to write and flush blocking response {}", response);
     ctx.writeAndFlush(response, prm)
-        .addListener(
-            fut -> {
-              if (!fut.isSuccess()) {
-                log.warn("Write of blocking response failed", fut.cause());
-              } else {
-                log.debug("Write of blocking response succeeded");
-              }
-              channel.close();
-            });
+        .addListener(fut -> {
+          if (!fut.isSuccess()) {
+            log.warn("Write of blocking response failed", fut.cause());
+          } else {
+            log.debug("Write of blocking response succeeded");
+          }
+          channel.close();
+        });
   }
 }

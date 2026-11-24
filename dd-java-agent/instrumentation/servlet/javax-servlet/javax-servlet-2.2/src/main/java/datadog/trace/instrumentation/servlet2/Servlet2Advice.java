@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.servlet2;
 
+import static datadog.trace.api.KnownTags.USER_PRINCIPAL;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet2.Servlet2Decorator.DECORATE;
@@ -9,7 +10,6 @@ import datadog.context.ContextScope;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -97,7 +97,7 @@ public class Servlet2Advice {
       if (span != null) {
         final Principal principal = ((HttpServletRequest) request).getUserPrincipal();
         if (principal != null) {
-          span.setTag(DDTags.USER_NAME, principal.getName());
+          span.setTag(USER_PRINCIPAL, principal.getName());
         }
       }
     }

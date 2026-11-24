@@ -149,7 +149,7 @@ dependencies {
   floggerJULBackend 'com.google.flogger:flogger-system-backend:0.5.1'
   floggerSlf4jBackend 'com.google.flogger:flogger-slf4j-backend:0.5.1'
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation project(':dd-smoke-tests:backend-mock')
 }
 

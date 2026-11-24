@@ -6,6 +6,9 @@ import datadog.environment.SystemProperties;
 import datadog.trace.config.inversion.ConfigHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,6 +39,32 @@ public final class PidHelper {
   /** Returns 0 if the PID is not a number. */
   public static long getPidAsLong() {
     return PID_AS_LONG;
+  }
+
+  private static final MethodHandle PROCESS_PID = findProcessPid();
+
+  /** Returns the PID of a child process, or an empty string when the JVM cannot provide it. */
+  public static String getPid(Process process) {
+    if (process != null && PROCESS_PID != null) {
+      try {
+        return Long.toString((long) PROCESS_PID.invokeExact(process));
+      } catch (Throwable e) {
+        log.debug("Cannot get child PID through JVM API", e);
+      }
+    }
+    return "";
+  }
+
+  private static MethodHandle findProcessPid() {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
+      try {
+        return MethodHandles.publicLookup()
+            .findVirtual(Process.class, "pid", MethodType.methodType(long.class));
+      } catch (Throwable e) {
+        log.debug("Process.pid() not available", e);
+      }
+    }
+    return null;
   }
 
   @SuppressWarnings("unchecked")
@@ -129,29 +158,28 @@ public final class PidHelper {
       return stream
           .map(Path::getFileName)
           .map(Path::toString)
-          .filter(
-              (name) -> {
-                // On J9, additional metadata files are present alongside files named $PID.
-                // Additionally, the contents of the ps dir are files with process ID files for
-                // Hotspot,
-                // but they are directories for J9.
-                // This also makes sense as defensive programming.
-                if (name.isEmpty()) {
-                  return false;
-                }
-                char c = name.charAt(0);
-                if (c < '0' || c > '9') {
-                  // Short-circuit - let's not parse as long something that is definitely not a long
-                  // number
-                  return false;
-                }
-                long pid = -1;
-                try {
-                  pid = Long.parseLong(name);
-                } catch (NumberFormatException ignored) {
-                }
-                return pid != -1;
-              })
+          .filter(name -> {
+            // On J9, additional metadata files are present alongside files named $PID.
+            // Additionally, the contents of the ps dir are files with process ID files for
+            // Hotspot,
+            // but they are directories for J9.
+            // This also makes sense as defensive programming.
+            if (name.isEmpty()) {
+              return false;
+            }
+            char c = name.charAt(0);
+            if (c < '0' || c > '9') {
+              // Short-circuit - let's not parse as long something that is definitely not a long
+              // number
+              return false;
+            }
+            long pid = -1;
+            try {
+              pid = Long.parseLong(name);
+            } catch (NumberFormatException ignored) {
+            }
+            return pid != -1;
+          })
           .collect(Collectors.toSet());
     } catch (IOException e) {
       log.debug("Unable to obtain Java PIDs", e);

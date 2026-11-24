@@ -5,14 +5,32 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import java.security.NoSuchAlgorithmException;
+import java.util.Locale;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 class StringsTest {
+
+  @ParameterizedTest
+  @ValueSource(strings = {"de-DE", "tr-TR"})
+  @ResourceLock(Resources.LOCALE)
+  void formatWithRootLocale(String languageTag) {
+    Locale previous = Locale.getDefault(Locale.Category.FORMAT);
+    try {
+      Locale.setDefault(Locale.Category.FORMAT, Locale.forLanguageTag(languageTag));
+
+      assertEquals("IDENTIFIER: 1,234.50", Strings.format("%S: %,.2f", "identifier", 1234.5));
+    } finally {
+      Locale.setDefault(Locale.Category.FORMAT, previous);
+    }
+  }
 
   @TableTest({
     "scenario                    | className             | expected             ",
