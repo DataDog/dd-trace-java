@@ -48,7 +48,8 @@ public class CpScanScale {
   /** A compiled rule set: distinct needles (names and descriptors) and rule -> needle ids. */
   static final class RuleSet {
     final byte[][] needles;
-    final int[] ruleName, ruleDesc;
+    final int[] ruleName, ruleDesc, ruleOwner;
+    static boolean OWNER = Boolean.getBoolean("owner");
     final int maxLen;
     /** byLenFirst[len][firstByte] -> candidate needle ids, or null. */
     final int[][][] byLenFirst;
@@ -75,9 +76,11 @@ public class CpScanScale {
       List<byte[]> ns = new ArrayList<>();
       ruleName = new int[rules.size()];
       ruleDesc = new int[rules.size()];
+      ruleOwner = new int[rules.size()];
       for (int r = 0; r < rules.size(); r++) {
         ruleName[r] = id(ids, ns, rules.get(r)[1]);
         ruleDesc[r] = id(ids, ns, rules.get(r)[2]);
+        ruleOwner[r] = OWNER ? id(ids, ns, rules.get(r)[0]) : ruleDesc[r];
       }
       needles = ns.toArray(new byte[0][]);
       int m = 0;
@@ -125,7 +128,7 @@ public class CpScanScale {
     int evaluate() {
       int maybe = 0;
       for (int k = 0; k < foundNameCount; k++) {
-        for (int r : nameToRules[foundNames[k]]) if (bit(ruleDesc[r])) maybe++;
+        for (int r : nameToRules[foundNames[k]]) if (bit(ruleDesc[r]) && bit(ruleOwner[r])) maybe++;
       }
       return maybe;
     }

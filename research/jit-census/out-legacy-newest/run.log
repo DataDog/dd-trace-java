@@ -1,0 +1,102 @@
+artifacts: 393
+classes: 128,040  (478 MB)  unparseable-cp: 0  asm-failed: 0
+
+== Prescan hit rates (fraction of all classes)
+  any target method ref :     4,185    3.27%
+  String.split          :       630    0.49%
+  String.matches        :        78    0.06%
+  String.replaceAll     :       167    0.13%
+  String.replaceFirst   :        47    0.04%
+  String.replace(CS,CS) :       236    0.18%
+  String.format/formatted:     2,851    2.23%
+  Pattern.compile       :       622    0.49%
+  Pattern.matches       :        16    0.01%
+  Pattern.quote         :        28    0.02%
+  split + S0-shaped const:         6   0.005%
+
+== Prescan soundness / precision
+  classes with >=1 const site: 3,745 ; missed by prescan: 0 (must be 0)
+  precision of any-target filter: 89.5% of hits have a const site
+  S0 filter: 6 prescan hits, 2 classes with real S0 site, 2 of those caught
+
+== Rough prescan cost (NOT JMH; sample 128,040 classes, 478 MB): median 856 ns/class, 223.6 ns/KB
+
+== All calls to target methods (const + non-const)
+  Pattern.compile                  998
+  Pattern.matches                   31
+  Pattern.quote                     45
+  String.format/formatted        7,078
+  String.matches                   148
+  String.replace(CS,CS)            394
+  String.replaceAll                250
+  String.replaceFirst               58
+  String.split                     920
+
+== Constant-argument sites: method | shape   sites   #artifacts   top constants
+  Pattern.compile[in-clinit]|ALT_LITERALS                6      6   "GET|HEAD|OPTIONS"x2  "/:|/\\{"x1  "ApplicationName|ClientAccountingInformation|ClientUser|ClientCorrelationToken"x1  "\n|\u0085|\u2028|\u2029"x1  "Parallel|Flux|Mono|Publisher|Subscriber|Fuseable|Operator|Conditional"x1
+  Pattern.compile[in-clinit]|ANCHORED_LITERAL            1      1   "^this\\."x1
+  Pattern.compile[in-clinit]|CHARCLASS                  42     23   "[\\s]+"x3  "\\s"x3  "\\s+"x3  "[^a-zA-Z0-9-_.]"x2  "[^ ]"x2  "[-_./;:]"x2
+  Pattern.compile[in-clinit]|CHAR_RUN                    1      1   " +"x1
+  Pattern.compile[in-clinit]|INVALID                     6      4   "\\"x2  "${timestamp}"x1  "*"x1  "+"x1  "${topic}"x1
+  Pattern.compile[in-clinit]|LINES                       2      2   "\\R"x2
+  Pattern.compile[in-clinit]|LITERAL                    48     19   "\\."x3  "\\*/"x3  "\""x3  "'"x3  "\\*"x2  "\\+"x2
+  Pattern.compile[in-clinit]|OTHER                     508    113   "([^&=]+)(=?)([^&]+)?"x3  "(?:(25[0-5]|(?:2[0-4]|(?:(1{0,1}[0-9]))){0,1}(?:([0-9])))\\.){3,3}(?:(25[0-5]|(?:2[0-4]|(?:(1{0,1}[0-9]))){0,1}(?:([0-9]))))"x3  ".*\\$\\{.*\\}.*"x3  "^(?:([0-9a-fA-F]{1,4}:){7,7}(?:[0-9a-fA-F]){1,4}|(?:([0-9a-fA-F]{1,4}:)){1,7}(?:(:))|(?:([0-9a-fA-F]{1,4}:)){1,6}(?:(:[0-9a-fA-F]){1,4})|(?:([0-9a-fA-F]{1,4}:)){1,5}(?:(:[0-9a-fA-F]{1,4})){1,2}|(?:([0-9a-fA-F]{1,4}:)){1,4}(?:(:[0-9a-fA-F]{1,4})){1,3}|(?:([0-9a-fA-F]{1,4}:)){1,3}(?:(:[0-9a-fA-F]{1,4})){1,4}|(?:([0-9a-fA-F]{1,4}:)){1,2}(?:(:[0-9a-fA-F]{1,4})){1,5}|(?:([0-9a-fA-F]{1,4}:))(?:(:[0-9a-fA-F]{1,4})){1,6}|(?:(:))(?:((:[0-9a-fA-F]{1,4}){1,7}|(?:(:))))|(?:([0-9a-fA-F]{1,4}:)){1,4}(?:(:(?:(25[0-5]|(?:2[0-4]|(?:(1{0,1}[0-9]))){0,1}(?:([0-9])))\\.){3,3}(?:(25[0-5]|(?:2[0-4]|(?:(1{0,1}[0-9]))){0,1}(?:([0-9])))))))$"x3  "^.*(?:connection.*(?:reset|closed|abort|broken)|broken.*pipe).*$"x3  "\\{([^/]+?)\\}"x3
+  Pattern.compile[in-clinit]|WS_SEP                     12      8   "\\s*,\\s*"x11  "\\s*\\|\\|\\s*"x1
+  Pattern.compile[in-clinit]|used-directly             626      0   
+  Pattern.compile[in-ctor]|CHARCLASS                     2      2   "[a-zA-Z0-9_\\-]+"x1  "\\s"x1
+  Pattern.compile[in-ctor]|LITERAL                       1      1   "\\+"x1
+  Pattern.compile[in-ctor]|OTHER                        23     13   "ACCEPT[-0-9A-Z]*|CACHE-CONTROL|COOKIE|HOST|IF-[-0-9A-Z]*|REFERER|USER-AGENT"x2  "(PBE).*(WITH).+(AND).+"x2  "10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3}|169\\.254\\.\\d{1,3}\\.\\d{1,3}|127\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.1[6-9]{1}\\.\\d{1,3}\\.\\d{1,3}|172\\.2[0-9]{1}\\.\\d{1,3}\\.\\d{1,3}|172\\.3[0-1]{1}\\.\\d{1,3}\\.\\d{1,3}|0:0:0:0:0:0:0:1|::1"x2  ".*\\$\\{.*\\}.*"x1  "[$][{]([\"'])(\\w+)\\1[}]"x1  ".*:.*|[0-9]+(\\.[0-9]+){3}"x1
+  Pattern.compile[in-ctor]|used-directly                26      0   
+  Pattern.compile[in-method]|CHARCLASS                   7      2   "[A-Z]+"x1  "[:\",=*?]"x1  "[a-z]+"x1  "[0-9]*"x1  "[0-9]+"x1  "[a-zA-Z]*"x1
+  Pattern.compile[in-method]|LITERAL                     2      1   "__consumer_offsets"x2
+  Pattern.compile[in-method]|OTHER                      35     20   ".*"x3  "t.*c"x2  "[^0-9a-zA-Z]?"x2  "([1-9][0-9]+)-?bit"x2  "(-D(?:[^ ])+=)((?:[^ ])+)"x1  "\\$\\{([\\w\\.]+(:-.+?)?)\\}"x1
+  Pattern.compile[in-method]|used-directly              44      0   
+  Pattern.matches|CHAR_RUN                               2      1   "^l+$"x1  "^e*$"x1
+  Pattern.matches|OTHER                                  5      2   "^g+l+.*"x1  "^e*v+"x1  "^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"x1  "^v+e+"x1  "^l+g+"x1
+  Pattern.quote|CONST                                   11      3   "org.springframework."x2  "$Domain"x1  "org.springframework.core.NativeDetector#inNativeImage"x1  "$Path"x1  "org.apache.commons.logging.LogAdapter"x1  "org.springframework.cglib.core.AbstractClassGenerator#inNativeImage"x1
+  String.format/formatted|no-specifiers                 98     18   "%n"x16  "%n%n"x9  "%n    None%n"x4  "-----------------%n"x2  "Consider the following:%n"x2  "The following configuration properties are mutually exclusive:%n%n"x1
+  String.format/formatted|other                        587     82   "%s@%x"x16  "%.2f"x11  "\\u%04X"x10  "%02x"x9  "%s@%x[%s]"x9  "\\u%04x"x8
+  String.format/formatted|plain-%s-only              3,704    155   "values at index %s is greater than listSize %s"x59  "Argument for @NotNull parameter '%s' of %s.%s must not be null"x44  "%s.%s"x13  "Error closing %s file."x12  "%s:%s"x11  "%s[%s]"x9
+  String.format/formatted|plain-%s/%d-only             776     90   "arrays differ firstly at element [%d]; expected value is <%s> but was <%s>. %s"x10  "initialCapacity(%d) > maxCapacity(%d)"x8  "%s:%d"x5  "%d %s"x5  "initialDelay: %d (expected: >= 0)"x4  "stream corrupted: mismatching checksum: %d (expected: %d)"x4
+  String.matches|ALT_LITERALS                           13      3   "^(ppc|ppc32)$"x2  "^(arm|arm32)$"x2  "^(sparcv9|sparc64)$"x2  "^(ia64|itanium64)$"x2  "^(x8664|amd64|ia32e|em64t|x64)$"x2  "^(sparc|sparc32)$"x2
+  String.matches|CASEI_LITERAL                          34      2   "(?i)max-stale"x4  "(?i)no-cache"x4  "(?i)private"x4  "(?i)stale-if-error"x2  "(?i)s-maxage"x2  "(?i)no-store"x2
+  String.matches|CHARCLASS                              12      8   "\\d+"x4  "^[0-9]+$"x2  "[ \t]*"x1  "\\w+"x1  "[a-zA-Z0-9._-]*"x1  "\\s+"x1
+  String.matches|CHAR_RUN                                1      1   "0+"x1
+  String.matches|DOTSTAR                                 1      1   "^1\\.4\\..*"x1
+  String.matches|LITERAL                                 2      1   "^\\[a-zA-Z]:"x2
+  String.matches|OTHER                                  59     32   ".*[0-9A-Za-z].*"x5  "[^?]*\\?[^?]*"x2  "^(x8632|x86|i[3-6]86|ia32|x32)$"x2  "^v\\d+[a-zA-Z0-9]*$"x2  ".*Collection.+not found.*"x2  "^(i[3-6]86|x86(_64)?|x64|amd64)$"x2
+  String.replace(CS,CS)|CONST_TARGET                   322     89   "."x22  "\n"x17  "\\"x17  "/"x14  "-"x12  "+"x10
+  String.replaceAll|ALT_LITERALS                         4      3   ",|:|=|\n"x3  "<|>|\n"x1
+  String.replaceAll|ANCHORED_LITERAL                     8      4   "^cluster"x3  "^tokenizerFactory\\."x2  "/$"x2  "\\.$"x1
+  String.replaceAll|CHARCLASS                           36     24   "\\s"x13  "\\s+"x5  "[^a-z0-9]+"x3  "[^\\w.-]"x2  "[\"']"x2  "[:\\\\/*\"?|<>',]"x1
+  String.replaceAll|CHAR_RUN                             1      1   " +"x1
+  String.replaceAll|LINES                                1      1   "\\r?\\n"x1
+  String.replaceAll|LITERAL                            126     47   "\""x14  "\\."x7  " "x6  "ltrim"x6  "/"x6  "rtrim"x6
+  String.replaceAll|OTHER                               47     20   "([?&;]password=)[^&#;]*(.*)"x2  "[-]{2,}"x2  "\\\\."x2  ".class$"x2  "\\w+://"x2  "(?:\\h|\\v)+"x1
+  String.replaceAll|WS_SEP                               1      1   "\n +"x1
+  String.replaceFirst|ALT_LITERALS                       3      2   "find|count"x2  "(get|is)"x1
+  String.replaceFirst|ANCHORED_LITERAL                  13      7   "s$"x3  "^search"x3  "^/"x2  "^#"x2  "^jar:"x1  "\\n$"x1
+  String.replaceFirst|LITERAL                           18     11   "\\[L"x4  "/"x3  "\\*/"x2  "--"x1  "set"x1  "Rx"x1
+  String.replaceFirst|OTHER                             12      8   "-(alpha\\d+|beta\\d+|rc\\d+)"x2  ".*?\n"x1  "^LUCENE_(\\d+)_(\\d+)_(\\d+)$"x1  "-\\d+\\.\\d+.*\\.jar"x1  "[/_.-]+$"x1  "(?iu)\\s+order\\s+by\\s+.*"x1
+  String.split|ALT_LITERALS                              8      6   ":|,| "x2  "\\.| "x2  "\r\n|\n"x2  "&|;"x1  "\\.|_"x1
+  String.split|CHARCLASS                                53     27   "\\s+"x30  "\\s"x6  "[;,]"x3  "[,; ]"x2  "[,;]"x2  "[ ]+"x2
+  String.split|CHAR_RUN                                  3      3   " +"x2  "/+"x1
+  String.split|LINES                                     4      4   "\\r?\\n"x3  "\\r\\n"x1
+  String.split|LITERAL                                  17     11   "__"x2  "; "x2  "://"x2  "\r\n"x2  "\\.\\$"x1  ""x1
+  String.split|OTHER                                    21     17   ",\\s?"x2  ", ?"x2  "(?=[-+,])"x2  "[ ]*,[ ]*"x2  "[ \t]*[= \t]"x1  "[?]xsd="x1
+  String.split|S0_FOLD                                   2      2   "\\n"x1  "[:]"x1
+  String.split|SPLIT_FASTPATH                          718    139   ","x259  "\\."x105  ":"x76  "/"x50  " "x48  "="x41
+  String.split|WS_SEP                                   35     22   "\\s*,\\s*"x23  ",\\s*"x4  "\\s*\\,\\s*"x2  "\\s*;\\s*"x2  "\\s*=\\s*"x2  " *, *"x1
+
+== Class-file versions of const sites  [<51 | 51-54 (indy ok) | >=55 (condy ok)]
+  Pattern.compile[in-clinit]              53 |     367 |     206
+  Pattern.compile[in-ctor]                 0 |      12 |      14
+  Pattern.compile[in-method]               2 |      24 |      18
+  Pattern.matches                          0 |       1 |       6
+  Pattern.quote                            0 |       1 |      10
+  String.format/formatted                220 |   3,734 |   1,211
+  String.matches                          17 |      87 |      18
+  String.replace(CS,CS)                    4 |     223 |      95
+  String.replaceAll                       13 |     140 |      71
+  String.replaceFirst                      0 |      35 |      11
+  String.split                            30 |     523 |     308

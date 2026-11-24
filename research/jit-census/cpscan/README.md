@@ -56,3 +56,16 @@ The rules are real JDK methods (owner under `java/`) that the corpus calls, samp
 - **What's left at large rule counts** is needles that share a (length, first byte) bucket: 154 compares/class for 10.7 real matches at 2000 rules (unfiltered: 273). Keying the candidate lists by the full signature, not only (length, first byte), should remove most of that.
 - **Two passes** (first record each text entry's offset and length, then match) are slightly *slower* for matching alone. Their value is precision: with recorded offsets, a second step can resolve Methodref → NameAndType → Utf8 and check the owner, for the "maybe" classes only.
 - **Selectivity matters more than speed.** Rules over random real JDK calls make 34% of classes "maybe" at 50 rules, because common names/descriptors (`get`, `()V`, `(I)I`) are everywhere. The pre-check only rules classes out if rule targets are rare calls (regex, `format`), or with an owner-precise second step for the maybe classes.
+
+### Adding the owner class as a third needle (`-Downer=true`, Doug's idea)
+
+A call to `owner.name(desc)` needs a `CONSTANT_Class` entry whose name is a text entry holding exactly the owner's internal name (e.g. `java/util/regex/Pattern`). So also requiring that exact text entry keeps the check sound. Inside descriptors the owner appears as `Ljava/util/regex/Pattern;`, which is a different text entry, so exact matching tells them apart. JDK 21, µs/class with the signature filter:
+
+| rules | maybe (name+desc) | **maybe (+owner)** | cost (name+desc) | cost (+owner) |
+|---|---|---|---|---|
+| 5 | 3.1% | 3.1% | 0.80 | 0.81 |
+| 50 | 34% | **5.4%** | 0.92 | 0.96 |
+| 500 | 55% | **19%** | 1.35 | 1.60 |
+| 2000 | 62% | **39%** | 2.01 | 2.52 |
+
+The owner check cuts the classes that need a real look by 6× at 50 rules, for ~5% more scan cost. Owners like `java/lang/String` filter nothing; rare owners (`Pattern`, `MessageFormat`, `java/util/regex/Matcher`) filter a lot. It also means the Methodref-resolving second step only runs where all three needles are present.

@@ -1,0 +1,2 @@
+com.graphql-java:graphql-java:20.0  graphql.parser.StringValueParsing.removeIndentation  String.split("\\n")
+org.apache.axis2:axis2-transport-http:2.0.2  org.apache.axis2.transport.http.HTTPWorker.getHost  String.split("[:]")
