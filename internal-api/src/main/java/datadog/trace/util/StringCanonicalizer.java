@@ -71,8 +71,16 @@ public final class StringCanonicalizer {
    * @param length the number of characters.
    * @return a {@code String} equal to the text: the shared instance, or an unshared copy when the
    *     text is longer than {@code maxLength} or the lookup gave up.
+   * @throws IndexOutOfBoundsException if the range is not within {@code chars}, as {@code new
+   *     String(chars, offset, length)} would, whatever the table holds.
    */
   public String canonical(final char[] chars, final int offset, final int length) {
+    // A hit never copies the characters, so check the range here rather than leave it to the
+    // String constructor on a miss: an empty hit would otherwise accept any offset.
+    if ((offset | length) < 0 || length > chars.length - offset) {
+      throw new IndexOutOfBoundsException(
+          "offset " + offset + ", length " + length + ", array length " + chars.length);
+    }
     if (length > maxLength) {
       return new String(chars, offset, length);
     }

@@ -48,6 +48,25 @@ class StringCanonicalizerTest {
   }
 
   @Test
+  void rejectsARangeOutsideTheArrayWhateverTheTableHolds() {
+    final StringCanonicalizer strings = new StringCanonicalizer();
+    final char[] empty = new char[0];
+    // before and after the empty text is shared: a hit must not skip the range check
+    assertThrows(IndexOutOfBoundsException.class, () -> strings.canonical(empty, 1, 0));
+    assertEquals("", strings.canonical(empty, 0, 0));
+    assertThrows(IndexOutOfBoundsException.class, () -> strings.canonical(empty, 1, 0));
+
+    final char[] abc = "abc".toCharArray();
+    assertEquals("bc", strings.canonical(abc, 1, 2));
+    assertThrows(IndexOutOfBoundsException.class, () -> strings.canonical(abc, 2, 2));
+    assertThrows(IndexOutOfBoundsException.class, () -> strings.canonical(abc, -1, 1));
+    assertThrows(IndexOutOfBoundsException.class, () -> strings.canonical(abc, 0, -1));
+    // a range far past the end mustn't overflow into looking valid
+    assertThrows(
+        IndexOutOfBoundsException.class, () -> strings.canonical(abc, Integer.MAX_VALUE, 2));
+  }
+
+  @Test
   void keepsSharingAcrossGrowth() {
     final StringCanonicalizer strings = new StringCanonicalizer();
     final List<String> firsts = new ArrayList<>();
