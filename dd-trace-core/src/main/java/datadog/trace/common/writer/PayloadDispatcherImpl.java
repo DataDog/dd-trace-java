@@ -6,6 +6,9 @@ import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.Recording;
+import datadog.trace.api.internal.VisibleForTesting;
+import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.api.time.TimeSource;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -13,6 +16,7 @@ import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,14 +25,28 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
 
   private static final Logger log = LoggerFactory.getLogger(PayloadDispatcherImpl.class);
 
+  /**
+   * How long the writer must have had nothing to send before an idle flush starts releasing the
+   * payload buffer's surplus chunks, so traffic that pauses between bursts keeps reusing them.
+   */
+  static final long IDLE_TRIM_DELAY_NANOS = TimeUnit.SECONDS.toNanos(2);
+
   private final RemoteApi api;
   private final RemoteMapperDiscovery mapperDiscovery;
   private final HealthMetrics healthMetrics;
   private final Monitoring monitoring;
+  private final TimeSource timeSource;
 
   private Recording batchTimer;
   private RemoteMapper mapper;
+  private ChunkedStreamingBuffer buffer;
   private WritableFormatter packer;
+
+  // when the last payload was handed over, or the buffer created: the start of any idle period
+  @SuppressFBWarnings(
+      value = "AT_NONATOMIC_64BIT_PRIMITIVE",
+      justification = "confined to the one thread that encodes traces, which also runs the flushes")
+  private long lastPayloadTicks;
 
   /**
    * Whether the buffer holds traces not yet handed over. The mapper is only re-selected between
@@ -47,17 +65,39 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
       RemoteApi api,
       HealthMetrics healthMetrics,
       Monitoring monitoring) {
+    this(mapperDiscovery, api, healthMetrics, monitoring, SystemTimeSource.INSTANCE);
+  }
+
+  PayloadDispatcherImpl(
+      RemoteMapperDiscovery mapperDiscovery,
+      RemoteApi api,
+      HealthMetrics healthMetrics,
+      Monitoring monitoring,
+      TimeSource timeSource) {
     this.mapperDiscovery = mapperDiscovery;
     this.api = api;
     this.healthMetrics = healthMetrics;
     this.monitoring = monitoring;
+    this.timeSource = timeSource;
   }
 
   @Override
   public void flush() {
-    if (null != packer) {
-      packer.flush();
+    if (null == packer) {
+      return;
     }
+    if (buffer.isDirty()) {
+      packer.flush();
+    } else if (timeSource.getNanoTicks() - lastPayloadTicks >= IDLE_TRIM_DELAY_NANOS) {
+      // nothing sent for a while: let the chunks a burst left behind drain while the writer is idle
+      buffer.trim();
+    }
+  }
+
+  /** The chunks the payload buffer holds, or 0 before it's created. */
+  @VisibleForTesting
+  int bufferedChunks() {
+    return null == buffer ? 0 : buffer.allocatedChunks();
   }
 
   @Override
@@ -123,7 +163,9 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
     if (null == packer && null != mapper) {
       batchTimer =
           monitoring.newTimer("tracer.trace.buffer.fill.time", "endpoint:" + mapper.endpoint());
-      packer = new MsgPackWriter(new ChunkedStreamingBuffer(mapper.messageBufferSize(), this));
+      buffer = new ChunkedStreamingBuffer(mapper.messageBufferSize(), this);
+      packer = new MsgPackWriter(buffer);
+      lastPayloadTicks = timeSource.getNanoTicks();
       batchTimer.start();
     }
   }
@@ -142,6 +184,7 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
     // or when the packer is flushed at a heartbeat
     if (messageCount > 0) {
       payloadStarted = false;
+      lastPayloadTicks = timeSource.getNanoTicks();
       batchTimer.reset();
       Payload payload = newPayload(messageCount, chunks);
       final int sizeInBytes = payload.sizeInBytes();

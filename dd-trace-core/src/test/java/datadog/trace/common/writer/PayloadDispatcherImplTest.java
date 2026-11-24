@@ -3,6 +3,7 @@ package datadog.trace.common.writer;
 import static datadog.trace.api.ProtocolVersion.V0_4;
 import static datadog.trace.api.ProtocolVersion.V0_5;
 import static datadog.trace.api.ProtocolVersion.V1_0;
+import static datadog.trace.common.writer.PayloadDispatcherImpl.IDLE_TRIM_DELAY_NANOS;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -26,6 +27,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery;
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4;
@@ -190,6 +192,75 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
     // counts are reset after access
     assertEquals(0, newPayload.droppedSpans());
     assertEquals(0, newPayload.droppedTraces());
+  }
+
+  @Test
+  void idleFlushesReleaseChunksOnlyOnceTheWriterHasBeenIdleForTheDelay() throws Exception {
+    ControllableTimeSource time = new ControllableTimeSource();
+    PayloadDispatcherImpl dispatcher = newDispatcher(time);
+    fillToChunks(dispatcher, 4);
+    dispatcher.flush();
+    int sent = dispatcher.bufferedChunks();
+    assertTrue(sent >= 4, "the send keeps the chunks the payload used");
+
+    // idle, but not yet for the delay: the burst's chunks are kept
+    time.advance(IDLE_TRIM_DELAY_NANOS - 1);
+    dispatcher.flush();
+    assertEquals(sent, dispatcher.bufferedChunks());
+
+    // idle for the delay: each idle flush halves the surplus, down to one chunk
+    time.advance(1);
+    int kept = sent;
+    while (kept > 1) {
+      dispatcher.flush();
+      kept = 1 + (kept - 1) / 2;
+      assertEquals(kept, dispatcher.bufferedChunks());
+    }
+    dispatcher.flush();
+    assertEquals(1, dispatcher.bufferedChunks());
+  }
+
+  @Test
+  void sendingAPayloadRestartsTheIdleDelay() throws Exception {
+    ControllableTimeSource time = new ControllableTimeSource();
+    PayloadDispatcherImpl dispatcher = newDispatcher(time);
+    List<DDSpan> trace = Collections.singletonList(realSpan());
+    int traces = fillToChunks(dispatcher, 4);
+    dispatcher.flush();
+
+    // a second payload of the same size, just inside the delay
+    time.advance(IDLE_TRIM_DELAY_NANOS - 1);
+    for (int i = 0; i < traces; ++i) {
+      dispatcher.addTrace(trace);
+    }
+    dispatcher.flush();
+    int sent = dispatcher.bufferedChunks();
+
+    // the delay counts from the latest payload, not the first
+    time.advance(IDLE_TRIM_DELAY_NANOS - 1);
+    dispatcher.flush();
+    assertEquals(sent, dispatcher.bufferedChunks());
+  }
+
+  private static PayloadDispatcherImpl newDispatcher(ControllableTimeSource time) {
+    DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
+    when(discovery.getTraceEndpoint()).thenReturn("v0.4/traces");
+    DDAgentApi api = mock(DDAgentApi.class);
+    when(api.sendSerializedTraces(any())).thenReturn(RemoteApi.Response.success(200));
+    return new PayloadDispatcherImpl(
+        new DDAgentMapperDiscovery(discovery), api, mock(HealthMetrics.class), monitoring, time);
+  }
+
+  /** Adds traces to an empty buffer until it uses {@code chunks} chunks; returns how many. */
+  private int fillToChunks(PayloadDispatcherImpl dispatcher, int chunks) throws Exception {
+    List<DDSpan> trace = Collections.singletonList(realSpan());
+    int traces = 0;
+    while (dispatcher.bufferedChunks() < chunks) {
+      assertTrue(traces < 1_000_000, "payload never reached " + chunks + " chunks");
+      dispatcher.addTrace(trace);
+      ++traces;
+    }
+    return traces;
   }
 
   @Test
