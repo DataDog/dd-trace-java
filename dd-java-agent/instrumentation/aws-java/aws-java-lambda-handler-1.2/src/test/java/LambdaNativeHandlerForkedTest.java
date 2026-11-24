@@ -1,6 +1,5 @@
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -10,39 +9,14 @@ import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.InstrumentationErrors;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.core.CoreTracer;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
-import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.agent.ByteBuddyAgent;
-import net.bytebuddy.dynamic.loading.ClassReloadingStrategy;
-import net.bytebuddy.implementation.FixedValue;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 @WithConfig(key = "_HANDLER", value = "Handler", env = true, addPrefix = false)
 class LambdaNativeHandlerForkedTest extends AbstractInstrumentationTest {
-  /** Exercise native advice only in this isolated test JVM; the production gate stays false. */
-  @BeforeAll
-  static void enableNativeTracingForTest() {
-    new ByteBuddy()
-        .redefine(CoreTracer.class)
-        .method(named("isNativeLambdaTracingEnabled"))
-        .intercept(FixedValue.value(true))
-        .make()
-        .load(
-            CoreTracer.class.getClassLoader(),
-            ClassReloadingStrategy.of(ByteBuddyAgent.getInstrumentation()));
-  }
-
-  @AfterAll
-  static void restoreDevelopmentGate() throws Exception {
-    ClassReloadingStrategy.of(ByteBuddyAgent.getInstrumentation()).reset(CoreTracer.class);
-  }
-
   private Context context() {
     return (Context)
         java.lang.reflect.Proxy.newProxyInstance(

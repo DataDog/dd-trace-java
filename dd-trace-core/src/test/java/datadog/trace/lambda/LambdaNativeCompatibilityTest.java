@@ -9,9 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import datadog.context.ContextScope;
@@ -54,8 +52,7 @@ class LambdaNativeCompatibilityTest extends DDCoreJavaSpecification {
     ListWriter writer = new ListWriter();
     Sampler sampler = mock(Sampler.class);
     when(sampler.sample(any())).thenReturn(!dropTrace);
-    CoreTracer tracer = spy(tracerBuilder().writer(writer).sampler(sampler).build());
-    doReturn(true).when(tracer).isNativeLambdaTracingEnabled();
+    CoreTracer tracer = tracerBuilder().writer(writer).sampler(sampler).build();
     try {
       AgentTracer.LambdaInvocation invocation =
           tracer.startLambdaInvocation(
@@ -81,8 +78,7 @@ class LambdaNativeCompatibilityTest extends DDCoreJavaSpecification {
   @Test
   void concurrentInvocationsKeepRequestIdentityAndScopesSeparate() throws Exception {
     ListWriter writer = new ListWriter();
-    CoreTracer tracer = spy(tracerBuilder().writer(writer).build());
-    doReturn(true).when(tracer).isNativeLambdaTracingEnabled();
+    CoreTracer tracer = tracerBuilder().writer(writer).build();
     ExecutorService workers = Executors.newFixedThreadPool(2);
     CyclicBarrier activated = new CyclicBarrier(2);
     try {
@@ -128,8 +124,7 @@ class LambdaNativeCompatibilityTest extends DDCoreJavaSpecification {
       throws Exception {
     boolean previousAppSec = ActiveSubsystems.APPSEC_ACTIVE;
     AgentTracer.TracerAPI previousTracer = AgentTracer.get();
-    CoreTracer tracer = spy(tracerBuilder().writer(new ListWriter()).build());
-    doReturn(true).when(tracer).isNativeLambdaTracingEnabled();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     AtomicInteger starts = new AtomicInteger();
     AtomicInteger ends = new AtomicInteger();
     Object appSecContext = new Object();

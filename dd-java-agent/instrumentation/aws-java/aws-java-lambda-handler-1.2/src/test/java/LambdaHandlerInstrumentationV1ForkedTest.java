@@ -10,6 +10,6 @@ class LambdaHandlerInstrumentationV1ForkedTest extends LambdaHandlerInstrumentat
 
   @Override
   String operation() {
-    return "aws.lambda.invoke";
+    return "aws.lambda";
   }
 }
