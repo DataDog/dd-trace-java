@@ -4,7 +4,10 @@ import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
+import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
@@ -14,13 +17,17 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
+import datadog.trace.bootstrap.instrumentation.jms.MessageConsumerState;
 import datadog.trace.util.ClassLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -144,6 +151,32 @@ public final class JMSDecorator extends MessagingClientDecorator {
     } else {
       return "jms";
     }
+  }
+
+  public static AgentSpan startConsumeSpan(
+      MessageConsumerState consumerState, Message message, AgentSpanContext propagatedContext) {
+    long startMillis = GETTER.extractTimeInQueueStart(message);
+    if (startMillis == 0 || !TIME_IN_QUEUE_ENABLED) {
+      return startSpan("jms", JMS_CONSUME, propagatedContext);
+    }
+    PathwayContext messagePathway = null;
+    if (propagatedContext instanceof TagContext) {
+      messagePathway = propagatedContext.getPathwayContext();
+      ((TagContext) propagatedContext).withPathwayContext(null);
+    }
+    long batchId = GETTER.extractMessageBatchId(message);
+    AgentSpan timeInQueue = consumerState.getTimeInQueueSpan(batchId);
+    if (null == timeInQueue) {
+      timeInQueue =
+          startSpan("jms", JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis));
+      BROKER_DECORATE.afterStart(timeInQueue);
+      BROKER_DECORATE.onTimeInQueue(
+          timeInQueue, consumerState.getBrokerResourceName(), consumerState.getBrokerServiceName());
+      consumerState.setTimeInQueueSpan(batchId, timeInQueue);
+    }
+    AgentSpan span = startSpan("jms", JMS_CONSUME, timeInQueue.spanContext());
+    span.spanContext().mergePathwayContext(messagePathway);
+    return span;
   }
 
   public static void setOutboundCheckpoint(

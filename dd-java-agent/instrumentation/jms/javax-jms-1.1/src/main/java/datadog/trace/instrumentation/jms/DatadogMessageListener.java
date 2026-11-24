@@ -2,15 +2,10 @@ package datadog.trace.instrumentation.jms;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.jms.JMSDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
-import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
-import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_DELIVER;
-import static datadog.trace.instrumentation.jms.JMSDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.jms.JMSDecorator.setInboundCheckpoint;
+import static datadog.trace.instrumentation.jms.JMSDecorator.startConsumeSpan;
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
@@ -38,29 +33,11 @@ public class DatadogMessageListener implements MessageListener {
 
   @Override
   public void onMessage(Message message) {
-    AgentSpan span;
     AgentSpanContext propagatedContext = null;
     if (!consumerState.isPropagationDisabled()) {
       propagatedContext = extractContextAndGetSpanContext(message, GETTER);
     }
-    long startMillis = GETTER.extractTimeInQueueStart(message);
-    if (startMillis == 0 || !TIME_IN_QUEUE_ENABLED) {
-      span = startSpan("jms", JMS_CONSUME, propagatedContext);
-    } else {
-      long batchId = GETTER.extractMessageBatchId(message);
-      AgentSpan timeInQueue = consumerState.getTimeInQueueSpan(batchId);
-      if (null == timeInQueue) {
-        timeInQueue =
-            startSpan("jms", JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis));
-        BROKER_DECORATE.afterStart(timeInQueue);
-        BROKER_DECORATE.onTimeInQueue(
-            timeInQueue,
-            consumerState.getBrokerResourceName(),
-            consumerState.getBrokerServiceName());
-        consumerState.setTimeInQueueSpan(batchId, timeInQueue);
-      }
-      span = startSpan("jms", JMS_CONSUME, timeInQueue.spanContext());
-    }
+    AgentSpan span = startConsumeSpan(consumerState, message, propagatedContext);
     CONSUMER_DECORATE.afterStart(span);
     CONSUMER_DECORATE.onConsume(span, message, consumerState.getConsumerResourceName());
     setInboundCheckpoint(span, message, consumerState.getConsumerBaseResourceName());
