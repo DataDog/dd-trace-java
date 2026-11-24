@@ -64,6 +64,13 @@ final class InstrumenterIndex {
    */
   private static final int NEEDS_EARLY_LOAD_FLAG = 0x02;
 
+  /**
+   * Bit to signal that the module can be loaded lazily: all its members match known types (so the
+   * {@link KnownTypesIndex} can match them without loading the module), it declares no context
+   * stores, has no per-advice target system overrides, and doesn't need early loading.
+   */
+  private static final int LAZY_LOADABLE_FLAG = 0x04;
+
   static final ClassLoader instrumenterClassLoader = Instrumenter.class.getClassLoader();
 
   private final int instrumentationCount;
@@ -77,6 +84,9 @@ final class InstrumenterIndex {
   // (each string is encoded as its length plus that number of ASCII bytes)
   private final byte[] packedNames;
   private int nameIndex;
+
+  // when non-null, lazily loadable modules are recorded here instead of being built
+  private Map<Integer, LazyModule> lazyModules;
 
   // current module details
   private int instrumentationId = -1;
@@ -143,6 +153,45 @@ final class InstrumenterIndex {
         throw new NoSuchElementException();
       }
     }
+  }
+
+  /** A module whose loading is deferred until one of its known types is first matched. */
+  static final class LazyModule {
+    final int instrumentationId;
+    final String moduleName;
+    final int firstTransformationId;
+    final int transformationCount;
+
+    LazyModule(
+        int instrumentationId,
+        String moduleName,
+        int firstTransformationId,
+        int transformationCount) {
+      this.instrumentationId = instrumentationId;
+      this.moduleName = moduleName;
+      this.firstTransformationId = firstTransformationId;
+      this.transformationCount = transformationCount;
+    }
+
+    /** Loads and creates the module; {@code null} if that fails. */
+    InstrumenterModule load() {
+      return buildModule(moduleName);
+    }
+  }
+
+  /**
+   * Defers loading of lazily loadable modules: from now on, iterating over the index records them
+   * (see {@link #lazyModules()}) instead of building them.
+   */
+  void deferLazyModules() {
+    if (null == lazyModules) {
+      lazyModules = new HashMap<>();
+    }
+  }
+
+  /** Modules recorded for lazy loading, keyed by instrumentation id. */
+  Map<Integer, LazyModule> lazyModules() {
+    return null != lazyModules ? lazyModules : java.util.Collections.emptyMap();
   }
 
   /** Maximum known count of {@link InstrumenterModule} instrumentations. */
@@ -221,9 +270,11 @@ final class InstrumenterIndex {
     // flags
     final byte flags = (byte) readNumber();
     final boolean needsEarlyLoad = decodeModuleNeedsEarlyLoad(flags);
+    final boolean lazyLoadable = decodeModuleLazyLoadable(flags);
     hasTargetSystemOverrides = decodeModuleHasTargetSystemOverrides(flags);
     memberAdviceTargetSystemOverrides = null;
     memberCount = readNumber();
+    final int memberCountBefore = memberCount;
     if (SELF_MEMBERSHIP == memberCount) {
       transformationId++;
       memberName = moduleName;
@@ -233,8 +284,17 @@ final class InstrumenterIndex {
       memberName = null;
     }
     if (filter.test(moduleName, moduleTargetSystems, needsEarlyLoad)) {
+      if (module == null && lazyLoadable && null != lazyModules) {
+        // record the module and its transformation ids instead of loading it
+        int firstTransformationId =
+            SELF_MEMBERSHIP == memberCountBefore ? transformationId : transformationId + 1;
+        int count = SELF_MEMBERSHIP == memberCountBefore ? 1 : memberCount;
+        lazyModules.computeIfAbsent(
+            instrumentationId, id -> new LazyModule(id, moduleName, firstTransformationId, count));
+        return null;
+      }
       if (module == null) {
-        module = buildModule();
+        module = buildModule(moduleName);
         modules[instrumentationId] = module;
       }
       return module;
@@ -244,7 +304,7 @@ final class InstrumenterIndex {
     return null;
   }
 
-  private InstrumenterModule buildModule() {
+  private static InstrumenterModule buildModule(String moduleName) {
     try {
       @SuppressWarnings({"rawtypes", "unchecked"})
       Class<InstrumenterModule> nextType = (Class) instrumenterClassLoader.loadClass(moduleName);
@@ -383,7 +443,45 @@ final class InstrumenterIndex {
     if (module instanceof ExcludeFilterProvider || module instanceof JavaModuleOpenProvider) {
       ret |= (byte) NEEDS_EARLY_LOAD_FLAG;
     }
+    if (isLazyLoadable(module, hasCustomOverrides)) {
+      ret |= (byte) LAZY_LOADABLE_FLAG;
+    }
     return ret;
+  }
+
+  static boolean decodeModuleLazyLoadable(byte flags) {
+    return (flags & LAZY_LOADABLE_FLAG) != 0;
+  }
+
+  /** Whether the module can be loaded lazily, see {@link #LAZY_LOADABLE_FLAG}. */
+  static boolean isLazyLoadable(InstrumenterModule module, boolean hasCustomOverrides) {
+    if (hasCustomOverrides
+        || module instanceof ExcludeFilterProvider
+        || module instanceof JavaModuleOpenProvider
+        || !module.contextStore().isEmpty()) {
+      return false;
+    }
+    try {
+      List<Instrumenter> members = module.typeInstrumentations();
+      if (members.isEmpty()) {
+        return false; // nothing to match lazily
+      }
+      for (Instrumenter member : members) {
+        boolean knownTypes =
+            member instanceof Instrumenter.ForSingleType
+                || member instanceof Instrumenter.ForKnownTypes;
+        if (!knownTypes
+            || member instanceof Instrumenter.WithStructuralChange
+            || member instanceof Instrumenter.ForTypeHierarchy
+            || member instanceof Instrumenter.ForConfiguredTypes
+            || member instanceof Instrumenter.ForCallSite) {
+          return false;
+        }
+      }
+    } catch (Throwable e) {
+      return false;
+    }
+    return true;
   }
 
   static boolean decodeModuleNeedsEarlyLoad(byte flags) {

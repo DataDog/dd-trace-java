@@ -189,6 +189,9 @@ public class AgentInstaller {
     }
 
     InstrumenterIndex instrumenterIndex = InstrumenterIndex.readIndex();
+    if (InstrumenterConfig.get().isLazyModuleLoading()) {
+      instrumenterIndex.deferLazyModules(); // load known-type-only modules on first match
+    }
 
     // pre-size state before registering instrumentations to reduce number of allocations
     InstrumenterState.initialize(instrumenterIndex.instrumentationCount());
@@ -248,8 +251,18 @@ public class AgentInstaller {
         log.error("Failed to load - instrumentation.class={}", module.getClass().getName(), e);
       }
     }
+    for (InstrumenterIndex.LazyModule lazyModule : instrumenterIndex.lazyModules().values()) {
+      try {
+        transformerBuilder.registerLazyModule(lazyModule);
+      } catch (Exception | LinkageError e) {
+        log.error("Failed to defer - instrumentation.class={}", lazyModule.moduleName, e);
+      }
+    }
     if (DEBUG) {
-      log.debug("Installed {} instrumenter(s)", installedCount);
+      log.debug(
+          "Installed {} instrumenter(s), deferred {}",
+          installedCount,
+          instrumenterIndex.lazyModules().size());
     }
 
     if (!Platform.isNativeImageBuilder()) {

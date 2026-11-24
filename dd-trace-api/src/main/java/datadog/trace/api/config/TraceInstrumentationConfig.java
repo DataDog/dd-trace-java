@@ -42,6 +42,8 @@ public final class TraceInstrumentationConfig {
   public static final String EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL =
       "experimental.defer.integrations.until";
 
+  public static final String EXPERIMENTAL_LAZY_MODULE_LOADING = "experimental.lazy.module.loading";
+
   public static final String TRACE_THREAD_POOL_EXECUTORS_EXCLUDE =
       "trace.thread-pool-executors.exclude";
 

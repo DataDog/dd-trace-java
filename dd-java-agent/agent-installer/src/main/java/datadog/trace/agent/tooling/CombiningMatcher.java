@@ -46,12 +46,19 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
   private final BitSet knownTypesMask;
   private final MatchRecorder[] matchers;
 
+  // modules loaded on first match; null when lazy loading is off or nothing was deferred
+  private final LazyModules lazyModules;
+
   private volatile boolean deferring;
 
   CombiningMatcher(
-      Instrumentation instrumentation, BitSet knownTypesMask, List<MatchRecorder> matchers) {
+      Instrumentation instrumentation,
+      BitSet knownTypesMask,
+      List<MatchRecorder> matchers,
+      LazyModules lazyModules) {
     this.knownTypesMask = knownTypesMask;
     this.matchers = matchers.toArray(new MatchRecorder[0]);
+    this.lazyModules = null != lazyModules && !lazyModules.isEmpty() ? lazyModules : null;
 
     if (DEFER_MATCHING) {
       scheduleResumeMatching(instrumentation, InstrumenterConfig.get().deferIntegrationsUntil());
@@ -82,7 +89,7 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
       InstrumenterMetrics.knownTypeHit(fromTick);
     }
 
-    for (MatchRecorder matcher : matchers) {
+    for (MatchRecorder matcher : currentMatchers(ids)) {
       try {
         matcher.record(target, classLoader, classBeingRedefined, ids);
       } catch (Throwable e) {
@@ -95,6 +102,19 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
     InstrumenterMetrics.matchType(fromTick);
 
     return !ids.isEmpty();
+  }
+
+  /**
+   * Loads any lazy modules among the known-type matches, then returns the matchers to run. Must be
+   * called after the known-types index has recorded its matches.
+   */
+  private MatchRecorder[] currentMatchers(BitSet ids) {
+    if (null == lazyModules) {
+      return matchers;
+    }
+    lazyModules.loadMatched(ids);
+    MatchRecorder[] published = lazyModules.matchers();
+    return null != published ? published : matchers;
   }
 
   /** Arranges for any deferred matching to resume at the requested trigger point. */
@@ -176,13 +196,14 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
     ids.clear();
 
     knownTypesIndex.apply(clazz.getName(), knownTypesMask, ids);
+    MatchRecorder[] currentMatchers = currentMatchers(ids);
     if (!ids.isEmpty()) {
       return true;
     }
 
     TypeDescription target = new TypeDescription.ForLoadedType(clazz);
 
-    for (MatchRecorder matcher : matchers) {
+    for (MatchRecorder matcher : currentMatchers) {
       try {
         matcher.record(target, classLoader, clazz, ids);
         if (!ids.isEmpty()) {

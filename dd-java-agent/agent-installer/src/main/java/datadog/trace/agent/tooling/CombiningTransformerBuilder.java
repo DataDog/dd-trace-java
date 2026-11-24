@@ -87,6 +87,9 @@ public final class CombiningTransformerBuilder
   // temporary buffer for collecting advice; reset for each instrumenter
   private final List<AgentBuilder.Transformer> advice = new ArrayList<>();
 
+  // modules registered for lazy loading, and the matchers published to the combining matcher
+  private final LazyModules lazyModules = new LazyModules(this);
+
   public CombiningTransformerBuilder(
       AgentBuilder agentBuilder,
       InstrumenterIndex instrumenterIndex,
@@ -175,8 +178,61 @@ public final class CombiningTransformerBuilder
       transformationId = allocateRuntimeTransformationId();
     }
 
+    buildTypeInstrumentation(member, transformationId);
+  }
+
+  private void buildTypeInstrumentation(Instrumenter member, int transformationId) {
     buildTypeMatcher(member, transformationId);
     buildTypeAdvice(member, transformationId);
+  }
+
+  /**
+   * Registers a module whose loading is deferred until one of its known types is first matched. Its
+   * transformations are added to the known-types mask, so the {@link KnownTypesIndex} keeps
+   * matching them without the module being loaded.
+   */
+  public void registerLazyModule(InstrumenterIndex.LazyModule lazyModule) {
+    if (lazyModules.register(lazyModule)) {
+      for (int i = 0; i < lazyModule.transformationCount; i++) {
+        knownTypesMask.set(lazyModule.firstTransformationId + i);
+      }
+    }
+  }
+
+  /**
+   * Loads and applies a lazily registered module, assigning its members the transformation ids
+   * recorded in the index (members are indexed in declaration order). Returns {@code false} if the
+   * module couldn't be loaded, isn't applicable, or is disabled.
+   */
+  synchronized boolean applyLazyInstrumentation(InstrumenterIndex.LazyModule lazyModule) {
+    InstrumenterModule module = lazyModule.load();
+    if (null == module || !module.isApplicable(enabledSystems) || !module.isEnabled()) {
+      return false;
+    }
+    try {
+      InstrumenterState.registerInstrumentation(module, lazyModule.instrumentationId);
+      prepareInstrumentation(module, lazyModule.instrumentationId);
+      int transformationId = lazyModule.firstTransformationId;
+      for (Instrumenter member : module.typeInstrumentations()) {
+        if (transformationId >= lazyModule.firstTransformationId + lazyModule.transformationCount) {
+          log.debug("Lazy module {} has more members than indexed", lazyModule.moduleName);
+          break;
+        }
+        instrumentationClass =
+            adviceTransformationDiagnosticsEnabled ? member.getClass().getName() : null;
+        buildTypeInstrumentation(member, transformationId++);
+      }
+      publishMatchers();
+      return true;
+    } catch (Exception | LinkageError e) {
+      log.error("Failed to load lazily - instrumentation.class={}", lazyModule.moduleName, e);
+      return false;
+    }
+  }
+
+  /** Publishes the current matchers to the {@link CombiningMatcher}. */
+  private void publishMatchers() {
+    lazyModules.publishMatchers(matchers.toArray(new MatchRecorder[0]));
   }
 
   private void buildTypeMatcher(Instrumenter member, int transformationId) {
@@ -341,8 +397,9 @@ public final class CombiningTransformerBuilder
       applyContextStoreInjection();
     }
 
+    publishMatchers();
     return agentBuilder
-        .type(new CombiningMatcher(instrumentation, knownTypesMask, matchers))
+        .type(new CombiningMatcher(instrumentation, knownTypesMask, matchers, lazyModules))
         .and(NOT_DECORATOR_MATCHER)
         .transform(defaultTransformers())
         .transform(new SplittingTransformer(transformers))
