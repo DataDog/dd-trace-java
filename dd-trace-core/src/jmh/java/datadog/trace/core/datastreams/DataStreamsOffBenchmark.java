@@ -140,7 +140,7 @@ public class DataStreamsOffBenchmark {
     public void register(EventListener listener) {}
 
     @Override
-    public void accept(int messageCount, ByteBuffer buffer) {}
+    public void accept(int messageCount, List<ByteBuffer> chunks) {}
   }
 
   static final class DataStreamsOff implements TraceConfig {
