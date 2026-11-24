@@ -31,7 +31,9 @@ public final class JettyServerHandleBlockingInstrumentation extends Instrumenter
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JettyBlockResponseFunction", packageName + ".JettyBlockResponseHelper"
+      packageName + ".JettyBlockResponseFunction",
+      packageName + ".JettyBlockResponseHelper",
+      packageName + ".JettyDeferredCompletion"
     };
   }
 

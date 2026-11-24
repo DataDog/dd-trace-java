@@ -403,8 +403,8 @@ public class InstrumenterConfig {
     runtimeContextMapPerStore =
         configProvider.getBoolean(
             RUNTIME_CONTEXT_MAP_PER_STORE,
-            // Gradually roll out shared context storage, starting with Java 25.
-            DEFAULT_RUNTIME_CONTEXT_MAP_PER_STORE && !isJavaVersionAtLeast(25));
+            // Gradually roll out shared context storage, starting with Java 17.
+            DEFAULT_RUNTIME_CONTEXT_MAP_PER_STORE && !isJavaVersionAtLeast(17));
 
     instrumentationConfigId = configProvider.getString(INSTRUMENTATION_CONFIG_ID, "");
 

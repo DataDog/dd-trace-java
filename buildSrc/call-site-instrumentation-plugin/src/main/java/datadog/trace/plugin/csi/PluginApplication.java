@@ -70,7 +70,7 @@ public class PluginApplication {
 
   private static List<CallSiteSpecification> searchForCallSites(final Configuration configuration) {
     try {
-      final SpecificationBuilder builder = specificationBuilder();
+      final SpecificationBuilder builder = specificationBuilder(configuration.classesFolder);
       final List<CallSiteSpecification> result = new ArrayList<>();
       final Pattern pattern = Pattern.compile(".*" + configuration.suffix + "\\.class$");
       Files.walkFileTree(

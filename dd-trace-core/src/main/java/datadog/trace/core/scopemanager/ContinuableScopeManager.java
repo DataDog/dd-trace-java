@@ -172,11 +172,9 @@ public final class ContinuableScopeManager {
 
     assert context != null;
 
-    // Inherit the async propagation from the active scope
-    boolean asyncPropagation = top != null ? top.isAsyncPropagating() : DEFAULT_ASYNC_PROPAGATING;
-
     final ContinuableScope scope =
-        new ContinuableScope(this, context, CONTEXT, asyncPropagation, createScopeState(context));
+        new ContinuableScope(
+            this, context, CONTEXT, DEFAULT_ASYNC_PROPAGATING, createScopeState(context));
     scopeStack.push(scope);
     healthMetrics.onActivateScope();
 
@@ -217,7 +215,7 @@ public final class ContinuableScopeManager {
 
   public boolean isAsyncPropagationEnabled() {
     ContinuableScope activeScope = scopeStack().active();
-    return activeScope != null && activeScope.isAsyncPropagating();
+    return activeScope == null || activeScope.isAsyncPropagating();
   }
 
   public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
@@ -242,13 +240,6 @@ public final class ContinuableScopeManager {
       if (finishSpan && span != null) {
         span.finishWithEndToEnd();
       }
-    } else if (top != null) {
-      log.debug(
-          SEND_TELEMETRY,
-          "Scope found at top of stack has source {} when we expect {}. Current span at the top of the stack {}.",
-          top.source(),
-          ITERATION,
-          top.span());
     }
   }
 

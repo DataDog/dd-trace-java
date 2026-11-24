@@ -5,8 +5,10 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.instrumentation.jetty12.JettyFakes.fake;
 import static datadog.trace.instrumentation.jetty12.JettyFakes.proxy;
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -20,6 +22,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.jetty12.JettyFakes.FakeRequest;
 import datadog.trace.instrumentation.jetty12.JettyFakes.FakeResponse;
@@ -30,6 +33,8 @@ import java.util.List;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.thread.Invocable.InvocationType;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
@@ -45,6 +50,17 @@ class JettyRequestBlockingTest {
   private int blockFailures;
   private int commits;
   private Flow.Action.RequestBlockingAction committedRba;
+  private boolean appSecActiveBefore;
+
+  @BeforeEach
+  void saveAppSecActive() {
+    appSecActiveBefore = ActiveSubsystems.APPSEC_ACTIVE;
+  }
+
+  @AfterEach
+  void restoreAppSecActive() {
+    ActiveSubsystems.APPSEC_ACTIVE = appSecActiveBefore;
+  }
 
   @Test
   void blocksAndCompletesCallbackWhenCommitSucceeds() {
@@ -161,6 +177,242 @@ class JettyRequestBlockingTest {
     assertEquals(asList("effectivelyBlocked", "succeeded"), f.events);
     assertEquals(0, blockFailures);
     assertTrue(f.brf.isBlockingResponseInitiated());
+    assertInstanceOf(
+        JettyDeferredCompletion.class,
+        f.brf.deferCompletion(fake(Callback.class)),
+        "the request phase does not wrap the callback");
+  }
+
+  @Test
+  void deferCompletionWrapsTheCallbackWhenAppSecIsActiveWithJettyBrf() {
+    ActiveSubsystems.APPSEC_ACTIVE = true;
+    JettyBrfFixture f = new JettyBrfFixture();
+    Callback callback = fake(Callback.class);
+
+    Callback result = JettyBlockResponseHelper.deferCompletion(f.request.proxy, callback);
+
+    assertInstanceOf(JettyDeferredCompletion.class, result);
+    Callback other = fake(Callback.class);
+    assertSame(other, f.brf.deferCompletion(other), "the wrapper is installed on the BRF");
+  }
+
+  @TableTest({
+    "Scenario           | AppSec Active | Context | Request Context | BRF    ",
+    "appsec inactive    | false         | true    | true            | jetty  ",
+    "no context         | true          | false   | true            | jetty  ",
+    "no request context | true          | true    | false           | jetty  ",
+    "no BRF             | true          | true    | true            | none   ",
+    "foreign BRF        | true          | true    | true            | foreign"
+  })
+  void deferCompletionKeepsTheCallback(
+      boolean appSecActive, boolean context, boolean requestContext, String brfKind) {
+    ActiveSubsystems.APPSEC_ACTIVE = appSecActive;
+    JettyBlockResponseFunction jettyBrf =
+        new JettyBlockResponseFunction(fake(Request.class), new FakeResponse().proxy);
+    BlockResponseFunction brf;
+    switch (brfKind) {
+      case "jetty":
+        brf = jettyBrf;
+        break;
+      case "foreign":
+        brf = brf(true);
+        break;
+      default:
+        brf = null;
+    }
+    Callback callback = fake(Callback.class);
+
+    assertSame(
+        callback,
+        JettyBlockResponseHelper.deferCompletion(
+            request(context, true, false, requestContext, brf), callback));
+    assertInstanceOf(
+        JettyDeferredCompletion.class,
+        jettyBrf.deferCompletion(fake(Callback.class)),
+        "nothing was installed");
+  }
+
+  @Test
+  void deferCompletionKeepsTheCallbackWhenTheLookupThrows() {
+    ActiveSubsystems.APPSEC_ACTIVE = true;
+    Request request =
+        proxy(
+            Request.class,
+            (name, args) -> {
+              throw new IllegalStateException("recycled");
+            });
+    Callback callback = fake(Callback.class);
+
+    assertSame(callback, JettyBlockResponseHelper.deferCompletion(request, callback));
+  }
+
+  @Test
+  void handlerChainPathDefersCompletionOfAMidHandlerBlock() {
+    ActiveSubsystems.APPSEC_ACTIVE = true;
+    JettyBrfFixture f = new JettyBrfFixture(null);
+    List<Object> completions = new ArrayList<>();
+    Callback handlerCallback = recording(completions);
+
+    // what the Server.handle advice does on the non-skip path
+    assertFalse(JettyBlockResponseHelper.tryBlockRequest(f.request.proxy, handlerCallback));
+    Callback callback = JettyBlockResponseHelper.deferCompletion(f.request.proxy, handlerCallback);
+
+    assertTrue(
+        f.brf.tryCommitBlockingResponse(
+            f.segment, 403, BlockingContentType.AUTO, emptyMap(), null));
+    IllegalStateException blocking = new IllegalStateException("blocked");
+    callback.failed(blocking);
+    assertTrue(completions.isEmpty(), "the completion waits for the pending block write");
+
+    f.response.pending.succeeded();
+
+    assertEquals(asList("effectivelyBlocked"), f.events);
+    assertEquals(asList("failed", blocking), completions, "the original failure is replayed");
+  }
+
+  @Test
+  void escapedThrowableIsParkedWhileAMidHandlerBlockWriteIsInFlight() {
+    ActiveSubsystems.APPSEC_ACTIVE = true;
+    JettyBrfFixture f = new JettyBrfFixture(null);
+    List<Object> completions = new ArrayList<>();
+    Callback callback =
+        JettyBlockResponseHelper.deferCompletion(f.request.proxy, recording(completions));
+    assertTrue(
+        f.brf.tryCommitBlockingResponse(
+            f.segment, 403, BlockingContentType.AUTO, emptyMap(), null));
+    IllegalStateException thrown = new IllegalStateException("blocked");
+
+    // what the Server.handle exit advice does when a core handler lets the throwable escape
+    assertTrue(JettyBlockResponseHelper.failDeferred(callback, thrown));
+    assertTrue(completions.isEmpty(), "the failure waits for the pending block write");
+
+    f.response.pending.succeeded();
+
+    assertEquals(asList("effectivelyBlocked"), f.events);
+    assertEquals(asList("failed", thrown), completions);
+  }
+
+  @Test
+  void escapedThrowableIsLeftToJettyWhenNoBlockWriteIsInFlight() {
+    List<Object> completions = new ArrayList<>();
+    Callback callback = new JettyDeferredCompletion(recording(completions));
+
+    assertFalse(JettyBlockResponseHelper.failDeferred(callback, new IllegalStateException("boom")));
+
+    assertTrue(completions.isEmpty(), "Jetty fails its own callback reference, as on master");
+  }
+
+  @Test
+  void escapedThrowableIsLeftToJettyOnceTheWrapperCompleted() {
+    List<Object> completions = new ArrayList<>();
+    JettyDeferredCompletion callback = new JettyDeferredCompletion(recording(completions));
+    callback.succeeded();
+
+    assertFalse(JettyBlockResponseHelper.failDeferred(callback, new IllegalStateException("boom")));
+
+    assertEquals(asList("succeeded"), completions);
+  }
+
+  @Test
+  void escapedThrowableIsLeftToJettyWithoutTheWrapper() {
+    List<Object> completions = new ArrayList<>();
+
+    assertFalse(
+        JettyBlockResponseHelper.failDeferred(
+            recording(completions), new IllegalStateException("boom")));
+    assertFalse(JettyBlockResponseHelper.failDeferred(null, new IllegalStateException("boom")));
+
+    assertTrue(completions.isEmpty(), "Jetty fails its own callback reference");
+  }
+
+  @Test
+  void escapedThrowableIsTakenOverWhenACompletionIsAlreadyParked() {
+    ActiveSubsystems.APPSEC_ACTIVE = true;
+    JettyBrfFixture f = new JettyBrfFixture(null);
+    List<Object> completions = new ArrayList<>();
+    Callback callback =
+        JettyBlockResponseHelper.deferCompletion(f.request.proxy, recording(completions));
+    assertTrue(
+        f.brf.tryCommitBlockingResponse(
+            f.segment, 403, BlockingContentType.AUTO, emptyMap(), null));
+    IllegalStateException parked = new IllegalStateException("parked");
+    callback.failed(parked);
+
+    // a core handler that failed the callback and then let a throwable escape
+    assertTrue(
+        JettyBlockResponseHelper.failDeferred(callback, new IllegalStateException("escaped")));
+    assertTrue(completions.isEmpty(), "the parked failure waits for the pending block write");
+
+    f.response.pending.succeeded();
+
+    assertEquals(asList("effectivelyBlocked"), f.events);
+    assertEquals(asList("failed", parked), completions, "only the first outcome is replayed");
+  }
+
+  @Test
+  void unhandledRequestCompletesTheWrapperOnceTheBlockWriteFinishes() {
+    ActiveSubsystems.APPSEC_ACTIVE = true;
+    JettyBrfFixture f = new JettyBrfFixture(null);
+    List<Object> completions = new ArrayList<>();
+    Callback callback =
+        JettyBlockResponseHelper.deferCompletion(f.request.proxy, recording(completions));
+    assertTrue(
+        f.brf.tryCommitBlockingResponse(
+            f.segment, 403, BlockingContentType.AUTO, emptyMap(), null));
+
+    // what the Server.handle exit advice does when a core handler returns false
+    assertTrue(JettyBlockResponseHelper.completeUnhandledBlock(f.request.proxy, callback));
+    assertTrue(completions.isEmpty(), "the completion waits for the pending block write");
+
+    f.response.pending.succeeded();
+
+    assertEquals(asList("effectivelyBlocked"), f.events);
+    assertEquals(asList("succeeded"), completions);
+  }
+
+  @Test
+  void unhandledRequestIsLeftToJettyWhenNoBlockingResponseWasInitiated() {
+    ActiveSubsystems.APPSEC_ACTIVE = true;
+    JettyBrfFixture f = new JettyBrfFixture(null);
+    List<Object> completions = new ArrayList<>();
+    Callback callback =
+        JettyBlockResponseHelper.deferCompletion(f.request.proxy, recording(completions));
+    assertInstanceOf(JettyDeferredCompletion.class, callback);
+
+    assertFalse(JettyBlockResponseHelper.completeUnhandledBlock(f.request.proxy, callback));
+
+    assertTrue(completions.isEmpty(), "Jetty writes its 404 as on master");
+    assertTrue(f.response.writes.isEmpty());
+  }
+
+  @Test
+  void unhandledRequestIsLeftToJettyWithoutTheWrapper() {
+    JettyBrfFixture f = new JettyBrfFixture(null);
+    List<Object> completions = new ArrayList<>();
+    assertTrue(
+        f.brf.tryCommitBlockingResponse(
+            f.segment, 403, BlockingContentType.AUTO, emptyMap(), null));
+
+    assertFalse(
+        JettyBlockResponseHelper.completeUnhandledBlock(f.request.proxy, recording(completions)));
+    assertFalse(JettyBlockResponseHelper.completeUnhandledBlock(f.request.proxy, null));
+
+    assertTrue(completions.isEmpty());
+  }
+
+  /** Records {@code succeeded} and {@code failed} calls, followed by the failure, if any. */
+  private static Callback recording(List<Object> completions) {
+    return proxy(
+        Callback.class,
+        (name, args) -> {
+          if ("succeeded".equals(name)) {
+            completions.add(name);
+          } else if ("failed".equals(name)) {
+            completions.add(name);
+            completions.add(args[0]);
+          }
+          return null;
+        });
   }
 
   @Test
@@ -255,6 +507,10 @@ class JettyRequestBlockingTest {
     Throwable callbackFailure;
 
     JettyBrfFixture() {
+      this(RBA);
+    }
+
+    JettyBrfFixture(Flow.Action.RequestBlockingAction rba) {
       response.completeWrites = false;
       RequestContext reqCtx = requestContext(brf, segment);
       AgentSpan span =
@@ -263,7 +519,7 @@ class JettyRequestBlockingTest {
               (name, args) -> {
                 switch (name) {
                   case "getRequestBlockingAction":
-                    return RBA;
+                    return rba;
                   case "getRequestContext":
                     return reqCtx;
                   default:

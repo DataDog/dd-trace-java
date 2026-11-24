@@ -38,7 +38,7 @@ public class DebuggerTracer implements DebuggerContext.Tracer {
         dynamicSpan.setTag(tag.substring(0, idx), tag.substring(idx + 1));
       }
     }
-    ContextScope scope = tracerAPI.activateManualSpan(dynamicSpan);
+    ContextScope scope = tracerAPI.activateSpan(dynamicSpan);
     return new DebuggerSpanImpl(dynamicSpan, scope, probeStatusSink, encodedProbeId);
   }
 

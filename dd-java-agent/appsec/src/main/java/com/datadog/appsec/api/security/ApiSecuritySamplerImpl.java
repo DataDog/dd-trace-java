@@ -2,6 +2,7 @@ package com.datadog.appsec.api.security;
 
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import datadog.trace.api.Config;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
@@ -24,13 +25,13 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
    * This will avoid excessive memory usage in case of a high number of concurrent requests, and
    * should also prevent memory leaks.
    */
-  private static final int MAX_POST_PROCESSING_TASKS = 4;
+  @VisibleForTesting static final int MAX_POST_PROCESSING_TASKS = 4;
 
   /** Maximum number of entries in the access map. */
   private static final int MAX_SIZE = 4096;
 
   /** Mapping from endpoint hash to last access timestamp in millis. */
-  private final ConcurrentHashMap<Long, Long> accessMap;
+  @VisibleForTesting final ConcurrentHashMap<Long, Long> accessMap;
 
   /** Deque of endpoint hashes ordered by access time. Oldest is first. Guarded by accessLock. */
   private final Deque<Long> accessDeque;

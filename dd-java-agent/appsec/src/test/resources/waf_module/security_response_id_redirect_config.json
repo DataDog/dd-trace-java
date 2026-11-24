@@ -1,0 +1,42 @@
+{
+  "version": "2.1",
+  "actions": [
+    {
+      "id": "redirect_with_id",
+      "type": "redirect_request",
+      "parameters": {
+        "status_code": 302,
+        "location": "https://example.com/blocked"
+      }
+    }
+  ],
+  "rules": [
+    {
+      "id": "test-redirect-blockid",
+      "name": "Test redirect with security_response_id",
+      "tags": {
+        "type": "test",
+        "category": "test"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              }
+            ],
+            "regex": "^RedirectWithSecurityResponseId"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "on_match": [
+        "redirect_with_id"
+      ]
+    }
+  ]
+}

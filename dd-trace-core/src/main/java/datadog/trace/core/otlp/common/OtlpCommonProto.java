@@ -202,6 +202,16 @@ public final class OtlpCommonProto {
   }
 
   private static void writeStringAttribute(StreamingBuffer buf, byte[] keyUtf8, byte[] valueUtf8) {
+    writeLengthDelimitedAttribute(buf, keyUtf8, 1, valueUtf8);
+  }
+
+  /** Writes an OTLP byte attribute without converting its payload to a string. */
+  public static void writeBytesAttribute(StreamingBuffer buf, String key, byte[] value) {
+    writeLengthDelimitedAttribute(buf, keyUtf8(key), 7, value);
+  }
+
+  private static void writeLengthDelimitedAttribute(
+      StreamingBuffer buf, byte[] keyUtf8, int valueField, byte[] valueUtf8) {
     int valueSize = 1 + sizeVarInt(valueUtf8.length) + valueUtf8.length;
     int keyValueSize =
         1 + sizeVarInt(keyUtf8.length) + keyUtf8.length + 1 + sizeVarInt(valueSize) + valueSize;
@@ -211,7 +221,7 @@ public final class OtlpCommonProto {
     buf.put(keyUtf8);
     writeTag(buf, 2, LEN_WIRE_TYPE);
     writeVarInt(buf, valueSize);
-    writeTag(buf, 1, LEN_WIRE_TYPE);
+    writeTag(buf, valueField, LEN_WIRE_TYPE);
     writeVarInt(buf, valueUtf8.length);
     buf.put(valueUtf8);
   }

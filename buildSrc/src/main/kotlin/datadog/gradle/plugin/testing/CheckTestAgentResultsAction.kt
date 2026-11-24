@@ -9,6 +9,8 @@ import org.gradle.api.provider.Provider
 import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.newInstance
+import java.time.Instant
+import java.util.Base64
 import javax.inject.Inject
 
 fun Test.configureTestAgentPostChecks() {
@@ -41,7 +43,8 @@ fun Test.configureTestAgentPostChecks() {
     "checkTestAgent",
     project.objects.newInstance<CheckTestAgentResultsAction>(
       reportDirectory,
-      agentUrl
+      agentUrl,
+      project.providers.environmentVariable("GITLAB_CI")
     )
   )
 }
@@ -115,12 +118,26 @@ private fun testAgentConfiguration(
 abstract class CheckTestAgentResultsAction @Inject constructor(
   private val reportDirectory: Provider<Directory>,
   private val agentUrl: Provider<String>,
+  private val gitLabCi: Provider<String>,
 ) : Action<Task> {
   override fun execute(task: Task) {
     TestAgentResultsChecker(
       agentUrl.get(),
       reportDirectory.get().asFile,
       task.logger::lifecycle,
+      formatSummary = if (gitLabCi.orNull == "true") gitLabSummaryFormatter(task.path) else ::plainSection,
     ).check()
   }
+}
+
+private fun gitLabSummaryFormatter(taskPath: String): (String, String) -> String {
+  val name = "apm-test-agent-summary-" + Base64.getUrlEncoder().withoutPadding().encodeToString(taskPath.toByteArray())
+  return { title, body -> gitLabCollapsedSection(name, Instant.now().epochSecond, title, body) }
+}
+
+/** Formats a GitLab CI log section that is collapsed by default and shows [title] as its header. */
+internal fun gitLabCollapsedSection(name: String, timestamp: Long, title: String, body: String): String {
+  val start = "\u001B[0Ksection_start:$timestamp:$name[collapsed=true]\r\u001B[0K"
+  val end = "\u001B[0Ksection_end:$timestamp:$name\r\u001B[0K"
+  return "$start$title\n$body\n$end"
 }

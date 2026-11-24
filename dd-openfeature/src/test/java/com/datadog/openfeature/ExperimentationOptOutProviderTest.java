@@ -13,6 +13,7 @@ import com.datadog.openfeature.internal.JsonReading;
 import com.datadog.openfeature.internal.LocalHttpServer;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.TestSettings;
+import com.datadog.openfeature.internal.delivery.FlagSelectionRequest;
 import com.datadog.openfeature.internal.ufc.UniversalFlagConfigParser;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -244,6 +245,45 @@ class ExperimentationOptOutProviderTest {
         evaluator.evaluate(String.class, "target", "default", context);
     assertNull(result.getErrorCode());
     assertEquals("ordinary", result.getValue());
+  }
+
+  /**
+   * Opt-out excludes the subject from an allocation logging exposures even when the provider's
+   * evaluations are not exposures, so a provider with exposures disabled sees the same variant.
+   */
+  @ParameterizedTest
+  @ValueSource(strings = {"IMMEDIATE", "FUTURE_EXPERIMENTS_ONLY"})
+  void exposuresDisabledKeepsTheOptOutAssignment(final String mode) throws Exception {
+    final String json = configuration(activation("equal"), "true", false);
+    for (final boolean exposures : new boolean[] {true, false}) {
+      final DDEvaluator evaluator =
+          new DDEvaluator(
+              () -> {},
+              AgentBridge.NONE,
+              TestSettings.of(),
+              ExperimentationOptOutMode.valueOf(mode),
+              FlagSelectionRequest.NONE,
+              false,
+              exposures);
+      evaluator.accept(UniversalFlagConfigParser.parse(json.getBytes(UTF_8)));
+
+      assertEquals(
+          "experiment",
+          evaluator
+              .evaluate(String.class, "target", "default", new MutableContext("subject"))
+              .getValue(),
+          "exposures " + exposures + ", not opted out");
+      assertEquals(
+          "ordinary",
+          evaluator
+              .evaluate(
+                  String.class,
+                  "target",
+                  "default",
+                  new MutableContext("subject").add(ATTRIBUTE, CUTOFF))
+              .getValue(),
+          "exposures " + exposures + ", opted out");
+    }
   }
 
   @Test
@@ -483,7 +523,7 @@ class ExperimentationOptOutProviderTest {
     while (directory != null) {
       final Path candidate =
           directory
-              .resolve("dd-smoke-tests/openfeature/src/test/resources/experimentation-opt-out")
+              .resolve("dd-openfeature/src/test/fixtures/experimentation-opt-out")
               .resolve(name);
       if (Files.isRegularFile(candidate)) {
         return candidate;
