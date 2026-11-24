@@ -1,0 +1,29 @@
+{
+  "version": "2.1",
+  "rules": [
+    {
+      "id": "block-users",
+      "name": "Block User Addresses",
+      "tags": {
+        "type": "block_user",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "usr.id"
+              }
+            ],
+            "data": "blocked_users"
+          },
+          "operator": "exact_match"
+        }
+      ],
+      "on_match": [
+        "block"
+      ]
+    }
+  ]
+}

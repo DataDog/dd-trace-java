@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
-import datadog.trace.test.util.DDJavaSpecification;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -21,7 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
-class ExcludeFilterTest extends DDJavaSpecification {
+class ExcludeFilterTest {
 
   @ParameterizedTest(name = "test empty ExcludeFilter {0}")
   @EnumSource(ExcludeType.class)

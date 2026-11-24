@@ -75,10 +75,9 @@ object JardiffComparison {
       .joinToString(" ", transform = ::shellQuote)
   }
 
-  private fun shellQuote(token: String): String =
-    if (token.isNotEmpty() && token.all { it.isLetterOrDigit() || it in "/._-=:" }) {
-      token
-    } else {
-      "'" + token.replace("'", "'\\''") + "'"
-    }
+  private fun shellQuote(token: String): String = if (token.isNotEmpty() && token.all { it.isLetterOrDigit() || it in "/._-=:" }) {
+    token
+  } else {
+    "'" + token.replace("'", "'\\''") + "'"
+  }
 }

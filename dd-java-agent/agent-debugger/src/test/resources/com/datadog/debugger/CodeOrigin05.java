@@ -13,7 +13,7 @@ public class CodeOrigin05 {
 
   public static int main(String arg) throws ReflectiveOperationException {
     AgentSpan span = newSpan("main");
-    ContextScope scope = tracerAPI.activateManualSpan(span);
+    ContextScope scope = tracerAPI.activateSpan(span);
     if (arg.equals("debug_1")) {
       ((DDSpan) span.getLocalRootSpan()).setTag("_dd.p.debug", "1");
     } else if (arg.equals("debug_0")) {
@@ -30,13 +30,13 @@ public class CodeOrigin05 {
 
   private static void fullTrace() throws NoSuchMethodException {
     AgentSpan span = newSpan("entry");
-    ContextScope scope = tracerAPI.activateManualSpan(span);
+    ContextScope scope = tracerAPI.activateSpan(span);
     entry();
     span.finish();
     scope.close();
 
     span = newSpan("exit");
-    scope = tracerAPI.activateManualSpan(span);
+    scope = tracerAPI.activateSpan(span);
     exit();
     span.finish();
     scope.close();

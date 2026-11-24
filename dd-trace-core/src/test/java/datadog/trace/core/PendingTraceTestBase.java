@@ -246,22 +246,20 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
       List<Thread> threads = new ArrayList<>(threadCount);
       for (int t = 0; t < threadCount; t++) {
         Thread thread =
-            new Thread(
-                () -> {
-                  try {
-                    latch.await();
-                    List<DDSpan> spans = new ArrayList<>(spanCount);
-                    for (int s = 0; s < spanCount; s++) {
-                      spans.add(
-                          (DDSpan) tracer.startSpan("test", "child", localRoot.spanContext()));
-                    }
-                    for (DDSpan span : spans) {
-                      span.finish();
-                    }
-                  } catch (Throwable ex) {
-                    exceptions.add(ex);
-                  }
-                });
+            new Thread(() -> {
+              try {
+                latch.await();
+                List<DDSpan> spans = new ArrayList<>(spanCount);
+                for (int s = 0; s < spanCount; s++) {
+                  spans.add((DDSpan) tracer.startSpan("test", "child", localRoot.spanContext()));
+                }
+                for (DDSpan span : spans) {
+                  span.finish();
+                }
+              } catch (Throwable ex) {
+                exceptions.add(ex);
+              }
+            });
         thread.start();
         threads.add(thread);
       }

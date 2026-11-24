@@ -12,6 +12,7 @@ import static java.util.Arrays.asList;
 import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -23,8 +24,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
+import datadog.communication.serialization.GrowableBuffer;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDTraceId;
@@ -43,7 +46,9 @@ import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -56,8 +61,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.AdditionalAnswers;
 import org.mockito.MockedStatic;
+import org.msgpack.jackson.dataformat.MessagePackFactory;
 
 /**
  * Tests for {@link OtlpTraceProto} via {@link OtlpTraceProtoCollector#collectTraces}.
@@ -477,15 +484,14 @@ class OtlpTraceProtoTest {
   @SuppressWarnings("unchecked")
   static Stream<Arguments> casesWithOtelSemantics() {
     return cases()
-        .flatMap(
-            args -> {
-              Object[] raw = args.get();
-              String caseName = (String) raw[0];
-              List<SpanSpec> specs = (List<SpanSpec>) raw[1];
-              return Stream.of(
-                  Arguments.of(caseName + " [otel semantics enabled]", specs, true),
-                  Arguments.of(caseName + " [otel semantics disabled]", specs, false));
-            });
+        .flatMap(args -> {
+          Object[] raw = args.get();
+          String caseName = (String) raw[0];
+          List<SpanSpec> specs = (List<SpanSpec>) raw[1];
+          return Stream.of(
+              Arguments.of(caseName + " [otel semantics enabled]", specs, true),
+              Arguments.of(caseName + " [otel semantics disabled]", specs, false));
+        });
   }
 
   // ── parameterized test ────────────────────────────────────────────────────
@@ -715,6 +721,61 @@ class OtlpTraceProtoTest {
     EncodedSamplingState nonProbability = exportSamplingState(nonProbabilityKeep);
     assertNull(nonProbability.traceState);
     assertEquals(SAMPLED_TRACE_FLAG, nonProbability.flags);
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {1024, 128 * 1024})
+  void payloadBoundaryReleasesOnlyOversizedSpanStorage(int reportSize) throws Exception {
+    DDSpan report = (DDSpan) TRACER.startSpan("test", "reports");
+    report.setResourceName("reports");
+    report.setMetaStruct("ai_guard", singletonMap("content", new byte[reportSize]));
+    report.finish();
+    OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+    collector.addTrace(asList(report));
+    collector.addTrace(buildSpans(asList(span("next", "next", "web"))));
+    Field scratch = OtlpTraceProtoCollector.class.getDeclaredField("buf");
+    scratch.setAccessible(true);
+    GrowableBuffer buffer = (GrowableBuffer) scratch.get(collector);
+    int expandedCapacity = buffer.capacity();
+    assertTrue(expandedCapacity >= reportSize);
+    assertEquals(2, parseStringAttributeListsBySpanName(collector.collectTraces()).size());
+    assertEquals(reportSize > 64 * 1024 ? 512 : expandedCapacity, buffer.capacity());
+    collector.addTrace(buildSpans(asList(span("small", "small", "web"))));
+    assertTrue(parseStringAttributeListsBySpanName(collector.collectTraces()).containsKey("small"));
+  }
+
+  @Test
+  void metaStructReportsAreExportedAsMessagePackBytes() throws IOException {
+    DDSpan span = (DDSpan) TRACER.startSpan("test", "reports");
+    span.setResourceName("reports");
+    String appsec = "{\"triggers\":[]}";
+    String iast = "{\"vulnerabilities\":[]}";
+    span.setTag("_dd.appsec.json", appsec);
+    span.setTag("_dd.iast.json", iast);
+    Map<String, Object> reports = new LinkedHashMap<>();
+    reports.put("_dd.stack", singletonMap("exploit", asList(singletonMap("id", "stack-1"))));
+    reports.put("ai_guard", singletonMap("messages", asList(singletonMap("content", "hello"))));
+    reports.forEach(span::setMetaStruct);
+    span.setMetaStruct("bad.report", singletonMap(1, "invalid map key"));
+    span.finish();
+
+    OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+    collector.addTrace(asList(span));
+    OtlpPayload payload = collector.collectTraces();
+    List<String[]> attributes = parseAttributeListsBySpanName(payload, 7).get("reports");
+    ObjectMapper messagePack = new ObjectMapper(new MessagePackFactory());
+    for (Map.Entry<String, Object> report : reports.entrySet()) {
+      List<String> values = stringAttributeValues(attributes, report.getKey());
+      assertEquals(1, values.size());
+      assertEquals(
+          report.getValue(),
+          messagePack.readValue(Base64.getDecoder().decode(values.get(0)), Map.class));
+    }
+    List<String[]> strings = parseAttributeListsBySpanName(payload, 1).get("reports");
+    assertEquals(asList(appsec), stringAttributeValues(strings, "_dd.appsec.json"));
+    assertEquals(asList(iast), stringAttributeValues(strings, "_dd.iast.json"));
+    assertTrue(stringAttributeValues(attributes, "appsec").isEmpty());
+    assertTrue(stringAttributeValues(attributes, "iast").isEmpty());
   }
 
   @Test
@@ -971,6 +1032,11 @@ class OtlpTraceProtoTest {
    */
   private static Map<String, List<String[]>> parseStringAttributeListsBySpanName(
       OtlpPayload payload) throws IOException {
+    return parseAttributeListsBySpanName(payload, 1);
+  }
+
+  private static Map<String, List<String[]>> parseAttributeListsBySpanName(
+      OtlpPayload payload, int valueField) throws IOException {
     CodedInputStream tracesData = CodedInputStream.newInstance(payload.getContent());
     tracesData.readTag(); // field 1: TracesData.resource_spans
     CodedInputStream resourceSpans = tracesData.readBytes().newCodedInput();
@@ -998,7 +1064,7 @@ class OtlpTraceProtoTest {
               name = spanData.readString();
               break;
             case 9:
-              String[] attribute = readStringKeyValue(spanData.readBytes().newCodedInput());
+              String[] attribute = readKeyValue(spanData.readBytes().newCodedInput(), valueField);
               if (attribute != null) {
                 attributes.add(attribute);
               }
@@ -1013,11 +1079,9 @@ class OtlpTraceProtoTest {
     return result;
   }
 
-  /**
-   * Reads a {@code KeyValue { string key = 1; AnyValue value = 2; }} as {key, value} when its value
-   * is an {@code AnyValue { string string_value = 1; }}, otherwise returns null.
-   */
-  private static String[] readStringKeyValue(CodedInputStream keyValue) throws IOException {
+  /** Reads string values (field 1) or base64-encoded byte values (field 7), keeping duplicates. */
+  private static String[] readKeyValue(CodedInputStream keyValue, int valueField)
+      throws IOException {
     String key = null;
     String value = null;
     while (!keyValue.isAtEnd()) {
@@ -1030,8 +1094,11 @@ class OtlpTraceProtoTest {
           CodedInputStream anyValue = keyValue.readBytes().newCodedInput();
           while (!anyValue.isAtEnd()) {
             int valueTag = anyValue.readTag();
-            if (WireFormat.getTagFieldNumber(valueTag) == 1) {
-              value = anyValue.readString();
+            if (WireFormat.getTagFieldNumber(valueTag) == valueField) {
+              value =
+                  valueField == 7
+                      ? Base64.getEncoder().encodeToString(anyValue.readByteArray())
+                      : anyValue.readString();
             } else {
               anyValue.skipField(valueTag);
             }
@@ -1270,13 +1337,12 @@ class OtlpTraceProtoTest {
         agentSpan.setHttpStatusCode(spec.httpStatusCode);
       }
 
-      spec.extraTags.forEach(
-          (key, value) -> {
-            if (value instanceof String) agentSpan.setTag(key, (String) value);
-            else if (value instanceof Long) agentSpan.setTag(key, (long) (Long) value);
-            else if (value instanceof Boolean) agentSpan.setTag(key, (boolean) (Boolean) value);
-            else if (value instanceof Double) agentSpan.setTag(key, (double) (Double) value);
-          });
+      spec.extraTags.forEach((key, value) -> {
+        if (value instanceof String) agentSpan.setTag(key, (String) value);
+        else if (value instanceof Long) agentSpan.setTag(key, (long) (Long) value);
+        else if (value instanceof Boolean) agentSpan.setTag(key, (boolean) (Boolean) value);
+        else if (value instanceof Double) agentSpan.setTag(key, (double) (Double) value);
+      });
 
       for (LinkSpec link : spec.links) {
         agentSpan.addLink(

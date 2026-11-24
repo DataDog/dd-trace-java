@@ -31,7 +31,7 @@ application {
 dependencies {
   // A provider released before the SDK bridge, linked to the agent bootstrap API it removed.
   implementation 'com.datadoghq:dd-openfeature:1.67.1'
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }
 
 tasks.withType(Test).configureEach {

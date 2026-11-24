@@ -62,8 +62,8 @@ final class ResultCollector {
     report.tagRetriedAttempts();
     reportChangedBeforeFinalStatus |= report.normalizeStableTestNames();
     report.tagSyntheticFailures();
-    // Flaky jobs (CONTINUE_ON_FAILURE=true) never gate CI, so record every test as skip before
-    // assigning natural statuses (APMLP-1267).
+    // Flaky jobs (CONTINUE_ON_FAILURE=true) tolerate reported test failures. Record each test as
+    // skip before assigning natural statuses (APMLP-1267).
     if (continueOnFailure) {
       report.tagAllAsSkipped();
     }

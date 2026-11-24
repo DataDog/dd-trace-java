@@ -1,0 +1,45 @@
+{
+  "version": "2.1",
+  "metadata": {
+    "rules_version": "1.0.0"
+  },
+  "actions": [
+    {
+      "id": "block",
+      "type": "block_request",
+      "parameters": {
+        "status_code": 403,
+        "type": "json"
+      }
+    }
+  ],
+  "rules": [
+    {
+      "id": "test-rule",
+      "name": "Test blocking rule",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              }
+            ],
+            "regex": "^BlockTest"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "on_match": [
+        "block"
+      ]
+    }
+  ]
+}

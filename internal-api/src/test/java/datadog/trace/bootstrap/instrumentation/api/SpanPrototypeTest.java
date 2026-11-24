@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.TagMap;
@@ -176,5 +177,46 @@ class SpanPrototypeTest {
     final SpanPrototype proto = SpanPrototype.builder().initTag((TagMap.EntryReader) null).build();
 
     assertTrue(proto.tags().isEmpty());
+  }
+
+  @Test
+  void initKindWithEnumSetsKindAndTag() {
+    final SpanPrototype proto = SpanPrototype.builder().initKind(SpanKind.CLIENT).build();
+
+    assertSame(SpanKind.CLIENT, proto.kind());
+    assertEquals(Tags.SPAN_KIND_CLIENT, proto.tags().getString(Tags.SPAN_KIND));
+  }
+
+  @Test
+  void standardKindStringsAreRecognized() {
+    assertSame(
+        SpanKind.SERVER, SpanPrototype.builder().initKind(Tags.SPAN_KIND_SERVER).build().kind());
+    assertSame(
+        SpanKind.PRODUCER,
+        SpanPrototype.builder().initTag(Tags.SPAN_KIND, Tags.SPAN_KIND_PRODUCER).build().kind());
+  }
+
+  @Test
+  void customKindHasTagButNoEnum() {
+    final SpanPrototype proto = SpanPrototype.builder().initKind(Tags.SPAN_KIND_TEST).build();
+
+    assertNull(proto.kind());
+    assertEquals(Tags.SPAN_KIND_TEST, proto.tags().getString(Tags.SPAN_KIND));
+  }
+
+  @Test
+  void kindIsInheritedAndCanBeOverridden() {
+    final SpanPrototype base = SpanPrototype.builder().initKind(SpanKind.CLIENT).build();
+
+    assertSame(SpanKind.CLIENT, SpanPrototype.builder().extends_(base).build().kind());
+    assertSame(
+        SpanKind.PRODUCER,
+        SpanPrototype.builder().extends_(base).initKind(SpanKind.PRODUCER).build().kind());
+    assertNull(SpanPrototype.builder().extends_(base).initKind("custom").build().kind());
+  }
+
+  @Test
+  void noKindByDefault() {
+    assertNull(SpanPrototype.NONE.kind());
   }
 }

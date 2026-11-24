@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.springwebflux.server;
 
+import static datadog.trace.api.KnownTags.REQUEST_PREDICATE;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.api.cache.DDCache;
@@ -69,7 +70,7 @@ public class RouteOnSuccessOrError implements Consumer<HandlerFunction<?>> {
     if (predicateString != null) {
       final AgentSpan span = (AgentSpan) serverRequest.attributes().get(AdviceUtils.SPAN_ATTRIBUTE);
       if (span != null) {
-        span.setTag("request.predicate", predicateString);
+        span.setTag(REQUEST_PREDICATE, predicateString);
       }
       final AgentSpan parentSpan =
           (AgentSpan) serverRequest.attributes().get(AdviceUtils.PARENT_SPAN_ATTRIBUTE);
