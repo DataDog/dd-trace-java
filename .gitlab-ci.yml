@@ -1044,7 +1044,8 @@ test_base_arm64:
 
 test_inst:
   extends: .test_job_amd64_with_test_agent
-  needs: *needs_build_tests_inst
+  # Experiment: start at pipeline start; each shard compiles what its slot needs.
+  needs: []
   variables:
     <<: *tier_l_variables
     GRADLE_TARGET: ":instrumentationTest"
