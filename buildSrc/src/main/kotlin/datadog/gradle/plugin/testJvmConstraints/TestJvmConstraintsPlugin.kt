@@ -162,6 +162,13 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
       extension.allowReflectiveAccessToJdk
     )
 
+    // TODO(JDK-28-EA): remove once Objenesis (Mockito, Spock mocks) no longer needs it.
+    // Java 28+ rejects ReflectionFactory.newConstructorForSerialization for non-serializable classes.
+    conditionalJvmArgs(
+      JavaVersion.toVersion(28),
+      listOf("-Djdk.reflect.allowNonSerializableConstruction=true")
+    )
+
     // Fix for Linux arm64 ByteBuddy error:
     // "Could not self-attach to current VM using external process"
     if (HostPlatform.isLinuxArm64()) {
