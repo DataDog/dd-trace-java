@@ -7508,6 +7508,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_JDBC_ENABLED", "DD_INTEGRATION_JDBC_ENABLED"]
       }
     ],
+    "DD_TRACE_JDBC_POOL_VALIDATION_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_JDBC_POOL_VALIDATION_ENABLED", "DD_INTEGRATION_JDBC_POOL_VALIDATION_ENABLED"]
+      }
+    ],
     "DD_TRACE_JDBC_PREPARED_STATEMENT_CLASS_NAME": [
       {
         "version": "A",
