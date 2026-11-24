@@ -2,6 +2,11 @@ plugins {
   id 'dd-trace-java.module.instrumentation'
 }
 
+tasks.named('forkedTest', Test) {
+  // Exercise transaction headers with a JVM default that differs from UTF-8.
+  systemProperty 'file.encoding', 'windows-1252'
+}
+
 dependencies {
   compileOnly group: 'org.apache.kafka', name: 'kafka-clients', version: '0.11.0.0'
 

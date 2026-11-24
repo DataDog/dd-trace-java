@@ -190,14 +190,16 @@ public final class ObjectIntrospection {
       return ((Date) obj).getTime();
     }
 
-    // Jackson databind nodes (via reflection)
+    // Jackson 2 and Jackson 3 databind nodes (via reflection)
     Class<?> clazz = obj.getClass();
-    if (clazz.getName().startsWith("com.fasterxml.jackson.databind.node.")) {
+    String className = clazz.getName();
+    boolean jackson2 = className.startsWith("com.fasterxml.jackson.databind.node.");
+    if (jackson2 || className.startsWith("tools.jackson.databind.node.")) {
       try {
         return doConversionJacksonNode(
-            new JacksonContext(clazz.getClassLoader()), obj, depth, state);
+            new JacksonContext(clazz.getClassLoader(), jackson2), obj, depth, state);
       } catch (Throwable e) {
-        // in case of failure let default conversion run
+        // in case of failure the whole node is dropped
         log.debug("Error handling jackson node {}", clazz, e);
         return null;
       }
@@ -205,13 +207,14 @@ public final class ObjectIntrospection {
 
     // maps
     if (obj instanceof Map) {
-      Map<Object, Object> newMap = new HashMap<>((int) Math.ceil(((Map) obj).size() / .75));
+      Map<Object, Object> newMap =
+          new HashMap<>((int) Math.ceil(boundedCapacity(((Map<?, ?>) obj).size(), state) / .75));
       for (Map.Entry<?, ?> e : ((Map<?, ?>) obj).entrySet()) {
         Object key = e.getKey();
         Object newKey = keyConversion(e.getKey(), state);
         if (newKey == null && key != null) {
-          // probably we're out of elements anyway
-          continue;
+          // out of elements: every following key is dropped too
+          break;
         }
         newMap.put(newKey, guardedConversion(e.getValue(), depth + 1, state));
       }
@@ -226,7 +229,7 @@ public final class ObjectIntrospection {
       if (isMap) {
         Map<Object, Object> newMap;
         if (obj instanceof Collection) {
-          newMap = new HashMap<>(((Collection<?>) obj).size());
+          newMap = new HashMap<>(boundedCapacity(((Collection<?>) obj).size(), state));
         } else {
           newMap = new HashMap<>();
         }
@@ -234,8 +237,8 @@ public final class ObjectIntrospection {
           Object key = e.getKey();
           Object newKey = keyConversion(e.getKey(), state);
           if (newKey == null && key != null) {
-            // probably we're out of elements anyway
-            continue;
+            // out of elements: every following key is dropped too
+            break;
           }
           newMap.put(newKey, guardedConversion(e.getValue(), depth + 1, state));
         }
@@ -243,7 +246,7 @@ public final class ObjectIntrospection {
       } else {
         List<Object> newList;
         if (obj instanceof Collection) {
-          newList = new ArrayList<>(((Collection<?>) obj).size());
+          newList = new ArrayList<>(boundedCapacity(((Collection<?>) obj).size(), state));
         } else {
           newList = new ArrayList<>();
         }
@@ -261,7 +264,7 @@ public final class ObjectIntrospection {
     // arrays
     if (clazz.isArray()) {
       int length = Array.getLength(obj);
-      List<Object> newList = new ArrayList<>(length);
+      List<Object> newList = new ArrayList<>(boundedCapacity(length, state));
       for (int i = 0; i < length && state.elemsLeft > 0; i++) {
         newList.add(guardedConversion(Array.get(obj, i), depth + 1, state));
       }
@@ -359,7 +362,8 @@ public final class ObjectIntrospection {
   /**
    * Converts Jackson databind JsonNode objects to WAF-compatible data structures using reflection.
    *
-   * <p>Jackson databind objects ({@link com.fasterxml.jackson.databind.JsonNode}) implement
+   * <p>Both Jackson 2 ({@code com.fasterxml.jackson.databind.JsonNode}) and Jackson 3 ({@code
+   * tools.jackson.databind.JsonNode}) nodes are supported. Jackson databind objects implement
    * iterable interfaces which interferes with the standard object introspection logic. This method
    * bypasses that by using reflection to directly access JsonNode internals and convert them to
    * appropriate data types.
@@ -400,20 +404,20 @@ public final class ObjectIntrospection {
     }
     switch (type) {
       case "OBJECT":
-        final Map<Object, Object> newMap = new HashMap<>(ctx.getSize(node));
+        final Map<Object, Object> newMap = new HashMap<>(boundedCapacity(ctx.getSize(node), state));
         for (Iterator<String> names = ctx.getFieldNames(node); names.hasNext(); ) {
           final String key = names.next();
           final Object newKey = keyConversion(key, state);
           if (newKey == null && key != null) {
-            // probably we're out of elements anyway
-            continue;
+            // out of elements: every following key is dropped too
+            break;
           }
           final Object value = ctx.getField(node, key);
           newMap.put(newKey, doConversionJacksonNode(ctx, value, depth + 1, state));
         }
         return newMap;
       case "ARRAY":
-        final List<Object> newList = new ArrayList<>(ctx.getSize(node));
+        final List<Object> newList = new ArrayList<>(boundedCapacity(ctx.getSize(node), state));
         for (Object o : ((Iterable<?>) node)) {
           if (state.elemsLeft <= 0) {
             state.listMapTooLarge = true;
@@ -435,11 +439,22 @@ public final class ObjectIntrospection {
   }
 
   /**
+   * Caps an initial container capacity to the remaining element budget, so an oversized node does
+   * not allocate slots that the conversion will never fill.
+   */
+  private static int boundedCapacity(final int size, final State state) {
+    return Math.min(size, Math.max(state.elemsLeft, 0));
+  }
+
+  /**
    * Context class used to cache method resolutions while converting a top level json node class.
+   * Jackson 3 renamed {@code fieldNames()} (an {@link Iterator}) to {@code propertyNames()} (a
+   * {@link Collection}) and {@code textValue()} to {@code stringValue()}.
    */
   private static class JacksonContext {
     private final MethodHandles handles;
     private final Class<?> jsonNode;
+    private final boolean jackson2;
     private MethodHandle nodeType;
     private MethodHandle size;
     private MethodHandle fieldNames;
@@ -448,9 +463,15 @@ public final class ObjectIntrospection {
     private MethodHandle booleanValue;
     private MethodHandle numberValue;
 
-    private JacksonContext(final ClassLoader cl) throws ClassNotFoundException {
+    private JacksonContext(final ClassLoader cl, final boolean jackson2)
+        throws ClassNotFoundException {
       handles = new MethodHandles(cl);
-      jsonNode = cl.loadClass("com.fasterxml.jackson.databind.JsonNode");
+      this.jackson2 = jackson2;
+      jsonNode =
+          cl.loadClass(
+              jackson2
+                  ? "com.fasterxml.jackson.databind.JsonNode"
+                  : "tools.jackson.databind.JsonNode");
     }
 
     private String getNodeType(final Object node) throws Throwable {
@@ -466,8 +487,12 @@ public final class ObjectIntrospection {
 
     @SuppressWarnings("unchecked")
     private Iterator<String> getFieldNames(final Object node) throws Throwable {
-      fieldNames = fieldNames == null ? handles.method(jsonNode, "fieldNames") : fieldNames;
-      return (Iterator<String>) fieldNames.invoke(node);
+      if (fieldNames == null) {
+        fieldNames = handles.method(jsonNode, jackson2 ? "fieldNames" : "propertyNames");
+      }
+      return jackson2
+          ? (Iterator<String>) fieldNames.invoke(node)
+          : ((Collection<String>) fieldNames.invoke(node)).iterator();
     }
 
     private Object getField(final Object node, final String name) throws Throwable {
@@ -476,7 +501,9 @@ public final class ObjectIntrospection {
     }
 
     private String getTextValue(final Object node) throws Throwable {
-      textValue = textValue == null ? handles.method(jsonNode, "textValue") : textValue;
+      if (textValue == null) {
+        textValue = handles.method(jsonNode, jackson2 ? "textValue" : "stringValue");
+      }
       return (String) textValue.invoke(node);
     }
 

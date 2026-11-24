@@ -85,17 +85,20 @@ class Lettuce5ClusterTest extends AbstractInstrumentationTest {
   }
 
   @AfterEach
-  void cleanUpRedis() {
-    if (connection != null) {
-      connection.close();
-    }
+  void cleanUpRedis() throws Exception {
+    try {
+      if (connection != null) {
+        connection.close();
+      }
 
-    if (redisClient != null) {
-      redisClient.shutdown(5, 10, TimeUnit.SECONDS);
-    }
-
-    if (redisCluster != null) {
-      redisCluster.close();
+      if (redisClient != null) {
+        // Lettuce 5.1 needs its executor alive to deliver pending channel-close notifications.
+        redisClient.shutdownAsync(1, 10, TimeUnit.SECONDS).get(15, TimeUnit.SECONDS);
+      }
+    } finally {
+      if (redisCluster != null) {
+        redisCluster.close();
+      }
     }
   }
 

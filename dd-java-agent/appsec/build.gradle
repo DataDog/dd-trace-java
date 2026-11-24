@@ -9,6 +9,9 @@ plugins {
 
 apply from: "$rootDir/gradle/tries.gradle"
 
+// Jackson 3 (tools.jackson) requires Java 17; its node conversion is tested in a dedicated suite.
+addTestSuite('jackson3Test', false)
+
 dependencies {
   api libs.slf4j
   implementation project(':internal-api')
@@ -31,6 +34,18 @@ dependencies {
 
 
   testImplementation libs.bundles.mockito
+
+  jackson3TestImplementation group: 'tools.jackson.core', name: 'jackson-databind', version: '3.1.2'
+}
+
+tasks.named("compileJackson3TestJava", JavaCompile) {
+  configureCompiler(it, JavaVersion.VERSION_17)
+}
+
+tasks.named("jackson3Test", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
 }
 
 tasks.named("compileJava", JavaCompile) {

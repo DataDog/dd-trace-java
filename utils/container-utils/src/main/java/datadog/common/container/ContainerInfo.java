@@ -3,6 +3,7 @@ package datadog.common.container;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -231,7 +232,9 @@ public class ContainerInfo {
   }
 
   static ContainerInfo fromProcFile(Path path) throws IOException, ParseException {
-    final String content = new String(Files.readAllBytes(path));
+    // The kernel emits raw cgroup pathname bytes without a charset declaration. Keep the existing
+    // JVM-default decoding for compatibility with deployments that configure file.encoding.
+    final String content = new String(Files.readAllBytes(path), Charset.defaultCharset());
     if (content.isEmpty()) {
       log.debug("Proc file is empty");
       return new ContainerInfo();

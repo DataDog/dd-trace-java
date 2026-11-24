@@ -11,6 +11,9 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit.MILLISECONDS
 
+/** Formats a titled log block with its body shown in full. */
+internal fun plainSection(title: String, body: String) = "$title\n$body"
+
 /** Validates all sessions on the running APM Test Agent and retains its responses. */
 internal class TestAgentResultsChecker(
   private val agentUrl: String,
@@ -19,6 +22,7 @@ internal class TestAgentResultsChecker(
   timeoutMillis: Long = 30_000,
   private val retries: Int = 5,
   private val retryDelayMillis: Long = 2_000,
+  private val formatSummary: (title: String, body: String) -> String = ::plainSection,
 ) {
   private val client = httpClient.newBuilder()
     .callTimeout(timeoutMillis, MILLISECONDS)
@@ -55,8 +59,13 @@ internal class TestAgentResultsChecker(
     if (summary.isEmpty) {
       log("APM Test Agent reported no trace checks.")
     } else {
-      log("All APM Test Agent Check Traces returned successful! (HTTP 200)")
-      log("APM Test Agent Check Traces Summary Results:\n${summary.toPrettyString()}")
+      // Log the status and summary as one event so parallel tasks cannot interleave them.
+      log(
+        formatSummary(
+          "All APM Test Agent Check Traces returned successful! (HTTP 200)",
+          "APM Test Agent Check Traces Summary Results:\n${summary.toPrettyString()}"
+        )
+      )
     }
   }
 
