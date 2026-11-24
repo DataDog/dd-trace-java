@@ -315,7 +315,7 @@ class TraceMapperV05PayloadTest {
     assertFalse(packer.format(singletonList(plainSpan(1)), mapper));
     assertTrue(mapper.getEncoding().isEmpty());
     assertEquals(0, mapper.getDictionary().messageCount());
-    assertEquals(0, mapper.getDictionary().completedMessages().remaining());
+    assertEquals(0, mapper.getDictionary().completedBytes());
   }
 
   @TableTest({
@@ -347,8 +347,7 @@ class TraceMapperV05PayloadTest {
     MsgPackWriter measuringPacker =
         new MsgPackWriter(new FlushingBuffer(4096, (count, buffer) -> {}));
     assertTrue(measuringPacker.format(trace, measuringMapper));
-    int dictionarySize =
-        measuringMapper.getDictionary().completedMessages().remaining() + extraBytes;
+    int dictionarySize = measuringMapper.getDictionary().completedBytes() + extraBytes;
     TraceMapperV0_5 mapper = new TraceMapperV0_5(dictionarySize, 4096);
     // String.getBytes replaces malformed surrogate sequences with '?'.
     List<PojoSpan> expected =

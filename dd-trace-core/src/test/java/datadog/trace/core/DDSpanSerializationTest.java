@@ -802,11 +802,12 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
   }
 
   private static String[] buildDictionary(TraceMapperV0_5 mapper) throws Exception {
-    FlushingBuffer dictionaryBuffer = TraceMapperTestBridge.getDictionary(mapper);
+
     Map<?, ?> encoding = TraceMapperTestBridge.getEncoding(mapper);
 
     String[] dictionary = new String[encoding.size()];
-    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(dictionaryBuffer.completedMessages());
+    MessageUnpacker unpacker =
+        MessagePack.newDefaultUnpacker(TraceMapperTestBridge.getDictionaryBytes(mapper));
     for (int i = 0; i < dictionary.length; ++i) {
       dictionary[i] = unpacker.unpackString();
     }
