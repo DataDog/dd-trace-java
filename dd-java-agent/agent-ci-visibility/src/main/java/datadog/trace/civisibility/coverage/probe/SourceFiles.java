@@ -98,17 +98,14 @@ final class SourceFiles {
   private MappedFiles mappedFiles(InstrumentedClass instrumentedClass, SourceMap sourceMap) {
     Object resolved = instrumentedClass.getResolved();
     if (resolved == null) {
-      String ownFile =
-          SmapParser.packageDirectory(instrumentedClass.name()) + instrumentedClass.sourceFile();
+      String ownFile = ownFile(instrumentedClass);
       String[] sourcePaths = new String[sourceMap.fileCount()];
       boolean ownFileInRepository = true;
       for (int i = 0; i < sourcePaths.length; i++) {
         String file = sourceMap.file(i);
+        sourcePaths[i] = resolveFile(file);
         if (file.equals(ownFile)) {
-          sourcePaths[i] = resolveOwnSourcePath(instrumentedClass);
           ownFileInRepository = sourcePaths[i] != NOT_IN_REPOSITORY;
-        } else {
-          sourcePaths[i] = resolveFile(file);
         }
       }
       resolved = new MappedFiles(sourcePaths, ownFileInRepository);
@@ -117,23 +114,23 @@ final class SourceFiles {
     return (MappedFiles) resolved;
   }
 
+  /**
+   * The file a class's own lines are in: its source file, in the directory of its package. The
+   * class name can point at another file: Kotlin copies an object that an inline function creates
+   * into each caller, named after the caller, with the inline function's file as source file.
+   */
+  private static String ownFile(InstrumentedClass instrumentedClass) {
+    return SmapParser.packageDirectory(instrumentedClass.name()) + instrumentedClass.sourceFile();
+  }
+
   private String resolveOwnSourcePath(InstrumentedClass instrumentedClass) {
-    ClassLoader loader = instrumentedClass.loader();
-    if (loader != null) {
-      try {
-        Class<?> clazz = Class.forName(instrumentedClass.name().replace('/', '.'), false, loader);
-        Collection<String> sourcePaths = sourcePathResolver.getSourcePaths(clazz);
-        if (sourcePaths.size() == 1) {
-          return sourcePaths.iterator().next();
-        }
-      } catch (Throwable e) {
-        log.debug("Could not resolve the source path of {}", instrumentedClass.name(), e);
-      }
+    String sourcePath = resolveFile(ownFile(instrumentedClass));
+    if (sourcePath == NOT_IN_REPOSITORY) {
+      log.debug(
+          "Skipping coverage reporting for {} because source path could not be determined",
+          instrumentedClass.name());
     }
-    log.debug(
-        "Skipping coverage reporting for {} because source path could not be determined",
-        instrumentedClass.name());
-    return NOT_IN_REPOSITORY;
+    return sourcePath;
   }
 
   /** Resolves a file named by a source map, such as {@code com/example/Util.kt}. */

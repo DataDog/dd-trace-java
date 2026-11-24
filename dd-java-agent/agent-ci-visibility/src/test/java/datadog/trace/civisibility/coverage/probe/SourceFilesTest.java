@@ -15,6 +15,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.junit.jupiter.api.Test;
@@ -26,28 +27,16 @@ class SourceFilesTest {
   private static final String FIXTURE_DIRECTORY = FIXTURES.replace('.', '/');
   private static final String KOTLIN_FILE =
       "src/test/kotlin/" + FIXTURE_DIRECTORY + "KotlinCoverageFixture.kt";
-  private static final int KOTLIN_FILE_LINES = 290;
+  private static final int KOTLIN_FILE_LINES = 291;
+  private static final String TRANSFORMER_FILE =
+      "src/test/kotlin/" + FIXTURE_DIRECTORY + "IntTransformer.kt";
 
   /** Knows the fixture files only, so library files are outside the repository. */
   private static final SourcePathResolver FIXTURE_FILES =
       new SourcePathResolver() {
         @Override
         public Collection<String> getSourcePaths(@Nonnull Class<?> c) {
-          if (!c.getName().startsWith(FIXTURES)) {
-            return Collections.emptyList();
-          }
-          String topLevel = c.getName().substring(FIXTURES.length());
-          int nested = topLevel.indexOf('$');
-          if (nested >= 0) {
-            topLevel = topLevel.substring(0, nested);
-          }
-          boolean kotlin = topLevel.startsWith("Kotlin");
-          return Collections.singletonList(
-              "src/test/"
-                  + (kotlin ? "kotlin/" : "java/")
-                  + FIXTURE_DIRECTORY
-                  + topLevel
-                  + (kotlin ? ".kt" : ".java"));
+          return Collections.emptyList(); // source files resolve lines by path
         }
 
         @Override
@@ -55,7 +44,9 @@ class SourceFilesTest {
           if (relativePath == null || !relativePath.startsWith(FIXTURE_DIRECTORY)) {
             return Collections.emptyList();
           }
-          return Collections.singletonList("src/test/kotlin/" + relativePath);
+          String sourceRoot =
+              relativePath.endsWith(".java") ? "src/test/java/" : "src/test/kotlin/";
+          return Collections.singletonList(sourceRoot + relativePath);
         }
       };
 
@@ -63,7 +54,7 @@ class SourceFilesTest {
   void creditsInlinedLinesToTheInlineFunction() throws Exception {
     BitSet lines = kotlinLines(39); // timed { classify(7) }
 
-    for (int line = 224; line <= 227; line++) {
+    for (int line = 225; line <= 228; line++) {
       assertTrue(lines.get(line), "line " + line + " of the inline function timed");
     }
     assertTrue(lines.get(64), "the call site");
@@ -93,6 +84,22 @@ class SourceFilesTest {
   }
 
   @Test
+  void creditsAnObjectCopiedFromAnInlineFunctionToTheFunctionsFile() throws Exception {
+    // transformer { it * 2 }: the copy of the object is named after KotlinCoverageFixture
+    Map<String, BitSet> lines =
+        coveredLines(
+            KotlinCoverageFixture.class, 44, name -> name.contains("$$inlined$transformer"));
+
+    BitSet objectLines = new BitSet();
+    objectLines.set(12); // the object is created
+    objectLines.set(14, 16); // transform
+    assertEquals(objectLines, lines.get(TRANSFORMER_FILE), lines.keySet().toString());
+    BitSet callSiteLines = new BitSet();
+    callSiteLines.set(69); // the lambda, inlined into the copy
+    assertEquals(callSiteLines, lines.get(KOTLIN_FILE));
+  }
+
+  @Test
   void reportsClassesWithoutASourceMapUnchanged() throws Exception {
     Map<String, BitSet> lines = coveredLines(CoverageFixture.class, 0); // branches(1)
 
@@ -111,6 +118,12 @@ class SourceFilesTest {
   /** Runs a scenario in a fresh loader and maps the lines that its classes covered. */
   private static Map<String, BitSet> coveredLines(Class<?> workload, int scenario)
       throws Exception {
+    return coveredLines(workload, scenario, name -> true);
+  }
+
+  /** Maps the lines that the classes accepted by {@code classNames} covered in a scenario. */
+  private static Map<String, BitSet> coveredLines(
+      Class<?> workload, int scenario, Predicate<String> classNames) throws Exception {
     FixtureLoader loader = new FixtureLoader(null, FIXTURES);
     Class<?> fixture = Class.forName(workload.getName(), true, loader);
     try {
@@ -122,11 +135,13 @@ class SourceFilesTest {
     Map<String, BitSet> linesBySourcePath = new HashMap<>();
     for (int classId = 0; classId < ProbeRecorder.getClassCount(); classId++) {
       InstrumentedClass instrumentedClass = ProbeRecorder.getInstrumentedClass(classId);
-      if (instrumentedClass == null || instrumentedClass.loader() != loader) {
+      if (instrumentedClass == null
+          || instrumentedClass.loader() != loader
+          || !classNames.test(instrumentedClass.name())) {
         continue;
       }
       BitSet classLines = new BitSet();
-      instrumentedClass.addUnownedLines(classLines); // no test window is open here
+      ProbeRecorder.addSharedLines(classId, classLines); // no test window is open here
       instrumentedClass.addInitLines(ProbeRecorder.PROBES[classId], classLines);
       if (!classLines.isEmpty()) {
         assertTrue(sourceFiles.addLines(instrumentedClass, classLines, linesBySourcePath));

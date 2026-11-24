@@ -94,7 +94,7 @@ class ProbeAccuracyTest {
         continue;
       }
       BitSet classLines = new BitSet();
-      instrumentedClass.addUnownedLines(classLines);
+      ProbeRecorder.addSharedLines(classId, classLines);
       instrumentedClass.addInitLines(ProbeRecorder.PROBES[classId], classLines);
       if (!classLines.isEmpty()) {
         String path =

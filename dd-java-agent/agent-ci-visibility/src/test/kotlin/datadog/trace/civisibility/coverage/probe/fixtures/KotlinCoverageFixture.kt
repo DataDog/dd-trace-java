@@ -13,7 +13,7 @@ import kotlin.coroutines.suspendCoroutine
  */
 object KotlinCoverageFixture {
 
-  const val SCENARIOS = 44
+  const val SCENARIOS = 45
 
   private val lazyValue: String by lazy {
     val base = "computed"
@@ -66,6 +66,7 @@ object KotlinCoverageFixture {
     41 -> Counter.create().id + Counter.create().id
     42 -> grade(85)
     43 -> grade(30)
+    44 -> transformer { it * 2 }.transform(3)
     else -> throw IllegalArgumentException("no scenario $scenario")
   }
 

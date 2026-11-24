@@ -2,7 +2,9 @@ package datadog.trace.civisibility.coverage.probe;
 
 import static org.objectweb.asm.Opcodes.AALOAD;
 import static org.objectweb.asm.Opcodes.ACC_STATIC;
+import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.ARETURN;
+import static org.objectweb.asm.Opcodes.ASTORE;
 import static org.objectweb.asm.Opcodes.ATHROW;
 import static org.objectweb.asm.Opcodes.BALOAD;
 import static org.objectweb.asm.Opcodes.BIPUSH;
@@ -51,6 +53,7 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TableSwitchInsnNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
+import org.objectweb.asm.tree.VarInsnNode;
 
 /**
  * Inserts line probes into one method.
@@ -61,9 +64,13 @@ import org.objectweb.asm.tree.TryCatchBlockNode;
  * of its successors is not dominated by it, so every path through a block reaches a probe that
  * proves it. A method whose code is on a single line gets one probe at entry instead.
  *
- * <p>A probe reads its slot and calls {@code ProbeRecorder.record} only when the slot is not set.
- * Slow paths that need a stack map frame which cannot be copied from the original code are placed
- * after the method body, where a frame with no locals is valid.
+ * <p>A method takes the probe array of its code's owner at entry, from {@code
+ * ProbeRecorder.probes}, and keeps it in a local variable added after the method's own. A probe
+ * reads its slot and calls {@code ProbeRecorder.record} only when the slot is not set. A method
+ * with a single probe takes the array where it reads the probe, and a class initializer reads
+ * {@code ProbeRecorder.PROBES}, so neither needs the local. Slow paths that need a stack map frame
+ * which cannot be copied from the original code are placed after the method body, where a frame
+ * with no locals is valid.
  *
  * <p>Lines that run before an exception leaves a block midway are recorded by exception table
  * entries that cost nothing until something is thrown: each run of instructions that adds a line to
@@ -73,6 +80,10 @@ import org.objectweb.asm.tree.TryCatchBlockNode;
 final class MethodProbeInserter {
 
   static final String RECORDER = "datadog/trace/api/civisibility/coverage/ProbeRecorder";
+  private static final String PROBES_TYPE = "[Z";
+
+  /** Not in {@link Opcodes}; ASM writes it as is. */
+  private static final int GOTO_W = 200;
 
   private final String owner;
   private final MethodNode method;
@@ -99,6 +110,9 @@ final class MethodProbeInserter {
   private int[][] blockLines;
   private int[] blockNode;
   private int[] blockProbe;
+
+  /** The local variable holding the method's probe array, or -1 if the method has none. */
+  private int probesLocal = -1;
 
   private final InsnList tail = new InsnList();
   private final List<TryCatchBlockNode> uncaughtHandlers = new ArrayList<>();
@@ -141,6 +155,9 @@ final class MethodProbeInserter {
     if (singleLine >= 0) {
       insertEntryProbe(singleLine);
     } else {
+      if (!initializer) {
+        addProbesLocal();
+      }
       for (int block = 0; block < blockCount; block++) {
         if (reachable[block]) {
           insertBlockProbes(block);
@@ -166,11 +183,113 @@ final class MethodProbeInserter {
       }
       handlers.addAll(uncaughtHandlers);
       method.tryCatchBlocks = handlers;
+      if (probesLocal >= 0) {
+        // before the first label, so that no jump or exception handler reaches it
+        InsnList prologue = new InsnList();
+        prologue.add(takeProbes());
+        prologue.add(new VarInsnNode(ASTORE, probesLocal));
+        method.instructions.insert(prologue);
+      }
     }
 
     method.instructions.add(tail);
-    method.maxStack = Math.max(method.maxStack + 2, 4);
+    if (maxCodeSize() > Short.MAX_VALUE) {
+      removeShortBackwardJumps();
+    }
+    method.maxStack = Math.max(method.maxStack + 3, 4);
     return true;
+  }
+
+  /**
+   * Gives a method that may need long jumps no backward jump with a 2-byte offset. When ASM widens
+   * the jumps of a method, it widens such a backward jump into one whose offset it then reads as a
+   * forward offset (ASM 9.11.1), which sends the jump outside the code. A backward GOTO becomes a
+   * GOTO_W, and a backward conditional jump instead jumps forward to a GOTO_W after the method
+   * body.
+   */
+  private void removeShortBackwardJumps() {
+    InsnList instructions = method.instructions;
+    InsnList stubs = new InsnList();
+    for (AbstractInsnNode insn = instructions.getFirst(); insn != null; insn = insn.getNext()) {
+      if (!(insn instanceof JumpInsnNode)) {
+        continue;
+      }
+      JumpInsnNode jump = (JumpInsnNode) insn;
+      if (instructions.indexOf(jump.label) > instructions.indexOf(jump)) {
+        continue;
+      }
+      if (jump.getOpcode() == GOTO) {
+        jump.setOpcode(GOTO_W);
+      } else {
+        LabelNode stub = new LabelNode();
+        stubs.add(stub);
+        if (frames) {
+          stubs.add(copyFrame(frameAt(jump.label)));
+        }
+        stubs.add(new JumpInsnNode(GOTO_W, jump.label));
+        jump.label = stub;
+      }
+    }
+    instructions.add(stubs);
+  }
+
+  /** An upper bound on the size of the method's code, in bytes. */
+  private int maxCodeSize() {
+    int size = 0;
+    for (AbstractInsnNode insn = method.instructions.getFirst();
+        insn != null;
+        insn = insn.getNext()) {
+      switch (insn.getType()) {
+        case AbstractInsnNode.LABEL:
+        case AbstractInsnNode.LINE:
+        case AbstractInsnNode.FRAME:
+          break;
+        case AbstractInsnNode.INSN:
+          size += 1;
+          break;
+        case AbstractInsnNode.JUMP_INSN:
+          size += 8; // a conditional jump that ASM widens takes 8 bytes
+          break;
+        case AbstractInsnNode.TABLESWITCH_INSN:
+          size += 16 + 4 * ((TableSwitchInsnNode) insn).labels.size();
+          break;
+        case AbstractInsnNode.LOOKUPSWITCH_INSN:
+          size += 12 + 8 * ((LookupSwitchInsnNode) insn).labels.size();
+          break;
+        default:
+          size += 6; // a wide IINC is the longest of the other instructions
+      }
+    }
+    return size;
+  }
+
+  /**
+   * Adds the local variable that holds the probe array. It is set before any original code runs and
+   * never changes, so every stack map frame of the method gets its type.
+   */
+  private void addProbesLocal() {
+    probesLocal = method.maxLocals;
+    method.maxLocals += 1;
+    if (!frames) {
+      return;
+    }
+    for (AbstractInsnNode insn : insns) {
+      if (insn instanceof FrameNode) {
+        FrameNode frame = (FrameNode) insn;
+        List<Object> locals =
+            frame.local != null ? new ArrayList<>(frame.local) : new ArrayList<>();
+        int slots = 0;
+        for (Object type : locals) {
+          slots += type == Opcodes.LONG || type == Opcodes.DOUBLE ? 2 : 1;
+        }
+        while (slots < probesLocal) {
+          locals.add(Opcodes.TOP);
+          slots++;
+        }
+        locals.add(PROBES_TYPE);
+        frame.local = locals;
+      }
+    }
   }
 
   /**
@@ -833,12 +952,26 @@ final class MethodProbeInserter {
 
   private InsnList readProbe(int probe, int jumpOpcode, LabelNode target) {
     InsnList code = new InsnList();
-    code.add(new FieldInsnNode(GETSTATIC, RECORDER, "PROBES", "[[Z"));
-    code.add(push(classId));
-    code.add(new InsnNode(AALOAD));
+    if (probesLocal >= 0) {
+      code.add(new VarInsnNode(ALOAD, probesLocal));
+    } else if (initializer) {
+      code.add(new FieldInsnNode(GETSTATIC, RECORDER, "PROBES", "[[Z"));
+      code.add(push(classId));
+      code.add(new InsnNode(AALOAD));
+    } else {
+      code.add(takeProbes());
+    }
     code.add(push(probe));
     code.add(new InsnNode(BALOAD));
     code.add(new JumpInsnNode(jumpOpcode, target));
+    return code;
+  }
+
+  /** Pushes the probe array of the running code's owner. */
+  private InsnList takeProbes() {
+    InsnList code = new InsnList();
+    code.add(push(classId));
+    code.add(new MethodInsnNode(INVOKESTATIC, RECORDER, "probes", "(I)" + PROBES_TYPE, false));
     return code;
   }
 
@@ -852,10 +985,21 @@ final class MethodProbeInserter {
    */
   private InsnList callRecorder(int probe, boolean unconditional) {
     InsnList code = new InsnList();
-    code.add(push(classId));
-    code.add(push(probe));
-    String name = initializer ? "recordInit" : unconditional ? "hit" : "record";
-    code.add(new MethodInsnNode(INVOKESTATIC, RECORDER, name, "(II)V", false));
+    if (initializer) {
+      code.add(push(classId));
+      code.add(push(probe));
+      code.add(new MethodInsnNode(INVOKESTATIC, RECORDER, "recordInit", "(II)V", false));
+    } else if (unconditional) {
+      code.add(new VarInsnNode(ALOAD, probesLocal));
+      code.add(push(classId));
+      code.add(push(probe));
+      code.add(
+          new MethodInsnNode(INVOKESTATIC, RECORDER, "hit", "(" + PROBES_TYPE + "II)V", false));
+    } else {
+      code.add(push(classId));
+      code.add(push(probe));
+      code.add(new MethodInsnNode(INVOKESTATIC, RECORDER, "record", "(II)V", false));
+    }
     return code;
   }
 
@@ -871,11 +1015,11 @@ final class MethodProbeInserter {
   }
 
   private FrameNode frameAt(LabelNode label) {
-    for (int i = labelIndex.get(label); i < insns.length; i++) {
-      if (insns[i] instanceof FrameNode) {
-        return (FrameNode) insns[i];
+    for (AbstractInsnNode insn = label; insn != null; insn = insn.getNext()) {
+      if (insn instanceof FrameNode) {
+        return (FrameNode) insn;
       }
-      if (insns[i].getOpcode() >= 0) {
+      if (insn.getOpcode() >= 0) {
         break;
       }
     }
