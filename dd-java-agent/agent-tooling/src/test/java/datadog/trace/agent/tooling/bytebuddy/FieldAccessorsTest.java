@@ -9,6 +9,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.tooling.muzzle.Reference;
+import java.io.ObjectStreamClass;
+import java.io.Serializable;
+import java.util.Arrays;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
@@ -57,8 +60,13 @@ class FieldAccessorsTest {
 
   /** {@code Sample} redefined with {@code accessors}, in a child-first loader of its own. */
   private static Class<?> redefine(FieldAccessors accessors) {
+    return redefine(Sample.class, accessors);
+  }
+
+  /** {@code type} redefined with {@code accessors}, in a child-first loader of its own. */
+  private static Class<?> redefine(Class<?> type, FieldAccessors accessors) {
     return new ByteBuddy()
-        .redefine(Sample.class)
+        .redefine(type)
         .visit(accessors)
         .make()
         .load(FieldAccessorsTest.class.getClassLoader(), ClassLoadingStrategy.Default.CHILD_FIRST)
@@ -166,6 +174,118 @@ class FieldAccessorsTest {
                 "total",
                 "$$DD$$__count",
                 "bytes"));
+  }
+
+  /** One getter, for the classes below that have just a {@code name} field. */
+  public interface NameField {
+    String $$DD$$__name();
+  }
+
+  public interface WithOverload {
+    String $$DD$$__name();
+
+    String $$DD$$__name(int i);
+  }
+
+  public interface ObjectName {
+    Object $$DD$$__name();
+  }
+
+  /** Redeclares the inherited getter covariantly; an interface override gets no bridge. */
+  public interface CovariantName extends ObjectName {
+    @Override
+    String $$DD$$__name();
+  }
+
+  @Test
+  void rejectsAnOverloadThatWouldBeLeftUnimplemented() {
+    // only the no-argument method is generated, so the overload would throw AbstractMethodError
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new FieldAccessors(WithOverload.class, "$$DD$$__name", "name"));
+  }
+
+  @Test
+  void aCovariantRedeclarationWorksThroughBothDeclarations() throws ReflectiveOperationException {
+    // javac bridges the inherited Object-returning declaration with a default method
+    Class<?> sample = redefine(new FieldAccessors(CovariantName.class, "$$DD$$__name", "name"));
+    Object instance = newSample(sample);
+
+    assertEquals("n", ((CovariantName) instance).$$DD$$__name());
+    assertEquals("n", ((ObjectName) instance).$$DD$$__name());
+  }
+
+  /** Declares no serialVersionUID, so its default value depends on its interfaces and methods. */
+  public static class SerializableSample implements Serializable {
+    private final String name;
+
+    public SerializableSample(String name) {
+      this.name = name;
+    }
+
+    public String name() {
+      return name;
+    }
+  }
+
+  @Test
+  void keepsASerializableClassesDefaultSerialVersionUID() throws ReflectiveOperationException {
+    long original = ObjectStreamClass.lookup(SerializableSample.class).getSerialVersionUID();
+    Class<?> redefined =
+        redefine(
+            SerializableSample.class, new FieldAccessors(NameField.class, "$$DD$$__name", "name"));
+
+    assertInstanceOf(NameField.class, redefined.getConstructor(String.class).newInstance("n"));
+    assertEquals(original, ObjectStreamClass.lookup(redefined).getSerialVersionUID());
+  }
+
+  /** A generic class, whose signature attribute must name the added interface too. */
+  public static class GenericSample<T> {
+    private final String name;
+    private final T value;
+
+    public GenericSample(String name, T value) {
+      this.name = name;
+      this.value = value;
+    }
+
+    public T value() {
+      return value;
+    }
+  }
+
+  @Test
+  void addsTheInterfaceToAGenericClassesSignature() throws ReflectiveOperationException {
+    Class<?> redefined =
+        redefine(GenericSample.class, new FieldAccessors(NameField.class, "$$DD$$__name", "name"));
+
+    assertTrue(Arrays.asList(redefined.getGenericInterfaces()).contains(NameField.class));
+    Object instance = redefined.getConstructor(String.class, Object.class).newInstance("n", 1);
+    assertEquals("n", ((NameField) instance).$$DD$$__name());
+  }
+
+  /** Already implements the accessor interface itself. */
+  public static class AlreadyImplements implements NameField {
+    private final String name;
+
+    public AlreadyImplements(String name) {
+      this.name = name;
+    }
+
+    @Override
+    public String $$DD$$__name() {
+      return "own " + name;
+    }
+  }
+
+  @Test
+  void leavesAClassThatAlreadyImplementsTheInterfaceAlone() throws ReflectiveOperationException {
+    Class<?> redefined =
+        redefine(
+            AlreadyImplements.class, new FieldAccessors(NameField.class, "$$DD$$__name", "name"));
+
+    Object instance = redefined.getConstructor(String.class).newInstance("n");
+    assertEquals("own n", ((NameField) instance).$$DD$$__name());
   }
 
   @Test

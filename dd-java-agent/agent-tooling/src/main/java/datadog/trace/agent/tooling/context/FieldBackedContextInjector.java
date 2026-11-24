@@ -6,6 +6,7 @@ import static datadog.trace.util.Strings.getInternalName;
 import datadog.instrument.fieldinject.KeyWithValue;
 import datadog.instrument.fieldinject.ObjectStoreDispatch;
 import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
+import datadog.trace.agent.tooling.context.asm.SerialVersionUIDInjector;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ContextStore;
@@ -509,29 +510,6 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
       return injectedStoreIds.getRight();
     } else {
       return null;
-    }
-  }
-
-  private static final class SerialVersionUIDInjector
-      extends datadog.trace.agent.tooling.context.asm.SerialVersionUIDAdder {
-    public SerialVersionUIDInjector() {
-      super(Opcodes.ASM8, null);
-    }
-
-    public void injectSerialVersionUID(
-        final TypeDescription instrumentedType, final ClassVisitor transformer) {
-      if (!hasSVUID()) {
-        try {
-          transformer.visitField(
-              Opcodes.ACC_FINAL | Opcodes.ACC_STATIC,
-              "serialVersionUID",
-              "J",
-              null,
-              computeSVUID());
-        } catch (final Exception e) {
-          log.debug("Failed to add serialVersionUID to {}", instrumentedType.getName(), e);
-        }
-      }
     }
   }
 }

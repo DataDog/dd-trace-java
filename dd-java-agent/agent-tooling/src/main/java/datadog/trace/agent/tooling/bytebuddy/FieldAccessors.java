@@ -1,6 +1,9 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
+import datadog.trace.agent.tooling.context.asm.SerialVersionUIDInjector;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.InstrumenterConfig;
+import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
@@ -13,6 +16,7 @@ import net.bytebuddy.description.method.MethodList;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.jar.asm.ClassVisitor;
+import net.bytebuddy.jar.asm.FieldVisitor;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
@@ -29,12 +33,26 @@ import net.bytebuddy.utility.OpenedClassReader;
  * <p>All or nothing: the interface and getters are added only if every named field is declared by
  * the class, is non-static and has exactly its getter's return type. Otherwise the class is left as
  * it is, and agent code sees an instance that doesn't implement the interface. Callers therefore
- * check {@code instanceof} and keep a path for classes without the accessor (a different library
- * version, or a class loaded before the agent).
+ * check {@code instanceof} and keep a path for classes without the accessor: classes loaded before
+ * the agent, types matched by hierarchy, or a known type in a {@code ForKnownTypes} list that lacks
+ * the fields.
  *
- * <p>The accessor interface must be visible to the instrumented class's loader (in practice, on the
- * bootstrap class path), and each of its methods must take no arguments. Getter names should be
- * prefixed with {@code $$DD$$__} so they can't collide with the class's own methods.
+ * <p>Muzzle: for a {@code ForSingleType} or {@code ForKnownTypes} instrumentation, the muzzle
+ * generator turns the fields into references of the <em>whole module</em>, so a library version
+ * without them disables all of the module's instrumentation. Install accessors from a module of
+ * their own.
+ *
+ * <p>The accessor interface can be a class of the instrumentation module: installing the accessors
+ * also injects it, as a helper, into the instrumented class's loader, ahead of the class itself. An
+ * interface on the bootstrap class path is used as it is. Agent code that reads the accessors must
+ * see the same interface, so its helpers must be injected into the same loader (and declare the
+ * interface as a helper, or use {@code injectHelperDependencies()}). The interface's methods must
+ * all be abstract getters taking no arguments, one per field. Getter names should be prefixed with
+ * {@code $$DD$$__} so they can't collide with the class's own methods.
+ *
+ * <p>Adding an interface and methods changes a {@code Serializable} class's default {@code
+ * serialVersionUID}, so a class that declares none gets its original value pinned as a field, as
+ * the field-backed context stores do (unless {@code serialVersionUID} field injection is disabled).
  *
  * <p>This class lives in agent-tooling and is public so it loads alongside agent-tooling, not in
  * the instrumentation module's own class loader: a package-private visitor nested in an
@@ -78,6 +96,12 @@ public final class FieldAccessors implements AsmVisitorWrapper {
     Set<String> declared = new HashSet<>();
     for (Method method : accessorInterface.getMethods()) {
       if (!method.isDefault() && !Modifier.isStatic(method.getModifiers())) {
+        // only the no-argument getter of each name is generated, so an overload taking arguments
+        // would be left unimplemented and throw AbstractMethodError when called (a covariant
+        // redeclaration is fine: javac bridges it with a default method)
+        if (method.getParameterCount() != 0) {
+          throw new IllegalArgumentException(method + " takes arguments");
+        }
         declared.add(method.getName());
       }
     }
@@ -101,11 +125,18 @@ public final class FieldAccessors implements AsmVisitorWrapper {
     }
   }
 
+  /** The accessor interface's binary name. */
+  public String accessorInterfaceName() {
+    return accessorInterface.replace('/', '.');
+  }
+
   /**
-   * A muzzle reference requiring {@code className} to declare every named field, non-static, with
-   * its getter's return type: what {@link #appliesTo} checks. The muzzle generator adds it for each
-   * {@code installFieldAccessors} call, so muzzle checks the fields against every library version
-   * in the instrumentation's range, and skips the instrumentation where they're missing.
+   * A muzzle reference requiring {@code className} to have every named field, non-static, with its
+   * getter's return type. The muzzle generator adds it for each {@code installFieldAccessors} call,
+   * so muzzle checks the fields against every library version in the instrumentation's range, and
+   * skips the instrumentation where they're missing. Muzzle also accepts a field the class
+   * inherits, which {@link #appliesTo} doesn't: a version that moved a field to a superclass passes
+   * muzzle, and the class is then left without the accessor.
    */
   public Reference muzzleReference(String className) {
     Reference.Builder builder = new Reference.Builder(className);
@@ -159,18 +190,20 @@ public final class FieldAccessors implements AsmVisitorWrapper {
       MethodList<?> methods,
       int writerFlags,
       int readerFlags) {
-    return hasFields(fields)
-        ? new AddAccessors(classVisitor, instrumentedType.getInternalName())
-        : classVisitor;
+    return hasFields(fields) ? new AddAccessors(classVisitor, instrumentedType) : classVisitor;
   }
 
   private final class AddAccessors extends ClassVisitor {
+    private final TypeDescription instrumentedType;
     private final String className;
     private boolean added;
+    // fed the class's original structure, to pin its default serialVersionUID (null if not needed)
+    private SerialVersionUIDInjector serialVersionUIDInjector;
 
-    AddAccessors(ClassVisitor classVisitor, String className) {
+    AddAccessors(ClassVisitor classVisitor, TypeDescription instrumentedType) {
       super(OpenedClassReader.ASM_API, classVisitor);
-      this.className = className;
+      this.instrumentedType = instrumentedType;
+      this.className = instrumentedType.getInternalName();
     }
 
     @Override
@@ -190,6 +223,11 @@ public final class FieldAccessors implements AsmVisitorWrapper {
           return;
         }
       }
+      if (InstrumenterConfig.get().isSerialVersionUIDFieldInjection()
+          && instrumentedType.isAssignableTo(Serializable.class)) {
+        serialVersionUIDInjector = new SerialVersionUIDInjector();
+        serialVersionUIDInjector.visit(version, access, name, signature, superName, interfaces);
+      }
       String[] withAccessor = new String[interfaces.length + 1];
       System.arraycopy(interfaces, 0, withAccessor, 0, interfaces.length);
       withAccessor[interfaces.length] = accessorInterface;
@@ -201,12 +239,37 @@ public final class FieldAccessors implements AsmVisitorWrapper {
     }
 
     @Override
+    public FieldVisitor visitField(
+        int access, String name, String descriptor, String signature, Object value) {
+      if (serialVersionUIDInjector != null) {
+        serialVersionUIDInjector.visitField(access, name, descriptor, signature, value);
+      }
+      return super.visitField(access, name, descriptor, signature, value);
+    }
+
+    @Override
+    public MethodVisitor visitMethod(
+        int access, String name, String descriptor, String signature, String[] exceptions) {
+      if (serialVersionUIDInjector != null) {
+        serialVersionUIDInjector.visitMethod(access, name, descriptor, signature, exceptions);
+      }
+      return super.visitMethod(access, name, descriptor, signature, exceptions);
+    }
+
+    @Override
+    public void visitInnerClass(String name, String outerName, String innerName, int access) {
+      if (serialVersionUIDInjector != null) {
+        serialVersionUIDInjector.visitInnerClass(name, outerName, innerName, access);
+      }
+      super.visitInnerClass(name, outerName, innerName, access);
+    }
+
+    @Override
     public void visitEnd() {
       if (added) {
         for (int i = 0; i < methods.length; i++) {
+          // synthetic, so tooling that filters synthetic members passes over them
           MethodVisitor mv =
-              // synthetic, so reflection-based tooling that lists the class's methods passes over
-              // them
               cv.visitMethod(
                   Opcodes.ACC_PUBLIC | Opcodes.ACC_SYNTHETIC,
                   methods[i],
@@ -219,6 +282,10 @@ public final class FieldAccessors implements AsmVisitorWrapper {
           mv.visitInsn(Type.getType(descriptors[i]).getOpcode(Opcodes.IRETURN));
           mv.visitMaxs(Type.getType(descriptors[i]).getSize(), 1);
           mv.visitEnd();
+        }
+        if (serialVersionUIDInjector != null) {
+          serialVersionUIDInjector.injectSerialVersionUID(instrumentedType, cv);
+          serialVersionUIDInjector = null;
         }
       }
       super.visitEnd();

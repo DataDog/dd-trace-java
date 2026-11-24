@@ -123,7 +123,11 @@ public interface Instrumenter {
      * Makes the instrumented type implement {@code accessorInterface}, each of whose methods
      * returns one of the type's fields, if the type declares them all with matching types (see
      * {@link FieldAccessors}). The instrumentation must be {@link WithStructuralChange}, with
-     * {@code accessorInterface} as its marker.
+     * {@code accessorInterface} as its marker; the build fails otherwise.
+     *
+     * <p>The fields also become muzzle references of the whole module (for {@link ForSingleType}
+     * and {@link ForKnownTypes}), so call this from a module of its own. An accessor interface that
+     * isn't on the bootstrap class path is injected as a helper ahead of the accessors.
      *
      * @param methodAndFieldNames pairs of getter method name and the name of the field it returns
      */

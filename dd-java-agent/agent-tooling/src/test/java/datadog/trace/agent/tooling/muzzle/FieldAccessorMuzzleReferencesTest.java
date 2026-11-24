@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.muzzle;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.tooling.Instrumenter;
@@ -24,10 +25,22 @@ class FieldAccessorMuzzleReferencesTest {
     byte[] $$DD$$__bytes();
   }
 
+  private static final String[] SAMPLE_GETTERS = {
+    "$$DD$$__name", "name",
+    "$$DD$$__count", "count",
+    "$$DD$$__total", "total",
+    "$$DD$$__bytes", "bytes",
+  };
+
   static final class AccessorModule extends InstrumenterModule.Tracing
-      implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
+      implements Instrumenter.ForSingleType, Instrumenter.WithStructuralChange {
     AccessorModule() {
       super("test-accessors");
+    }
+
+    @Override
+    public Class<?> structuralChangeMarker() {
+      return SampleFields.class;
     }
 
     @Override
@@ -37,16 +50,7 @@ class FieldAccessorMuzzleReferencesTest {
 
     @Override
     public void typeAdvice(TypeTransformer transformer) {
-      transformer.installFieldAccessors(
-          SampleFields.class,
-          "$$DD$$__name",
-          "name",
-          "$$DD$$__count",
-          "count",
-          "$$DD$$__total",
-          "total",
-          "$$DD$$__bytes",
-          "bytes");
+      transformer.installFieldAccessors(SampleFields.class, SAMPLE_GETTERS);
     }
   }
 
@@ -73,9 +77,14 @@ class FieldAccessorMuzzleReferencesTest {
 
   /** Known matching types as alternatives, such as a class renamed across library versions. */
   static final class KnownTypesModule extends InstrumenterModule.Tracing
-      implements Instrumenter.ForKnownTypes, Instrumenter.HasTypeAdvice {
+      implements Instrumenter.ForKnownTypes, Instrumenter.WithStructuralChange {
     KnownTypesModule() {
       super("test-accessors-known");
+    }
+
+    @Override
+    public Class<?> structuralChangeMarker() {
+      return SampleFields.class;
     }
 
     @Override
@@ -85,16 +94,7 @@ class FieldAccessorMuzzleReferencesTest {
 
     @Override
     public void typeAdvice(TypeTransformer transformer) {
-      transformer.installFieldAccessors(
-          SampleFields.class,
-          "$$DD$$__name",
-          "name",
-          "$$DD$$__count",
-          "count",
-          "$$DD$$__total",
-          "total",
-          "$$DD$$__bytes",
-          "bytes");
+      transformer.installFieldAccessors(SampleFields.class, SAMPLE_GETTERS);
     }
   }
 
@@ -112,5 +112,32 @@ class FieldAccessorMuzzleReferencesTest {
     assertEquals(1, ors.length);
     assertEquals("com.example.New", ors[0].className);
     assertEquals(4, ors[0].fields.length);
+  }
+
+  /** Installs accessors without being a structural change, which retransformation relies on. */
+  static final class UnmarkedModule extends InstrumenterModule.Tracing
+      implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
+    UnmarkedModule() {
+      super("test-accessors-unmarked");
+    }
+
+    @Override
+    public String instrumentedType() {
+      return "com.example.Sample";
+    }
+
+    @Override
+    public void typeAdvice(TypeTransformer transformer) {
+      transformer.installFieldAccessors(SampleFields.class, SAMPLE_GETTERS);
+    }
+  }
+
+  @Test
+  void aModuleThatIsNotAStructuralChangeFailsTheBuild() {
+    IllegalStateException e =
+        assertThrows(
+            IllegalStateException.class,
+            () -> MuzzleGenerationProcessor.fieldAccessorReferences(new UnmarkedModule()));
+    assertTrue(e.getMessage().contains("structuralChangeMarker"), e.getMessage());
   }
 }
