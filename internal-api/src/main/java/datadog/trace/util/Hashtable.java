@@ -261,15 +261,15 @@ public final class Hashtable {
     // Package-private so iterator tests in the same package can drive the Hashtable static
     // building blocks directly against the table's bucket array. Replaced as the table grows.
     Hashtable.Entry[] buckets;
-    private final int maxBuckets;
+    // The growth limit lives in sizeManager, not here: a second field ahead of buckets moved it off
+    // the first field slot, and C2 then stopped scalar-replacing TableCursor in cursor() loops.
     private final SizeManager sizeManager;
 
     private D1(Sizing sizing) {
       // The array grows up to load-factor headroom over the strict entry cap below, so chains stay
       // short even when the table is full; see Hashtable#capacityFor.
-      this.maxBuckets = capacityFor(sizing.maxCapacity());
       this.buckets = Hashtable.create(initialBucketsFor(sizing));
-      this.sizeManager = new SizeManager(sizing.maxCapacity());
+      this.sizeManager = new SizeManager(sizing.maxCapacity(), capacityFor(sizing.maxCapacity()));
     }
 
     /**
@@ -316,7 +316,7 @@ public final class Hashtable {
 
     /** Doubles the bucket array if one more entry would take it past 3/4 full. */
     private void growIfNeeded() {
-      this.buckets = Hashtable.growIfNeeded(this.sizeManager, this.buckets, this.maxBuckets);
+      this.buckets = Hashtable.growIfNeeded(this.sizeManager, this.buckets);
     }
 
     /**
@@ -631,14 +631,14 @@ public final class Hashtable {
 
     // Package-private to match D1.buckets -- available for iterator tests in the same package.
     Hashtable.Entry[] buckets;
-    private final int maxBuckets;
+    // The growth limit lives in sizeManager, not here: a second field ahead of buckets moved it off
+    // the first field slot, and C2 then stopped scalar-replacing TableCursor in cursor() loops.
     private final SizeManager sizeManager;
 
     private D2(Sizing sizing) {
       // Grows up to load-factor headroom over the strict entry cap; see D1's constructor.
-      this.maxBuckets = capacityFor(sizing.maxCapacity());
       this.buckets = Hashtable.create(initialBucketsFor(sizing));
-      this.sizeManager = new SizeManager(sizing.maxCapacity());
+      this.sizeManager = new SizeManager(sizing.maxCapacity(), capacityFor(sizing.maxCapacity()));
     }
 
     /**
@@ -680,7 +680,7 @@ public final class Hashtable {
 
     /** Doubles the bucket array if one more entry would take it past 3/4 full. */
     private void growIfNeeded() {
-      this.buckets = Hashtable.growIfNeeded(this.sizeManager, this.buckets, this.maxBuckets);
+      this.buckets = Hashtable.growIfNeeded(this.sizeManager, this.buckets);
     }
 
     /**
@@ -1044,15 +1044,16 @@ public final class Hashtable {
   /**
    * Returns {@code buckets}, or a doubled replacement from {@link #resize(SizeManager,
    * Hashtable.Entry[])} when one more entry would take it past 3/4 full and it is still shorter
-   * than {@code maxBuckets}. With power-of-two lengths and {@code maxBuckets} from {@link
-   * #capacityFor(int)} of the manager's capacity, a table filled to that capacity ends at exactly
-   * {@code maxBuckets}.
+   * than the manager's {@code maxBuckets}. With power-of-two lengths and {@code maxBuckets} from
+   * {@link #capacityFor(int)} of the manager's capacity, a table filled to that capacity ends at
+   * exactly {@code maxBuckets}.
    */
   @Nonnull
   static Hashtable.Entry[] growIfNeeded(
-      @Nonnull SizeManager sizeManager, @Nonnull Hashtable.Entry[] buckets, int maxBuckets) {
+      @Nonnull SizeManager sizeManager, @Nonnull Hashtable.Entry[] buckets) {
     int length = buckets.length;
-    if (length < maxBuckets && sizeManager.estimateSize() >= (length >> 1) + (length >> 2)) {
+    if (length < sizeManager.maxBuckets
+        && sizeManager.estimateSize() >= (length >> 1) + (length >> 2)) {
       return resize(sizeManager, buckets);
     }
     return buckets;
@@ -1595,6 +1596,13 @@ public final class Hashtable {
    */
   public static final class SizeManager {
     private final int capacity;
+
+    /**
+     * Bucket-array length that {@link Hashtable#growIfNeeded} may grow to; 0 for arrays the caller
+     * sizes itself, which never grow here.
+     */
+    final int maxBuckets;
+
     private int size;
 
     /**
@@ -1615,7 +1623,12 @@ public final class Hashtable {
     @Nullable private Hashtable.Entry cursorPrev;
 
     public SizeManager(int capacity) {
+      this(capacity, 0);
+    }
+
+    SizeManager(int capacity, int maxBuckets) {
       this.capacity = capacity;
+      this.maxBuckets = maxBuckets;
     }
 
     /**
