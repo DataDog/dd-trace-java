@@ -13,6 +13,7 @@ import datadog.common.queue.Queues;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -102,29 +103,37 @@ public final class OkHttpSink implements Sink, EventListener {
   private void sendAsync(int messageCount, List<ByteBuffer> chunks) {
     asyncRequestCounter.getAndIncrement();
     // the chunks are reused for the next payload as soon as accept returns, so copy them
-    ByteBuffer copy = copyOf(chunks);
+    List<ByteBuffer> copies = copyOf(chunks);
     if (!enqueuedRequests.offer(
-        prepareRequest(metricsUrl, headers)
-            .post(makeRequestBody(Collections.singletonList(copy)))
-            .build())) {
+        prepareRequest(metricsUrl, headers).post(makeRequestBody(copies)).build())) {
       log.debug(
           "dropping payload of {} and {}B because sending queue was full",
           messageCount,
-          copy.limit());
+          sizeOf(copies));
     }
   }
 
-  private static ByteBuffer copyOf(List<ByteBuffer> chunks) {
+  /**
+   * Copies each chunk into its own array, so a queued payload keeps the writer's bound on any one
+   * allocation: gathering a large payload into one array could make it humongous on G1.
+   */
+  static List<ByteBuffer> copyOf(List<ByteBuffer> chunks) {
+    List<ByteBuffer> copies = new ArrayList<>(chunks.size());
+    for (ByteBuffer chunk : chunks) {
+      ByteBuffer copy = ByteBuffer.allocate(chunk.remaining());
+      copy.put(chunk.duplicate());
+      copy.flip();
+      copies.add(copy);
+    }
+    return Collections.unmodifiableList(copies);
+  }
+
+  private static int sizeOf(List<ByteBuffer> chunks) {
     int size = 0;
     for (ByteBuffer chunk : chunks) {
       size += chunk.remaining();
     }
-    ByteBuffer copy = ByteBuffer.allocate(size);
-    for (ByteBuffer chunk : chunks) {
-      copy.put(chunk.duplicate());
-    }
-    copy.flip();
-    return copy;
+    return size;
   }
 
   public boolean isInDegradedMode() {

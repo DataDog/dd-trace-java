@@ -164,6 +164,31 @@ class OkHttpSinkTest {
     assertArrayEquals(new byte[] {2, 3, 4, 5}, sentBodies.get(1));
   }
 
+  @Test
+  void aQueuedCopyKeepsTheWritersChunkSizes() {
+    // one array per chunk, so no copy is larger than the writer's largest chunk
+    ByteBuffer first = ByteBuffer.wrap(new byte[] {1, 2, 3});
+    ByteBuffer second = ByteBuffer.wrap(new byte[] {0, 4, 5});
+    second.position(1); // a chunk's readable range, not its whole array, is copied
+
+    List<ByteBuffer> copies = OkHttpSink.copyOf(Arrays.asList(first, second));
+
+    assertEquals(2, copies.size());
+    assertArrayEquals(new byte[] {1, 2, 3}, bytesOf(copies.get(0)));
+    assertArrayEquals(new byte[] {4, 5}, bytesOf(copies.get(1)));
+    assertEquals(3, copies.get(0).capacity());
+    assertEquals(2, copies.get(1).capacity());
+    // copying leaves the writer's chunks where they were
+    assertEquals(0, first.position());
+    assertEquals(1, second.position());
+  }
+
+  private static byte[] bytesOf(ByteBuffer buffer) {
+    byte[] bytes = new byte[buffer.remaining()];
+    buffer.duplicate().get(bytes);
+    return bytes;
+  }
+
   private static Call respond(Request request, int code) throws IOException {
     if (code == 0) {
       return error();
