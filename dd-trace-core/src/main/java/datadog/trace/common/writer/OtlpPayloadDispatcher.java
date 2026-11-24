@@ -2,6 +2,7 @@ package datadog.trace.common.writer;
 
 import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.core.CoreSpan;
+import datadog.trace.core.monitor.ExportRecorder;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.core.otlp.trace.OtlpTraceCollector;
@@ -18,10 +19,16 @@ final class OtlpPayloadDispatcher implements PayloadDispatcher {
 
   private final OtlpTraceCollector collector;
   private final OtlpSender sender;
+  private final ExportRecorder exportRecorder;
 
-  OtlpPayloadDispatcher(OtlpSender sender, OtlpTraceCollector collector) {
+  /**
+   * @param exportRecorder reports each send of {@code sender} as a span export
+   */
+  OtlpPayloadDispatcher(
+      OtlpSender sender, OtlpTraceCollector collector, ExportRecorder exportRecorder) {
     this.sender = sender;
     this.collector = collector;
+    this.exportRecorder = exportRecorder;
   }
 
   @Override
@@ -35,15 +42,26 @@ final class OtlpPayloadDispatcher implements PayloadDispatcher {
 
   @Override
   public void flush() {
+    ExportRecorder.Export export = null;
     try {
       OtlpPayload payload = collector.collectTraces();
       if (payload != OtlpPayload.EMPTY) {
         OtlpTelemetry.getInstance().onTracesExportAttempt();
+        export = exportRecorder.start(payload.getItemCount());
         RemoteApi.Response response = sender.send(payload);
+        export.finish(response);
         OtlpTelemetry.getInstance().onTracesExportComplete(response.success());
       }
     } catch (RuntimeException e) { // don't catch severe Errors
+      if (export != null) {
+        export.failure(e); // ignored when the export already finished
+      }
       log.debug("Failed to send OTLP payload", e);
+    } catch (Error e) { // finish the export, but don't swallow severe Errors
+      if (export != null) {
+        export.failure(e);
+      }
+      throw e;
     }
   }
 

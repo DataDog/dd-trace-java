@@ -48,6 +48,9 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
   private int scopedBytes;
   private int spanBytes;
 
+  /** The spans written since the last collection. */
+  private int spanCount;
+
   private OtelInstrumentationScope currentScope;
   private DDSpan currentSpan;
 
@@ -118,6 +121,7 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
     resourceBytes = 0;
     scopedBytes = 0;
     spanBytes = 0;
+    spanCount = 0;
 
     currentScope = null;
     currentSpan = null;
@@ -174,7 +178,7 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
       return OtlpPayload.EMPTY;
     }
 
-    return protobuf.toPayload();
+    return protobuf.toPayload(spanCount);
   }
 
   // called once we've processed all spans with the same global tags
@@ -226,6 +230,7 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
   private void completeSpan() {
 
     scopedBytes += recordSpanMessage(buf, currentSpan, metaWriter, spanBytes, protobuf);
+    spanCount++;
 
     // reset temporary elements for next span
     currentSpan = null;

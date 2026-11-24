@@ -84,6 +84,7 @@ class OtlpTraceJsonCollectorTest {
     collector.addTrace(asList((CoreSpan<?>) span));
     OtlpPayload payload = collector.collectTraces();
 
+    assertEquals(1, payload.getItemCount());
     Map<String, Object> parsedSpan = onlySpan(payload);
 
     assertEquals(hexTraceId(span.getTraceId()), parsedSpan.get("traceId"));
@@ -406,6 +407,28 @@ class OtlpTraceJsonCollectorTest {
     assertTrue(
         parsedSpan.get("traceState").toString().matches("ot=rv:[0-9a-f]{14};th:0,vendor=state"),
         parsedSpan.get("traceState").toString());
+  }
+
+  @Test
+  void payloadItemCountIsTheNumberOfExportedSpans() throws IOException {
+    DDSpan first = startAndFinish("op.first", "GET /first", null);
+    DDSpan second = startAndFinish("op.second", "GET /second", null);
+    AgentSpan dropped = TRACER.startSpan("test", "op.dropped");
+    dropped.setSamplingPriority(PrioritySampling.USER_DROP, SamplingMechanism.MANUAL);
+    dropped.finish();
+
+    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+    collector.addTrace(asList((CoreSpan<?>) first));
+    collector.addTrace(asList((CoreSpan<?>) second));
+    collector.addTrace(asList((CoreSpan<?>) dropped));
+    OtlpPayload payload = collector.collectTraces();
+
+    assertEquals(2, payload.getItemCount(), "the dropped span isn't exported");
+    assertEquals(2, allSpans(payload).size());
+
+    // the count restarts with each collection
+    collector.addTrace(asList((CoreSpan<?>) first));
+    assertEquals(1, collector.collectTraces().getItemCount());
   }
 
   @Test

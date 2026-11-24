@@ -45,6 +45,10 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
 
   private boolean payloadStarted;
   private boolean anySpanWritten;
+
+  /** The spans written since the last collection. */
+  private int spanCount;
+
   private boolean firstSpanInScope;
 
   private OtelInstrumentationScope currentScope;
@@ -118,6 +122,7 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     payloadGlobalTags = null;
     traceGlobalTags = null;
     anySpanWritten = false;
+    spanCount = 0;
 
     writer = null;
     metaWriter = null;
@@ -201,7 +206,7 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     }
 
     byte[] bytes = writer.toByteArray();
-    return new OtlpPayload(ByteBuffer.wrap(bytes), JSON_CONTENT_TYPE);
+    return new OtlpPayload(ByteBuffer.wrap(bytes), JSON_CONTENT_TYPE, spanCount);
   }
 
   // called once we've processed all spans with the same global tags
@@ -237,6 +242,7 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     }
     writeSpan(writer, currentSpan, metaWriter, currentSpanLinks);
     anySpanWritten = true;
+    spanCount++;
 
     // reset temporary elements for next span
     currentSpan = null;

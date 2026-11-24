@@ -685,6 +685,11 @@ class OtlpTraceProtoTest {
         expectedTraceIds.size(),
         parsedTraceIds.size(),
         "payload must contain spans with all three distinct trace IDs");
+    assertEquals(totalSpans, payload.getItemCount(), "the payload counts its spans");
+
+    // the count restarts with each collection
+    collector.addTrace(trace3);
+    assertEquals(3, collector.collectTraces().getItemCount());
   }
 
   @Test
