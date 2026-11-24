@@ -62,6 +62,18 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
     return typeFactory.get().targetName;
   }
 
+  /**
+   * Class-file bytes behind the given type's outline, if its members haven't been parsed yet;
+   * otherwise null. Lets matchers sieve the members before asking for them. Must not be modified.
+   */
+  public static byte[] unparsedOutlineBytecode(TypeDescription type) {
+    TypeDescription outline = type;
+    if (outline instanceof TypeFactory.LazyType) {
+      outline = ((TypeFactory.LazyType) outline).resolvedDelegate();
+    }
+    return outline instanceof TypeOutline ? ((TypeOutline) outline).unparsedBytecode() : null;
+  }
+
   /** Switch to full descriptions, needed for the actual class transformation. */
   public static void enableFullDescriptions() {
     typeFactory.get().enableFullDescriptions();

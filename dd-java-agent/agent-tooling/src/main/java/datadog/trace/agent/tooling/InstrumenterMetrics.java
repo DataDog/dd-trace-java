@@ -20,6 +20,7 @@ public final class InstrumenterMetrics {
     static final AtomicLong typeHierarchyMiss = new AtomicLong();
     static final AtomicLong typeHierarchySieved = new AtomicLong();
     static final AtomicLong typeHierarchySieveMissed = new AtomicLong();
+    static final AtomicLong parseOutlineMembers = new AtomicLong();
     static final AtomicLong contextStoreHit = new AtomicLong();
     static final AtomicLong contextStoreMiss = new AtomicLong();
     static final AtomicLong narrowLocationHit = new AtomicLong();
@@ -109,6 +110,13 @@ public final class InstrumenterMetrics {
   public static void typeHierarchySieveMissed(long fromTick) {
     if (ENABLED) {
       record(Stats.typeHierarchySieveMissed, fromTick);
+    }
+  }
+
+  /** Members of a lazily parsed outline were needed, so they were parsed. */
+  public static void parseOutlineMembers(long fromTick) {
+    if (ENABLED) {
+      record(Stats.parseOutlineMembers, fromTick);
     }
   }
 
@@ -212,6 +220,7 @@ public final class InstrumenterMetrics {
     summarize(buf, "Reuse type-memo:       ", Stats.reuseTypeMemo);
     summarize(buf, "Build type-outline:    ", Stats.buildTypeOutline);
     summarize(buf, "Reuse type-outline:    ", Stats.reuseTypeOutline);
+    summarize(buf, "Parse outline members: ", Stats.parseOutlineMembers);
     summarize(buf, "Build full-type:       ", Stats.buildFullType);
     summarize(buf, "Reuse full-type:       ", Stats.reuseFullType);
     summarize(buf, "Resolve class-file:    ", Stats.resolveClassFile);

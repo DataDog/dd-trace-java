@@ -3,7 +3,10 @@ package datadog.trace.agent.tooling.bytebuddy.outline;
 import static datadog.trace.agent.tooling.bytebuddy.outline.AnnotationOutline.annotationOutline;
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.findType;
 
+import datadog.instrument.classmatch.ClassFile;
+import datadog.instrument.classmatch.ClassHeader;
 import datadog.instrument.classmatch.ClassOutline;
+import datadog.trace.agent.tooling.InstrumenterMetrics;
 import java.util.ArrayList;
 import java.util.List;
 import net.bytebuddy.description.annotation.AnnotationDescription;
@@ -37,11 +40,48 @@ final class TypeOutline extends WithName {
   private final List<FieldDescription.InDefinedShape> declaredFields = new ArrayList<>();
   private final List<MethodDescription.InDefinedShape> declaredMethods = new ArrayList<>();
 
+  // class-file bytes whose members haven't been parsed yet; null once members are available
+  private volatile byte[] unparsedBytecode;
+
   TypeOutline(int access, String internalName, String superName, String[] interfaces) {
     super(internalName.replace('/', '.'));
     this.modifiers = access & ALLOWED_TYPE_MODIFIERS;
     this.superName = superName;
     this.interfaces = interfaces;
+  }
+
+  /**
+   * Outline from just the class header; annotations, fields, and methods are parsed from the given
+   * bytes the first time they're needed.
+   */
+  TypeOutline(ClassHeader header, byte[] bytecode) {
+    super(header.className.replace('/', '.'));
+    this.modifiers = header.access & ALLOWED_TYPE_MODIFIERS;
+    this.superName = header.superName;
+    this.interfaces = header.interfaces;
+    this.unparsedBytecode = bytecode;
+  }
+
+  /** Class-file bytes if this outline's members haven't been parsed yet, otherwise null. */
+  byte[] unparsedBytecode() {
+    return unparsedBytecode;
+  }
+
+  private void ensureMembers() {
+    if (null != unparsedBytecode) {
+      parseMembers();
+    }
+  }
+
+  private synchronized void parseMembers() {
+    byte[] bytecode = unparsedBytecode;
+    if (null == bytecode) {
+      return; // another thread parsed them first
+    }
+    long fromTick = InstrumenterMetrics.tick();
+    declareMembers(ClassFile.outline(bytecode));
+    unparsedBytecode = null; // publishes the members declared above
+    InstrumenterMetrics.parseOutlineMembers(fromTick);
   }
 
   /** Adapts simpler {@link ClassOutline} structure to existing {@link TypeOutline}. */
@@ -50,7 +90,10 @@ final class TypeOutline extends WithName {
     this.modifiers = outline.access & ALLOWED_TYPE_MODIFIERS;
     this.superName = outline.superName;
     this.interfaces = outline.interfaces;
+    declareMembers(outline);
+  }
 
+  private void declareMembers(ClassOutline outline) {
     for (String annotation : outline.annotations) {
       declare(annotationOutline(annotation));
     }
@@ -124,6 +167,7 @@ final class TypeOutline extends WithName {
 
   @Override
   public AnnotationList getDeclaredAnnotations() {
+    ensureMembers();
     return null == declaredAnnotations
         ? NO_ANNOTATIONS
         : new AnnotationList.Explicit(declaredAnnotations);
@@ -131,11 +175,13 @@ final class TypeOutline extends WithName {
 
   @Override
   public FieldList<FieldDescription.InDefinedShape> getDeclaredFields() {
+    ensureMembers();
     return declaredFields.isEmpty() ? NO_FIELDS : new FieldList.Explicit<>(declaredFields);
   }
 
   @Override
   public MethodList<MethodDescription.InDefinedShape> getDeclaredMethods() {
+    ensureMembers();
     return declaredMethods.isEmpty() ? NO_METHODS : new MethodList.Explicit<>(declaredMethods);
   }
 

@@ -1,11 +1,14 @@
 package datadog.trace.agent.tooling.bytebuddy.memoize;
 
+import static java.util.Arrays.asList;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.instrument.utils.ClassNameFilter;
 import datadog.trace.agent.tooling.InstrumenterMetrics;
 import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache;
 import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache.SharedTypeInfo;
+import datadog.trace.agent.tooling.bytebuddy.matcher.ConstantPoolNeedles;
+import datadog.trace.agent.tooling.bytebuddy.matcher.ConstantPoolSieve;
 import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
 import datadog.trace.agent.tooling.bytebuddy.outline.WithLocation;
 import datadog.trace.api.InstrumenterConfig;
@@ -15,8 +18,10 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.bytebuddy.description.annotation.AnnotationDescription;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.method.MethodDescription;
@@ -73,6 +78,12 @@ public final class Memoizer {
       ThreadLocal.withInitial(HashMap::new);
 
   private static final int INTERNAL_MATCHERS = 3; // isClass, isConcrete, isPartial
+
+  // experimental: skips member matchers whose names aren't in the type's constant pool
+  private static volatile MemberSieve memberSieve;
+
+  private static final boolean verifyMemberSieve =
+      InstrumenterConfig.get().isResolverDeclaredMethodSieveVerify();
 
   // memoize whether the type is a class
   static final MemoizingMatcher isClass = prepare(MatcherKind.CLASS, ElementMatchers.any(), true);
@@ -202,14 +213,29 @@ public final class Memoizer {
         inherit(memoizeHierarchy(intf.asErasure(), localMemos), memo);
       }
       fromTick += (InstrumenterMetrics.tick() - superTick); // adjust to exclude super-type ticks
-      for (AnnotationDescription ann : type.getDeclaredAnnotations()) {
-        record(annotationMatcherIds, ann.getAnnotationType(), memo);
+      MemberSieve sieve = memberSieve;
+      BitSet present = null != sieve ? sieve.scan(type) : null;
+      // only ask for members if a matcher might apply, so unneeded members are never parsed
+      BitSet annotationIds = candidates(sieve, annotationMatcherIds, present);
+      if (!annotationIds.isEmpty()) {
+        for (AnnotationDescription ann : type.getDeclaredAnnotations()) {
+          record(annotationIds, ann.getAnnotationType(), memo);
+        }
       }
-      for (FieldDescription field : type.getDeclaredFields()) {
-        record(fieldMatcherIds, field, memo);
+      BitSet fieldIds = candidates(sieve, fieldMatcherIds, present);
+      if (!fieldIds.isEmpty()) {
+        for (FieldDescription field : type.getDeclaredFields()) {
+          record(fieldIds, field, memo);
+        }
       }
-      for (MethodDescription method : type.getDeclaredMethods()) {
-        record(methodMatcherIds, method, memo);
+      BitSet methodIds = candidates(sieve, methodMatcherIds, present);
+      if (!methodIds.isEmpty()) {
+        for (MethodDescription method : type.getDeclaredMethods()) {
+          record(methodIds, method, memo);
+        }
+      }
+      if (verifyMemberSieve && null != present) {
+        verifySkipped(type, annotationIds, fieldIds, methodIds);
       }
       record(type.isInterface() ? interfaceMatcherIds : classMatcherIds, type, memo);
     } catch (Throwable e) {
@@ -246,6 +272,149 @@ public final class Memoizer {
     }
 
     return memo;
+  }
+
+  /**
+   * Builds the member sieve over the memoized annotation, field, and method matchers registered so
+   * far. Matchers registered later aren't sieved, i.e. they always run.
+   */
+  public static void prepareMemberSieve() {
+    int matcherCount = matchers.size();
+    String[][] names = new String[matcherCount][];
+    Set<String> allNames = new HashSet<>();
+    collectNames(annotationMatcherIds, true, names, allNames);
+    collectNames(fieldMatcherIds, false, names, allNames);
+    collectNames(methodMatcherIds, false, names, allNames);
+    memberSieve = new MemberSieve(new ConstantPoolSieve(allNames), names);
+    if (log.isDebugEnabled()) {
+      log.debug("Member sieve covers {} names", allNames.size());
+      logUnsieved("annotation", annotationMatcherIds, names);
+      logUnsieved("field", fieldMatcherIds, names);
+      logUnsieved("method", methodMatcherIds, names);
+    }
+  }
+
+  private static void logUnsieved(String kind, BitSet matcherIds, String[][] names) {
+    int total = 0;
+    List<String> unsieved = new ArrayList<>();
+    for (int id = matcherIds.nextSetBit(0); id >= 0; id = matcherIds.nextSetBit(id + 1)) {
+      total++;
+      if (null == names[id]) {
+        unsieved.add(String.valueOf(matchers.get(id)));
+      }
+    }
+    log.debug(
+        "Member sieve: {} of {} {} matchers not sieved: {}",
+        unsieved.size(),
+        total,
+        kind,
+        unsieved);
+  }
+
+  private static void collectNames(
+      BitSet matcherIds, boolean annotationTypes, String[][] names, Set<String> allNames) {
+    for (int id = matcherIds.nextSetBit(0); id >= 0; id = matcherIds.nextSetBit(id + 1)) {
+      Set<String> lowered =
+          annotationTypes
+              ? ConstantPoolNeedles.forTypeName(matchers.get(id))
+              : ConstantPoolNeedles.forMember(matchers.get(id));
+      if (null != lowered) {
+        String[] needles = new String[lowered.size()];
+        int i = 0;
+        for (String name : lowered) {
+          // annotation types appear in the constant pool as descriptors, e.g. Ljavax/ws/rs/Path;
+          needles[i++] = annotationTypes ? 'L' + name.replace('.', '/') + ';' : name;
+        }
+        names[id] = needles;
+        allNames.addAll(asList(needles));
+      }
+    }
+  }
+
+  /** Runs the matchers the sieve skipped against the real members; logs any that match. */
+  private static void verifySkipped(
+      TypeDescription type, BitSet annotationIds, BitSet fieldIds, BitSet methodIds) {
+    BitSet missed = new BitSet();
+    BitSet skipped = (BitSet) annotationMatcherIds.clone();
+    skipped.andNot(annotationIds);
+    if (!skipped.isEmpty()) {
+      for (AnnotationDescription ann : type.getDeclaredAnnotations()) {
+        record(skipped, ann.getAnnotationType(), missed);
+      }
+    }
+    skipped = (BitSet) fieldMatcherIds.clone();
+    skipped.andNot(fieldIds);
+    if (!skipped.isEmpty()) {
+      for (FieldDescription field : type.getDeclaredFields()) {
+        record(skipped, field, missed);
+      }
+    }
+    skipped = (BitSet) methodMatcherIds.clone();
+    skipped.andNot(methodIds);
+    if (!skipped.isEmpty()) {
+      for (MethodDescription method : type.getDeclaredMethods()) {
+        record(skipped, method, missed);
+      }
+    }
+    for (int id = missed.nextSetBit(0); id >= 0; id = missed.nextSetBit(id + 1)) {
+      log.warn("Member sieve skipped matcher {} for {} but it matches", matchers.get(id), type);
+    }
+  }
+
+  /** Narrows the given matcher ids to those whose names may be present; all if not sieved. */
+  private static BitSet candidates(MemberSieve sieve, BitSet matcherIds, BitSet present) {
+    if (null == present) {
+      return matcherIds;
+    }
+    BitSet candidates = new BitSet();
+    for (int id = matcherIds.nextSetBit(0); id >= 0; id = matcherIds.nextSetBit(id + 1)) {
+      if (sieve.mayMatch(id, present)) {
+        candidates.set(id);
+      }
+    }
+    return candidates;
+  }
+
+  /** Sieve over the names that memoized member matchers require. */
+  static final class MemberSieve {
+    private final ConstantPoolSieve sieve;
+    private final int[][] nameIds; // indexed by matcher id; null means the matcher isn't sieved
+
+    MemberSieve(ConstantPoolSieve sieve, String[][] names) {
+      this.sieve = sieve;
+      this.nameIds = new int[names.length][];
+      for (int id = 0; id < names.length; id++) {
+        if (null != names[id]) {
+          int[] ids = new int[names[id].length];
+          for (int i = 0; i < ids.length; i++) {
+            ids[i] = sieve.id(names[id][i]);
+          }
+          nameIds[id] = ids;
+        }
+      }
+    }
+
+    /** Names present in the type's unparsed class file, or null if it can't be sieved. */
+    BitSet scan(TypeDescription type) {
+      byte[] bytecode = TypePoolFacade.unparsedOutlineBytecode(type);
+      if (null == bytecode) {
+        return null; // members already parsed, or not an outline
+      }
+      BitSet present = new BitSet(sieve.size());
+      return sieve.scan(bytecode, present) ? present : null;
+    }
+
+    boolean mayMatch(int matcherId, BitSet present) {
+      if (matcherId >= nameIds.length || null == nameIds[matcherId]) {
+        return true;
+      }
+      for (int id : nameIds[matcherId]) {
+        if (id < 0 || present.get(id)) {
+          return true;
+        }
+      }
+      return false;
+    }
   }
 
   /** Any type not recorded as a definite "no-match" is a potential match. */

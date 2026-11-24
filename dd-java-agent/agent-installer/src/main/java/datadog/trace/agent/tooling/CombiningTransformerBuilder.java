@@ -10,8 +10,9 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
+import datadog.trace.agent.tooling.bytebuddy.matcher.ConstantPoolNeedles;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ConstantPoolSieve;
-import datadog.trace.agent.tooling.bytebuddy.matcher.DeclaredMethodNames;
+import datadog.trace.agent.tooling.bytebuddy.memoize.Memoizer;
 import datadog.trace.agent.tooling.context.FieldBackedContextInjector;
 import datadog.trace.agent.tooling.context.FieldBackedContextMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextRequestRewriter;
@@ -323,7 +324,7 @@ public final class CombiningTransformerBuilder
 
   /** Gates this instrumenter's hierarchy matchers on the names of its advised methods. */
   private void gateOnDeclaredMethods(List<ElementMatcher<? super MethodDescription>> advised) {
-    Set<String> names = DeclaredMethodNames.lowerAll(advised);
+    Set<String> names = ConstantPoolNeedles.forMembers(advised);
     if (null == names) {
       return; // at least one advised method matcher can't be lowered, so don't gate
     }
@@ -429,6 +430,9 @@ public final class CombiningTransformerBuilder
   public ClassFileTransformer installOn(Instrumentation instrumentation) {
     if (InstrumenterConfig.get().isRuntimeContextFieldInjection()) {
       applyContextStoreInjection();
+    }
+    if (declaredMethodSieve) {
+      Memoizer.prepareMemberSieve(); // all memoized matchers are registered by now
     }
 
     return agentBuilder

@@ -23,6 +23,10 @@ final class OutlineTypeParser implements TypeParser {
   private static final boolean visitorClassParsing =
       InstrumenterConfig.get().isVisitorClassParsing();
 
+  // parse just the header up-front, members only when needed (used with the member sieve)
+  private static final boolean lazyMembers =
+      InstrumenterConfig.get().isResolverDeclaredMethodSieve();
+
   @Override
   public TypeDescription parse(byte[] bytecode) {
     if (visitorClassParsing) {
@@ -30,6 +34,8 @@ final class OutlineTypeParser implements TypeParser {
       OutlineTypeExtractor typeExtractor = new OutlineTypeExtractor();
       classReader.accept(typeExtractor, SKIP_CODE | SKIP_DEBUG);
       return typeExtractor.typeOutline;
+    } else if (lazyMembers) {
+      return new TypeOutline(ClassFile.header(bytecode), bytecode);
     } else {
       return new TypeOutline(ClassFile.outline(bytecode));
     }

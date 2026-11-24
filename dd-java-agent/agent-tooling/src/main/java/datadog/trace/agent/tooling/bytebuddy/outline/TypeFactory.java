@@ -432,6 +432,11 @@ final class TypeFactory {
       return doResolve(true);
     }
 
+    /** The description resolved so far, without triggering resolution; may be null. */
+    TypeDescription resolvedDelegate() {
+      return delegate;
+    }
+
     TypeDescription doResolve(boolean throwIfMissing) {
       // re-resolve type when switching to full descriptions
       if (null == delegate || (isOutline && !createOutlines)) {
