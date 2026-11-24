@@ -8,6 +8,7 @@ import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.config.inversion.ConfigHelper;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
@@ -70,6 +71,9 @@ public final class TempLocationManager {
   }
 
   private final class CleanupVisitor implements FileVisitor<Path> {
+    @SuppressFBWarnings(
+        value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+        justification = "Each visitor is local to one synchronous Files.walkFileTree call")
     private boolean shouldClean;
 
     private Set<String> pidSet;
@@ -77,6 +81,9 @@ public final class TempLocationManager {
     private final long cutoffMillis;
     private final long timeoutTargetMillis;
 
+    @SuppressFBWarnings(
+        value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+        justification = "The calling thread reads the visitor after Files.walkFileTree returns")
     private boolean terminated = false;
 
     CleanupVisitor(long timeout, TimeUnit unit) {
