@@ -37,6 +37,7 @@ import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.core.otlp.sdk.OtelSdkSelfMonitoring;
 import datadog.trace.util.AgentTaskScheduler;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -305,6 +306,43 @@ class OtlpMetricsServiceTest {
     DataPointEntry exported = onlyPoint(collector, EXPORTED, test.exporterName());
     assertEquals(3L, exported.value.longValue());
     assertEquals("java.lang.IllegalStateException", exported.attrs.get("error.type"));
+  }
+
+  @Test
+  void failedStatusRecordsTheStatusCodeAsErrorType() {
+    TestService test = service(PAYLOAD, otelSink());
+    when(test.sender.send(PAYLOAD)).thenReturn(failed(503));
+
+    assertTrue(test.service.exportThenShutdown(5, SECONDS));
+    OtelMetricCollector collector = collect();
+
+    assertEquals(0L, onlyPoint(collector, INFLIGHT, test.exporterName()).value.longValue());
+    DataPointEntry exported = onlyPoint(collector, EXPORTED, test.exporterName());
+    assertEquals(3L, exported.value.longValue());
+    assertEquals("503", exported.attrs.get("error.type"));
+    DataPointEntry duration = onlyPoint(collector, DURATION, test.exporterName());
+    assertEquals("503", duration.attrs.get("error.type"));
+    assertEquals("503", duration.attrs.get("http.response.status_code"));
+    assertEquals(1.0, ((OtlpHistogramPoint) duration.point).count);
+  }
+
+  @Test
+  void failedIOExceptionRecordsTheExceptionAsErrorType() {
+    TestService test = service(PAYLOAD, otelSink());
+    // OtlpHttpSender reports I/O failures as a failed response carrying the exception
+    when(test.sender.send(PAYLOAD)).thenReturn(failed(new IOException()));
+
+    assertTrue(test.service.exportThenShutdown(5, SECONDS));
+    OtelMetricCollector collector = collect();
+
+    assertEquals(0L, onlyPoint(collector, INFLIGHT, test.exporterName()).value.longValue());
+    DataPointEntry exported = onlyPoint(collector, EXPORTED, test.exporterName());
+    assertEquals(3L, exported.value.longValue());
+    assertEquals("java.io.IOException", exported.attrs.get("error.type"));
+    DataPointEntry duration = onlyPoint(collector, DURATION, test.exporterName());
+    assertEquals("java.io.IOException", duration.attrs.get("error.type"));
+    assertFalse(duration.attrs.containsKey("http.response.status_code"));
+    assertEquals(1.0, ((OtlpHistogramPoint) duration.point).count);
   }
 
   @Test
