@@ -314,6 +314,9 @@ class OtlpMetricsServiceTest {
     DataPointEntry exported = onlyPoint(collector, EXPORTED, test.exporterName());
     assertEquals(3L, exported.value.longValue());
     assertEquals("java.lang.IllegalStateException", exported.attrs.get("error.type"));
+    // collection succeeded before the send failed
+    assertFalse(
+        onlyPoint(collector, COLLECTION, test.readerName()).attrs.containsKey("error.type"));
   }
 
   @Test
@@ -332,6 +335,8 @@ class OtlpMetricsServiceTest {
     assertEquals("503", duration.attrs.get("error.type"));
     assertEquals("503", duration.attrs.get("http.response.status_code"));
     assertEquals(1.0, ((OtlpHistogramPoint) duration.point).count);
+    assertFalse(
+        onlyPoint(collector, COLLECTION, test.readerName()).attrs.containsKey("error.type"));
   }
 
   @Test
@@ -351,6 +356,8 @@ class OtlpMetricsServiceTest {
     assertEquals("java.io.IOException", duration.attrs.get("error.type"));
     assertFalse(duration.attrs.containsKey("http.response.status_code"));
     assertEquals(1.0, ((OtlpHistogramPoint) duration.point).count);
+    assertFalse(
+        onlyPoint(collector, COLLECTION, test.readerName()).attrs.containsKey("error.type"));
   }
 
   @Test
