@@ -129,6 +129,7 @@ public final class DatadogProfiler {
   private final ConfigProvider configProvider;
   private final JavaProfiler profiler;
   private final TaskBlockBridge taskBlockBridge;
+  private final boolean virtualParkEnabled;
   private final Set<ProfilingMode> configuredProfilingModes = EnumSet.noneOf(ProfilingMode.class);
   private final Set<ProfilingMode> profilingModes = EnumSet.noneOf(ProfilingMode.class);
 
@@ -245,6 +246,8 @@ public final class DatadogProfiler {
     this.profiler = DdprofLibraryLoader.javaProfiler().getComponent();
     this.taskBlockBridge =
         new TaskBlockBridge(profiler, reason -> warnTaskBlockUnsupported(log, reason));
+    this.virtualParkEnabled =
+        TaskBlockInstrumentationConfig.isVirtualParkEnabled(Config.get(), configProvider);
     this.detailedDebugLogging =
         configProvider.getBoolean(
             PROFILING_DETAILED_DEBUG_LOGGING, PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT);
@@ -818,6 +821,16 @@ public final class DatadogProfiler {
 
   void parkExit(long blocker, long unblockingSpanId) {
     taskBlockBridge.parkExit(blocker, unblockingSpanId);
+  }
+
+  boolean isVirtualParkEnabled() {
+    return virtualParkEnabled && RECORDING.get() && taskBlockBridge.hasVirtualParkSupport();
+  }
+
+  boolean virtualParkExit(long elapsedNanos, long blocker, long unblockingSpanId) {
+    return virtualParkEnabled
+        && RECORDING.get()
+        && taskBlockBridge.virtualParkExit(elapsedNanos, blocker, unblockingSpanId);
   }
 
   long beginTaskBlock() {

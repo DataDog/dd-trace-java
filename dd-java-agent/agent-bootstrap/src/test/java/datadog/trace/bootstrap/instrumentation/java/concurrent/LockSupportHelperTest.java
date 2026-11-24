@@ -4,12 +4,18 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,6 +39,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class LockSupportHelperTest {
   private interface ProfilerSpanContext extends AgentSpanContext, ProfilerContext {}
@@ -266,6 +273,169 @@ class LockSupportHelperTest {
     verify(profiling).parkExit(0L, 0L);
   }
 
+  @Test
+  void platformThreadNeverStartsAVirtualPark() {
+    ProfilingContextIntegration profiling = virtualParkProfiling(true);
+
+    assertEquals(0L, LockSupportHelper.virtualParkStart());
+
+    verify(profiling, never()).isVirtualParkEnabled();
+  }
+
+  @Test
+  void virtualParkStartsOnlyWhenTheProfilerEnablesIt() throws Exception {
+    assumeTrue(ThreadSupport.supportsVirtualThreads(), "Virtual threads are unavailable");
+    virtualParkProfiling(true);
+    assertNotEquals(0L, onVirtualThread(LockSupportHelper::virtualParkStart));
+
+    virtualParkProfiling(false);
+    assertEquals(0L, onVirtualThread(LockSupportHelper::virtualParkStart));
+  }
+
+  @Test
+  void virtualParkExitReportsLongParkWithoutUnblockingSpan() {
+    ProfilingContextIntegration profiling = virtualParkProfiling(true);
+
+    Object blocker = new Object();
+    LockSupportHelper.virtualParkExit(
+        System.nanoTime() - TimeUnit.MILLISECONDS.toNanos(5), blocker);
+
+    ArgumentCaptor<Long> elapsed = ArgumentCaptor.forClass(Long.class);
+    verify(profiling)
+        .virtualParkExit(
+            elapsed.capture(),
+            eq(Integer.toUnsignedLong(System.identityHashCode(blocker))),
+            eq(0L));
+    assertTrue(elapsed.getValue() >= TimeUnit.MILLISECONDS.toNanos(5));
+  }
+
+  @Test
+  void virtualParkBelowThresholdIsNotReported() {
+    ProfilingContextIntegration profiling = virtualParkProfiling(true);
+
+    LockSupportHelper.reportVirtualPark(LockSupportHelper.MIN_VIRTUAL_PARK_NANOS - 1, null);
+    LockSupportHelper.reportVirtualPark(LockSupportHelper.MIN_VIRTUAL_PARK_NANOS, null);
+
+    assertEquals(1_000_000L, LockSupportHelper.MIN_VIRTUAL_PARK_NANOS);
+    verify(profiling, times(1)).virtualParkExit(anyLong(), anyLong(), anyLong());
+    verify(profiling).virtualParkExit(1_000_000L, 0L, 0L);
+  }
+
+  @Test
+  void untimedVirtualParkIsNotReported() {
+    ProfilingContextIntegration profiling = virtualParkProfiling(true);
+
+    LockSupportHelper.virtualParkExit(0L, null);
+
+    verify(profiling, never()).virtualParkExit(anyLong(), anyLong(), anyLong());
+  }
+
+  @Test
+  void pinnedVirtualParkIsSkippedOnceAndThenReportingResumes() throws Exception {
+    assumeTrue(ThreadSupport.supportsVirtualThreads(), "Virtual threads are unavailable");
+    ProfilingContextIntegration profiling = virtualParkProfiling(true);
+    long longAgo = TimeUnit.MILLISECONDS.toNanos(5);
+
+    onVirtualThread(() -> {
+      LockSupportHelper.markPinnedPark();
+      LockSupportHelper.virtualParkExit(System.nanoTime() - longAgo, null);
+      return null;
+    });
+    verify(profiling, never()).virtualParkExit(anyLong(), anyLong(), anyLong());
+
+    onVirtualThread(() -> {
+      LockSupportHelper.virtualParkExit(System.nanoTime() - longAgo, null);
+      return null;
+    });
+    verify(profiling).virtualParkExit(anyLong(), eq(0L), eq(0L));
+  }
+
+  @Test
+  void pinMarkIsConsumedByTheExitEvenWhenThePlatformPathIsDisabled() throws Exception {
+    assumeTrue(ThreadSupport.supportsVirtualThreads(), "Virtual threads are unavailable");
+    ProfilingContextIntegration profiling = virtualParkProfiling(false);
+    long longAgo = TimeUnit.MILLISECONDS.toNanos(5);
+
+    // One virtual thread throughout: marks are per thread.
+    onVirtualThread(() -> {
+      LockSupportHelper.markPinnedPark();
+      LockSupportHelper.virtualParkExit(LockSupportHelper.virtualParkStart(), null);
+      verify(profiling, never()).virtualParkExit(anyLong(), anyLong(), anyLong());
+
+      when(profiling.isVirtualParkEnabled()).thenReturn(true);
+      LockSupportHelper.virtualParkExit(LockSupportHelper.virtualParkStart() - longAgo, null);
+      return null;
+    });
+
+    verify(profiling).virtualParkExit(anyLong(), eq(0L), eq(0L));
+  }
+
+  @Test
+  void virtualReportIsNotSkippedWhenPlatformBookkeepingThrows() {
+    ProfilingContextIntegration profiling = virtualParkProfiling(true);
+    ProfilingContextIntegration accepted = mock(ProfilingContextIntegration.class);
+    WeakMap<Thread, LockSupportHelper.UnparkState> throwing =
+        new TestWeakMap<Thread, LockSupportHelper.UnparkState>() {
+          @Override
+          public LockSupportHelper.UnparkState get(Thread key) {
+            throw new IllegalStateException("boom");
+          }
+        };
+
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            LockSupportHelper.parkExit(
+                accepted,
+                0L,
+                throwing,
+                System.nanoTime() - TimeUnit.MILLISECONDS.toNanos(5),
+                null));
+
+    verify(profiling).virtualParkExit(anyLong(), eq(0L), eq(0L));
+  }
+
+  @Test
+  void platformThreadsCannotBeMarkedPinned() {
+    ProfilingContextIntegration profiling = virtualParkProfiling(true);
+
+    LockSupportHelper.markPinnedPark();
+    LockSupportHelper.virtualParkExit(System.nanoTime() - TimeUnit.MILLISECONDS.toNanos(5), null);
+
+    verify(profiling).virtualParkExit(anyLong(), eq(0L), eq(0L));
+  }
+
+  @Test
+  void virtualParkProfilerFailuresDoNotEscapeInstrumentation() throws Exception {
+    assumeTrue(ThreadSupport.supportsVirtualThreads(), "Virtual threads are unavailable");
+    ProfilingContextIntegration profiling = virtualParkProfiling(true);
+    when(profiling.isVirtualParkEnabled()).thenThrow(new IllegalStateException("boom"));
+    doThrow(new IllegalStateException("boom"))
+        .when(profiling)
+        .virtualParkExit(anyLong(), anyLong(), anyLong());
+
+    assertEquals(0L, onVirtualThread(LockSupportHelper::virtualParkStart));
+    assertDoesNotThrow(
+        () -> LockSupportHelper.reportVirtualPark(TimeUnit.SECONDS.toNanos(1), null));
+  }
+
+  private static ProfilingContextIntegration virtualParkProfiling(boolean enabled) {
+    AgentTracer.TracerAPI tracer = tracerWithActiveSpan(null);
+    ProfilingContextIntegration profiling = tracer.getProfilingContext();
+    when(profiling.isVirtualParkEnabled()).thenReturn(enabled);
+    AgentTracer.forceRegister(tracer);
+    return profiling;
+  }
+
+  private static <T> T onVirtualThread(java.util.concurrent.Callable<T> task) throws Exception {
+    ExecutorService executor = ThreadSupport.newVirtualThreadPerTaskExecutor().get();
+    try {
+      return executor.submit(task).get(10, TimeUnit.SECONDS);
+    } finally {
+      executor.shutdown();
+    }
+  }
+
   private Thread newTargetThread() {
     Thread thread = new Thread(() -> {});
     targetThreads.add(thread);
@@ -299,7 +469,7 @@ class LockSupportHelperTest {
     return tracer;
   }
 
-  private static final class TestWeakMap<K, V> implements WeakMap<K, V> {
+  private static class TestWeakMap<K, V> implements WeakMap<K, V> {
     private final ConcurrentMap<K, V> delegate = new ConcurrentHashMap<>();
 
     @Override

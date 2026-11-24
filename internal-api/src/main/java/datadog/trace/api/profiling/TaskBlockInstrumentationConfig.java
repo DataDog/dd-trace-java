@@ -7,6 +7,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_PRECHECK;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_PRECHECK_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_TASKBLOCK_VIRTUAL_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_TASKBLOCK_VIRTUAL_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 
@@ -44,6 +46,19 @@ public final class TaskBlockInstrumentationConfig {
         && isWallClockProfilerEnabled(configProvider)
         && isWallPrecheckEnabled(configProvider)
         && isAllThreadWallScope(configProvider);
+  }
+
+  /**
+   * Whether virtual-thread {@code LockSupport.park*} intervals are recorded. Requires the common
+   * TaskBlock gate plus the opt-in sub-flag, which is off by default.
+   */
+  public static boolean isVirtualParkEnabled(
+      final Config config, final ConfigProvider configProvider) {
+    return isEnabled(config, configProvider)
+        && getDdprofBoolean(
+            configProvider,
+            PROFILING_DATADOG_PROFILER_WALL_TASKBLOCK_VIRTUAL_ENABLED,
+            PROFILING_DATADOG_PROFILER_WALL_TASKBLOCK_VIRTUAL_ENABLED_DEFAULT);
   }
 
   private static boolean isWallClockProfilerEnabled(final ConfigProvider configProvider) {

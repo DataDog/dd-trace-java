@@ -70,6 +70,24 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
   default void parkExit(long blocker, long unblockingSpanId) {}
 
   /**
+   * Whether virtual-thread {@code LockSupport.park*} intervals are timed by the instrumentation and
+   * reported through {@link #virtualParkExit(long, long, long)}. A cheap gate on the park path.
+   */
+  default boolean isVirtualParkEnabled() {
+    return false;
+  }
+
+  /**
+   * Reports a {@code LockSupport.park*} interval that just ended on the current virtual thread.
+   *
+   * @param elapsedNanos monotonic park duration measured by the caller
+   * @return {@code true} when the interval was recorded
+   */
+  default boolean virtualParkExit(long elapsedNanos, long blocker, long unblockingSpanId) {
+    return false;
+  }
+
+  /**
    * Whether {@code LockSupport.unpark} callers should record best-effort span attribution for the
    * target thread. This is a cheap gate on a very hot path: when it returns {@code false} the
    * instrumentation skips the active span lookup entirely.

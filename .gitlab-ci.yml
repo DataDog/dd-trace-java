@@ -78,11 +78,13 @@ variables:
   NON_DEFAULT_JVMS:
     description: "Enable tests on JVMs that are not the default"
     value: "false"
+  # TEMPORARY: points at the virtual-thread park-exit draft (java-profiler PR 1049); revert to the
+  # native_socket_netty pin or a ddprof release before merging.
   # Temporary cross-repository branch for the TaskBlock rollout until a ddprof release contains it.
   # java-profiler is fetched from its public GitHub repository because GitLab rejects cross-project
   # CI_JOB_TOKEN authentication. Build images match that branch's shipped-binary images.
-  DDPROF_BRANCH: "paul.fournillon/native_socket_netty"
-  DDPROF_ARTIFACT_VERSION: "1.53.0-native-socket-netty"
+  DDPROF_BRANCH: "paul.fournillon/prof-16856-vthread-park-exit"
+  DDPROF_ARTIFACT_VERSION: "1.53.0-prof-16856-vthread-park-exit"
   DDPROF_BUILD_IMAGE_X64: "registry.ddbuild.io/ci/async-profiler-build:v137281788-x64-glibc-base@sha256:270a9101716a0865071182e0ef0e40e98f874535b90722949b33a4a8998fe08d"
   DDPROF_BUILD_IMAGE_X64_MUSL: "registry.ddbuild.io/ci/async-profiler-build:v137281788-x64-musl-base@sha256:fd3803695771de3eabf44e4953c0474273f9dbb97d88c22e99ac507b88572481"
   DDPROF_BUILD_IMAGE_ARM64: "registry.ddbuild.io/ci/async-profiler-build:v137281788-arm64-glibc-base@sha256:511d051d37ed99b2ca9cd3af797aa9de63e4b4b952af1e738b2cea913bbcc057"

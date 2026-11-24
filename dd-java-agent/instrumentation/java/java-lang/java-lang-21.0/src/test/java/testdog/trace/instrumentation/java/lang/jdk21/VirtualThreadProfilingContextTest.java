@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.LockSupport;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -74,6 +75,33 @@ public class VirtualThreadProfilingContextTest extends AbstractInstrumentationTe
         expectedSpanId.get(),
         spanIdAtRunnableEntry.get(),
         "the captured span must be bound before the no-park runnable starts");
+  }
+
+  /**
+   * The virtual-park TaskBlock hook runs right after {@code LockSupport.park} returns on the
+   * remounted virtual thread and reads the carrier-local profiler context, so the thread's span
+   * must be bound again by then.
+   */
+  @Test
+  void testSpanIsBoundAgainWhenParkReturnsAfterRemount() throws Exception {
+    AtomicLong expectedSpanId = new AtomicLong();
+    AtomicLong spanIdAfterPark = new AtomicLong();
+
+    parkWithSpan(expectedSpanId, spanIdAfterPark);
+
+    assertEquals(expectedSpanId.get(), spanIdAfterPark.get());
+  }
+
+  @Trace(operationName = "parent")
+  private static void parkWithSpan(AtomicLong expectedSpanId, AtomicLong spanIdAfterPark)
+      throws InterruptedException {
+    expectedSpanId.set(AgentTracer.activeSpan().getSpanId());
+    Thread thread =
+        Thread.startVirtualThread(() -> {
+          LockSupport.parkNanos(Duration.ofMillis(20).toNanos());
+          spanIdAfterPark.set(PROFILING_CONTEXT.activeSpanId());
+        });
+    assertTrue(thread.join(TIMEOUT), "virtual thread did not finish in time");
   }
 
   @Trace(operationName = "parent")
