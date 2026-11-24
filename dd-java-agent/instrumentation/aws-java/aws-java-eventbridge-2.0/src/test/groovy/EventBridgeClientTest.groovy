@@ -564,4 +564,51 @@ class EventBridgeClientTest extends InstrumentationSpecification {
       consumers.each { assert it.parentHash == producerHash }
     }
   }
+
+  def "each EventBridge message in a receive batch reports its own pathway"() {
+    when:
+    TEST_WRITER.clear()
+    TEST_DATA_STREAMS_WRITER.clear()
+    eventBridgeClient.putEvents { req ->
+      req.entries(
+        PutEventsRequestEntry.builder()
+        .source("com.example")
+        .detailType("dsm-batch-a")
+        .detail('{"message":"a"}')
+        .eventBusName(testBusARN)
+        .build(),
+        PutEventsRequestEntry.builder()
+        .source("com.example")
+        .detailType("dsm-batch-b")
+        .detail('{"message":"b"}')
+        .eventBusName(testBusARN)
+        .build(),
+        )
+    }
+
+    def messages = sqsClient.receiveMessage {
+      it.queueUrl(testQueueURL).waitTimeSeconds(5).maxNumberOfMessages(10)
+    }.messages()
+    messages.each { }
+
+    then:
+    assert messages.size() == 2
+
+    new PollingConditions(timeout: 5).eventually {
+      for (topic in ["dsm-batch-a", "dsm-batch-b"]) {
+        List<StatsGroup> producers = TEST_DATA_STREAMS_WRITER.groups.findAll {
+          it.tags.hasAllTags("direction:out", "type:eventbridge", "exchange:testbus", "topic:" + topic)
+        }
+        assert producers.size() >= 1
+        long producerHash = producers[0].hash
+        assert producerHash != 0
+
+        List<StatsGroup> consumers = TEST_DATA_STREAMS_WRITER.groups.findAll {
+          it.tags.hasAllTags("direction:in", "type:eventbridge", "exchange:testbus", "topic:" + topic)
+        }
+        assert consumers.size() >= 1
+        consumers.each { assert it.parentHash == producerHash }
+      }
+    }
+  }
 }

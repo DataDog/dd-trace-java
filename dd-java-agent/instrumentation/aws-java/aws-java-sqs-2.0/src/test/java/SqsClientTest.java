@@ -1,9 +1,11 @@
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.amazon.sqs.javamessaging.ProviderConfiguration;
 import com.amazon.sqs.javamessaging.SQSConnectionFactory;
@@ -12,6 +14,7 @@ import datadog.trace.agent.test.utils.TraceUtils;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
@@ -25,9 +28,12 @@ import datadog.trace.test.junit.utils.config.WithConfig;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.jms.Connection;
 import javax.jms.MessageConsumer;
@@ -204,6 +210,101 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
             "eyJ4LWRhdGFkb2ctdHJhY2UtaWQiOiI0OTQ4Mzc3MzE2MzU3MjkxNDIxIiwieC1kYXRhZG9n"
                 + "LXBhcmVudC1pZCI6IjY3NDY5OTgwMTUwMzc0Mjk1MTIiLCJ4LWRhdGFkb2ctc2FtcGxpbmct"
                 + "cHJpb3JpdHkiOiIxIn0="));
+  }
+
+  @Test
+  void traceDetailsPropagatedViaEventBridgeEnvelopeBody() throws Exception {
+    writer.clear();
+    List<Message> messages =
+        new TracingList(
+            Collections.singletonList(
+                Message.builder()
+                    .body(
+                        "{\"detail-type\":\"order.created\",\"detail\":{\"_datadog\":"
+                            + "{\"x-datadog-trace-id\":\"4948377316357291421\","
+                            + "\"x-datadog-parent-id\":\"6746998015037429512\","
+                            + "\"x-datadog-sampling-priority\":\"1\"}}}")
+                    .build()),
+            expectedQueueUrl("somequeue"),
+            requestId());
+
+    messages.forEach(ignored -> {});
+
+    assertEmbeddedReceiveSpan("somequeue");
+  }
+
+  @Test
+  @WithConfig(key = TracerConfig.TRACE_PROPAGATION_STYLE, value = "datadog,xray")
+  void sqsSystemTraceHeadersArePreservedForEventBridgeMessages() throws Exception {
+    writer.clear();
+    Message message =
+        Message.builder()
+            .body(
+                "{\"detail-type\":\"order.created\",\"detail\":{\"_datadog\":"
+                    + "{\"x-datadog-resource-name\":\"test-bus\"}}}")
+            .attributesWithStrings(
+                Collections.singletonMap(
+                    "AWSTraceHeader",
+                    "Root=1-5c0e0ee0-0000000044ac2af39c13bd9d;Parent=5da226f292925708;Sampled=1"))
+            .build();
+    List<Message> messages =
+        new TracingList(
+            Collections.singletonList(message), expectedQueueUrl("somequeue"), requestId());
+
+    messages.forEach(ignored -> {});
+
+    assertEmbeddedReceiveSpan("somequeue");
+  }
+
+  @Test
+  void eventBridgeMessagesUseTheirOwnPathwaysWithinABatch() throws Exception {
+    assumeTrue(isDataStreamsEnabled());
+
+    writer.clear();
+    List<Message> messages =
+        new TracingList(
+            Arrays.asList(
+                eventBridgeEnvelope(4948377316357291421L, 6746998015037429512L, "ERERERERERECAg=="),
+                eventBridgeEnvelope(1111222233334444L, 5555666677778888L, "IiIiIiIiIiICAg==")),
+            expectedQueueUrl("somequeue"),
+            requestId());
+
+    messages.forEach(ignored -> {});
+
+    writer.waitForTraces(2);
+    Map<Long, DDSpan> spansByTraceId = new HashMap<>();
+    for (List<DDSpan> trace : writer) {
+      assertEquals(1, trace.size(), () -> "Unexpected trace: " + trace);
+      spansByTraceId.put(trace.get(0).getTraceId().toLong(), trace.get(0));
+    }
+    assertEquals(2, spansByTraceId.size());
+
+    DDSpan first = spansByTraceId.get(4948377316357291421L);
+    DDSpan second = spansByTraceId.get(1111222233334444L);
+    assertNotNull(first);
+    assertNotNull(second);
+    assertEquals(6746998015037429512L, first.getParentId());
+    assertEquals(5555666677778888L, second.getParentId());
+    Object firstPathwayHash = first.getTag(DDTags.PATHWAY_HASH);
+    Object secondPathwayHash = second.getTag(DDTags.PATHWAY_HASH);
+    assertNotNull(firstPathwayHash);
+    assertNotNull(secondPathwayHash);
+    assertNotEquals(firstPathwayHash, secondPathwayHash);
+  }
+
+  private static Message eventBridgeEnvelope(
+      long traceId, long parentId, String pathwayContextBase64) {
+    return Message.builder()
+        .body(
+            "{\"detail-type\":\"order.created\",\"detail\":{\"_datadog\":"
+                + "{\"x-datadog-trace-id\":\""
+                + traceId
+                + "\",\"x-datadog-parent-id\":\""
+                + parentId
+                + "\",\"dd-pathway-ctx-base64\":\""
+                + pathwayContextBase64
+                + "\"}}}")
+        .build();
   }
 
   @Test

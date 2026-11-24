@@ -20,6 +20,7 @@ final class EventBridgeMessage {
   private static final String DEFAULT_EVENT_BUS_NAME = "default";
   private static final String ARN_EVENT_BUS_PREFIX = "event-bus/";
   private static final String TYPE = "eventbridge";
+  private static final int MAX_NESTING_DEPTH = 512;
 
   private final Map<String, ?> datadogAttributes;
   private final String eventBusName;
@@ -53,6 +54,11 @@ final class EventBridgeMessage {
         || !body.contains('"' + DATADOG_KEY + '"')) {
       return null;
     }
+    if (exceedsMaxNestingDepth(body)) {
+      log.debug(
+          "Skipping EventBridge envelope with JSON nesting deeper than {}", MAX_NESTING_DEPTH);
+      return null;
+    }
     try {
       Map<String, Object> envelope = JsonMapper.fromJsonToMap(body);
       Object detailType = envelope.get(DETAIL_TYPE_KEY);
@@ -78,6 +84,33 @@ final class EventBridgeMessage {
     String topic = null == detailType || detailType.isEmpty() ? null : detailType;
     return new DataStreamsTags(
         null, INBOUND, exchange, topic, TYPE, null, null, null, null, null, null, null, null, null);
+  }
+
+  private static boolean exceedsMaxNestingDepth(String body) {
+    int depth = 0;
+    boolean inString = false;
+    boolean escaped = false;
+    for (int i = 0; i < body.length(); i++) {
+      char c = body.charAt(i);
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if ('\\' == c) {
+          escaped = true;
+        } else if ('"' == c) {
+          inString = false;
+        }
+      } else if ('"' == c) {
+        inString = true;
+      } else if ('{' == c || '[' == c) {
+        if (++depth > MAX_NESTING_DEPTH) {
+          return true;
+        }
+      } else if ('}' == c || ']' == c) {
+        depth--;
+      }
+    }
+    return false;
   }
 
   private static String normalizeEventBusName(String eventBusName) {

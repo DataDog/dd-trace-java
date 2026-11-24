@@ -73,6 +73,66 @@ class EventBridgeMessageTest {
   }
 
   @Test
+  void returnsNullInsteadOfStackOverflowForDeeplyNestedBodies() {
+    StringBuilder body =
+        new StringBuilder(
+            "{\"detail-type\":\"order.created\",\"detail\":{\"_datadog\":"
+                + "{\"x-datadog-trace-id\":\"123\"},\"payload\":");
+    for (int i = 0; i < 100_000; i++) {
+      body.append('[');
+    }
+    for (int i = 0; i < 100_000; i++) {
+      body.append(']');
+    }
+    body.append("}}");
+
+    assertNull(EventBridgeMessage.tryParseFrom(Message.builder().body(body.toString()).build()));
+  }
+
+  @Test
+  void parsesBodiesWithNestingBelowTheDepthBound() {
+    StringBuilder payload = new StringBuilder();
+    for (int i = 0; i < 10; i++) {
+      payload.append("{\"level\":");
+    }
+    payload.append("0");
+    for (int i = 0; i < 10; i++) {
+      payload.append("}");
+    }
+    String body =
+        "{\"detail-type\":\"order.created\",\"detail\":{\"_datadog\":"
+            + "{\"x-datadog-trace-id\":\"123\",\"x-datadog-resource-name\":\"test-bus\"},"
+            + "\"payload\":"
+            + payload
+            + "}}";
+
+    EventBridgeMessage parsed =
+        EventBridgeMessage.tryParseFrom(Message.builder().body(body).build());
+
+    assertNotNull(parsed);
+    assertEquals("123", parsed.datadogAttributes().get("x-datadog-trace-id"));
+  }
+
+  @Test
+  void ignoresBracesInsideStringValuesWhenCountingDepth() {
+    StringBuilder noise = new StringBuilder();
+    for (int i = 0; i < 600; i++) {
+      noise.append('{');
+    }
+    String body =
+        "{\"detail-type\":\"order.created\",\"detail\":{\"_datadog\":"
+            + "{\"x-datadog-trace-id\":\"123\"},\"noise\":\""
+            + noise
+            + "\"}}";
+
+    EventBridgeMessage parsed =
+        EventBridgeMessage.tryParseFrom(Message.builder().body(body).build());
+
+    assertNotNull(parsed);
+    assertEquals("123", parsed.datadogAttributes().get("x-datadog-trace-id"));
+  }
+
+  @Test
   void returnsNullForBodiesWithoutEventBridgeContext() {
     assertNull(EventBridgeMessage.tryParseFrom(Message.builder().body(null).build()));
     assertNull(EventBridgeMessage.tryParseFrom(Message.builder().body("").build()));
