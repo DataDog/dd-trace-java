@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
+import datadog.context.ContextHandle;
 import datadog.context.ContextKey;
 import datadog.context.ContextScope;
 import datadog.trace.api.DDTraceId;
@@ -126,30 +127,60 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     }
   }
 
-  @Test
-  void attachingNewContextResetsAsyncPropagation() {
+  @TableTest({
+    "Scenario              | before | during",
+    "enabled throughout    | true   | true  ",
+    "restore enabled       | true   | false ",
+    "restore suppressed    | false  | true  ",
+    "suppressed throughout | false  | false "
+  })
+  void attachingNewContextResetsAsyncPropagation(boolean before, boolean during) {
     ContextKey<String> key = ContextKey.named("test-key");
     Context parent = Context.root().with(key, "parent");
+    Context child = parent.with(key, "child");
     try (ContextScope ignored = parent.attach()) {
-      tracer.setAsyncPropagationEnabled(false);
-      try (ContextScope ignored2 = parent.with(key, "child").attach()) {
+      Context.setCaptureEnabled(before);
+      try (ContextScope ignored2 = child.attach()) {
+        assertSame(child, Context.current());
         assertTrue(tracer.isAsyncPropagationEnabled());
+        assertTrue(Context.isCaptureEnabled());
+        ContextContinuation continuation = Context.current().capture();
+        assertSame(child, continuation.context());
+        continuation.release();
+        Context.setCaptureEnabled(during);
       }
-      assertFalse(tracer.isAsyncPropagationEnabled());
+      assertSame(parent, Context.current());
+      assertEquals(before, tracer.isAsyncPropagationEnabled());
+      assertEquals(before, Context.isCaptureEnabled());
     }
+    assertSame(Context.root(), Context.current());
+    assertTrue(Context.isCaptureEnabled());
     assertTrue(tracer.isAsyncPropagationEnabled());
   }
 
-  @Test
-  void attachingTheCurrentContextPreservesAsyncPropagation() {
+  @TableTest({
+    "Scenario              | before | during",
+    "enabled throughout    | true   | true  ",
+    "retain suppression    | true   | false ",
+    "retain enabled        | false  | true  ",
+    "suppressed throughout | false  | false "
+  })
+  void attachingTheCurrentContextPreservesAsyncPropagation(boolean before, boolean during) {
     Context context = Context.root().with(ContextKey.named("test-key"), "value");
     try (ContextScope ignored = context.attach()) {
-      tracer.setAsyncPropagationEnabled(false);
+      Context.setCaptureEnabled(before);
       try (ContextScope ignored2 = context.attach()) {
-        assertFalse(tracer.isAsyncPropagationEnabled());
+        assertSame(ignored, ignored2);
+        assertEquals(before, tracer.isAsyncPropagationEnabled());
+        assertEquals(before, Context.isCaptureEnabled());
+        Context.setCaptureEnabled(during);
       }
-      assertFalse(tracer.isAsyncPropagationEnabled());
+      assertSame(context, Context.current());
+      assertEquals(during, tracer.isAsyncPropagationEnabled());
+      assertEquals(during, Context.isCaptureEnabled());
     }
+    assertSame(Context.root(), Context.current());
+    assertTrue(Context.isCaptureEnabled());
     assertTrue(tracer.isAsyncPropagationEnabled());
   }
 
@@ -1100,7 +1131,7 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     Context context1 = Context.root().with(testKey, "first-value");
     Context context2 = context1.with(testKey, "second-value");
 
-    Context swappedOut = scopeManager.swap(Context.root());
+    ContextHandle swappedOut = scopeManager.swap(Context.root());
 
     assertNull(scopeManager.active());
     assertEquals(Context.root(), scopeManager.currentContext());
@@ -1127,7 +1158,7 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     assertEquals(context2, scopeManager.currentContext());
     assertEquals("first-value", swappedOut.get(testKey));
 
-    Context context3 = swappedOut.with(testKey, "third-value");
+    Context context3 = context1.with(testKey, "third-value");
     scopeManager.swap(context3);
 
     assertNotNull(scopeManager.active());
