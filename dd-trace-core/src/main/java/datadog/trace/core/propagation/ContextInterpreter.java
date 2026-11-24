@@ -15,6 +15,7 @@ import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_PORT_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_PROTO_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_REAL_IP_KEY;
 
+import datadog.context.propagation.CarrierKeys;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -109,6 +110,56 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
    * @return The propagation style handled.
    */
   public abstract TracePropagationStyle style();
+
+  /**
+   * The keys every interpreter reads: forwarding, user agent and client IP headers. Client IP
+   * collection depends on AppSec and AI Guard being active, which can change at run time, so these
+   * are always included. TODO: let AppSec and AI Guard declare the keys they need.
+   */
+  private static final CarrierKeys SHARED_KEYS =
+      CarrierKeys.of(
+          FORWARDED_KEY,
+          FORWARDED_FOR_KEY,
+          X_FORWARDED_PROTO_KEY,
+          X_FORWARDED_HOST_KEY,
+          X_FORWARDED_FOR_KEY,
+          X_FORWARDED_PORT_KEY,
+          USER_AGENT_KEY,
+          X_CLIENT_IP_KEY,
+          TRUE_CLIENT_IP_KEY,
+          X_CLUSTER_CLIENT_IP_KEY,
+          X_REAL_IP_KEY,
+          FASTLY_CLIENT_IP_KEY,
+          CF_CONNECTING_IP_KEY,
+          CF_CONNECTING_IP_V6_KEY);
+
+  /**
+   * The keys only this interpreter's style reads, such as its trace headers. The default, {@link
+   * CarrierKeys#all()}, keeps every key; an interpreter overrides it only with every key and prefix
+   * its {@link #accept} handles itself.
+   */
+  protected CarrierKeys ownKeys() {
+    return CarrierKeys.all();
+  }
+
+  /**
+   * Every key this interpreter reads with {@code traceConfig}: its {@linkplain #ownKeys() own}, the
+   * ones all interpreters read, the configured client IP header, and the configured request header
+   * tags and baggage mapping. {@link CarrierKeys#all()} when header names are logged on extraction.
+   */
+  final CarrierKeys keys(TraceConfig traceConfig) {
+    CarrierKeys own = ownKeys();
+    if (own.isAll() || LOG_EXTRACT_HEADER_NAMES) {
+      return CarrierKeys.all();
+    }
+    return CarrierKeys.builder()
+        .addAll(own)
+        .addAll(SHARED_KEYS)
+        .name(customIpHeaderName)
+        .names(traceConfig.getRequestHeaderTags().keySet())
+        .names(traceConfig.getBaggageMapping().keySet())
+        .build();
+  }
 
   protected final boolean handledForwarding(String key, String value) {
     if (value == null || !collectIpHeaders) {

@@ -3,6 +3,7 @@ package datadog.trace.core.propagation;
 import static datadog.trace.api.gateway.InferredProxySpan.fromHeaders;
 
 import datadog.context.Context;
+import datadog.context.propagation.CarrierKeys;
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Propagator;
@@ -19,6 +20,14 @@ public class InferredProxyPropagator implements Propagator {
 
   @Override
   public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {}
+
+  private static final CarrierKeys KEYS =
+      CarrierKeys.builder().prefix(INFERRED_PROXY_KEY_PREFIX).build();
+
+  @Override
+  public CarrierKeys keys() {
+    return KEYS;
+  }
 
   @Override
   public <C> Context extract(Context context, C carrier, CarrierVisitor<C> visitor) {

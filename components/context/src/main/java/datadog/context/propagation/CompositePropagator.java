@@ -8,8 +8,51 @@ import java.util.function.BiConsumer;
 class CompositePropagator implements Propagator {
   private final Propagator[] propagators;
 
+  /** The last union of the propagators' keys, with the parts it was built from. */
+  private volatile KeysUnion keys;
+
   CompositePropagator(Propagator[] propagators) {
     this.propagators = propagators;
+  }
+
+  /**
+   * The union of the propagators' keys. Rebuilt only when a propagator returns a different
+   * instance, which propagators do only when what their keys depend on changes.
+   */
+  @Override
+  public CarrierKeys keys() {
+    KeysUnion current = this.keys;
+    if (current != null && current.isFor(this.propagators)) {
+      return current.union;
+    }
+    KeysUnion rebuilt = new KeysUnion(this.propagators);
+    this.keys = rebuilt;
+    return rebuilt.union;
+  }
+
+  /** An immutable union of keys, with the instances it was built from. */
+  private static final class KeysUnion {
+    final CarrierKeys[] parts;
+    final CarrierKeys union;
+
+    KeysUnion(Propagator[] propagators) {
+      this.parts = new CarrierKeys[propagators.length];
+      CarrierKeys union = CarrierKeys.none();
+      for (int i = 0; i < propagators.length; i++) {
+        this.parts[i] = propagators[i].keys();
+        union = union.union(this.parts[i]);
+      }
+      this.union = union;
+    }
+
+    boolean isFor(Propagator[] propagators) {
+      for (int i = 0; i < propagators.length; i++) {
+        if (propagators[i].keys() != this.parts[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
   }
 
   @Override
@@ -21,9 +64,9 @@ class CompositePropagator implements Propagator {
 
   @Override
   public <C> Context extract(Context context, C carrier, CarrierVisitor<C> visitor) {
-    // Extract and cache carrier key/value pairs
+    // Extract and cache the carrier key/value pairs the propagators read
     CarrierCache carrierCache = new CarrierCache();
-    visitor.forEachKeyValue(carrier, carrierCache);
+    visitor.forEachKeyValue(carrier, keys(), carrierCache);
     // Run the multiple extractions on cache
     for (Propagator propagator : this.propagators) {
       context = propagator.extract(context, carrierCache, carrierCache);
