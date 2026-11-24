@@ -99,6 +99,8 @@ public final class CiVisibilityConfig {
       "civisibility.code.coverage.enabled";
   public static final String CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED =
       "civisibility.code.coverage.lines.enabled";
+  public static final String CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_ENABLED =
+      "civisibility.code.coverage.line.probes.enabled";
   public static final String CIVISIBILITY_CODE_COVERAGE_INCLUDES =
       "civisibility.code.coverage.includes";
   public static final String CIVISIBILITY_CODE_COVERAGE_EXCLUDES =

@@ -281,13 +281,15 @@ public class TestImpl implements DDTest {
     CoveragePerTestBridge.removeThreadLocalCoverageProbes();
 
     // do not process coverage reports for skipped tests
+    CoverageStore coverageStore = context.getCoverageStore();
     if (span.getTag(Tags.TEST_STATUS) != TestStatus.skip) {
-      CoverageStore coverageStore = context.getCoverageStore();
       boolean coveragesGathered = coverageStore.report(sessionId, suiteId, span.getSpanId());
       if (!coveragesGathered && !TestStatus.skip.equals(span.getTag(Tags.TEST_STATUS))) {
         // test is not skipped, but no coverages were gathered
         metricCollector.add(CiVisibilityCountMetric.CODE_COVERAGE_IS_EMPTY, 1);
       }
+    } else {
+      coverageStore.discard();
     }
 
     boolean debugInfoCaptured = span.getTag(Tags.ERROR_DEBUG_INFO_CAPTURED) != null;

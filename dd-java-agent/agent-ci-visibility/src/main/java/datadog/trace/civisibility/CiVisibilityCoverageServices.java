@@ -10,6 +10,7 @@ import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.coverage.SkippableAwareCoverageStoreFactory;
 import datadog.trace.civisibility.coverage.file.FileCoverageStore;
 import datadog.trace.civisibility.coverage.line.LineCoverageStore;
+import datadog.trace.civisibility.coverage.probe.ProbeCoverageStore;
 import datadog.trace.civisibility.coverage.report.CoverageProcessor;
 import datadog.trace.civisibility.coverage.report.CoverageReportUploader;
 import datadog.trace.civisibility.coverage.report.JacocoCoverageProcessor;
@@ -76,6 +77,11 @@ public class CiVisibilityCoverageServices {
       CoverageStore.Factory factory;
       if (!services.config.isCiVisibilityCodeCoverageEnabled()) {
         factory = new NoOpCoverageStore.Factory();
+      } else if (services.config.isCiVisibilityCoverageLineProbesEnabled()) {
+        // every test that runs is covered, so the factory is not skippable-aware; every test also
+        // needs its own window, since a window resets the probes its test hit
+        return new ProbeCoverageStore.Factory(
+            services.metricCollector, repoServices.sourcePathResolver);
       } else if (services.config.isCiVisibilityCoverageLinesEnabled()) {
         factory =
             new LineCoverageStore.Factory(

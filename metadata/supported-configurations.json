@@ -571,6 +571,14 @@
         "aliases": []
       }
     ],
+    "DD_CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR": [
       {
         "version": "A",

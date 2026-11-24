@@ -23,6 +23,7 @@ import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.coverage.file.instrumentation.CoverageClassTransformer;
 import datadog.trace.civisibility.coverage.file.instrumentation.CoverageInstrumentationFilter;
+import datadog.trace.civisibility.coverage.probe.ProbeClassTransformer;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.decorator.TestDecoratorImpl;
 import datadog.trace.civisibility.domain.BuildSystemSession;
@@ -97,15 +98,19 @@ public class CiVisibilitySystem {
       ExecutionSettings executionSettings =
           repoServices.executionSettingsFactory.create(
               JvmInfo.CURRENT_JVM, repoServices.moduleName);
-      if (executionSettings.isCodeCoverageEnabled()
-          &&
+      if (executionSettings.isCodeCoverageEnabled()) {
+        if (config.isCiVisibilityCoverageLineProbesEnabled()) {
+          Predicate<String> instrumentationFilter =
+              createCoverageInstrumentationFilter(services, repoServices);
+          inst.addTransformer(new ProbeClassTransformer(instrumentationFilter));
+        } else if (!config.isCiVisibilityCoverageLinesEnabled()) {
           // lines coverage is built on top of Jacoco,
           // so if lines are explicitly enabled,
           // we rely on Jacoco instrumentation rather than on our own coverage mechanism
-          !config.isCiVisibilityCoverageLinesEnabled()) {
-        Predicate<String> instrumentationFilter =
-            createCoverageInstrumentationFilter(services, repoServices);
-        inst.addTransformer(new CoverageClassTransformer(instrumentationFilter));
+          Predicate<String> instrumentationFilter =
+              createCoverageInstrumentationFilter(services, repoServices);
+          inst.addTransformer(new CoverageClassTransformer(instrumentationFilter));
+        }
       }
 
       if (executionSettings.isFailedTestReplayEnabled()) {
