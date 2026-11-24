@@ -1,0 +1,12 @@
+{
+  "actions": [
+    {
+      "id": "block",
+      "type": "block_request",
+      "parameters": {
+        "status_code": 418,
+        "type": "html"
+      }
+    }
+  ]
+}

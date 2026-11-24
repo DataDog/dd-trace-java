@@ -65,6 +65,11 @@ public class StreamingTraceCollector extends TraceCollector {
   }
 
   @Override
+  void onEnd() {
+    healthMetrics.onEndSpan();
+  }
+
+  @Override
   PublishState onPublish(DDSpan span) {
     final DDSpan rootSpan = getRootSpan();
     if (span == rootSpan) {

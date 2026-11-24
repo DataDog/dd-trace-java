@@ -82,6 +82,9 @@ variables:
   SKIP_BUILD_CACHE:
     description: "Run Gradle tasks without build-cache or up-to-date reuse"
     value: "false"
+  RERUN_TESTS:
+    description: "Run Gradle test tasks without build-cache or up-to-date reuse, as on master"
+    value: "false"
 
   # One pipeline injection package size ratchet
   OCI_PACKAGE_MAX_SIZE_BYTES: 40_000_000
@@ -287,6 +290,12 @@ default:
         printf '%s\n' "${CI_COMMIT_MESSAGE:-}" | grep -E '\[ci:[^]]*\bSKIP_BUILD_CACHE\b[^]]*\]' > /dev/null
       }; then
         export GRADLE_ARGS="$GRADLE_ARGS --no-build-cache --rerun-tasks"
+      fi
+    # Rerun test tasks like master for RERUN_TESTS=true or [ci: RERUN_TESTS]; other tasks keep cache reuse.
+    - |
+      if [ "$RERUN_TESTS" = "true" ] ||
+        printf '%s\n' "${CI_COMMIT_MESSAGE:-}" | grep -E '\[ci:[^]]*\bRERUN_TESTS\b[^]]*\]' > /dev/null; then
+        export GRADLE_ARGS="$GRADLE_ARGS -Prerun.tests"
       fi
     - *normalize_node_index
     # GitLab's cache helper restores .gradle as root, but we run as non-root-user (uid 1001),

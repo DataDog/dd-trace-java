@@ -2,6 +2,8 @@ package datadog.trace.core;
 
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static java.util.Collections.emptyMap;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -51,17 +53,39 @@ class StreamingTraceCollectorTest {
     collector.registerSpan(span);
 
     verify(healthMetrics, times(1)).onCreateSpan(span);
+    verify(healthMetrics, never()).onEndSpan();
     verify(healthMetrics, never()).onFinishSpan();
   }
 
   @Test
-  void finishCallsOnFinishSpanAndWritesOnce() {
+  void finishCallsOnEndSpanAndOnFinishSpanAndWritesOnce() {
     DDSpan span = createSpan();
     collector.registerSpan(span);
 
     span.finish();
     span.finish();
 
+    verify(healthMetrics, times(1)).onEndSpan();
+    verify(healthMetrics, times(1)).onFinishSpan();
+    verify(tracer, times(1)).write(any());
+  }
+
+  @Test
+  void phasedFinishCallsOnEndSpanAndPublishCallsOnFinishSpan() {
+    DDSpan span = createSpan();
+    collector.registerSpan(span);
+
+    assertTrue(span.phasedFinish());
+    assertFalse(span.phasedFinish());
+
+    verify(healthMetrics, times(1)).onEndSpan();
+    verify(healthMetrics, never()).onFinishSpan();
+    verify(tracer, never()).write(any());
+
+    span.publish();
+    span.publish();
+
+    verify(healthMetrics, times(1)).onEndSpan();
     verify(healthMetrics, times(1)).onFinishSpan();
     verify(tracer, times(1)).write(any());
   }

@@ -107,6 +107,28 @@ class CoreTracerOtelHealthMetricsForkedTest extends DDCoreJavaSpecification {
     }
   }
 
+  @Test
+  void phasedFinishedSpanLeavesLiveBeforeItIsPublished() {
+    CoreTracer tracer = newTracer();
+    try {
+      Snapshot before = Snapshot.take();
+
+      DDSpan span = (DDSpan) tracer.buildSpan("test", "phased").start();
+      assertEquals(1L, Snapshot.take().liveSince(before));
+
+      // semantic conventions end live when end is called, not when the span is published
+      assertTrue(span.phasedFinish());
+      assertEquals(0L, Snapshot.take().liveSince(before));
+
+      span.publish();
+      Snapshot after = Snapshot.take();
+      assertEquals(byOrigin(1, 0, 0), after.startedSince(before));
+      assertEquals(0L, after.liveSince(before));
+    } finally {
+      tracer.close();
+    }
+  }
+
   private static ExtractedContext remoteParent(int samplingPriority) {
     return new ExtractedContext(
         DDTraceId.ONE,

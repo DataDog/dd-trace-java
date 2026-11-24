@@ -91,6 +91,7 @@ public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
 
     if (dbInfo != null) {
       processDatabaseType(span, dbInfo.getType());
+      span.setTagsFrom(dbInfo.getRdsEndpoint());
     }
     super.onConnection(span, dbInfo);
     if (null != dbQueryInfo) {

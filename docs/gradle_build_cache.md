@@ -11,6 +11,7 @@ Set variables when starting a **new pipeline** (job retries keep their pipeline'
 | Need                  | Action                                                                                                                                                        |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Force fresh execution | Set `SKIP_BUILD_CACHE=true` to bypass task caches and up-to-date reuse. See [fresh CI execution](how_to_work_with_gradle.md#forcing-fresh-ci-task-execution). |
+| Rerun tests only      | Set `RERUN_TESTS=true` or set `[ci: RERUN_TESTS]` in the commit message to run test tasks without result reuse, as on master. See [rerunning tests](how_to_test.md#rerunning-tests-on-ci). |
 | Isolate S3 entries    | Set `S3_BUILD_CACHE_PREFIX`, e.g. `v1/investigate-2163/x86_64/linux/`. It replaces the entire prefix and must be non-empty.                                   |
 | Check the destination | Inspect `S3_BUILD_CACHE_BUCKET` and `S3_BUILD_CACHE_REGION`.                                                                                                  |
 
