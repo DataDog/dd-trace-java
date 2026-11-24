@@ -10,8 +10,8 @@ gradle-tooling-api = "8.14.8"
 jsr305 = "3.0.2"
 nullaway = "0.14.2"
 shadow = "9.4.2"
-spotbugs-gradle-plugin = "6.5.11"
-spotbugs_annotations = "4.10.4"
+spotbugs-gradle-plugin = "6.5.13"
+spotbugs_annotations = "4.10.5"
 
 # Source code formatters
 greclipse = "4.27"  # Pinned to preserve Spock table alignment and compact closure formatting.
