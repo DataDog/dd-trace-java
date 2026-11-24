@@ -40,6 +40,8 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       packageName + ".TextMapInjectAdapterInterface",
       packageName + ".TextMapInjectAdapter",
       packageName + ".TextMapExtractAdapter",
+      packageName + ".RecordHeaderAccess",
+      packageName + ".RecordHeaderAccess$OverridesAccessors",
       packageName + ".NoopTextMapInjectAdapter",
       packageName + ".KafkaProducerCallback",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
