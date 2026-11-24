@@ -898,6 +898,9 @@ such as shared background tasks. Use `Context.isCaptureEnabled()` to read the cu
 and `Context.setCaptureEnabled(boolean)` to disable or restore capture.
 When capture is disabled, `capture()` returns a no-op continuation.
 
+> In advice, use `isContextCaptureEnabled()` and `setContextCaptureEnabled(boolean)` from
+> [`Java8BytecodeBridge`](instrumentation_design_guidelines.md#3-static-interface-methods-in-advice).
+
 `attach()` and `swap()` still work when capture is disabled. Attaching a different context resets the
 execution unit's flags and enables capture. Closing its scope restores the previous flags. Attaching
 the current context leaves flags unchanged, and closing its scope does not restore them. To disable
