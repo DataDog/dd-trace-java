@@ -25,7 +25,12 @@ class XDatadogTagsPassthroughInjectionTest extends DDCoreJavaSpecification {
     "both, otel member | '00-640cfd8d00000000000000000000075bcd15-00f067aa0ba902b7-01' | 'dd=s:1;p:00f067aa0ba902b7;t.dm:-1,ot=th:0;rv:a1b2c3d4e5f607'"
   })
   void forwardsTheExtractedHeader(String traceparent, String tracestate) {
-    String raw = new String("_dd.p.tid=640cfd8d00000000,_dd.p.dm=-1".toCharArray());
+    check("_dd.p.tid=640cfd8d00000000,_dd.p.dm=-1", traceparent, tracestate);
+    check("_dd.p.dm=-1,_dd.p.tid=640cfd8d00000000,_dd.p.ksr=1", traceparent, tracestate);
+  }
+
+  private void check(String header, String traceparent, String tracestate) {
+    String raw = new String(header.toCharArray());
     Map<String, String> headers = new HashMap<>();
     headers.put("x-datadog-trace-id", "123456789");
     headers.put("x-datadog-parent-id", "67667974448284343");
