@@ -48,7 +48,13 @@ for heap in ${HEAPS:-512m 256m 128m}; do
         $(variant_opts "$VARIANT_JAR") -cp "$KAFKA_HOME/libs/*" "$script_dir/Enricher.java" \
         "$BOOTSTRAP" "$CONSUME_TOPIC" "$out_topic" "$messages" "bench-$tag-$RANDOM" \
         "${ENRICH_COPY_HEADERS:-false}" > "$results/runs/$tag.out" 2>&1 || status=$?
-      kafka_topics --delete --topic "$out_topic" >/dev/null 2>&1 || true
+      # A topic left behind would keep its records on the broker's disk under every later run, so
+      # stop the sweep rather than keep measuring alongside it.
+      if ! delete_err="$(kafka_topics --delete --topic "$out_topic" 2>&1 >/dev/null)"; then
+        log "ERROR $tag: could not delete output topic $out_topic; stopping the sweep: $delete_err"
+        log "partial results: $csv"
+        exit 1
+      fi
       line="$(grep -E '^enriched [0-9]+ records' "$results/runs/$tag.out" | tail -1 || true)"
       if [ "$status" -ne 0 ] || [ -z "$line" ]; then
         log "FAIL $tag: exit $status (see $results/runs/$tag.out)"
