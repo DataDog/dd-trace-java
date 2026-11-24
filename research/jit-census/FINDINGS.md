@@ -586,3 +586,17 @@ In priority order:
   - Fixes: prefix needles in the sieve; `isDeclaredBy(X)` on a type's own members takes X's needles, because the declaring type is the type itself.
   - **Local triage, one run each (laptop):** matching 274→223 ms (−19%); **memo build 132→69 ms (−48%)**; outlines 86 eager → 69 header + 6 members; **member parses 227 of 4,569 outlines (5%)**; hierarchy misses 560k→80k (+480k sieved in 12 ms); transforming 194→170 ms (168→148 steps).
   - Verification on the full agent: every skipped member matcher checked against real members, **0 misses**. 22 unit tests pass, and 6 instrumentation suites with the active sieve plus verify (2,177 tests) pass with 0 misses. Mario is running the rigorous A/B (15 interleaved runs per arm).
+
+## Startup: product activation lifecycle (Doug, 2026-11-24)
+
+- **Conclusion:** better matching won't significantly move startup. The agent adds 4.05 s elapsed / 13.3 s CPU on springboot-jpa, but transform is ~2.4 s CPU and matching ~0.7 s of that. **The fix is the activation lifecycle: move work in time so it doesn't compete with the app's startup.**
+- **Stages:** (1) `premain`-only: the transformer and minimal setup. (2) Before the first request: AppSec, tracing. (3) After the app is ready: remote config, telemetry, debugger, feature discovery, writer connection, background threads. (4) On demand: products enabled through remote config.
+- **A synthetic app-ready event (Doug):** `AgentLifecycle` in agent-bootstrap with transitions that fire once, `PREMAIN → SERVING_IMMINENT → READY`, recording which signal fired and when.
+  - `SERVING_IMMINENT` triggers: server bind/start (Tomcat/Jetty/Undertow `start()`, Netty bind).
+  - `READY` triggers: framework events (Spring `ApplicationReadyEvent`, Quarkus `StartupEvent`, Micronaut `ServerStartupEvent`); first request served; **class-load quiescence seen by our own transformer**; `main()` returning; a timer cap; a config override.
+  - Consumers: `onReady(task)` on one background executor that limits its CPU until ready. A shutdown path runs essentials (flush) if ready never comes.
+  - Hot path: signal from sites that run once, not per-request advice.
+  - Telemetry: report the signal and time to ready, which gives fleet startup data.
+- **Existing precedent:** class-load-triggered starts (tracer, JMXFetch, profiler on `LogManager`/`MBeanServerBuilder` load) are *ordering/correctness* constraints and stay. Fixed delays (`jmxStartDelay`, OkHttp 100 ms/1 s) are candidates to move onto `READY`.
+- **Product guarantees decide each product's stage:** AppSec on the first requests, startup profiles, traces of startup work.
+- Queued on Mario: startup CPU attribution by thread and product (A/B/C; async-profiler `threads` + JFR compiler, class-load and GC stats) to rank consumers.
