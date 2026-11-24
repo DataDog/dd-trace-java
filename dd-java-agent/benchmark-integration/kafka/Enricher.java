@@ -21,14 +21,18 @@ import org.apache.kafka.clients.producer.ProducerRecord;
  * next service. So one record exercises extraction, span creation and injection on the same trace.
  *
  * <p>With {@code copy-headers}, the output record carries the input's headers, as in a Kafka Streams
- * app. The producer instrumentation then starts the produce span from the trace context in those
- * headers, so it's a sibling of the consume span rather than its child, as it is for Kafka Streams
- * users, and the tracer replaces the forwarded headers rather than adding new ones.
+ * app. The producer instrumentation then takes the produce span's parent from the forwarded upstream
+ * context in those headers, as it does for Kafka Streams users, rather than from the consume span,
+ * and the tracer replaces the forwarded headers rather than adding new ones. Without a {@code
+ * kafka.deliver} span the produce and consume spans are siblings; with time-in-queue tracing on and
+ * a queue timestamp present, the consume span sits under a {@code kafka.deliver} span, so their
+ * immediate parents differ.
  *
  * <p>Prints {@code enriched N records in T ms, R records/s}, timed from the first record received to
  * the last send acknowledged, so startup and the group join are excluded. It finishes the batch that
- * reaches {@code messages}, so N can exceed it by up to one poll. Exits non-zero if the topic
- * runs dry before {@code messages} records or any send fails.
+ * reaches {@code messages}, so N can exceed it by up to one poll. The exit status says what failed,
+ * and {@code run-enricher.sh} reports it with the run: {@code 1} invalid arguments, {@code 2} the
+ * topic ran dry before {@code messages} records, {@code 3} a send failed.
  *
  * <pre>java -cp "$KAFKA_HOME/libs/*" Enricher.java bootstrap in-topic out-topic messages group [copy-headers]
  * </pre>
@@ -41,7 +45,8 @@ public class Enricher {
   private static final long IDLE_TIMEOUT_NANOS = Duration.ofSeconds(30).toNanos();
 
   public static void main(String[] args) {
-    if (args.length < 5) {
+    if (args.length < 5 || args.length > 6) {
+      System.err.println("invalid arguments: " + Arrays.toString(args));
       System.err.println(
           "usage: java Enricher.java bootstrap in-topic out-topic messages group [copy-headers]");
       System.exit(1);
@@ -71,7 +76,7 @@ public class Enricher {
     producerProps.put(
         "value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
 
-    // One shared callback, so the loop itself allocates nothing per record beyond the record.
+    // Reuse one callback across sends.
     AtomicLong failedSends = new AtomicLong();
     AtomicReference<Exception> firstFailure = new AtomicReference<>();
     Callback onSent =

@@ -40,7 +40,7 @@ Set `TRACE_AGENT_PORT` if your local Datadog Agent isn't on 8126.
 ./broker.sh start                     # single-node KRaft broker, no agent
 ./prefill.sh path/to/dd-java-agent.jar        # 10M records with trace headers (once per broker)
 ./preflight.sh path/to/dd-java-agent.jar      # headers injected? consumer continues the trace?
-./preflight-enricher.sh path/to/dd-java-agent.jar   # enricher output keeps the input's trace id?
+./preflight-enricher.sh path/to/dd-java-agent.jar   # every output record continues its input's trace?
 
 ./run-consumer.sh NoAgent master=path/to/master.jar candidate=path/to/candidate.jar
 ./run-producer.sh NoAgent master=path/to/master.jar candidate=path/to/candidate.jar
@@ -62,7 +62,12 @@ A run is rejected, and recorded as an empty CSV row, if the perf tool exits nonz
 or enricher reads fewer than `MESSAGES` records (e.g. the topic is too small), if any enricher send
 fails, or if the producer doesn't print its final summary or sends fewer than `RECORDS` records (the
 tool logs failed sends without failing). Each enricher run writes to its own output topic
-(`bench-enriched-<run>`), deleted after the run.
+(`bench-enriched-<run>`), deleted after the run; if a delete fails, the sweep stops rather than
+measure later runs alongside the leftover topic.
+
+`preflight-enricher.sh` checks all 20 of its records, in order: each output record must carry its
+input's trace id and a new span id (the enricher's produce span, not just forwarded headers). Run it
+with the `ENRICH_COPY_HEADERS` you'll measure, since that mode changes how the output is produced.
 
 **Environment knobs:**
 
@@ -71,7 +76,7 @@ tool logs failed sends without failing). Each enricher run writes to its own out
 | `HEAPS` | `256m 128m 64m` (enricher `512m 256m 128m`) | heap sweep; at 64m the enricher is GC-bound even without the agent (likely the producer's 32 MB send buffer) |
 | `REPS` | `5` | fresh-JVM runs per variant |
 | `MESSAGES` | `10000000` (enricher `3000000`) | records consumed per run |
-| `ENRICH_COPY_HEADERS` | `false` | enricher forwards input headers to output records, as Kafka Streams does; the produce span is then parented on the forwarded upstream context (a sibling of the consume span), as for Streams users |
+| `ENRICH_COPY_HEADERS` | `false` | enricher forwards input headers to output records, as Kafka Streams does; the producer then takes the produce span's parent from the forwarded upstream context, as for Streams users. That makes it a sibling of the consume span unless time-in-queue tracing puts a `kafka.deliver` span above the consume span. Also read by `preflight-enricher.sh` |
 | `RATE` / `RECORDS` / `HEAP` | `100000` / `3000000` / `256m` | producer: fixed offered rate, run length, heap |
 | `DSM` | `false` | Data Streams on/off for all agent variants |
 | `AGENT_EXTRA_OPTS` | — | extra JVM/agent options for agent variants |
