@@ -56,7 +56,7 @@ class ParseV2SupportedConfigurationsTest : GradleFixture() {
       default = "false",
       aliases = emptyList()
     )
-    
+
     assertContainsSupportedConfig(
       content,
       key = "DD_AGENTLESS_LOG_SUBMISSION_ENABLED",

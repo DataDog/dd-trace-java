@@ -92,16 +92,15 @@ class AppSecSystemReloadRegistrationTest {
     verify(subService, times(1)).registerCallback(eq(EVENTS.requestPathParams()), any());
 
     // Remote Config delivers a ruleset that also requires server.request.path_params
-    assertDoesNotThrow(
-        () -> {
-          asmListenerCaptor
-              .getValue()
-              .accept(
-                  mock(ConfigKey.class),
-                  RULE_REQUIRING_PATH_PARAMS.getBytes(StandardCharsets.UTF_8),
-                  null);
-          confEndListenerCaptor.getValue().onConfigurationEnd();
-        });
+    assertDoesNotThrow(() -> {
+      asmListenerCaptor
+          .getValue()
+          .accept(
+              mock(ConfigKey.class),
+              RULE_REQUIRING_PATH_PARAMS.getBytes(StandardCharsets.UTF_8),
+              null);
+      confEndListenerCaptor.getValue().onConfigurationEnd();
+    });
 
     // the already-registered callback is left untouched, not re-registered
     verify(subService, times(1)).registerCallback(eq(EVENTS.requestPathParams()), any());

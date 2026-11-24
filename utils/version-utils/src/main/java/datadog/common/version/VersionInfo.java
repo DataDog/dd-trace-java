@@ -4,6 +4,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,7 +23,9 @@ public class VersionInfo {
       final InputStream is =
           VersionInfo.class.getClassLoader().getResourceAsStream("version-utils.version");
       if (is != null) {
-        final BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+        // This bundled version resource uses UTF-8, independently of the application JVM default.
+        final BufferedReader reader =
+            new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
         final StringBuilder sb = new StringBuilder();
         final char[] buffer = new char[1 << 8];
         int read;

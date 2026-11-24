@@ -51,21 +51,19 @@ class RequestCompletionTest {
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch start = new CountDownLatch(1);
         Future<?> response =
-            executor.submit(
-                () -> {
-                  ready.countDown();
-                  assertTrue(start.await(5, TimeUnit.SECONDS));
-                  SprayHelper.responseComplete(span, completion);
-                  return null;
-                });
+            executor.submit(() -> {
+              ready.countDown();
+              assertTrue(start.await(5, TimeUnit.SECONDS));
+              SprayHelper.responseComplete(span, completion);
+              return null;
+            });
         Future<?> route =
-            executor.submit(
-                () -> {
-                  ready.countDown();
-                  assertTrue(start.await(5, TimeUnit.SECONDS));
-                  SprayHelper.scopeClosed(span, completion);
-                  return null;
-                });
+            executor.submit(() -> {
+              ready.countDown();
+              assertTrue(start.await(5, TimeUnit.SECONDS));
+              SprayHelper.scopeClosed(span, completion);
+              return null;
+            });
         try {
           assertTrue(ready.await(5, TimeUnit.SECONDS));
         } finally {

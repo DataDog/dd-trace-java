@@ -266,7 +266,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
 
   private void recordInstrumentationProgress(
       ProbeDefinition definition, InstrumentationResult instrumentationResult) {
-    if (instrumentationResult.isError()) {
+    if (instrumentationResult.isError(definition.getProbeId())) {
       return;
     }
     instrumentationResults.put(definition.getProbeId().getEncodedId(), instrumentationResult);

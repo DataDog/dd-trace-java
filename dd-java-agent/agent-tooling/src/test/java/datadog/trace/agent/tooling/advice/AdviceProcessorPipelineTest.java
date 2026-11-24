@@ -136,10 +136,9 @@ class AdviceProcessorPipelineTest {
           Stream.of(matcher.getReferences())
               .filter(reference -> reference.className.equals("net.bytebuddy.jar.asm.ClassWriter"))
               .flatMap(reference -> Stream.of(reference.methods))
-              .anyMatch(
-                  method ->
-                      method.name.equals("newUTF8")
-                          && method.methodType.equals("(Ljava/lang/String;)I")));
+              .anyMatch(method ->
+                  method.name.equals("newUTF8")
+                      && method.methodType.equals("(Ljava/lang/String;)I")));
     }
   }
 

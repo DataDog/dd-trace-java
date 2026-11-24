@@ -190,5 +190,11 @@ public final class TracerConfig {
   public static final String TRACE_ORG_GUARD_STRICT = "trace.org.guard.strict";
   public static final String TRACE_ORG_GUARD_TRUSTED_OPMS = "trace.org.guard.trusted.opms";
 
+  /**
+   * Stores known tags that have a dense-store slot in TagMap's dense store (no per-tag entry)
+   * instead of its hash buckets. Experimental, off by default.
+   */
+  public static final String TRACE_DENSE_TAGS_ENABLED = "trace.experimental.dense.tags.enabled";
+
   private TracerConfig() {}
 }

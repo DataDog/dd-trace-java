@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.util.StringIndex.Data;
 import datadog.trace.util.StringIndex.EmbeddingSupport;
+import java.util.Locale;
 import org.junit.jupiter.api.Test;
 
 class StringIndexTest {
@@ -18,8 +19,7 @@ class StringIndexTest {
     // "".hashCode() == 0 -> remapped to the non-zero sentinel so 0 can mean "empty slot"
     assertEquals(0xDD06, EmbeddingSupport.hash(""));
 
-    int raw = "foo".hashCode();
-    assertEquals(raw ^ (raw >>> 16), EmbeddingSupport.hash("foo"));
+    assertEquals(HashingUtils.hashSpread("foo".hashCode()), EmbeddingSupport.hash("foo"));
     assertNotEquals(0, EmbeddingSupport.hash("foo"));
   }
 
@@ -226,5 +226,27 @@ class StringIndexTest {
   void support_numSlots_matchesTableSize() {
     Data d = EmbeddingSupport.create("a", "b", "c");
     assertEquals(d.hashes.length, EmbeddingSupport.numSlots(d.hashes));
+  }
+
+  @Test
+  void sequentialNamesDoNotClusterUnderLinearProbing() {
+    // Names that differ only in a trailing counter have nearly equal String.hashCodes. Without a
+    // multiplicative spread they fill runs of adjacent slots: with h ^ (h >>> 16), these 10,030
+    // names average 6.3 probes, with a worst case of 156.
+    final int n = 10_030;
+    final int[] hashes = new int[EmbeddingSupport.capacityFor(n)];
+    final String[] names = new String[hashes.length];
+    final int mask = hashes.length - 1;
+    long probes = 0;
+    int worst = 0;
+    for (int i = 0; i < n; i++) {
+      final String name = String.format(Locale.ROOT, "scale-bulk-%05d", i);
+      final int h = EmbeddingSupport.hash(name);
+      final int distance = ((EmbeddingSupport.put(hashes, names, name, h) - h) & mask) + 1;
+      probes += distance;
+      worst = Math.max(worst, distance);
+    }
+    assertTrue(probes < 2L * n, "average probes " + (double) probes / n);
+    assertTrue(worst < 32, "worst probe " + worst);
   }
 }

@@ -484,8 +484,8 @@ public final class AggregateEntry extends Hashtable.Entry {
      *
      * <p>Field order is cardinality-tuned: resource / service / operationName first because they
      * vary most across collisions, then the remaining UTF8 fields, then the peer-tag list
-     * comparison (slowest), then the primitives. All UTF8 fields are non-null by the EMPTY-
-     * sentinel invariant (see field comments above), so direct {@code a.equals(b)} is safe.
+     * comparison (slowest), then the primitives. All UTF8 fields are non-null by the EMPTY-sentinel
+     * invariant (see field comments above), so direct {@code a.equals(b)} is safe.
      */
     boolean matches(AggregateEntry e) {
       return resource.equals(e.resource)

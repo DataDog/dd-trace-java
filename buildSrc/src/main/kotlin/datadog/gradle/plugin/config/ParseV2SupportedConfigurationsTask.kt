@@ -1,16 +1,16 @@
 package datadog.gradle.plugin.config
 
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.gradle.api.DefaultTask
 import org.gradle.api.model.ObjectFactory
+import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.OutputDirectory
-import org.gradle.api.tasks.TaskAction
-import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.databind.ObjectMapper
-import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.property
 import java.io.File
 import java.io.FileInputStream
@@ -19,7 +19,7 @@ import java.util.Locale
 import javax.inject.Inject
 
 @CacheableTask
-abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
+abstract class ParseV2SupportedConfigurationsTask @Inject constructor(
   private val objects: ObjectFactory
 ) : DefaultTask() {
   @InputFile
@@ -48,6 +48,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     // Fetch top-level keys of JSON file
     @Suppress("UNCHECKED_CAST")
     val supportedRaw = fileData["supportedConfigurations"] as Map<String, List<Map<String, Any?>>>
+
     @Suppress("UNCHECKED_CAST")
     val deprecated = (fileData["deprecations"] as? Map<String, String>) ?: emptyMap()
 
@@ -255,8 +256,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     }
   }
 
-  private fun supportedConfigLiteral(config: SupportedConfigurationItem): String =
-    "new SupportedConfiguration(${escNullableString(config.version)}, ${escNullableString(config.type)}, ${escNullableString(config.default)}, ${listLiteral(config.aliases)}, ${listLiteral(config.propertyKeys)})"
+  private fun supportedConfigLiteral(config: SupportedConfigurationItem): String = "new SupportedConfiguration(${escNullableString(config.version)}, ${escNullableString(config.type)}, ${escNullableString(config.default)}, ${listLiteral(config.aliases)}, ${listLiteral(config.propertyKeys)})"
 
   private fun supportedConfigListLiteral(configList: List<SupportedConfigurationItem>): String = when (configList.size) {
     0 -> "emptyList()"
@@ -264,8 +264,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     else -> "unmodifiableList(asList(${configList.joinToString(", ") { supportedConfigLiteral(it) }}))"
   }
 
-  private fun quoteList(list: List<String>): String =
-    list.joinToString(", ") { "\"${esc(it)}\"" }
+  private fun quoteList(list: List<String>): String = list.joinToString(", ") { "\"${esc(it)}\"" }
 
   private fun listLiteral(list: List<String>): String = when (list.size) {
     0 -> "emptyList()"
@@ -279,11 +278,9 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     else -> "unmodifiableList(asList(${quoteList(list)}))"
   }
 
-  private fun esc(s: String): String =
-    s.replace("\\", "\\\\").replace("\"", "\\\"")
+  private fun esc(s: String): String = s.replace("\\", "\\\\").replace("\"", "\\\"")
 
-  private fun escNullableString(s: String?): String =
-    if (s == null) "null" else "\"${esc(s)}\""
+  private fun escNullableString(s: String?): String = if (s == null) "null" else "\"${esc(s)}\""
 }
 
 private data class SupportedConfigurationItem(

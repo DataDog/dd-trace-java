@@ -4,13 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.test.util.DDJavaSpecification;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-class SQLNormalizerTest extends DDJavaSpecification {
+class SQLNormalizerTest {
 
   @ParameterizedTest(name = "[{index}] normalize {0}")
   @MethodSource("testNormalizeArguments")

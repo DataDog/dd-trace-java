@@ -15,22 +15,22 @@ public final class OtelServerUrl implements TagExtractor<HttpServerUrl> {
   public void extract(HttpServerUrl url, AgentSpan span) {
     HttpServerUrl.Origin origin = url.origin();
     if (url.isValid() && origin.scheme != null) {
-      span.setTag(KnownTags.URL_SCHEME_ID, origin.scheme);
+      span.setTag(KnownTags.URL_SCHEME, origin.scheme);
     }
     String path = url.path();
     if (path != null) {
-      span.setTag(KnownTags.URL_PATH_ID, path);
+      span.setTag(KnownTags.URL_PATH, path);
     }
     if (origin.address != null && !origin.address.isEmpty()) {
-      span.setTag(KnownTags.Inbound.SERVER_ADDRESS_ID, origin.address);
+      span.setTag(KnownTags.Inbound.SERVER_ADDRESS, origin.address);
     }
     if (origin.port > 0) {
-      span.setTag(KnownTags.Inbound.SERVER_PORT_ID, origin.port);
+      span.setTag(KnownTags.Inbound.SERVER_PORT, origin.port);
     }
     if (Config.get().isHttpServerTagQueryString()) {
       String query = url.query();
       if (query != null && !query.isEmpty()) {
-        span.setTag(KnownTags.URL_QUERY_ID, query);
+        span.setTag(KnownTags.URL_QUERY, query);
       }
     }
   }

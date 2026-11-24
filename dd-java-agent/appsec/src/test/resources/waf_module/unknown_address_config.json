@@ -1,0 +1,19 @@
+{
+  "version": "2.1",
+  "rules": [
+    {
+      "id": "ua0-600-12x",
+      "name": "Arachni",
+      "tags": {"type": "security_scanner", "category": "attack_attempt"},
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [{"address": "server.request.headers.does-not-exist", "key_path": ["user-agent"]}],
+            "regex": "^Arachni\\/v"
+          },
+          "operator": "match_regex"
+        }
+      ]
+    }
+  ]
+}

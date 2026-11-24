@@ -44,7 +44,12 @@ if (hasProperty('agentJar')) {
     "-J-javaagent:${agentJar}",
     "-J-Ddatadog.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd'T'HH:mm:ss.SSS'Z [dd.trace]'",
     "-J-Ddd.profiling.enabled=true",
-    "-march=native",
+    // The S3 prefix separates OS/architecture, but not CPU features. Use a common baseline
+    // so cached executables can run on other CI hosts.
+    // x86-64-v3 (AMD64) and armv8.1-a (AArch64) are candidates once all build and execution
+    // hosts of each architecture are guaranteed to support the corresponding CPU features.
+    // https://www.graalvm.org/latest/reference-manual/native-image/optimizations-and-performance/#optimizing-for-specific-machines
+    "-march=compatibility",
   ]
   if (isCI) {
     nativeBuildArgs.add("-H:NumberOfThreads=$ciBuildCpuCount")
