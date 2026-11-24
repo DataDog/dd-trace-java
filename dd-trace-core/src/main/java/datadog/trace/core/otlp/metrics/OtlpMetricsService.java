@@ -1,6 +1,6 @@
 package datadog.trace.core.otlp.metrics;
 
-import static datadog.trace.core.monitor.ExporterId.Signal.METRIC_DATA_POINT;
+import static datadog.trace.core.monitor.OtelExporterId.Signal.METRIC_DATA_POINT;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_METRICS_EXPORTER;
 
 import datadog.trace.api.Config;
@@ -10,10 +10,10 @@ import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry;
 import datadog.trace.common.writer.RemoteApi;
-import datadog.trace.core.monitor.ComponentId;
 import datadog.trace.core.monitor.ExportRecorder;
-import datadog.trace.core.monitor.ExporterId;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.monitor.OtelComponentId;
+import datadog.trace.core.monitor.OtelExporterId;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.util.AgentTaskScheduler;
@@ -37,10 +37,10 @@ public final class OtlpMetricsService {
   private final int intervalMillis;
 
   /** The {@code periodic_metric_reader} identity of this service's collection side. */
-  private final ComponentId reader = ComponentId.next("periodic_metric_reader");
+  private final OtelComponentId reader = OtelComponentId.next("periodic_metric_reader");
 
   /** The identity of this service's sender; null when there is no sender. */
-  private final ExporterId exporter;
+  private final OtelExporterId exporter;
 
   private volatile HealthMetrics healthMetrics = HealthMetrics.NO_OP;
   private volatile ExportRecorder exportRecorder = ExportRecorder.NO_OP;
@@ -80,10 +80,10 @@ public final class OtlpMetricsService {
     this.intervalMillis = intervalMillis;
   }
 
-  private static ExporterId exporterId(OtlpConfig.Protocol protocol, OtlpSender sender) {
+  private static OtelExporterId exporterId(OtlpConfig.Protocol protocol, OtlpSender sender) {
     return sender == null
         ? null
-        : ExporterId.otlp(METRIC_DATA_POINT, protocol, sender.destination());
+        : OtelExporterId.otlp(METRIC_DATA_POINT, protocol, sender.destination());
   }
 
   @VisibleForTesting
@@ -97,12 +97,12 @@ public final class OtlpMetricsService {
   }
 
   @VisibleForTesting
-  ComponentId getReader() {
+  OtelComponentId getReader() {
     return reader;
   }
 
   @VisibleForTesting
-  ExporterId getExporter() {
+  OtelExporterId getExporter() {
     return exporter;
   }
 

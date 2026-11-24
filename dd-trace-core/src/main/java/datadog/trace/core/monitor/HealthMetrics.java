@@ -112,7 +112,7 @@ public abstract class HealthMetrics implements AutoCloseable {
    * @param error the exception the collection threw, or null when it succeeded
    */
   public void onMetricCollection(
-      final ComponentId reader, final long durationNanos, @Nullable final Throwable error) {}
+      final OtelComponentId reader, final long durationNanos, @Nullable final Throwable error) {}
 
   public void onLongRunningUpdate(final int dropped, final int write, final int expired) {}
 

@@ -16,10 +16,10 @@ import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.core.monitor.ComponentId;
-import datadog.trace.core.monitor.ExporterId;
-import datadog.trace.core.monitor.ExporterId.Signal;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.monitor.OtelComponentId;
+import datadog.trace.core.monitor.OtelExporterId;
+import datadog.trace.core.monitor.OtelExporterId.Signal;
 import datadog.trace.core.otlp.common.OtlpGrpcStatusException;
 import java.util.EnumMap;
 import java.util.Map;
@@ -35,9 +35,9 @@ import javax.annotation.Nullable;
  *       LongAdder}s; observable instruments report the adders at collection.
  *   <li>{@code otel.sdk.exporter.<signal>.inflight}, {@code .exported} and {@code
  *       otel.sdk.exporter.operation.duration}, modeled on the OTel Java SDK's {@code
- *       SemConvExporterMetrics}, one series per {@link ExporterId}.
+ *       SemConvExporterMetrics}, one series per {@link OtelExporterId}.
  *   <li>{@code otel.sdk.metric_reader.collection.duration}, one series per reader {@link
- *       ComponentId}.
+ *       OtelComponentId}.
  * </ul>
  *
  * Every other callback stays a no-op.
@@ -125,7 +125,7 @@ final class OtelHealthMetrics extends HealthMetrics {
   }
 
   @Override
-  public void onExportStart(ExporterId exporter, long itemCount) {
+  public void onExportStart(OtelExporterId exporter, long itemCount) {
     exports.get(exporter.signal()).inflight.recordLong(itemCount, baseAttributes(exporter));
   }
 
@@ -136,7 +136,7 @@ final class OtelHealthMetrics extends HealthMetrics {
    */
   @Override
   public void onExportEnd(
-      ExporterId exporter,
+      OtelExporterId exporter,
       long itemCount,
       long durationNanos,
       @Nullable RemoteApi.Response response,
@@ -187,7 +187,7 @@ final class OtelHealthMetrics extends HealthMetrics {
    */
   @Override
   public void onMetricCollection(
-      ComponentId reader, long durationNanos, @Nullable Throwable error) {
+      OtelComponentId reader, long durationNanos, @Nullable Throwable error) {
     AttributesBuilder attributes = componentAttributes(reader);
     if (error != null) {
       attributes.put(ERROR_TYPE, ErrorTypes.fromException(error));
@@ -199,7 +199,7 @@ final class OtelHealthMetrics extends HealthMetrics {
    * {@code otel.component.*}, plus {@code server.*} when the destination is known. Built per call
    * rather than cached: exports are infrequent, and the sink keeps no per-exporter state.
    */
-  private static Attributes baseAttributes(ExporterId exporter) {
+  private static Attributes baseAttributes(OtelExporterId exporter) {
     AttributesBuilder builder = componentAttributes(exporter.component());
     String serverAddress = exporter.serverAddress();
     if (serverAddress != null) {
@@ -209,7 +209,7 @@ final class OtelHealthMetrics extends HealthMetrics {
     return builder.build();
   }
 
-  private static AttributesBuilder componentAttributes(ComponentId component) {
+  private static AttributesBuilder componentAttributes(OtelComponentId component) {
     return Attributes.builder()
         .put(COMPONENT_TYPE, component.type())
         .put(COMPONENT_NAME, component.name());

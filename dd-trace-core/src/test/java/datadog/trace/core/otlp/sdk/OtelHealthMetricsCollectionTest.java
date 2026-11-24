@@ -12,7 +12,7 @@ import datadog.metrics.impl.DDSketchHistograms;
 import datadog.trace.agent.test.utils.OtelMetricCollector;
 import datadog.trace.agent.test.utils.OtelMetricCollector.DataPointEntry;
 import datadog.trace.bootstrap.otlp.metrics.OtlpHistogramPoint;
-import datadog.trace.core.monitor.ComponentId;
+import datadog.trace.core.monitor.OtelComponentId;
 import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -28,7 +28,7 @@ class OtelHealthMetricsCollectionTest {
 
   @Test
   void recordsSuccessfulCollectionDurationInSeconds() {
-    ComponentId reader = ComponentId.next("otel_collection_test_success");
+    OtelComponentId reader = OtelComponentId.next("otel_collection_test_success");
 
     SINK.onMetricCollection(reader, 250_000_000L, null);
     OtelMetricCollector collector = collect();
@@ -48,7 +48,7 @@ class OtelHealthMetricsCollectionTest {
     assertEquals(0.25, histogram.sum);
   }
 
-  private static DataPointEntry onlyPoint(OtelMetricCollector collector, ComponentId reader) {
+  private static DataPointEntry onlyPoint(OtelMetricCollector collector, OtelComponentId reader) {
     List<DataPointEntry> points =
         collector.points(COLLECTION).stream()
             .filter(point -> reader.name().equals(point.attrs.get("otel.component.name")))
