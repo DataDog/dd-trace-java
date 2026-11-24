@@ -75,7 +75,11 @@ class SpringRouteParserTest {
     "regex without wildcard before | '/a/{id:[0-9]+}/**' | false          ",
     "mid-path ** before            | '/a/**/b/**'        | false          ",
     "mid-path ** only              | '/a/**/b'           | false          ",
-    "trailing slash                | '/files/**/'        | false          ",
+    "trailing slash                | '/files/**/'        | true           ",
+    "trailing slash, * before      | '/a/*/**/'          | false          ",
+    "optional-like name before     | '/files/{file?}/**' | false          ",
+    "name with * before            | '/files/{f*}/**'    | false          ",
+    "named catch-all before        | '/a/{*p}/**'        | false          ",
     "** next to text               | '/files/x**'        | false          ",
     "named catch-all               | '/files/{*path}'    | false          ",
     "no catch-all                  | '/files/{id}'       | false          "
