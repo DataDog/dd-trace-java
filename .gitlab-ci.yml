@@ -1044,7 +1044,11 @@ test_base_arm64:
 
 test_inst:
   extends: .test_job_amd64_with_test_agent
-  needs: *needs_build_tests_inst
+  # Experiment: gate on the amd64 build like test_inst_arm64 does, instead of waiting for
+  # build_tests, which only warms the shared Gradle build cache and passes no artifacts.
+  needs:
+    - job: build
+      artifacts: false
   variables:
     <<: *tier_l_variables
     GRADLE_TARGET: ":instrumentationTest"
