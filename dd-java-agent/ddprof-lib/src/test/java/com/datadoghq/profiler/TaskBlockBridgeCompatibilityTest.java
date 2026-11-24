@@ -34,13 +34,39 @@ class TaskBlockBridgeCompatibilityTest {
       "package com.datadoghq.profiler;\n"
           + "public final class JavaProfiler {\n"
           + "  boolean parkEnter() { return parkEnter0(); }\n"
+          + "  boolean virtualParkExit(long e, long b, long s) { return parkEnter0(); }\n"
           + "  void parkExit(long blocker, long unblockingSpanId) {}\n"
           + "  public long beginTaskBlock() { return 1L; }\n"
           + "  public boolean endTaskBlock(long t, long b, long s) { return true; }\n"
           + "  private static native boolean parkEnter0();\n"
           + "}\n";
 
+  // Every hook is pure Java, so a call that reaches the profiler is observable in its result.
+  private static final String LINKED_PROFILER =
+      "package com.datadoghq.profiler;\n"
+          + "public final class JavaProfiler {\n"
+          + "  boolean virtualParkExit(long e, long b, long s) {\n"
+          + "    return e == 2000000L && b == 7L && s == 9L;\n"
+          + "  }\n"
+          + "}\n";
+
   @TempDir Path tempDir;
+
+  @Test
+  void resolvedVirtualHookReceivesItsArgumentsAndOtherHooksStayAbsent() throws Exception {
+    Path classes = compileProfiler(LINKED_PROFILER);
+    try (URLClassLoader loader = isolatedLoader(classes)) {
+      Object profiler = loader.loadClass(JAVA_PROFILER).getDeclaredConstructor().newInstance();
+      Object bridge = newBridge(loader, profiler, new ArrayList<String>());
+
+      assertEquals(true, invoke(bridge, "hasVirtualParkSupport"));
+      assertEquals(false, invoke(bridge, "hasParkSupport"));
+      Method hook =
+          bridge.getClass().getMethod("virtualParkExit", long.class, long.class, long.class);
+      assertEquals(true, hook.invoke(bridge, 2_000_000L, 7L, 9L));
+      assertEquals(false, hook.invoke(bridge, 2_000_000L, 7L, 0L));
+    }
+  }
 
   @Test
   void releasedArtifactWithoutTaskBlockApiIsReportedUnsupportedOnce() throws Exception {
@@ -62,6 +88,27 @@ class TaskBlockBridgeCompatibilityTest {
       assertEquals(singletonList(TaskBlockBridge.MISSING_HOOKS), reports);
       assertEquals(false, invoke(first, "parkEnter"));
       assertEquals(0L, invoke(first, "beginTaskBlock"));
+      // A bridge on an older ddprof stays silent: the virtual hook is optional.
+      assertEquals(false, invoke(first, "hasVirtualParkSupport"));
+      assertEquals(false, virtualParkExit(first));
+      assertEquals(singletonList(TaskBlockBridge.MISSING_HOOKS), reports);
+    }
+  }
+
+  @Test
+  void virtualHookWithoutNativeImplementationDisablesEveryHookAndReportsOnce() throws Exception {
+    Path classes = compileUnlinkedNativeProfiler();
+    try (URLClassLoader loader = isolatedLoader(classes)) {
+      Object profiler = loader.loadClass(JAVA_PROFILER).getDeclaredConstructor().newInstance();
+      List<String> reports = new ArrayList<>();
+      Object bridge = newBridge(loader, profiler, reports);
+
+      assertEquals(true, invoke(bridge, "hasVirtualParkSupport"));
+      assertEquals(false, virtualParkExit(bridge));
+      assertEquals(singletonList(TaskBlockBridge.MISSING_NATIVE), reports);
+      assertEquals(false, invoke(bridge, "hasVirtualParkSupport"));
+      assertEquals(false, virtualParkExit(bridge));
+      assertEquals(singletonList(TaskBlockBridge.MISSING_NATIVE), reports);
     }
   }
 
@@ -105,11 +152,15 @@ class TaskBlockBridgeCompatibilityTest {
   }
 
   private Path compileUnlinkedNativeProfiler() throws Exception {
+    return compileProfiler(UNLINKED_NATIVE_PROFILER);
+  }
+
+  private Path compileProfiler(String profilerSource) throws Exception {
     JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
     assumeTrue(compiler != null, "Compiling the JavaProfiler stub requires a JDK");
     Path source = tempDir.resolve("src/com/datadoghq/profiler/JavaProfiler.java");
     Files.createDirectories(source.getParent());
-    Files.write(source, UNLINKED_NATIVE_PROFILER.getBytes(UTF_8));
+    Files.write(source, profilerSource.getBytes(UTF_8));
     Path classes = Files.createDirectories(tempDir.resolve("classes"));
     assertEquals(0, compiler.run(null, null, null, "-d", classes.toString(), source.toString()));
     return classes;
@@ -132,6 +183,13 @@ class TaskBlockBridgeCompatibilityTest {
         .loadClass(TaskBlockBridge.class.getName())
         .getConstructor(loader.loadClass(JAVA_PROFILER), Consumer.class)
         .newInstance(profiler, reporter);
+  }
+
+  private static Object virtualParkExit(Object bridge) throws Exception {
+    return bridge
+        .getClass()
+        .getMethod("virtualParkExit", long.class, long.class, long.class)
+        .invoke(bridge, 2_000_000L, 0L, 0L);
   }
 
   private static Object invoke(Object bridge, String method) throws Exception {

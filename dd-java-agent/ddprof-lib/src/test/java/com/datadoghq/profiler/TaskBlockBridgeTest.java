@@ -16,6 +16,26 @@ class TaskBlockBridgeTest {
   void resolvesPackagePrivateHooksFromProfilerPackage() {
     assertNotNull(TaskBlockBridge.findVirtual(SupportedHooks.class, "parkEnter", boolean.class));
     assertNotNull(TaskBlockBridge.findVirtual(SupportedHooks.class, "beginTaskBlock", long.class));
+    assertNotNull(
+        TaskBlockBridge.findVirtual(
+            SupportedHooks.class,
+            "virtualParkExit",
+            boolean.class,
+            long.class,
+            long.class,
+            long.class));
+  }
+
+  @Test
+  void virtualParkHookWithAnotherSignatureDoesNotResolve() {
+    assertNull(
+        TaskBlockBridge.findVirtual(
+            LegacyHooks.class,
+            "virtualParkExit",
+            boolean.class,
+            long.class,
+            long.class,
+            long.class));
   }
 
   @Test
@@ -55,10 +75,16 @@ class TaskBlockBridgeTest {
     long beginTaskBlock() {
       return 1L;
     }
+
+    boolean virtualParkExit(long elapsedNanos, long blocker, long unblockingSpanId) {
+      return true;
+    }
   }
 
   static final class LegacyHooks {
     void parkEnter() {}
+
+    void virtualParkExit(long elapsedNanos, long blocker) {}
   }
 
   static final class UnsupportedHooks {}

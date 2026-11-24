@@ -130,6 +130,11 @@ public final class ProfilingConfig {
       "profiling.ddprof.wall.precheck";
   public static final boolean PROFILING_DATADOG_PROFILER_WALL_PRECHECK_DEFAULT = false;
 
+  public static final String PROFILING_DATADOG_PROFILER_WALL_TASKBLOCK_VIRTUAL_ENABLED =
+      "profiling.ddprof.wall.taskblock.virtual.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_WALL_TASKBLOCK_VIRTUAL_ENABLED_DEFAULT =
+      false;
+
   public static final String PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT =
       "profiling.experimental.ddprof.scheduling.event";
 

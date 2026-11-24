@@ -93,6 +93,16 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   }
 
   @Override
+  public boolean isVirtualParkEnabled() {
+    return DDPROF.isVirtualParkEnabled();
+  }
+
+  @Override
+  public boolean virtualParkExit(long elapsedNanos, long blocker, long unblockingSpanId) {
+    return DDPROF.virtualParkExit(elapsedNanos, blocker, unblockingSpanId);
+  }
+
+  @Override
   public boolean isUnparkAttributionEnabled() {
     return DDPROF.isUnparkAttributionEnabled();
   }

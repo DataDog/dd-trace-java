@@ -33,6 +33,9 @@ public final class TaskBlockBridge {
   private static final MethodHandle PARK_ENTER = findVirtual("parkEnter", boolean.class);
   private static final MethodHandle PARK_EXIT =
       findVirtual("parkExit", void.class, long.class, long.class);
+  // Absent from ddprof artifacts that predate virtual-thread TaskBlocks; the bridge then no-ops.
+  private static final MethodHandle VIRTUAL_PARK_EXIT =
+      findVirtual("virtualParkExit", boolean.class, long.class, long.class, long.class);
   private static final MethodHandle BEGIN_TASK_BLOCK = findVirtual("beginTaskBlock", long.class);
   private static final MethodHandle END_TASK_BLOCK =
       findVirtual("endTaskBlock", boolean.class, long.class, long.class, long.class);
@@ -58,6 +61,11 @@ public final class TaskBlockBridge {
   /** Returns whether both native park hooks are available. */
   public boolean hasParkSupport() {
     return !linkageFailed && PARK_ENTER != null && PARK_EXIT != null;
+  }
+
+  /** Returns whether the virtual-thread park-exit hook is available. */
+  public boolean hasVirtualParkSupport() {
+    return !linkageFailed && VIRTUAL_PARK_EXIT != null;
   }
 
   /** Returns whether the synchronous paired TaskBlock API is available. */
@@ -99,6 +107,25 @@ public final class TaskBlockBridge {
       PARK_EXIT.invokeExact(profiler, blocker, unblockingSpanId);
     } catch (LinkageError error) {
       disable();
+    } catch (Throwable throwable) {
+      throw propagate(throwable);
+    }
+  }
+
+  /**
+   * Records a virtual-thread park of {@code elapsedNanos} that just ended on the calling thread.
+   * Returns {@code false} when the hook is unavailable or the profiler rejected the interval.
+   */
+  public boolean virtualParkExit(long elapsedNanos, long blocker, long unblockingSpanId) {
+    if (!hasVirtualParkSupport()) {
+      return false;
+    }
+    try {
+      return (boolean)
+          VIRTUAL_PARK_EXIT.invokeExact(profiler, elapsedNanos, blocker, unblockingSpanId);
+    } catch (LinkageError error) {
+      disable();
+      return false;
     } catch (Throwable throwable) {
       throw propagate(throwable);
     }

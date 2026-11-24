@@ -4,6 +4,7 @@ package datadog.trace.api.profiling;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_PRECHECK;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_TASKBLOCK_VIRTUAL_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -89,6 +90,61 @@ class TaskBlockInstrumentationConfigTest {
     assertTrue(
         TaskBlockInstrumentationConfig.isEnabled(
             config(true), ConfigProvider.withPropertiesOverride(properties)));
+  }
+
+  @Test
+  void virtualParkIsOffByDefaultEvenWhenTaskBlockIsEnabled() {
+    Properties properties = enabledProperties();
+
+    assertTrue(TaskBlockInstrumentationConfig.isEnabled(config(true), configProvider(properties)));
+    assertFalse(
+        TaskBlockInstrumentationConfig.isVirtualParkEnabled(
+            config(true), configProvider(properties)));
+  }
+
+  @Test
+  void virtualParkRequiresTheSubFlagAndEveryTaskBlockGate() {
+    Properties properties = enabledProperties();
+    properties.setProperty(PROFILING_DATADOG_PROFILER_WALL_TASKBLOCK_VIRTUAL_ENABLED, "true");
+
+    assertTrue(
+        TaskBlockInstrumentationConfig.isVirtualParkEnabled(
+            config(true), configProvider(properties)));
+    assertFalse(
+        TaskBlockInstrumentationConfig.isVirtualParkEnabled(
+            config(false), configProvider(properties)));
+    properties.setProperty(PROFILING_DATADOG_PROFILER_WALL_PRECHECK, "false");
+    assertFalse(
+        TaskBlockInstrumentationConfig.isVirtualParkEnabled(
+            config(true), configProvider(properties)));
+  }
+
+  @Test
+  void virtualParkSubFlagAloneDoesNotEnableTaskBlock() {
+    Properties properties = new Properties();
+    properties.setProperty(PROFILING_DATADOG_PROFILER_WALL_TASKBLOCK_VIRTUAL_ENABLED, "true");
+
+    assertFalse(
+        TaskBlockInstrumentationConfig.isVirtualParkEnabled(
+            config(true), configProvider(properties)));
+  }
+
+  @Test
+  void virtualParkSubFlagSupportsTheAsyncAlias() {
+    Properties properties = enabledProperties();
+    properties.setProperty("profiling.async.wall.taskblock.virtual.enabled", "true");
+
+    assertTrue(
+        TaskBlockInstrumentationConfig.isVirtualParkEnabled(
+            config(true), configProvider(properties)));
+  }
+
+  private static Properties enabledProperties() {
+    Properties properties = new Properties();
+    properties.setProperty(PROFILING_DATADOG_PROFILER_WALL_ENABLED, "true");
+    properties.setProperty(PROFILING_DATADOG_PROFILER_WALL_PRECHECK, "true");
+    properties.setProperty(PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER, "false");
+    return properties;
   }
 
   private static Config config(boolean ddprofEnabled) {
