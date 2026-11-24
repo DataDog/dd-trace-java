@@ -97,6 +97,26 @@ class StringCanonicalizerTest {
   }
 
   @Test
+  void stopsAddingTextsOnceFullButKeepsSharingThoseItHas() {
+    final StringCanonicalizer strings = new StringCanonicalizer(16, 2);
+    final String a = strings.canonical("a".toCharArray(), 0, 1);
+    final String b = strings.canonical("b".toCharArray(), 0, 1);
+    assertEquals(2, strings.size());
+
+    final String c = strings.canonical("c".toCharArray(), 0, 1);
+    assertEquals("c", c);
+    assertNotSame(c, strings.canonical("c".toCharArray(), 0, 1));
+    final String d = new String("d".toCharArray());
+    assertSame(d, strings.canonical(d));
+    assertNotSame(d, strings.canonical(new String("d".toCharArray())));
+    assertEquals(2, strings.size());
+
+    assertSame(a, strings.canonical("a".toCharArray(), 0, 1));
+    assertSame(b, strings.canonical(new String("b".toCharArray())));
+    assertThrows(IllegalArgumentException.class, () -> new StringCanonicalizer(16, -1));
+  }
+
+  @Test
   void boundsTheProbesForStringsWithEqualHashCodes() {
     // "Aa" and "BB" have the same hash code, so every string of k blocks of them collides: 2^k
     // distinct strings with one hash code.

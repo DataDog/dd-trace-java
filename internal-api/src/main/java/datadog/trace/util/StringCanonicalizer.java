@@ -10,11 +10,15 @@ package datadog.trace.util;
  * not reach a JVM-wide table like {@link String#intern()}'s. Create one instance per parse and drop
  * it when the parse returns.
  *
- * <p>Two bounds keep the cost of a parse predictable, whatever the input:
+ * <p>Three bounds keep the cost of a parse predictable, whatever the input:
  *
  * <ul>
  *   <li><b>Length:</b> texts longer than {@code maxLength} are neither hashed nor shared. Long
  *       values rarely repeat, and hashing them is most of the cost.
+ *   <li><b>Entries:</b> at most {@code maxEntries} texts are shared. The table holds each one until
+ *       the parse ends, including values the parser has already discarded, so without this bound a
+ *       document of many distinct short values would grow it without limit. Once full, texts
+ *       already shared still are; new ones are returned unshared.
  *   <li><b>Probes:</b> a lookup gives up and returns an unshared copy after comparing {@link
  *       #MAX_EQUAL_HASH_PROBES} strings with its hash code, or after {@link #MAX_PROBES} slots in
  *       all. Strings with equal hash codes are easy to construct, and each one costs a string
@@ -31,6 +35,12 @@ public final class StringCanonicalizer {
   /** The default longest text that is shared. */
   public static final int DEFAULT_MAX_LENGTH = 128;
 
+  /**
+   * The default most texts that are shared: far above the distinct values of a large flag
+   * configuration, while capping the table at {@code 2 * 65536} slots, about 1 MB of arrays.
+   */
+  public static final int DEFAULT_MAX_ENTRIES = 1 << 16;
+
   /** The most strings with a lookup's hash code that it compares before giving up. */
   static final int MAX_EQUAL_HASH_PROBES = 16;
 
@@ -40,25 +50,45 @@ public final class StringCanonicalizer {
   private static final int INITIAL_CAPACITY = 256;
 
   private final int maxLength;
+  private final int maxEntries;
   private String[] strings = new String[INITIAL_CAPACITY];
   private int[] hashes = new int[INITIAL_CAPACITY];
   private int size;
 
-  /** Creates a canonicalizer that shares texts of up to {@link #DEFAULT_MAX_LENGTH} chars. */
+  /**
+   * Creates a canonicalizer that shares up to {@link #DEFAULT_MAX_ENTRIES} texts of up to {@link
+   * #DEFAULT_MAX_LENGTH} chars.
+   */
   public StringCanonicalizer() {
-    this(DEFAULT_MAX_LENGTH);
+    this(DEFAULT_MAX_LENGTH, DEFAULT_MAX_ENTRIES);
   }
 
   /**
-   * Creates a canonicalizer that shares texts of up to {@code maxLength} chars.
+   * Creates a canonicalizer that shares up to {@link #DEFAULT_MAX_ENTRIES} texts of up to {@code
+   * maxLength} chars.
    *
    * @param maxLength the longest text to share; longer texts are copied but not shared.
    */
   public StringCanonicalizer(final int maxLength) {
+    this(maxLength, DEFAULT_MAX_ENTRIES);
+  }
+
+  /**
+   * Creates a canonicalizer that shares up to {@code maxEntries} texts of up to {@code maxLength}
+   * chars.
+   *
+   * @param maxLength the longest text to share; longer texts are copied but not shared.
+   * @param maxEntries the most texts to share; once that many are, new texts are not shared.
+   */
+  public StringCanonicalizer(final int maxLength, final int maxEntries) {
     if (maxLength < 0) {
       throw new IllegalArgumentException("maxLength < 0: " + maxLength);
     }
+    if (maxEntries < 0) {
+      throw new IllegalArgumentException("maxEntries < 0: " + maxEntries);
+    }
     this.maxLength = maxLength;
+    this.maxEntries = maxEntries;
   }
 
   /**
@@ -150,6 +180,9 @@ public final class StringCanonicalizer {
   }
 
   private String insert(final int slot, final int hash, final String text) {
+    if (size == maxEntries) {
+      return text; // full: keep sharing what's there, but stop adding
+    }
     strings[slot] = text;
     hashes[slot] = hash;
     if (++size * 2 > strings.length) {
