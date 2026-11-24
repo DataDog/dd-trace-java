@@ -31,6 +31,7 @@ class Liberty23Server implements HttpServer {
     port = PortUtils.randomOpenPort()
     userDir = Files.createTempDirectory('liberty-').toFile()
     File serverDir = new File(userDir, "servers/$SERVER_NAME")
+    // Copy the shared template before rewriting server.xml so concurrent forks use their own settings.
     copyDirectory(serverTemplateDir.toPath(), serverDir.toPath())
     changeServerXml(new File(serverDir, 'server.xml'))
     server = new ServerBuilder().setName(SERVER_NAME).setUserDir(userDir).build()
