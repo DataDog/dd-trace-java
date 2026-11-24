@@ -73,7 +73,7 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
    */
   private static final String[] PRELOAD_CLASS_NAMES = {
     VIRTUAL_THREAD_STATE_CLASS_NAME,
-    "datadog.trace.core.scopemanager.ScopeContext",
+    "datadog.trace.core.scopemanager.SavedScopeContext",
     "datadog.trace.core.scopemanager.ScopeStack"
   };
 

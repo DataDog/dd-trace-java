@@ -1,0 +1,4 @@
+import datadog.trace.instrumentation.kotlin.coroutines.AbstractStandardSuspensionHandoffTest
+
+class StandardSuspensionHandoffTest extends AbstractStandardSuspensionHandoffTest {
+}

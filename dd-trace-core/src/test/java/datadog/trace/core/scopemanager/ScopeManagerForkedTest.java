@@ -27,6 +27,7 @@ import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextKey;
 import datadog.context.ContextScope;
+import datadog.context.ImplicitContextKeyed;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Stateful;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -110,6 +111,137 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
   @AfterEach
   void cleanup() {
     tracer.close();
+  }
+
+  @TableTest({
+    "Scenario              | Token    | Capture",
+    "Attach shared handle  | 'shared' | false  ",
+    "Resume shared handle  | 'shared' | true   ",
+    "Attach worker token   | 'worker' | false  ",
+    "Resume worker token   | 'worker' | true   ",
+    "Attach saved snapshot | 'saved'  | false  ",
+    "Resume saved snapshot | 'saved'  | true   "
+  })
+  void stackTokensCanBeAttachedAndCaptured(String tokenKind, boolean capture) {
+    ContextKey<String> key = ContextKey.named("stack-token");
+    Context base = Context.root().with(key, "base");
+    Context original = base.swap();
+    Context sharedBase = base.with(key, "coroutine");
+    Context token;
+    boolean sharedToken = "shared".equals(tokenKind);
+    if ("saved".equals(tokenKind)) {
+      token = Context.root().swap();
+    } else {
+      Context worker = scopeManager.swap(scopeManager.sharedContextStack(sharedBase));
+      Context shared = worker.swap();
+      token = sharedToken ? shared : worker;
+    }
+    Context expected = sharedToken ? sharedBase : base;
+    token.swap();
+    ContextContinuation continuation = capture ? token.capture() : null;
+    try {
+      ContextScope activated = capture ? continuation.resume() : token.attach();
+      try {
+        assertSame(expected, Context.current());
+        assertEquals(sharedToken ? "coroutine" : "base", Context.current().get(key));
+      } finally {
+        activated.close();
+      }
+      assertSame(expected, Context.current());
+    } finally {
+      if (continuation != null) {
+        continuation.release();
+      }
+      original.swap();
+    }
+  }
+
+  @Test
+  void capturingLiveHandleKeepsContextAtCaptureTime() {
+    ContextKey<String> key = ContextKey.named("live-token-capture");
+    Context base = Context.root().with(key, "base");
+    Context original = scopeManager.sharedContextStack(base).swap();
+    Context shared = Context.root().swap();
+    shared.swap();
+    ContextContinuation captured = shared.capture();
+    Context later = base.with(key, "later");
+    try (ContextScope changed = later.attach()) {
+      try (ContextScope resumed = captured.resume()) {
+        assertSame(base, Context.current());
+      }
+      assertSame(later, Context.current());
+    } finally {
+      captured.release();
+      original.swap();
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"shared", "worker", "saved"})
+  void tokenDerivedContextsKeepTheirValuesAfterStackChanges(String tokenKind) {
+    ContextKey<String> key = ContextKey.named("derived-token-context");
+    Context base = Context.root().with(key, "base");
+    Context original = base.swap();
+    Context token;
+    if ("saved".equals(tokenKind)) {
+      token = Context.root().swap();
+    } else {
+      Context worker = scopeManager.sharedContextStack(base).swap();
+      Context shared = worker.swap();
+      token = "shared".equals(tokenKind) ? shared : worker;
+    }
+    token.swap();
+    Object carrier = new Object();
+    try {
+      token.attachTo(carrier);
+      ContextScope passive = token.asScope();
+      Context unchanged = token.with((ImplicitContextKeyed) null);
+      AtomicReference<Context> supplied = new AtomicReference<>();
+      Context stored =
+          token.with(
+              context -> {
+                supplied.set(context);
+                return context;
+              });
+      Context later = base.with(key, "later");
+      try (ContextScope changed = later.attach()) {
+        assertSame(base, Context.from(carrier));
+        assertSame(base, passive.context());
+        assertSame(base, unchanged);
+        assertSame(base, supplied.get());
+        assertSame(base, stored);
+        passive.close();
+        assertSame(later, Context.current());
+      }
+      assertSame(base, Context.detachFrom(carrier));
+    } finally {
+      Context.detachFrom(carrier);
+      original.swap();
+    }
+  }
+
+  @Test
+  void savedTokenStillAttachesAndCapturesItsSnapshotAfterStackChanges() {
+    ContextKey<String> key = ContextKey.named("saved-token-snapshot");
+    Context snapshot = Context.root().with(key, "snapshot");
+    Context original = snapshot.swap();
+    Context saved = Context.root().swap();
+    saved.swap();
+    Context later = snapshot.with(key, "later");
+    try (ContextScope changed = later.attach()) {
+      try (ContextScope attached = saved.attach()) {
+        assertSame(snapshot, Context.current());
+      }
+      ContextContinuation captured = saved.capture();
+      try (ContextScope resumed = captured.resume()) {
+        assertSame(snapshot, Context.current());
+      } finally {
+        captured.release();
+      }
+      assertSame(later, Context.current());
+    } finally {
+      original.swap();
+    }
   }
 
   @Test

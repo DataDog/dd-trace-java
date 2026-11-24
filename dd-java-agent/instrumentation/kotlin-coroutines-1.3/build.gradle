@@ -41,6 +41,13 @@ addTestSuiteForDir('coroutines164Test', 'latestDepTest')
 addTestSuiteForDir('coroutines18Test', 'latestDepTest')
 addTestSuite('latestDepTest')
 
+tasks.named('coroutines16Test') {
+  filter {
+    // kotlinx only replays undispatched restore tokens from 1.6.2 (kotlinx.coroutines#2930)
+    excludeTestsMatching 'StandardSuspensionHandoffTest.undispatched coroutine can replay its restoration token'
+  }
+}
+
 dependencies {
   api project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
   compileOnly libs.kotlin
