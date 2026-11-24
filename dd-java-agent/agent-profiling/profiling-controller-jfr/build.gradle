@@ -27,6 +27,13 @@ dependencies {
 
 excludedClassesCoverage += ['com.datadog.profiling.controller.jfr.JdkTypeIDs']
 
+// TODO: Cover these classes, then remove them from the coverage baseline (APMLP-2263)
+excludedClassesBranchCoverage += ['com.datadog.profiling.controller.jfr.JFRAccess']
+excludedClassesInstructionCoverage += [
+  'com.datadog.profiling.controller.jfr.JFRAccess',
+  'com.datadog.profiling.controller.jfr.JFRAccess.1',
+]
+
 
 // Shared JFR implementation. The earliest Java version JFR is working on is Java 8
 tasks.named("compileTestJava", JavaCompile) {

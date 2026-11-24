@@ -68,7 +68,12 @@ public interface SingleSpanSampler {
                 : new SimpleRateLimiter(rule.getMaxPerSecond());
         RateSamplingRule.SpanSamplingRule spanSamplingRule =
             new RateSamplingRule.SpanSamplingRule(
-                rule.getService(), rule.getName(), sampler, simpleRateLimiter);
+                rule.getService(),
+                rule.getName(),
+                rule.getResource(),
+                rule.getTags(),
+                sampler,
+                simpleRateLimiter);
         spanSamplingRules.add(spanSamplingRule);
       }
     }

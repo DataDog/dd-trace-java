@@ -42,11 +42,10 @@ public final class MasterReplicaConnectionHelper {
       return connectionFuture;
     }
 
-    return connectionFuture.whenComplete(
-        (connection, throwable) -> {
-          if (throwable == null) {
-            onConnection(span, connection, contextStore);
-          }
-        });
+    return connectionFuture.whenComplete((connection, throwable) -> {
+      if (throwable == null) {
+        onConnection(span, connection, contextStore);
+      }
+    });
   }
 }

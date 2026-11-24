@@ -3,8 +3,11 @@ package dd.trace.instrumentation.springwebflux.client
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.KnownTags
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
@@ -90,6 +93,7 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
     boolean ignorePeer = false,
     Map<String, Serializable> extraTags = null) {
 
+    def otelSemantics = Config.get().isTraceOtelSemanticsEnabled()
     def leafParentId = trace.spanAssertCount.get()
     super.clientSpan(trace, parentSpan, method, renameService, tagQueryString, uri, status, error, exception, ignorePeer, extraTags)
     if (!exception) {
@@ -104,9 +108,9 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
           serviceName("localhost")
         }
         operationName NettyHttpClientDecorator.DECORATE.operationName()
-        resourceName "$method $uri.path"
+        resourceName otelSemantics ? OtelHttpSemantics.spanNameMethod(method) : "$method $uri.path"
         spanType DDSpanTypes.HTTP_CLIENT
-        errored error
+        errored otelSemantics && status != null && status >= 400 ? true : error
         measured true
         tags {
           "$Tags.COMPONENT" NettyHttpClientDecorator.DECORATE.component()
@@ -119,17 +123,26 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
           if (status) {
             "$Tags.HTTP_STATUS" status
           }
-          if (tagQueryString) {
+          if (otelSemantics) {
+            "$KnownTags.HTTP_QUERY_STRING_NAME" null
+            "$DDTags.HTTP_FRAGMENT" null
+          } else if (tagQueryString) {
             "$DDTags.HTTP_QUERY" expectedQuery
             "$DDTags.HTTP_FRAGMENT" { it == null || it == uri.fragment } // Optional
           }
           if (exception) {
             errorTags(exception.class, exception.message)
+          } else if (otelSemantics && status != null && status >= 400) {
+            "$DDTags.ERROR_TYPE" status.toString()
           }
           if ({ isDataStreamsEnabled() }) {
             "$DDTags.PATHWAY_HASH" { String }
           }
-          defaultTags()
+          if (otelSemantics) {
+            defaultTagsNoPeerService()
+          } else {
+            defaultTags()
+          }
           if (extraTags) {
             it.addTags(extraTags)
           }

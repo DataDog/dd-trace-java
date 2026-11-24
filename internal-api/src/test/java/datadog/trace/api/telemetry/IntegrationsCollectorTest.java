@@ -5,12 +5,11 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import datadog.trace.test.util.DDJavaSpecification;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-class IntegrationsCollectorTest extends DDJavaSpecification {
+class IntegrationsCollectorTest {
 
   @Test
   void updateDrainIntegrations() {

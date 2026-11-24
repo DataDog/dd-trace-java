@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
+import static datadog.trace.api.KnownTags.OFFSET;
+import static datadog.trace.api.KnownTags.PARTITION;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.OFFSET;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PARTITION;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.PRODUCER_DECORATE;
 
 import datadog.context.ContextScope;

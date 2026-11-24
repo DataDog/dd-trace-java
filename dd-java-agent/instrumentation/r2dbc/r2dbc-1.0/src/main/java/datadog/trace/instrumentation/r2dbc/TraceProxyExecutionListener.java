@@ -8,6 +8,7 @@ import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.R2DBC_QUERY;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.decorator.AwsRdsEndpoint;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.instrumentation.r2dbc.shaded.proxy.core.QueryExecutionInfo;
 import datadog.trace.instrumentation.r2dbc.shaded.proxy.core.QueryInfo;
@@ -28,9 +29,13 @@ public final class TraceProxyExecutionListener implements ProxyExecutionListener
   static final int MAX_BATCH_STATEMENTS_IN_RESOURCE = 10;
 
   private final ConnectionFactoryOptions options;
+  // Parsed once per connection factory rather than per query; null when the host is not RDS.
+  private final AwsRdsEndpoint rdsEndpoint;
 
   public TraceProxyExecutionListener(ConnectionFactoryOptions options) {
     this.options = options;
+    this.rdsEndpoint =
+        AwsRdsEndpoint.parse(R2dbcDecorator.stringOption(options, ConnectionFactoryOptions.HOST));
   }
 
   @Override
@@ -41,6 +46,7 @@ public final class TraceProxyExecutionListener implements ProxyExecutionListener
     String dbType = DECORATE.getDbType(options);
     DECORATE.applyDatabaseType(span, dbType);
     DECORATE.onConnection(span, options);
+    span.setTagsFrom(rdsEndpoint);
     DECORATE.withBaseHash(span);
 
     List<QueryInfo> queries = execInfo.getQueries();

@@ -1,11 +1,11 @@
 package datadog.gradle.plugin.muzzle
 
+import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
-import org.assertj.core.api.Assertions.assertThat
 import kotlin.math.abs
 
 class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
@@ -87,7 +87,8 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
       """
     )
     writeNoopScanPlugin()
-    addSubproject("dd-java-agent:instrumentation:other",
+    addSubproject(
+      "dd-java-agent:instrumentation:other",
       """
       plugins {
         id("java")
@@ -109,7 +110,6 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
     assertThat(explicit.output).contains("BUILD SUCCESSFUL")
     assertThat(explicit.task(":dd-java-agent:instrumentation:other:muzzle-AssertPass-core-jdk")?.outcome).isEqualTo(SUCCESS)
   }
-
 
   @Test
   fun `task graph does not include muzzle tasks when not requested`() {
@@ -161,7 +161,8 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
       """
     )
     writeNoopScanPlugin()
-    addSubproject("dd-java-agent:instrumentation:other",
+    addSubproject(
+      "dd-java-agent:instrumentation:other",
       """
       plugins {
         id("java")
@@ -197,7 +198,8 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
   @ValueSource(ints = [1, 2])
   fun `CI aggregate runs only the module assigned to its slot`(slot: Int) {
     writeCoreProject()
-    addSubproject("dd-java-agent:instrumentation:other",
+    addSubproject(
+      "dd-java-agent:instrumentation:other",
       """
       plugins {
         id("java")
@@ -224,7 +226,8 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
   @Test
   fun `CI aggregate does not resolve off-slot directives`() {
     writeCoreProject()
-    addSubproject("dd-java-agent:instrumentation:other",
+    addSubproject(
+      "dd-java-agent:instrumentation:other",
       """
       plugins {
         id("java")

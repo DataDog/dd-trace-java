@@ -6,6 +6,7 @@ import com.datadog.iast.model.Evidence;
 import com.datadog.iast.util.Ranged;
 import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
+import datadog.trace.util.Strings;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,7 +32,7 @@ public class SqlRegexpTokenizer implements SensitiveHandler.Tokenizer {
   private static final String HEX_NUMBER = "x'[0-9a-f]+'|0x[0-9a-f]+";
   private static final String BIN_NUMBER = "b'[0-9a-f]+'|0b[0-9a-f]+";
   private static final String NUMERIC_LITERAL =
-      String.format(
+      Strings.format(
           "[-+]?(?:%s)",
           String.join(
               "|", HEX_NUMBER, BIN_NUMBER, DECIMAL_NUMBER + EXPONENT, INTEGER_NUMBER + EXPONENT));

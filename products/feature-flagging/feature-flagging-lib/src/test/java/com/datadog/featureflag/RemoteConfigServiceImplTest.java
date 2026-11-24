@@ -87,15 +87,13 @@ class RemoteConfigServiceImplTest {
     final IllegalArgumentException rejection = new IllegalArgumentException("malformed");
     final IllegalStateException otherRejection = new IllegalStateException("malformed too");
     final List<byte[]> received = new ArrayList<>();
-    service.subscribe(
-        content -> {
-          throw rejection;
-        });
+    service.subscribe(content -> {
+      throw rejection;
+    });
     service.subscribe(received::add);
-    service.subscribe(
-        content -> {
-          throw otherRejection;
-        });
+    service.subscribe(content -> {
+      throw otherRejection;
+    });
 
     final IllegalArgumentException reported =
         assertThrows(
@@ -116,13 +114,12 @@ class RemoteConfigServiceImplTest {
     final List<byte[]> received = new ArrayList<>();
 
     final AutoCloseable subscription =
-        service.subscribe(
-            content -> {
-              if (content != null) {
-                throw new IllegalArgumentException("malformed");
-              }
-              received.add(null);
-            });
+        service.subscribe(content -> {
+          if (content != null) {
+            throw new IllegalArgumentException("malformed");
+          }
+          received.add(null);
+        });
     service.accept("key", null, mock(PollingRateHinter.class));
     subscription.close();
 
@@ -138,14 +135,12 @@ class RemoteConfigServiceImplTest {
     service.start();
     service.accept("key", DOCUMENT, mock(PollingRateHinter.class));
 
-    service.subscribe(
-        content -> {
-          throw new IllegalArgumentException("malformed");
-        });
-    service.subscribe(
-        content -> {
-          throw new IllegalArgumentException("malformed");
-        });
+    service.subscribe(content -> {
+      throw new IllegalArgumentException("malformed");
+    });
+    service.subscribe(content -> {
+      throw new IllegalArgumentException("malformed");
+    });
 
     verify(poller, times(1)).removeListeners(Product.FFE_FLAGS);
     verify(poller, times(2))
@@ -168,18 +163,16 @@ class RemoteConfigServiceImplTest {
   void doesNotRequestAgainADocumentAlreadyRejectedOnDelivery() {
     final ConfigurationPoller poller = mock(ConfigurationPoller.class);
     final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
-    service.subscribe(
-        content -> {
-          throw new IllegalArgumentException("malformed");
-        });
+    service.subscribe(content -> {
+      throw new IllegalArgumentException("malformed");
+    });
     assertThrows(
         IllegalArgumentException.class,
         () -> service.accept("key", DOCUMENT, mock(PollingRateHinter.class)));
 
-    service.subscribe(
-        content -> {
-          throw new IllegalArgumentException("malformed");
-        });
+    service.subscribe(content -> {
+      throw new IllegalArgumentException("malformed");
+    });
 
     verify(poller, never()).removeListeners(any());
   }
@@ -210,28 +203,25 @@ class RemoteConfigServiceImplTest {
     final ExecutorService executor = Executors.newFixedThreadPool(2);
     try {
       final Future<AutoCloseable> subscription =
-          executor.submit(
-              () ->
-                  service.subscribe(
-                      content -> {
-                        if (content != null) {
-                          replayStarted.countDown();
-                          try {
-                            assertTrue(finishReplay.await(5, SECONDS));
-                          } catch (final InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            throw new AssertionError(e);
-                          }
-                        }
-                        received.add(content);
-                      }));
+          executor.submit(() ->
+              service.subscribe(content -> {
+                if (content != null) {
+                  replayStarted.countDown();
+                  try {
+                    assertTrue(finishReplay.await(5, SECONDS));
+                  } catch (final InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new AssertionError(e);
+                  }
+                }
+                received.add(content);
+              }));
       assertTrue(replayStarted.await(5, SECONDS));
       final Future<?> removal =
-          executor.submit(
-              () -> {
-                removalStarted.countDown();
-                service.accept("key", null, null);
-              });
+          executor.submit(() -> {
+            removalStarted.countDown();
+            service.accept("key", null, null);
+          });
       assertTrue(removalStarted.await(5, SECONDS));
       assertThrows(TimeoutException.class, () -> removal.get(100, MILLISECONDS));
 
@@ -357,11 +347,10 @@ class RemoteConfigServiceImplTest {
     @Test
     void reportsTheDocumentOnlyOnceItIsDelivered() {
       final AtomicBoolean loggedBeforeDelivery = new AtomicBoolean(true);
-      service.subscribe(
-          content ->
-              loggedBeforeDelivery.set(
-                  appender.list.stream()
-                      .anyMatch(e -> e.getFormattedMessage().contains("configuration received"))));
+      service.subscribe(content ->
+          loggedBeforeDelivery.set(
+              appender.list.stream()
+                  .anyMatch(e -> e.getFormattedMessage().contains("configuration received"))));
 
       service.accept("config", DOCUMENT, mock(PollingRateHinter.class));
 

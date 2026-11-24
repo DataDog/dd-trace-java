@@ -1,5 +1,7 @@
 package datadog.trace.test.util;
 
+import static datadog.trace.test.util.ForkedTestUtils.childJvmArguments;
+
 import datadog.environment.OperatingSystem;
 import datadog.trace.api.internal.VisibleForTesting;
 import java.nio.file.Files;
@@ -79,6 +81,7 @@ public final class PortableCommand {
     command.add(executable.toString());
     command.add(MIN_HEAP);
     command.add(MAX_HEAP);
+    command.addAll(childJvmArguments());
     command.add("-cp");
     command.add(classpath.toString());
     command.add(PortableCommandRunner.class.getName());

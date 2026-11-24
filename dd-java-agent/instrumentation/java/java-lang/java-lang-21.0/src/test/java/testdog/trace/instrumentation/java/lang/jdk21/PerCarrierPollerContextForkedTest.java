@@ -56,33 +56,29 @@ class PerCarrierPollerContextForkedTest extends AbstractInstrumentationTest {
         socket.setSoTimeout(10_000);
         reader =
             Thread.ofVirtual()
-                .start(
-                    () -> {
-                      try {
-                        assertSame(parentSpan, activeSpan());
-                        assertEquals(1, socket.getInputStream().read());
-                        assertSame(
-                            parentSpan,
-                            activeSpan(),
-                            "poller creation must restore request context");
-                      } catch (Throwable error) {
-                        failure.set(error);
-                      }
-                    });
-
-        new PollingConditions(10)
-            .eventually(
-                () -> {
-                  assertFalse(readPollers.isEmpty());
-                  for (Object readPoller : readPollers) {
-                    Thread owner = (Thread) field(poller, "owner").get(readPoller);
-                    assertTrue(owner != null && owner.isAlive());
-                    assertTrue(owner.isVirtual());
-                    assertNull(
-                        virtualThreadState(owner),
-                        "live carrier poller must retain neither context nor continuation");
+                .start(() -> {
+                  try {
+                    assertSame(parentSpan, activeSpan());
+                    assertEquals(1, socket.getInputStream().read());
+                    assertSame(
+                        parentSpan, activeSpan(), "poller creation must restore request context");
+                  } catch (Throwable error) {
+                    failure.set(error);
                   }
                 });
+
+        new PollingConditions(10)
+            .eventually(() -> {
+              assertFalse(readPollers.isEmpty());
+              for (Object readPoller : readPollers) {
+                Thread owner = (Thread) field(poller, "owner").get(readPoller);
+                assertTrue(owner != null && owner.isAlive());
+                assertTrue(owner.isVirtual());
+                assertNull(
+                    virtualThreadState(owner),
+                    "live carrier poller must retain neither context nor continuation");
+              }
+            });
         peer.getOutputStream().write(1);
         assertTrue(reader.join(Duration.ofSeconds(10)));
         assertNull(failure.get());
