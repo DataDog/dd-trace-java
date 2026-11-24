@@ -638,3 +638,11 @@ In priority order:
   - **The GC drains old implementations.** After deactivation the old implementation is reachable only through in-flight handles, and is collected when they finish. There's no shared in-flight counter, which would be a contended cache line on every request start/end.
   - **Exceptions are resources that need an explicit stop** (threads, native handles like libddwaf's, connections). New work stops at once, and release happens after a grace period or via a cleaner when the last handle becomes unreachable. `stop()` is called once, asynchronously, by the lifecycle, never mid-request.
   - Division: the facade owns the contract, the proxy owns transitions, requests own their pinned handle.
+- **Proxies defeat CHA (Doug); any late binding does at the swap.** Separate the **one-time** cost from the **steady-state** cost.
+  - The swap always deoptimizes dependents, whatever the mechanism: CHA inlined `NOOP` until the real implementation loads.
+  - Steady state:
+    - *Proxy:* a permanent extra hop (call + field load + a bimorphic call site in the proxy whose profile is shared across all callers).
+    - *Plain interface + CHA:* fully inlined until the swap, but nowhere to put transition logic.
+    - *`MutableCallSite` behind the facade:* a `static final` `MethodHandle` folds and inlines like CHA, `setTarget` deoptimizes dependents once, and the new target then inlines. Best steady state, but method handles cost more before JIT compilation and add startup cost of their own; measure, including on JDK 8.
+  - **Choose per facade:** products that never switch late (tracing, always on from `PREMAIN`) use a direct interface + CHA. Products activated later (AppSec via remote config, IAST, DI) use the proxy, since they're less hot and need flexibility. Benchmark `MutableCallSite` where a late-activated product is very hot.
+  - The deoptimization at activation hits all dependents at once (a latency blip on large apps), which is another reason to activate on the lifecycle executor at a quiet moment.
