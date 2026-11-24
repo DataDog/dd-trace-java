@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.openjdk.jmc.common.item.Attribute.attr;
+import static org.openjdk.jmc.common.unit.UnitLookup.FLAG;
 import static org.openjdk.jmc.common.unit.UnitLookup.TIMESPAN;
 import static org.openjdk.jmc.common.unit.UnitLookup.TIMESTAMP;
 
@@ -44,9 +45,9 @@ import org.openjdk.jmc.flightrecorder.jdk.JdkAttributes;
  *   <li><b>Cross-workstream smoke</b>: a single forked JVM under {@code -javaagent:} exercises
  *       {@code Thread.sleep}, {@code LockSupport.park*}, and native {@code synchronized}
  *       contention. Each population's events must be present.
- *   <li><b>NoDoubleBracket</b>: each blocking <em>interval</em> emits exactly one {@code
- *       datadog.TaskBlock} event. Overlapping TaskBlocks on one scenario thread point at a
- *       regression in the Java helper paths vs. the native JVMTI path.
+ *   <li><b>NoDoubleBracket</b>: TaskBlocks on one scenario thread never overlap; an interval split
+ *       at a dump yields adjacent {@code continued} segments. An overlap points at a regression in
+ *       the Java helper paths vs. the native JVMTI path.
  *   <li><b>BlockingMix demo</b>: the forked app is meant to be copy-pasted as a reproducer when
  *       triaging coverage issues. The runbook below lists JFR inspection commands and the expected
  *       scenario thread-name distribution.
@@ -85,6 +86,13 @@ final class BlockingMixTaskBlockProfilingTest {
       attr("startTime", "startTime", "startTime", TIMESTAMP);
   private static final IAttribute<IQuantity> DURATION =
       attr("duration", "duration", "duration", TIMESPAN);
+  // Set on every segment of one blocked interval except the last (profilers that split open
+  // intervals at each dump); absent on older profilers.
+  private static final IAttribute<Boolean> CONTINUED =
+      attr("continued", "continued", "continued", FLAG);
+  // A dump ends one segment and starts the next at the same tick; each chunk converts that tick
+  // to nanoseconds from its own anchor, so the two boundaries can differ by a few microseconds.
+  private static final long SEGMENT_BOUNDARY_TOLERANCE_NANOS = 10_000L;
   private static final String THREAD_SLEEP = "blockingmix-sleep";
   private static final String THREAD_PARK = "blockingmix-park";
   private static final String THREAD_SYNC = "blockingmix-sync";
@@ -189,6 +197,7 @@ final class BlockingMixTaskBlockProfilingTest {
         assertNotNull(startTime, "datadog.TaskBlock is missing a startTime accessor");
         assertNotNull(duration, "datadog.TaskBlock is missing a duration accessor");
         assertNotNull(threadName, "datadog.TaskBlock is missing an eventThread accessor");
+        IMemberAccessor<Boolean, IItem> continued = CONTINUED.getAccessor(items.getType());
         for (IItem item : items) {
           String thread = threadName.getMember(item);
           allCountByThread.merge(String.valueOf(thread), 1L, Long::sum);
@@ -210,7 +219,11 @@ final class BlockingMixTaskBlockProfilingTest {
           long durationNanos = duration.getMember(item).clampedLongValueIn(UnitLookup.NANOSECOND);
           intervalsByThread
               .computeIfAbsent(thread, ignored -> new ArrayList<>())
-              .add(new Interval(startNanos, saturatedAdd(startNanos, durationNanos)));
+              .add(
+                  new Interval(
+                      startNanos,
+                      saturatedAdd(startNanos, durationNanos),
+                      continued != null && Boolean.TRUE.equals(continued.getMember(item))));
         }
       }
     }
@@ -222,7 +235,9 @@ final class BlockingMixTaskBlockProfilingTest {
         for (int i = 1; i < intervals.size(); i++) {
           Interval previous = intervals.get(i - 1);
           Interval current = intervals.get(i);
-          if (current.startNanos < previous.endNanos) {
+          // The next segment of a continued interval may start just before the previous one ends.
+          long allowed = previous.continued ? SEGMENT_BOUNDARY_TOLERANCE_NANOS : 0L;
+          if (current.startNanos < previous.endNanos - allowed) {
             firstOverlapDescription =
                 entry.getKey()
                     + " ["
@@ -252,10 +267,12 @@ final class BlockingMixTaskBlockProfilingTest {
   private static final class Interval {
     private final long startNanos;
     private final long endNanos;
+    private final boolean continued;
 
-    private Interval(long startNanos, long endNanos) {
+    private Interval(long startNanos, long endNanos, boolean continued) {
       this.startNanos = startNanos;
       this.endNanos = endNanos;
+      this.continued = continued;
     }
   }
 }
