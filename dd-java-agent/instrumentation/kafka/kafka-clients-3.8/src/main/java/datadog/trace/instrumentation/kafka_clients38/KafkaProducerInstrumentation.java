@@ -39,6 +39,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       packageName + ".KafkaDecorator",
       packageName + ".TextMapInjectAdapterInterface",
       packageName + ".TextMapInjectAdapter",
+      packageName + ".RecordHeaderAccess",
       packageName + ".TextMapExtractAdapter",
       packageName + ".NoopTextMapInjectAdapter",
       packageName + ".KafkaProducerCallback",

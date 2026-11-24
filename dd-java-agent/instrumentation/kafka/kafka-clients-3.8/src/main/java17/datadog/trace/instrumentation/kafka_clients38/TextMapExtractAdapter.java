@@ -12,6 +12,7 @@ import java.util.Base64;
 import java.util.function.Function;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,18 +37,32 @@ public class TextMapExtractAdapter implements ContextVisitor<Headers> {
 
   @Override
   public void forEachKey(Headers carrier, AgentPropagation.KeyClassifier classifier) {
+    RecordHeaderAccess access = decoder == null ? RecordHeaderAccess.get() : null;
     for (Header header : carrier) {
-      String key = header.key();
-      byte[] value = header.value();
-      if (null == value) {
-        continue;
+      String key;
+      String value;
+      // Subclasses can override the public accessors and change what callers see.
+      if (access != null && header.getClass() == RecordHeader.class) {
+        RecordHeader recordHeader = (RecordHeader) header;
+        key = access.key(recordHeader);
+        value = access.utf8Value(recordHeader);
+        if (value == null) {
+          continue;
+        }
+      } else {
+        key = header.key();
+        byte[] bytes = header.value();
+        if (bytes == null) {
+          continue;
+        }
+        value = headerValueTransformer.apply(bytes);
+        if (value == null) {
+          // only the Base64 transformer returns null, for a value that doesn't decode
+          log.debug(EXCLUDE_TELEMETRY, "Failed to Base64-decode Kafka header '{}', skipping", key);
+          continue;
+        }
       }
-      String decoded = headerValueTransformer.apply(value);
-      if (decoded == null) {
-        log.debug(EXCLUDE_TELEMETRY, "Failed to Base64-decode Kafka header '{}', skipping", key);
-        continue;
-      }
-      if (!classifier.accept(key, decoded)) {
+      if (!classifier.accept(key, value)) {
         return;
       }
     }
