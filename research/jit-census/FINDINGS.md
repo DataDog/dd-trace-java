@@ -442,6 +442,13 @@ In priority order:
   at 5 / 20 children; all intervals overlap, B/op unchanged (within ±13 B fork variation). Fused/20 has wide within-fork ranges, so its −2.4% is
   within error but is the one point to re-check against the better-or-neutral bar. Short JFRs: the 4-tag bulk wrappers stay out of line in both stores; 3-tag ones inline.
   Same picture as dense-on: setter-side fusion alone is neutral. Fast insertion (`119fa009b2`, dense on only, 5 forks) is queued next on Mario.
+- **Fast insertion + one lock per run (`119fa009b2`, dense on, 5 forks; Mario, Temurin 17, 2026-11-23):** vs that revision's own `newApi` control,
+  `newApiFused` +3.5% / **+7.9%**, `newApiFusedConservative` **+5.4%** / **+6.0%** at 5 / 20 children. The three bold cells are beyond the JMH intervals;
+  Fused/5 overlaps (14% fork spread with one low fork). Fused/20 went from +0.1% (lock only) to +7.9% (also +6.5% over its own previous score), so
+  **fast insertion is where the gain is**, and it grows with span count. Nothing is slower than the control, so it **meets the better-or-neutral bar**.
+  B/op is unchanged (C/5's −114 B comes from one fork, not established). Caveats: the previous and new runs ran one after the other, not interleaved
+  (same machine); only 4 of the 7 jdbc tags take the fast path (`component` is pre-seeded), so a fusion pass that sees whole spans could do better.
+  Next steps when the store hold lifts: presizing from the run's known tag count (target zero expansions per span), and checking a 2-tag minimum run length.
 - **Validation for 3:** differential instrumentation tests (rewrite on/off); a benchmark with JFR `jdk.CompilerInlining`
   confirming "already compiled into a big method" disappears for `setTag` call sites.
 - Compiler-control notes: negative (`inline:-`) directives for our cold helpers are low-risk. Forced inlining can abort the
