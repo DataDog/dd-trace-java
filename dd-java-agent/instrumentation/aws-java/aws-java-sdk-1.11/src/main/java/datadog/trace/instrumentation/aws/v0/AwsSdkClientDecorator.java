@@ -27,7 +27,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.instrumentation.aws.AwsAccountIdentity;
-import datadog.trace.instrumentation.aws.AwsArn;
 import java.net.URI;
 import java.util.List;
 import java.util.Locale;
@@ -190,8 +189,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       // the signing credentials to request handlers, so a bare name yields no account here.
       if (isTableArn(tableName)) {
         span.setTag(InstrumentationTags.AWS_TABLE_ARN, tableName);
-        AwsArn arn = AwsArn.parse(tableName);
-        String account = arn == null ? null : arn.account();
+        String account = AwsAccountIdentity.arnAccount(tableName);
         if (account != null) {
           span.setTag(InstrumentationTags.AWS_ACCOUNT, account);
         }

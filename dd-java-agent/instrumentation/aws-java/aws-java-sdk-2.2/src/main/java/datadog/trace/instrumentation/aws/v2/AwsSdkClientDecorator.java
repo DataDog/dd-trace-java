@@ -30,7 +30,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import datadog.trace.instrumentation.aws.AwsAccountIdentity;
-import datadog.trace.instrumentation.aws.AwsArn;
 import datadog.trace.payloadtags.PayloadTagsData;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -333,21 +332,22 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   /**
-   * Tags the owning account of the table. A TableName given as an ARN carries it (and is tagged as
-   * aws.table.arn). A bare name is, by DynamoDB's documented contract, resolved in the requestor's
-   * own account, so the account owning the signing credentials is the table owner. The existing
-   * aws.table.name, tablename and peer.service tags keep the TableName value as given, ARN or not,
-   * so nothing changes for spans that already carry an ARN there.
+   * Tags the owning account of the table. A table ARN carries it. A bare name (no colon) is, by
+   * DynamoDB's documented contract, resolved in the requestor's own account, so the account owning
+   * the signing credentials is the table owner. A value that is neither a valid table ARN nor a
+   * bare name, such as a malformed {@code arn:} string, gets no account. The aws.table.name,
+   * tablename and peer.service tags keep the TableName value as given.
    */
   private static void onDynamoDbTable(
       final AgentSpan span, final String tableName, final ExecutionAttributes attributes) {
     setTableName(span, tableName);
-    AwsArn arn = AwsArn.parse(tableName);
     String account;
-    if (arn != null) {
-      account = arn.account();
-    } else {
+    if (isTableArn(tableName)) {
+      account = AwsAccountIdentity.arnAccount(tableName);
+    } else if (tableName.indexOf(':') < 0) {
       account = dynamoDbOwnerAccountFromCredentials(attributes);
+    } else {
+      account = null;
     }
     if (account != null) {
       span.setTag(InstrumentationTags.AWS_ACCOUNT, account);

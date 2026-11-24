@@ -215,7 +215,6 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
     "S3"         | "GetObject"         |  "GET"  | "/someBucket/someKey" | AmazonS3ClientBuilder.standard().withPathStyleAccessEnabled(true).withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build() | { c -> c.getObject("someBucket", "someKey") }                                   | ["aws.bucket.name": "someBucket", "bucketname": "someBucket", "aws.object.key": "someKey"] | ""                | "aws.bucket.name"   | null
     "DynamoDBv2" | "CreateTable"       |  "POST" | "/"                   | AmazonDynamoDBClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                            | { c -> c.createTable(new CreateTableRequest("sometable", null)) }               | ["aws.table.name": "sometable", "tablename": "sometable"]   | ""                  | "aws.table.name"    | null
     "DynamoDBv2" | "GetItem"           |  "POST" | "/"                   | AmazonDynamoDBClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                            | { c -> c.getItem(new GetItemRequest("sometable", ["attribute": new AttributeValue("somevalue")])) } | ["aws.table.name": "sometable", "tablename": "sometable"]   | ""                  | "aws.table.name"    | null
-    "DynamoDBv2" | "GetItem"           |  "POST" | "/"                   | AmazonDynamoDBClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                            | { c -> c.getItem(new GetItemRequest("arn:aws:dynamodb:us-east-1:123456789012:table/sometable", ["attribute": new AttributeValue("somevalue")])) } | ["aws.table.name": "arn:aws:dynamodb:us-east-1:123456789012:table/sometable", "tablename": "arn:aws:dynamodb:us-east-1:123456789012:table/sometable", "aws.table.arn": "arn:aws:dynamodb:us-east-1:123456789012:table/sometable", "aws_account": "123456789012"]   | ""                  | "aws.table.name"    | null
     "Kinesis"    | "DeleteStream"      |  "POST" | "/"                   | AmazonKinesisClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                             | { c -> c.deleteStream(new DeleteStreamRequest().withStreamName("somestream")) } | ["aws.stream.name": "somestream", "streamname": "somestream"] | ""                | "aws.stream.name"   | null
     "AWSStepFunctions" | "StartExecution"    |  "POST" | "/"                   | AWSStepFunctionsClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                       | { c -> c.startExecution(new StartExecutionRequest().withStateMachineArn("arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine")) } | ["aws.state_machine.arn": "arn:aws:states:us-east-1:123456789012:stateMachine:somestatemachine"] | "" | null | null
     "AWSStepFunctions" | "DescribeExecution" |  "POST" | "/"                   | AWSStepFunctionsClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                       | { c -> c.describeExecution(new DescribeExecutionRequest().withExecutionArn("arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution")) } | ["aws.execution.arn": "arn:aws:states:us-east-1:123456789012:execution:somestatemachine:someexecution"] | "" | null | null
@@ -262,7 +261,7 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
   }
 
 
-  def "DynamoDB table ARN is tagged only for #scenario"() {
+  def "DynamoDB table ARN and account are tagged only for #scenario"() {
     setup:
     def client = AmazonDynamoDBClientBuilder.standard()
       .withEndpointConfiguration(endpoint)
@@ -281,14 +280,18 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
     // the table name tag keeps the request value
     spans[0].getTag("aws.table.name") == tableName
     spans[0].getTag("aws.table.arn") == expectedArn
+    // SDK v1 does not see the signing credentials, so only an ARN gives an account
+    spans[0].getTag("aws_account") == expectedAccount
 
     cleanup:
     client.shutdown()
 
     where:
-    scenario         | tableName                                                   | expectedArn
-    "a table ARN"    | "arn:aws:dynamodb:us-east-1:123456789012:table/sometable"   | "arn:aws:dynamodb:us-east-1:123456789012:table/sometable"
-    "a name"         | "sometable"                                                 | null
+    scenario               | tableName                                                  | expectedArn                                               | expectedAccount
+    "a table ARN"          | "arn:aws:dynamodb:us-east-1:123456789012:table/sometable"  | "arn:aws:dynamodb:us-east-1:123456789012:table/sometable" | "123456789012"
+    "a name"               | "sometable"                                                | null                                                      | null
+    "a non-table ARN"      | "arn:aws:dynamodb:us-east-1:123456789012:backup/sometable" | null                                                      | null
+    "a malformed ARN"      | "arn:aws:dynamodb:us-east-1:12345:table/sometable"         | null                                                      | null
   }
 
   def "Lambda resource tags normalize #scenario"() {

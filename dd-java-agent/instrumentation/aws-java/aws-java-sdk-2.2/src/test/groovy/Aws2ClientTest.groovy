@@ -328,7 +328,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
   }
 
 
-  def "DynamoDB table ARN is tagged only for #scenario"() {
+  def "DynamoDB table ARN and account are tagged only for #scenario"() {
     setup:
     def client = DynamoDbClient.builder()
       .endpointOverride(server.address)
@@ -347,14 +347,18 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
     // the table name tag keeps the request value
     spans[0].getTag("aws.table.name") == tableName
     spans[0].getTag("aws.table.arn") == expectedArn
+    // these credentials carry no account, so a bare name is not tagged either
+    spans[0].getTag("aws_account") == expectedAccount
 
     cleanup:
     client.close()
 
     where:
-    scenario      | tableName                                                 | expectedArn
-    "a table ARN" | "arn:aws:dynamodb:us-east-1:123456789012:table/sometable" | "arn:aws:dynamodb:us-east-1:123456789012:table/sometable"
-    "a name"      | "sometable"                                               | null
+    scenario               | tableName                                                  | expectedArn                                               | expectedAccount
+    "a table ARN"          | "arn:aws:dynamodb:us-east-1:123456789012:table/sometable"  | "arn:aws:dynamodb:us-east-1:123456789012:table/sometable" | "123456789012"
+    "a name"               | "sometable"                                                | null                                                      | null
+    "a non-table ARN"      | "arn:aws:dynamodb:us-east-1:123456789012:backup/sometable" | null                                                      | null
+    "a malformed ARN"      | "arn:aws:dynamodb:us-east-1:12345:table/sometable"         | null                                                      | null
   }
 
   def "Lambda resource tags normalize #scenario (async=#async)"() {
@@ -590,78 +594,6 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
           <ResponseMetadata><RequestId>0ac9cda2-bbf4-11d3-f92b-31fa5e8dbc99</RequestId></ResponseMetadata>
         </DeleteOptionGroupResponse>
         """
-  }
-
-  def "DynamoDb request with a table ARN tags the owning account and table ARN"() {
-    setup:
-    def client = DynamoDbClient.builder()
-      .endpointOverride(server.address)
-      .region(Region.AP_NORTHEAST_1)
-      .credentialsProvider(CREDENTIALS_PROVIDER)
-      .build()
-    responseBody.set("")
-    def tableArn = "arn:aws:dynamodb:ap-northeast-1:123456789012:table/sometable"
-
-    when:
-    client.getItem(GetItemRequest.builder().tableName(tableArn).key(["attribute": AttributeValue.builder().s("somevalue").build()]).build())
-    TEST_WRITER.waitForTraces(1)
-
-    then:
-    assertTraces(1) {
-      trace(1) {
-        span {
-          serviceName expectedService("DynamoDb", "GetItem")
-          operationName expectedOperation("DynamoDb", "GetItem")
-          resourceName "DynamoDb.GetItem"
-          spanType DDSpanTypes.HTTP_CLIENT
-          errored false
-          measured true
-          parent()
-          tags {
-            "$Tags.COMPONENT" "java-aws-sdk"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" server.address.port
-            "$Tags.HTTP_METHOD" "POST"
-            "$Tags.HTTP_STATUS" 200
-            "aws.service" "DynamoDb"
-            "aws_service" "DynamoDb"
-            "aws.operation" "GetItem"
-            "aws.agent" "java-aws-sdk"
-            "aws.requestId" "UNKNOWN"
-            // the name tags (and so peer.service) keep the TableName as given; the ARN and
-            // account are additions, not replacements
-            "aws.table.name" tableArn
-            "tablename" tableArn
-            "aws.table.arn" tableArn
-            "aws_account" "123456789012"
-            peerServiceFrom("aws.table.name")
-            urlTags("${server.address}/", ExpectedQueryParams.getExpectedQueryParams("GetItem"))
-            defaultTags(false, true)
-          }
-        }
-      }
-    }
-  }
-
-  def "DynamoDb request with a bare table name has no account when the credentials carry none"() {
-    setup:
-    def client = DynamoDbClient.builder()
-      .endpointOverride(server.address)
-      .region(Region.AP_NORTHEAST_1)
-      .credentialsProvider(CREDENTIALS_PROVIDER)
-      .build()
-    responseBody.set("")
-
-    when:
-    client.getItem(GetItemRequest.builder().tableName("sometable").key(["attribute": AttributeValue.builder().s("somevalue").build()]).build())
-    TEST_WRITER.waitForTraces(1)
-
-    then:
-    def tags = TEST_WRITER.firstTrace().first().tags
-    tags["aws.table.name"] == "sometable"
-    !tags.containsKey("aws_account")
-    !tags.containsKey("aws.table.arn")
   }
 
   def "timeout and retry errors captured"() {
