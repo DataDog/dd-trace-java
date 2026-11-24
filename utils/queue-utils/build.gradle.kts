@@ -11,6 +11,12 @@ dependencies {
   api(libs.jctools)
 }
 
+spotbugs {
+  // Keep analyzing this module with 4.10.4 until the JCTools loop analysis fix
+  // (spotbugs/spotbugs#4419) is released.
+  toolVersion = "4.10.4"
+}
+
 // jctools-core-jdk11 contains Java 11 class files; JDK 8 javadoc cannot read them.
 tasks.named<Javadoc>("javadoc") {
   javadocTool.set(
