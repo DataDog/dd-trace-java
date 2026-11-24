@@ -4,12 +4,17 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,6 +38,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class LockSupportHelperTest {
   private interface ProfilerSpanContext extends AgentSpanContext, ProfilerContext {}
@@ -264,6 +270,132 @@ class LockSupportHelperTest {
     assertDoesNotThrow(() -> LockSupportHelper.parkExit(profiling, 0L, null));
 
     verify(profiling).parkExit(0L, 0L);
+  }
+
+  @Test
+  void platformThreadNeverStartsAVirtualPark() {
+    ProfilingContextIntegration profiling = virtualParkProfiling(true);
+
+    assertEquals(0L, LockSupportHelper.virtualParkStart());
+
+    verify(profiling, never()).isVirtualParkEnabled();
+  }
+
+  @Test
+  void virtualParkStartsOnlyWhenTheProfilerEnablesIt() throws Exception {
+    assumeTrue(ThreadSupport.supportsVirtualThreads(), "Virtual threads are unavailable");
+    virtualParkProfiling(true);
+    assertNotEquals(0L, onVirtualThread(LockSupportHelper::virtualParkStart));
+
+    virtualParkProfiling(false);
+    assertEquals(0L, onVirtualThread(LockSupportHelper::virtualParkStart));
+  }
+
+  @Test
+  void virtualParkExitReportsLongParkWithoutUnblockingSpan() {
+    ProfilingContextIntegration profiling = virtualParkProfiling(true);
+
+    LockSupportHelper.virtualParkExit(System.nanoTime() - TimeUnit.MILLISECONDS.toNanos(5), 42L);
+
+    ArgumentCaptor<Long> elapsed = ArgumentCaptor.forClass(Long.class);
+    verify(profiling).virtualParkExit(elapsed.capture(), eq(42L), eq(0L));
+    assertTrue(elapsed.getValue() >= TimeUnit.MILLISECONDS.toNanos(5));
+  }
+
+  @Test
+  void virtualParkBelowThresholdIsNotReported() {
+    ProfilingContextIntegration profiling = virtualParkProfiling(true);
+
+    LockSupportHelper.reportVirtualPark(LockSupportHelper.MIN_VIRTUAL_PARK_NANOS - 1, 0L);
+    LockSupportHelper.reportVirtualPark(LockSupportHelper.MIN_VIRTUAL_PARK_NANOS, 0L);
+
+    assertEquals(1_000_000L, LockSupportHelper.MIN_VIRTUAL_PARK_NANOS);
+    verify(profiling, times(1)).virtualParkExit(anyLong(), anyLong(), anyLong());
+    verify(profiling).virtualParkExit(1_000_000L, 0L, 0L);
+  }
+
+  @Test
+  void untimedVirtualParkIsNotReported() {
+    ProfilingContextIntegration profiling = virtualParkProfiling(true);
+
+    LockSupportHelper.virtualParkExit(0L, 0L);
+
+    verify(profiling, never()).virtualParkExit(anyLong(), anyLong(), anyLong());
+  }
+
+  @Test
+  void pinnedVirtualParkIsSkippedOnceAndThenReportingResumes() throws Exception {
+    assumeTrue(ThreadSupport.supportsVirtualThreads(), "Virtual threads are unavailable");
+    ProfilingContextIntegration profiling = virtualParkProfiling(true);
+    long longAgo = TimeUnit.MILLISECONDS.toNanos(5);
+
+    onVirtualThread(() -> {
+      LockSupportHelper.markPinnedPark();
+      LockSupportHelper.virtualParkExit(System.nanoTime() - longAgo, 1L);
+      return null;
+    });
+    verify(profiling, never()).virtualParkExit(anyLong(), anyLong(), anyLong());
+
+    onVirtualThread(() -> {
+      LockSupportHelper.virtualParkExit(System.nanoTime() - longAgo, 2L);
+      return null;
+    });
+    verify(profiling).virtualParkExit(anyLong(), eq(2L), eq(0L));
+  }
+
+  @Test
+  void stalePinDoesNotHideALaterPark() throws Exception {
+    assumeTrue(ThreadSupport.supportsVirtualThreads(), "Virtual threads are unavailable");
+    ProfilingContextIntegration profiling = virtualParkProfiling(true);
+
+    onVirtualThread(() -> {
+      LockSupportHelper.markPinnedPark(); // e.g. a pinned Thread.sleep
+      long start = LockSupportHelper.virtualParkStart();
+      LockSupportHelper.virtualParkExit(start - TimeUnit.MILLISECONDS.toNanos(5), 3L);
+      return null;
+    });
+
+    verify(profiling).virtualParkExit(anyLong(), eq(3L), eq(0L));
+  }
+
+  @Test
+  void platformThreadsCannotBeMarkedPinned() {
+    ProfilingContextIntegration profiling = virtualParkProfiling(true);
+
+    LockSupportHelper.markPinnedPark();
+    LockSupportHelper.virtualParkExit(System.nanoTime() - TimeUnit.MILLISECONDS.toNanos(5), 4L);
+
+    verify(profiling).virtualParkExit(anyLong(), eq(4L), eq(0L));
+  }
+
+  @Test
+  void virtualParkProfilerFailuresDoNotEscapeInstrumentation() throws Exception {
+    assumeTrue(ThreadSupport.supportsVirtualThreads(), "Virtual threads are unavailable");
+    ProfilingContextIntegration profiling = virtualParkProfiling(true);
+    when(profiling.isVirtualParkEnabled()).thenThrow(new IllegalStateException("boom"));
+    doThrow(new IllegalStateException("boom"))
+        .when(profiling)
+        .virtualParkExit(anyLong(), anyLong(), anyLong());
+
+    assertEquals(0L, onVirtualThread(LockSupportHelper::virtualParkStart));
+    assertDoesNotThrow(() -> LockSupportHelper.reportVirtualPark(TimeUnit.SECONDS.toNanos(1), 0L));
+  }
+
+  private static ProfilingContextIntegration virtualParkProfiling(boolean enabled) {
+    AgentTracer.TracerAPI tracer = tracerWithActiveSpan(null);
+    ProfilingContextIntegration profiling = tracer.getProfilingContext();
+    when(profiling.isVirtualParkEnabled()).thenReturn(enabled);
+    AgentTracer.forceRegister(tracer);
+    return profiling;
+  }
+
+  private static <T> T onVirtualThread(java.util.concurrent.Callable<T> task) throws Exception {
+    ExecutorService executor = ThreadSupport.newVirtualThreadPerTaskExecutor().get();
+    try {
+      return executor.submit(task).get(10, TimeUnit.SECONDS);
+    } finally {
+      executor.shutdown();
+    }
   }
 
   private Thread newTargetThread() {

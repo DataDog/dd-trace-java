@@ -29,6 +29,19 @@ public final class LockSupportHelper {
    */
   static final WeakMap<Thread, UnparkState> UNPARKING_STATE = WeakMap.Supplier.newWeakMap();
 
+  /**
+   * Virtual threads currently inside {@code VirtualThread.parkOnCarrierThread}. Only pinned parks
+   * insert, so the common path never allocates; an entry is consumed by the next virtual park exit
+   * on the same thread. May be {@code null} during recursive class initialization, like above.
+   */
+  private static final WeakMap<Thread, Boolean> PINNED_PARKS = WeakMap.Supplier.newWeakMap();
+
+  /** Set once any thread pinned, so the park path skips the map lookup until then. */
+  private static volatile boolean pinnedSeen;
+
+  /** Parks shorter than this are not worth a TaskBlock; matches the ddprof threshold. */
+  static final long MIN_VIRTUAL_PARK_NANOS = 1_000_000L;
+
   static final class UnparkState {
     volatile long unblockingSpanId;
   }
@@ -48,6 +61,78 @@ public final class LockSupportHelper {
       return profiling.parkEnter() ? profiling : null;
     } catch (Throwable ignored) {
       return null;
+    }
+  }
+
+  /**
+   * Returns a non-zero {@link System#nanoTime()} when the current thread is virtual and virtual
+   * parks are recorded, else {@code 0}. The caller keeps it in an advice local and passes it to
+   * {@link #virtualParkExit(long, long)}.
+   */
+  public static long virtualParkStart() {
+    Thread thread = Thread.currentThread();
+    if (!ThreadSupport.isVirtual(thread)) {
+      return 0L;
+    }
+    ProfilingContextIntegration profiling = AgentTracer.get().getProfilingContext();
+    if (profiling == null || !isVirtualParkEnabled(profiling)) {
+      return 0L;
+    }
+    // A pin left by a non-LockSupport park (e.g. Thread.sleep) must not hide this park.
+    consumePinned(thread);
+    long now = System.nanoTime();
+    return now == 0L ? 1L : now;
+  }
+
+  private static boolean isVirtualParkEnabled(ProfilingContextIntegration profiling) {
+    try {
+      return profiling.isVirtualParkEnabled();
+    } catch (Throwable ignored) {
+      return false;
+    }
+  }
+
+  /** Marks the current virtual thread as parking pinned to its carrier; such parks are skipped. */
+  public static void markPinnedPark() {
+    Thread thread = Thread.currentThread();
+    if (PINNED_PARKS != null && ThreadSupport.isVirtual(thread)) {
+      pinnedSeen = true;
+      PINNED_PARKS.put(thread, Boolean.TRUE);
+    }
+  }
+
+  private static boolean consumePinned(Thread thread) {
+    return pinnedSeen && PINNED_PARKS != null && PINNED_PARKS.remove(thread) != null;
+  }
+
+  /**
+   * Reports a virtual-thread park that ended on the current thread. Does nothing for {@code
+   * startNanos == 0}, pinned parks (already visible in the carrier's wall-clock samples), and parks
+   * shorter than the profiler threshold. The unblocking span is not tracked for virtual threads and
+   * is reported as {@code 0}.
+   */
+  public static void virtualParkExit(long startNanos, long blockerHash) {
+    if (startNanos == 0L) {
+      return;
+    }
+    long elapsed = System.nanoTime() - startNanos;
+    if (consumePinned(Thread.currentThread())) {
+      return;
+    }
+    reportVirtualPark(elapsed, blockerHash);
+  }
+
+  static void reportVirtualPark(long elapsedNanos, long blockerHash) {
+    if (elapsedNanos < MIN_VIRTUAL_PARK_NANOS) {
+      return;
+    }
+    ProfilingContextIntegration profiling = AgentTracer.get().getProfilingContext();
+    if (profiling == null) {
+      return;
+    }
+    try {
+      profiling.virtualParkExit(elapsedNanos, blockerHash, 0L);
+    } catch (Throwable ignored) {
     }
   }
 

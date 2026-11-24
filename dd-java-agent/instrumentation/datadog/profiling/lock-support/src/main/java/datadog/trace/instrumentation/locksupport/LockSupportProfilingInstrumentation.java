@@ -22,12 +22,15 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /**
  * Instruments {@link java.util.concurrent.locks.LockSupport} park and unpark operations for
- * TaskBlock profiling. The native hooks own platform-thread park intervals only; virtual-thread
- * calls are rejected by ddprof without touching carrier-thread ownership.
+ * TaskBlock profiling. The native park hooks own platform-thread park intervals only. A virtual
+ * thread is timed with an advice-local {@code nanoTime} (it survives unmount and carrier migration
+ * in the frozen frame) and reported on exit, only when the virtual-park sub-flag is on.
  */
 @AutoService(InstrumenterModule.class)
 public class LockSupportProfilingInstrumentation extends InstrumenterModule.Profiling
     implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+
+  private static final String VIRTUAL_THREAD = "java.lang.VirtualThread";
 
   /** Creates the LockSupport profiling instrumentation module. */
   public LockSupportProfilingInstrumentation() {
@@ -49,7 +52,7 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
 
   @Override
   public String[] knownMatchingTypes() {
-    return new String[] {"java.util.concurrent.locks.LockSupport"};
+    return new String[] {"java.util.concurrent.locks.LockSupport", VIRTUAL_THREAD};
   }
 
   @Override
@@ -71,6 +74,13 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
             .and(named("unpark"))
             .and(isDeclaredBy(named("java.util.concurrent.locks.LockSupport"))),
         getClass().getName() + "$UnparkAdvice");
+    // Absent before JDK 21, where nothing matches. Without the sub-flag nothing is rewritten.
+    if (TaskBlockInstrumentationConfig.isVirtualParkEnabled(
+        Config.get(), ConfigProvider.getInstance())) {
+      transformer.applyAdvice(
+          isMethod().and(named("parkOnCarrierThread")).and(isDeclaredBy(named(VIRTUAL_THREAD))),
+          getClass().getName() + "$PinnedParkAdvice");
+    }
   }
 
   private static ElementMatcher.Junction<MethodDescription> parkMethod(String name, int arguments) {
@@ -86,7 +96,14 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
     /** Starts the paired profiling lifecycle before the park. */
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ProfilingContextIntegration before(
-        @Advice.Argument(0) Object blocker, @Advice.Local("blockerHash") long blockerHash) {
+        @Advice.Argument(0) Object blocker,
+        @Advice.Local("blockerHash") long blockerHash,
+        @Advice.Local("virtualStart") long virtualStart) {
+      virtualStart = LockSupportHelper.virtualParkStart();
+      if (virtualStart != 0L) {
+        blockerHash = Integer.toUnsignedLong(System.identityHashCode(blocker));
+        return null;
+      }
       ProfilingContextIntegration profiling = LockSupportHelper.parkEnter();
       if (profiling != null) {
         blockerHash = Integer.toUnsignedLong(System.identityHashCode(blocker));
@@ -98,8 +115,10 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(
         @Advice.Enter ProfilingContextIntegration profiling,
-        @Advice.Local("blockerHash") long blockerHash) {
+        @Advice.Local("blockerHash") long blockerHash,
+        @Advice.Local("virtualStart") long virtualStart) {
       LockSupportHelper.parkExit(profiling, blockerHash);
+      LockSupportHelper.virtualParkExit(virtualStart, blockerHash);
     }
   }
 
@@ -107,14 +126,19 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
   public static final class ParkWithoutBlockerAdvice {
     /** Starts the paired profiling lifecycle before the park. */
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ProfilingContextIntegration before() {
-      return LockSupportHelper.parkEnter();
+    public static ProfilingContextIntegration before(
+        @Advice.Local("virtualStart") long virtualStart) {
+      virtualStart = LockSupportHelper.virtualParkStart();
+      return virtualStart != 0L ? null : LockSupportHelper.parkEnter();
     }
 
     /** Completes an accepted profiling lifecycle after the park. */
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void after(@Advice.Enter ProfilingContextIntegration profiling) {
+    public static void after(
+        @Advice.Enter ProfilingContextIntegration profiling,
+        @Advice.Local("virtualStart") long virtualStart) {
       LockSupportHelper.parkExit(profiling, 0L);
+      LockSupportHelper.virtualParkExit(virtualStart, 0L);
     }
   }
 
@@ -124,8 +148,14 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
     public static ProfilingContextIntegration before(
         @Advice.Argument(0) Object blocker,
         @Advice.Argument(1) long nanos,
-        @Advice.Local("blockerHash") long blockerHash) {
+        @Advice.Local("blockerHash") long blockerHash,
+        @Advice.Local("virtualStart") long virtualStart) {
       if (nanos <= 0) {
+        return null;
+      }
+      virtualStart = LockSupportHelper.virtualParkStart();
+      if (virtualStart != 0L) {
+        blockerHash = Integer.toUnsignedLong(System.identityHashCode(blocker));
         return null;
       }
       ProfilingContextIntegration profiling = LockSupportHelper.parkEnter();
@@ -138,21 +168,31 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(
         @Advice.Enter ProfilingContextIntegration profiling,
-        @Advice.Local("blockerHash") long blockerHash) {
+        @Advice.Local("blockerHash") long blockerHash,
+        @Advice.Local("virtualStart") long virtualStart) {
       LockSupportHelper.parkExit(profiling, blockerHash);
+      LockSupportHelper.virtualParkExit(virtualStart, blockerHash);
     }
   }
 
   /** Advice for timed park variants without an explicit blocker object. */
   public static final class ParkNanosWithoutBlockerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ProfilingContextIntegration before(@Advice.Argument(0) long nanos) {
-      return nanos > 0 ? LockSupportHelper.parkEnter() : null;
+    public static ProfilingContextIntegration before(
+        @Advice.Argument(0) long nanos, @Advice.Local("virtualStart") long virtualStart) {
+      if (nanos <= 0) {
+        return null;
+      }
+      virtualStart = LockSupportHelper.virtualParkStart();
+      return virtualStart != 0L ? null : LockSupportHelper.parkEnter();
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void after(@Advice.Enter ProfilingContextIntegration profiling) {
+    public static void after(
+        @Advice.Enter ProfilingContextIntegration profiling,
+        @Advice.Local("virtualStart") long virtualStart) {
       LockSupportHelper.parkExit(profiling, 0L);
+      LockSupportHelper.virtualParkExit(virtualStart, 0L);
     }
   }
 
@@ -162,8 +202,14 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
     public static ProfilingContextIntegration before(
         @Advice.Argument(0) Object blocker,
         @Advice.Argument(1) long deadline,
-        @Advice.Local("blockerHash") long blockerHash) {
+        @Advice.Local("blockerHash") long blockerHash,
+        @Advice.Local("virtualStart") long virtualStart) {
       if (deadline <= System.currentTimeMillis()) {
+        return null;
+      }
+      virtualStart = LockSupportHelper.virtualParkStart();
+      if (virtualStart != 0L) {
+        blockerHash = Integer.toUnsignedLong(System.identityHashCode(blocker));
         return null;
       }
       ProfilingContextIntegration profiling = LockSupportHelper.parkEnter();
@@ -176,21 +222,43 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(
         @Advice.Enter ProfilingContextIntegration profiling,
-        @Advice.Local("blockerHash") long blockerHash) {
+        @Advice.Local("blockerHash") long blockerHash,
+        @Advice.Local("virtualStart") long virtualStart) {
       LockSupportHelper.parkExit(profiling, blockerHash);
+      LockSupportHelper.virtualParkExit(virtualStart, blockerHash);
     }
   }
 
   /** Advice for absolute-deadline park variants without an explicit blocker object. */
   public static final class ParkUntilWithoutBlockerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ProfilingContextIntegration before(@Advice.Argument(0) long deadline) {
-      return deadline > System.currentTimeMillis() ? LockSupportHelper.parkEnter() : null;
+    public static ProfilingContextIntegration before(
+        @Advice.Argument(0) long deadline, @Advice.Local("virtualStart") long virtualStart) {
+      if (deadline <= System.currentTimeMillis()) {
+        return null;
+      }
+      virtualStart = LockSupportHelper.virtualParkStart();
+      return virtualStart != 0L ? null : LockSupportHelper.parkEnter();
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void after(@Advice.Enter ProfilingContextIntegration profiling) {
+    public static void after(
+        @Advice.Enter ProfilingContextIntegration profiling,
+        @Advice.Local("virtualStart") long virtualStart) {
       LockSupportHelper.parkExit(profiling, 0L);
+      LockSupportHelper.virtualParkExit(virtualStart, 0L);
+    }
+  }
+
+  /**
+   * Marks the current virtual thread as parking on its carrier. {@code VirtualThread.park*} calls
+   * {@code parkOnCarrierThread} only when it could not yield, so the carrier stays blocked with the
+   * virtual thread mounted: the wall-clock samples already cover that interval.
+   */
+  public static final class PinnedParkAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void before() {
+      LockSupportHelper.markPinnedPark();
     }
   }
 

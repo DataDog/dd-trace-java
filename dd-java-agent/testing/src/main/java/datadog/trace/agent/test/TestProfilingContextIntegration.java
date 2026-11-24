@@ -10,10 +10,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.TaskWrapper;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -42,6 +44,8 @@ public class TestProfilingContextIntegration implements ProfilingContextIntegrat
   private final Logger logger = LoggerFactory.getLogger(TestProfilingContextIntegration.class);
   private volatile boolean acceptParkEntries = true;
   private volatile boolean unparkAttributionEnabled = true;
+  private volatile boolean virtualParkEnabled = true;
+  private final List<VirtualParkExit> virtualParkExits = new CopyOnWriteArrayList<>();
 
   @Override
   public void onAttach() {
@@ -68,6 +72,8 @@ public class TestProfilingContextIntegration implements ProfilingContextIntegrat
     parkExitThreads.clear();
     acceptParkEntries = true;
     unparkAttributionEnabled = true;
+    virtualParkEnabled = true;
+    virtualParkExits.clear();
   }
 
   @Override
@@ -101,6 +107,41 @@ public class TestProfilingContextIntegration implements ProfilingContextIntegrat
           .set(unblockingSpanId);
     }
     parkExitThreads.add(Thread.currentThread());
+  }
+
+  @Override
+  public boolean isVirtualParkEnabled() {
+    return virtualParkEnabled;
+  }
+
+  @Override
+  public boolean virtualParkExit(long elapsedNanos, long blocker, long unblockingSpanId) {
+    virtualParkExits.add(
+        new VirtualParkExit(Thread.currentThread(), elapsedNanos, blocker, unblockingSpanId));
+    return true;
+  }
+
+  public void setVirtualParkEnabled(boolean enabled) {
+    this.virtualParkEnabled = enabled;
+  }
+
+  public List<VirtualParkExit> getVirtualParkExits() {
+    return virtualParkExits;
+  }
+
+  /** A recorded {@link #virtualParkExit(long, long, long)} call. */
+  public static final class VirtualParkExit {
+    public final Thread thread;
+    public final long elapsedNanos;
+    public final long blocker;
+    public final long unblockingSpanId;
+
+    VirtualParkExit(Thread thread, long elapsedNanos, long blocker, long unblockingSpanId) {
+      this.thread = thread;
+      this.elapsedNanos = elapsedNanos;
+      this.blocker = blocker;
+      this.unblockingSpanId = unblockingSpanId;
+    }
   }
 
   @Override
