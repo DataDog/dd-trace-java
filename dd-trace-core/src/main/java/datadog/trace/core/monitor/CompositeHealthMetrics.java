@@ -221,7 +221,7 @@ public final class CompositeHealthMetrics extends HealthMetrics {
   }
 
   @Override
-  public void onExportStart(final ExporterId exporter, final long itemCount) {
+  public void onExportStart(final OtelExporterId exporter, final long itemCount) {
     for (HealthMetrics delegate : delegates) {
       delegate.onExportStart(exporter, itemCount);
     }
@@ -229,7 +229,7 @@ public final class CompositeHealthMetrics extends HealthMetrics {
 
   @Override
   public void onExportEnd(
-      final ExporterId exporter,
+      final OtelExporterId exporter,
       final long itemCount,
       final long durationNanos,
       final RemoteApi.Response response,

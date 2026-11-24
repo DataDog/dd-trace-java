@@ -6,9 +6,9 @@ import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.UP_DOWN_COUNTER;
 import static datadog.trace.common.writer.RemoteApi.Response.failed;
 import static datadog.trace.common.writer.RemoteApi.Response.success;
-import static datadog.trace.core.monitor.ExporterId.Signal.LOG;
-import static datadog.trace.core.monitor.ExporterId.Signal.METRIC_DATA_POINT;
-import static datadog.trace.core.monitor.ExporterId.Signal.SPAN;
+import static datadog.trace.core.monitor.OtelExporterId.Signal.LOG;
+import static datadog.trace.core.monitor.OtelExporterId.Signal.METRIC_DATA_POINT;
+import static datadog.trace.core.monitor.OtelExporterId.Signal.SPAN;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -20,8 +20,8 @@ import datadog.trace.agent.test.utils.OtelMetricCollector;
 import datadog.trace.agent.test.utils.OtelMetricCollector.DataPointEntry;
 import datadog.trace.bootstrap.otlp.metrics.OtlpHistogramPoint;
 import datadog.trace.common.writer.RemoteApi;
-import datadog.trace.core.monitor.ComponentId;
-import datadog.trace.core.monitor.ExporterId;
+import datadog.trace.core.monitor.OtelComponentId;
+import datadog.trace.core.monitor.OtelExporterId;
 import datadog.trace.core.otlp.common.OtlpGrpcStatusException;
 import java.io.IOException;
 import java.io.InterruptedIOException;
@@ -48,7 +48,7 @@ class OtelHealthMetricsExportTest {
 
   @Test
   void tracksInflightExportedAndDuration() {
-    ExporterId id = exporter(SPAN, "otel_export_test_http", DESTINATION, false);
+    OtelExporterId id = exporter(SPAN, "otel_export_test_http", DESTINATION, false);
 
     SINK.onExportStart(id, 3);
     SINK.onExportStart(id, 2);
@@ -83,7 +83,7 @@ class OtelHealthMetricsExportTest {
 
   @Test
   void mapsExceptionsAndMissingResponsesToErrorTypes() {
-    ExporterId id = exporter(SPAN, "otel_export_test_exception", null, false);
+    OtelExporterId id = exporter(SPAN, "otel_export_test_exception", null, false);
 
     end(id, 4, null, new SocketTimeoutException());
     end(id, 1, failed(new IOException()), null);
@@ -105,7 +105,7 @@ class OtelHealthMetricsExportTest {
 
   @Test
   void grpcExportsReportTheGrpcStatus() {
-    ExporterId id =
+    OtelExporterId id =
         exporter(
             METRIC_DATA_POINT,
             "otel_export_test_grpc",
@@ -137,7 +137,7 @@ class OtelHealthMetricsExportTest {
 
   @Test
   void namesInstrumentsInSdkScope() {
-    ExporterId id = exporter(LOG, "otel_export_test_names", DESTINATION, false);
+    OtelExporterId id = exporter(LOG, "otel_export_test_names", DESTINATION, false);
     SINK.onExportStart(id, 1);
     end(id, 1, success(200), null);
     OtelMetricCollector collector = collect();
@@ -181,7 +181,7 @@ class OtelHealthMetricsExportTest {
     "42   | 42         "
   })
   void grpcStatusFailuresUseTheStatusName(int code, String name) {
-    ExporterId id = exporter(SPAN, "otel_export_test_grpc_" + code, null, true);
+    OtelExporterId id = exporter(SPAN, "otel_export_test_grpc_" + code, null, true);
     end(id, 1, failed(new OtlpGrpcStatusException(code, "x")), null);
 
     DataPointEntry duration = points(collect(), DURATION, id).get(0);
@@ -189,13 +189,14 @@ class OtelHealthMetricsExportTest {
     assertEquals(name, duration.attrs.get("rpc.status_code"));
   }
 
-  private static ExporterId exporter(
-      ExporterId.Signal signal, String type, HttpUrl destination, boolean grpc) {
-    return new ExporterId(signal, ComponentId.next(type), destination, grpc);
+  private static OtelExporterId exporter(
+      OtelExporterId.Signal signal, String type, HttpUrl destination, boolean grpc) {
+    return new OtelExporterId(signal, OtelComponentId.next(type), destination, grpc);
   }
 
   /** Ends an export that took 250 ms. */
-  private static void end(ExporterId id, long items, RemoteApi.Response response, Throwable error) {
+  private static void end(
+      OtelExporterId id, long items, RemoteApi.Response response, Throwable error) {
     SINK.onExportEnd(id, items, 250_000_000L, response, error);
   }
 
@@ -217,13 +218,13 @@ class OtelHealthMetricsExportTest {
   }
 
   private static List<DataPointEntry> points(
-      OtelMetricCollector collector, String metric, ExporterId id) {
+      OtelMetricCollector collector, String metric, OtelExporterId id) {
     return collector.points(metric).stream()
         .filter(point -> id.component().name().equals(point.attrs.get("otel.component.name")))
         .collect(toList());
   }
 
-  private static long sum(OtelMetricCollector collector, String metric, ExporterId id) {
+  private static long sum(OtelMetricCollector collector, String metric, OtelExporterId id) {
     return points(collector, metric, id).stream().mapToLong(point -> point.value.longValue()).sum();
   }
 }

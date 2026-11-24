@@ -19,15 +19,15 @@ public final class ExportRecorder {
   public static final ExportRecorder NO_OP = new ExportRecorder(HealthMetrics.NO_OP, null);
 
   private final HealthMetrics sink;
-  private final ExporterId exporter;
+  private final OtelExporterId exporter;
 
-  private ExportRecorder(HealthMetrics sink, ExporterId exporter) {
+  private ExportRecorder(HealthMetrics sink, OtelExporterId exporter) {
     this.sink = sink;
     this.exporter = exporter;
   }
 
   /** Returns the recorder of {@code exporter} reporting to {@code sink}, or {@link #NO_OP}. */
-  public static ExportRecorder create(HealthMetrics sink, ExporterId exporter) {
+  public static ExportRecorder create(HealthMetrics sink, OtelExporterId exporter) {
     if (sink == HealthMetrics.NO_OP) {
       return NO_OP;
     }

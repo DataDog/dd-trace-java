@@ -9,11 +9,12 @@ import okhttp3.HttpUrl;
 /**
  * Identity of one exporter instance, passed to the {@link HealthMetrics} export hooks so a sink can
  * tell exporters apart. Build one per exporter and keep it: each new id takes the next {@link
- * ComponentId} sequence number, so a new id is a new series.
+ * OtelComponentId} sequence number, so a new id is a new series.
  */
-public final class ExporterId {
+public final class OtelExporterId {
   /** The telemetry signal an exporter sends. */
   public enum Signal {
+    // named for the exported item, as in otel.sdk.exporter.span.*, not the OTLP signal (traces)
     SPAN("span"),
     LOG("log"),
     METRIC_DATA_POINT("metric");
@@ -26,7 +27,7 @@ public final class ExporterId {
   }
 
   private final Signal signal;
-  private final ComponentId component;
+  private final OtelComponentId component;
   @Nullable private final String serverAddress;
   private final int serverPort;
   private final boolean grpc;
@@ -36,8 +37,8 @@ public final class ExporterId {
    *     #serverPort()}; null when unknown or not meaningful, such as a unix domain socket
    * @param grpc whether the exporter speaks gRPC rather than HTTP
    */
-  public ExporterId(
-      Signal signal, ComponentId component, @Nullable HttpUrl destination, boolean grpc) {
+  public OtelExporterId(
+      Signal signal, OtelComponentId component, @Nullable HttpUrl destination, boolean grpc) {
     this.signal = signal;
     this.component = component;
     this.serverAddress = destination == null ? null : destination.host();
@@ -47,12 +48,13 @@ public final class ExporterId {
 
   /**
    * Returns a new identity for an OTLP exporter sending {@code signal} over {@code protocol} to
-   * {@code destination}, with the next {@link ComponentId} of its type.
+   * {@code destination}, with the next {@link OtelComponentId} of its type.
    */
-  public static ExporterId otlp(Signal signal, Protocol protocol, @Nullable HttpUrl destination) {
-    return new ExporterId(
+  public static OtelExporterId otlp(
+      Signal signal, Protocol protocol, @Nullable HttpUrl destination) {
+    return new OtelExporterId(
         signal,
-        ComponentId.next(otlpExporterType(protocol, signal)),
+        OtelComponentId.next(otlpExporterType(protocol, signal)),
         destination,
         protocol == GRPC);
   }
@@ -81,7 +83,7 @@ public final class ExporterId {
     return signal;
   }
 
-  public ComponentId component() {
+  public OtelComponentId component() {
     return component;
   }
 

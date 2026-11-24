@@ -2,9 +2,9 @@ package datadog.trace.core.monitor;
 
 import static datadog.trace.common.writer.RemoteApi.Response.failed;
 import static datadog.trace.common.writer.RemoteApi.Response.success;
-import static datadog.trace.core.monitor.ExporterId.Signal.LOG;
-import static datadog.trace.core.monitor.ExporterId.Signal.METRIC_DATA_POINT;
-import static datadog.trace.core.monitor.ExporterId.Signal.SPAN;
+import static datadog.trace.core.monitor.OtelExporterId.Signal.LOG;
+import static datadog.trace.core.monitor.OtelExporterId.Signal.METRIC_DATA_POINT;
+import static datadog.trace.core.monitor.OtelExporterId.Signal.SPAN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -34,7 +34,7 @@ class ExportRecorderTest {
   @Test
   void reportsStartThenOneEndWithTheResponse() {
     HealthMetrics sink = mock(HealthMetrics.class);
-    ExporterId id = ExporterId.otlp(SPAN, Protocol.HTTP_PROTOBUF, DESTINATION);
+    OtelExporterId id = OtelExporterId.otlp(SPAN, Protocol.HTTP_PROTOBUF, DESTINATION);
     RemoteApi.Response response = success(200);
 
     ExportRecorder.Export export = ExportRecorder.create(sink, id).start(3);
@@ -51,7 +51,7 @@ class ExportRecorderTest {
   @Test
   void reportsTheExceptionThrownBySend() {
     HealthMetrics sink = mock(HealthMetrics.class);
-    ExporterId id = ExporterId.otlp(LOG, Protocol.GRPC, null);
+    OtelExporterId id = OtelExporterId.otlp(LOG, Protocol.GRPC, null);
     IOException error = new IOException();
 
     ExportRecorder.create(sink, id).start(2).failure(error);
@@ -61,7 +61,7 @@ class ExportRecorderTest {
 
   @Test
   void noOpSinkGetsTheNoOpRecorder() {
-    ExporterId id = ExporterId.otlp(SPAN, Protocol.HTTP_PROTOBUF, DESTINATION);
+    OtelExporterId id = OtelExporterId.otlp(SPAN, Protocol.HTTP_PROTOBUF, DESTINATION);
 
     ExportRecorder recorder = ExportRecorder.create(HealthMetrics.NO_OP, id);
 
@@ -85,14 +85,14 @@ class ExportRecorderTest {
     "HTTP_JSON     | LOG               | otlp_http_json_log_exporter   "
   })
   void namesOtlpExporterTypesByProtocolAndSignal(
-      Protocol protocol, ExporterId.Signal signal, String type) {
-    assertEquals(type, ExporterId.otlpExporterType(protocol, signal));
+      Protocol protocol, OtelExporterId.Signal signal, String type) {
+    assertEquals(type, OtelExporterId.otlpExporterType(protocol, signal));
   }
 
   @Test
   void otlpExporterIdsCarryTheirIdentity() {
-    ExporterId grpc = ExporterId.otlp(METRIC_DATA_POINT, Protocol.GRPC, DESTINATION);
-    ExporterId http = ExporterId.otlp(LOG, Protocol.HTTP_PROTOBUF, null);
+    OtelExporterId grpc = OtelExporterId.otlp(METRIC_DATA_POINT, Protocol.GRPC, DESTINATION);
+    OtelExporterId http = OtelExporterId.otlp(LOG, Protocol.HTTP_PROTOBUF, null);
 
     assertSame(METRIC_DATA_POINT, grpc.signal());
     assertEquals("otlp_grpc_metric_exporter", grpc.component().type());
@@ -108,14 +108,14 @@ class ExportRecorderTest {
 
   @Test
   void namesComponentsPerType() {
-    ComponentId first = ComponentId.next("export_recorder_test_naming");
-    ComponentId second = ComponentId.next("export_recorder_test_naming");
+    OtelComponentId first = OtelComponentId.next("export_recorder_test_naming");
+    OtelComponentId second = OtelComponentId.next("export_recorder_test_naming");
 
     assertEquals("export_recorder_test_naming", first.type());
     assertEquals("export_recorder_test_naming/0", first.name());
     assertEquals("export_recorder_test_naming/1", second.name());
     assertEquals("export_recorder_test_naming/1", second.toString());
     assertEquals(
-        "export_recorder_test_other/0", ComponentId.next("export_recorder_test_other").name());
+        "export_recorder_test_other/0", OtelComponentId.next("export_recorder_test_other").name());
   }
 }

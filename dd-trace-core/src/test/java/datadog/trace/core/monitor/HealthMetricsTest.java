@@ -1,6 +1,6 @@
 package datadog.trace.core.monitor;
 
-import static datadog.trace.core.monitor.ExporterId.Signal.SPAN;
+import static datadog.trace.core.monitor.OtelExporterId.Signal.SPAN;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.mock;
@@ -44,7 +44,7 @@ class HealthMetricsTest {
   @Test
   void testExportHooksReportNothing() {
     TracerHealthMetrics healthMetrics = new TracerHealthMetrics(statsD);
-    ExporterId exporter = ExporterId.otlp(SPAN, Protocol.HTTP_PROTOBUF, null);
+    OtelExporterId exporter = OtelExporterId.otlp(SPAN, Protocol.HTTP_PROTOBUF, null);
     healthMetrics.onExportStart(exporter, 3);
     healthMetrics.onExportEnd(exporter, 3, 1_000L, RemoteApi.Response.success(200), null);
     healthMetrics.onExportEnd(exporter, 3, 1_000L, null, new IllegalStateException());

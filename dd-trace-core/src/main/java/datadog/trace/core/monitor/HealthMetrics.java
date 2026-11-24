@@ -90,7 +90,7 @@ public abstract class HealthMetrics implements AutoCloseable {
    * Reports that {@code exporter} started sending {@code itemCount} items. Called through {@link
    * ExportRecorder}, which pairs it with exactly one {@link #onExportEnd}.
    */
-  public void onExportStart(final ExporterId exporter, final long itemCount) {}
+  public void onExportStart(final OtelExporterId exporter, final long itemCount) {}
 
   /**
    * Reports that {@code exporter} finished sending {@code itemCount} items after {@code
@@ -100,7 +100,7 @@ public abstract class HealthMetrics implements AutoCloseable {
    * @param error the exception the send threw, or null
    */
   public void onExportEnd(
-      final ExporterId exporter,
+      final OtelExporterId exporter,
       final long itemCount,
       final long durationNanos,
       @Nullable final RemoteApi.Response response,
