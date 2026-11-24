@@ -99,7 +99,7 @@ public class StringCanonicalizerBenchmark {
     switch (shape) {
       case "keys":
         for (int i = 0; i < distinct; i++) {
-          texts.add(String.format("scale-bulk-%05d", i));
+          texts.add(Strings.format("scale-bulk-%05d", i));
         }
         break;
       case "ids":
