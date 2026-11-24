@@ -183,7 +183,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
         wrapper.onSpanFinished();
       }
       this.metrics.onSpanFinished();
-      TraceCollector.PublishState publishState = context.getTraceCollector().onPublish(this);
+      TraceCollector traceCollector = context.getTraceCollector();
+      traceCollector.onEnd();
+      TraceCollector.PublishState publishState = traceCollector.onPublish(this);
       log.debug("Finished span ({}): {}", publishState, this);
     } else {
       log.debug("Already finished: {}", this);
@@ -278,6 +280,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
     }
     // Flip the negative bit of the result to allow verifying that publish() is only called once.
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano) | Long.MIN_VALUE)) {
+      context.getTraceCollector().onEnd();
       log.debug("Finished span (PHASED): {}", this);
       return true;
     } else {

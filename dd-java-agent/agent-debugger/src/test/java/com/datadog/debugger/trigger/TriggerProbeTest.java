@@ -49,7 +49,7 @@ public class TriggerProbeTest extends CapturingTestBase {
     super.before();
     traceInterceptor = new TestTraceInterceptor();
 
-    CoreTracer tracer = CoreTracer.builder().build();
+    tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
     tracer.addTraceInterceptor(traceInterceptor);
 

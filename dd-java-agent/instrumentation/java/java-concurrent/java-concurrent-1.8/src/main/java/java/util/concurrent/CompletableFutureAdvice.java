@@ -2,8 +2,6 @@ package java.util.concurrent;
 
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.COMPLETABLE_FUTURE_CALLBACK;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static java.util.concurrent.CompletableFuture.ASYNC;
 
 import datadog.context.Context;
@@ -11,6 +9,7 @@ import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.SkipCompletableFutureContextCapture;
 import java.util.concurrent.CompletableFuture.UniCompletion;
 import net.bytebuddy.asm.Advice;
 
@@ -24,7 +23,7 @@ public final class CompletableFutureAdvice {
       Context context = currentContext();
       if (zis.isLive()
           && context != rootContext()
-          && (callback == null || !exclude(COMPLETABLE_FUTURE_CALLBACK, callback))) {
+          && !(callback instanceof SkipCompletableFutureContextCapture)) {
         ContextStore<UniCompletion, ConcurrentState> contextStore =
             InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
         ConcurrentState.captureContinuation(contextStore, zis, context);

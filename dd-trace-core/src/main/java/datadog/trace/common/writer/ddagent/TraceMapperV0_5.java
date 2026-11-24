@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.trace.api.ProtocolVersion.V0_5;
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.core.CoreSpan.ROOT_PROPAGATION_TAGS;
 
@@ -135,7 +136,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
   @Override
   public ProtocolVersion protocolVersion() {
-    return ProtocolVersion.V0_5;
+    return V0_5;
   }
 
   @Override
@@ -254,7 +255,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
     @Override
     public ProtocolVersion protocol() {
-      return ProtocolVersion.V0_5;
+      return V0_5;
     }
 
     @Override

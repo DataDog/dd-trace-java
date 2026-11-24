@@ -6,9 +6,12 @@ import static datadog.environment.OperatingSystem.Type.WINDOWS;
 import static java.util.Locale.ROOT;
 
 import java.io.BufferedReader;
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -66,6 +69,22 @@ public final class OperatingSystem {
     return ARCHITECTURE;
   }
 
+  /** Gets the host charset, falling back to the JDK filesystem charset and JVM default. */
+  public static Charset nativeCharset() {
+    // native.encoding (JDK 17+) follows the host; file.encoding can select another JVM default.
+    // Older OpenJDKs expose the filesystem charset through sun.jnu.encoding instead.
+    for (String property : new String[] {"native.encoding", "sun.jnu.encoding"}) {
+      String encoding = SystemProperties.get(property);
+      if (encoding != null) {
+        try {
+          return Charset.forName(encoding);
+        } catch (IllegalArgumentException ignored) {
+        }
+      }
+    }
+    return Charset.defaultCharset();
+  }
+
   /**
    * Checks whether the libc is MUSL.
    *
@@ -88,7 +107,11 @@ public final class OperatingSystem {
   }
 
   private static boolean isMuslProcSelfMaps() throws IOException {
-    try (BufferedReader reader = new BufferedReader(new FileReader("/proc/self/maps"))) {
+    // Only ASCII library markers matter here; ISO-8859-1 preserves arbitrary pathname bytes.
+    try (BufferedReader reader =
+        new BufferedReader(
+            new InputStreamReader(
+                new FileInputStream("/proc/self/maps"), StandardCharsets.ISO_8859_1))) {
       String line;
       while ((line = reader.readLine()) != null) {
         if (line.contains("-musl-")) {

@@ -254,6 +254,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       if (host != null) {
         onHostService(span, host);
       }
+      span.setTagsFrom(dbInfo.getRdsEndpoint());
     }
   }
 

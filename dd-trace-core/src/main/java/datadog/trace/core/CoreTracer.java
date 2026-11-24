@@ -101,10 +101,12 @@ import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DataStreamsTransactionExtractors;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.core.datastreams.DisabledDataStreamsMonitoring;
+import datadog.trace.core.monitor.CompositeHealthMetrics;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.TracerHealthMetrics;
 import datadog.trace.core.otlp.logs.OtlpLogsService;
 import datadog.trace.core.otlp.metrics.OtlpMetricsService;
+import datadog.trace.core.otlp.sdk.OtelSdkSelfMonitoring;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.InferredProxyPropagator;
@@ -236,7 +238,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   private final Monitoring performanceMonitoring;
 
-  private final HealthMetrics healthMetrics;
+  @VisibleForTesting final HealthMetrics healthMetrics;
   private final Recording traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
   private final TraceCollector.Factory traceCollectorFactory;
@@ -783,11 +785,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     SpanBudget spanBudget =
         writer == null ? WriterFactory.spanBudget(config) : SpanBudget.unlimited();
     this.healthMetrics =
-        healthMetrics != null
-            ? healthMetrics
-            : (config.isHealthMetricsEnabled()
-                ? new TracerHealthMetrics(AgentMeter.statsDClient(), spanBudget)
-                : HealthMetrics.NO_OP);
+        healthMetrics != null ? healthMetrics : createHealthMetrics(config, spanBudget);
     this.healthMetrics.start();
 
     performanceMonitoring =
@@ -1742,6 +1740,25 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       inverted.put(entry.getValue(), entry.getKey());
     }
     return Collections.unmodifiableMap(inverted);
+  }
+
+  /** Combines the enabled health metrics sinks: DD health metrics and OTel SDK self-monitoring. */
+  private static HealthMetrics createHealthMetrics(Config config, SpanBudget spanBudget) {
+    HealthMetrics dd =
+        config.isHealthMetricsEnabled()
+            ? new TracerHealthMetrics(AgentMeter.statsDClient(), spanBudget)
+            : null;
+    HealthMetrics otel = OtelSdkSelfMonitoring.healthMetrics(config);
+    if (dd != null && otel != null) {
+      return new CompositeHealthMetrics(dd, otel);
+    }
+    if (dd != null) {
+      return dd;
+    }
+    if (otel != null) {
+      return otel;
+    }
+    return HealthMetrics.NO_OP;
   }
 
   /** Spans are built using this builder */

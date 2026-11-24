@@ -14,8 +14,7 @@ import java.net.URLClassLoader;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 class ClassLoaderMatchersTest extends DDJavaSpecification {
 
@@ -54,22 +53,39 @@ class ClassLoaderMatchersTest extends DDJavaSpecification {
         LogContextScopeListener.class.getName());
   }
 
-  @ParameterizedTest(name = "skips drools classloader: {0}")
-  @ValueSource(
-      strings = {
-        "org.drools.core.rule.PackageClassLoader",
-        "org.drools.wiring.dynamic.PackageClassLoader",
-        "org.drools.core.rule.JavaDialectRuntimeData$PackageClassLoader",
-        "org.drools.wiring.dynamic.DynamicProjectClassLoader$DefaultInternalTypesClassLoader"
-      })
-  void skipsDroolsClassloader(String loaderName) throws Exception {
+  @TableTest({
+    "scenario                        | loaderName                                                                                  ",
+    "Groovy call sites               | org.codehaus.groovy.runtime.callsite.CallSiteClassLoader                                    ",
+    "JDK 8 reflection                | sun.reflect.DelegatingClassLoader                                                           ",
+    "JDK 9+ reflection               | jdk.internal.reflect.DelegatingClassLoader                                                  ",
+    "HK2 delegation                  | org.jvnet.hk2.internal.DelegatingClassLoader                                                ",
+    "Clojure dynamic classes         | clojure.lang.DynamicClassLoader                                                             ",
+    "CXF generated helpers           | org.apache.cxf.common.util.ASMHelper$TypeHelperClassLoader                                  ",
+    "IBM XML generated stubs         | com.ibm.xml.xlxp2.jaxb.codegen.AbstractGeneratedStubFactory$RootStubClassLoader             ",
+    "JDK extension loader            | sun.misc.Launcher$ExtClassLoader                                                            ",
+    "Spring type matching            | org.springframework.context.support.ContextTypeMatchClassLoader$ContextOverridingClassLoader",
+    "Standalone Nashorn              | org.openjdk.nashorn.internal.runtime.ScriptLoader                                           ",
+    "JDK Nashorn                     | jdk.nashorn.internal.runtime.ScriptLoader                                                   ",
+    "Legacy Janino                   | org.codehaus.janino.ByteArrayClassLoader                                                    ",
+    "Janino commons-compiler         | org.codehaus.commons.compiler.util.reflect.ByteArrayClassLoader                             ",
+    "EclipseLink JAXB                | org.eclipse.persistence.internal.jaxb.JaxbClassLoader                                       ",
+    "Fastjson generated classes      | com.alibaba.fastjson.util.ASMClassLoader                                                    ",
+    "Datadog agent classes           | datadog.trace.bootstrap.DatadogClassLoader                                                  ",
+    "Datadog instrumentation classes | datadog.trace.bootstrap.InstrumentationClassLoader                                          ",
+    "Gosu evaluated programs         | gw.internal.gosu.compiler.SingleServingGosuClassLoader                                      ",
+    "Drools core rule packages       | org.drools.core.rule.PackageClassLoader                                                     ",
+    "Drools dynamic rule packages    | org.drools.wiring.dynamic.PackageClassLoader                                                ",
+    "Drools Java dialect packages    | org.drools.core.rule.JavaDialectRuntimeData$PackageClassLoader                              ",
+    "Drools dynamic project types    | org.drools.wiring.dynamic.DynamicProjectClassLoader$DefaultInternalTypesClassLoader         "
+  })
+  void skipsClassloaderByName(String loaderName) throws Exception {
     ClassLoader systemClassLoader = ClassLoader.getSystemClassLoader();
     ClassLoader loader =
         new ByteBuddy()
             .subclass(ClassLoader.class)
             .name(loaderName)
             .make()
-            .load(systemClassLoader, ClassLoadingStrategy.Default.WRAPPER)
+            .load(systemClassLoader, ClassLoadingStrategy.Default.CHILD_FIRST)
             .getLoaded()
             .getDeclaredConstructor(ClassLoader.class)
             .newInstance(systemClassLoader);

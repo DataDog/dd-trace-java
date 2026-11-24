@@ -62,6 +62,7 @@ public final class FlagEvaluator {
   private final boolean spanEnrichmentEnabled;
   private final ExposureLookup exposureLookup;
   private final ExperimentationOptOutMode experimentationOptOutMode;
+  private final boolean exposuresEnabled;
 
   /**
    * Creates an evaluator.
@@ -77,9 +78,28 @@ public final class FlagEvaluator {
       final boolean spanEnrichmentEnabled,
       final ExposureLookup exposureLookup,
       final ExperimentationOptOutMode experimentationOptOutMode) {
+    this(spanEnrichmentEnabled, exposureLookup, experimentationOptOutMode, true);
+  }
+
+  /**
+   * Creates an evaluator.
+   *
+   * @param spanEnrichmentEnabled whether span enrichment is enabled.
+   * @param exposureLookup the lookup telling whether an exposure was already recorded.
+   * @param experimentationOptOutMode the resolved experimentation opt-out mode.
+   * @param exposuresEnabled whether evaluations of allocations logging exposures are exposures.
+   *     When false, every evaluation is reported as not logging exposures, so no exposure is
+   *     recorded, deduplicated, sent, or reported to exposure hooks, and assignment is unchanged.
+   */
+  public FlagEvaluator(
+      final boolean spanEnrichmentEnabled,
+      final ExposureLookup exposureLookup,
+      final ExperimentationOptOutMode experimentationOptOutMode,
+      final boolean exposuresEnabled) {
     this.spanEnrichmentEnabled = spanEnrichmentEnabled;
     this.exposureLookup = exposureLookup;
     this.experimentationOptOutMode = experimentationOptOutMode;
+    this.exposuresEnabled = exposuresEnabled;
   }
 
   public <T> ProviderEvaluation<T> evaluate(
@@ -403,15 +423,26 @@ public final class FlagEvaluator {
 
   private static boolean compareNumber(
       final Object attributeValue, final Object conditionValue, NumberComparator comparator) {
-    final double a = mapValue(Double.class, attributeValue);
-    final double b = mapValue(Double.class, conditionValue);
-    return comparator.compare(a, b);
+    return comparator.compare(toDouble(attributeValue), toDouble(conditionValue));
+  }
+
+  /**
+   * Converts a comparison operand to a double. A {@link Number} converts without allocating. Any
+   * other value goes through {@link #mapValue} as before: a non-numeric value fails with mapValue's
+   * exception, and null fails when its null result is unboxed.
+   */
+  private static double toDouble(final Object value) {
+    if (value instanceof Number) {
+      return ((Number) value).doubleValue();
+    }
+    return mapValue(Double.class, value);
   }
 
   /**
    * Evaluates a semantic version comparison operator. The attribute value must be a string that is
    * a valid semantic version, and the comparand must have been pre-parsed during configuration
-   * validation. If either is missing or invalid, the condition does not match.
+   * validation. If either is missing or invalid, the condition does not match. The attribute is
+   * validated and compared without parsing it into a {@link ParsedSemver}.
    */
   private static boolean evaluateSemverCondition(
       final Object attributeValue,
@@ -420,11 +451,11 @@ public final class FlagEvaluator {
     if (!(attributeValue instanceof String) || comparand == null) {
       return false;
     }
-    final ParsedSemver parsedAttribute = ParsedSemver.parse((String) attributeValue);
-    if (parsedAttribute == null) {
+    final int ordering = ParsedSemver.compare((String) attributeValue, comparand);
+    if (ordering == ParsedSemver.INVALID_ORDERING) {
       return false;
     }
-    return comparator.compare(ParsedSemver.compare(parsedAttribute, comparand));
+    return comparator.compare(ordering);
   }
 
   private static boolean matchesShard(final Shard shard, final String targetingKey) {
@@ -523,7 +554,9 @@ public final class FlagEvaluator {
     // for the exposure hook, which sends the exposure after the evaluation succeeds. An evaluation
     // that neither logs exposures nor enriches spans carries neither key.
     // __dd_split_serial_id is omitted when the split carries no serial id.
-    final boolean doLog = Boolean.TRUE.equals(allocation.doLog);
+    // A provider with exposures disabled treats every allocation as not logging exposures. The
+    // allocation and split were already selected, so this changes reporting, not assignment.
+    final boolean doLog = this.exposuresEnabled && Boolean.TRUE.equals(allocation.doLog);
     if (spanEnrichmentEnabled || doLog) {
       if (split.serialId != null) {
         metadataBuilder.addInteger(SPLIT_SERIAL_ID, split.serialId);

@@ -114,16 +114,16 @@ final class PropertyCardinalityHandler {
    *
    * <p>The spread hash is computed once and masked to each table's own size to give its initial
    * probe slot. {@code h ^ (h >>> 16)} folds high hash bits into the low bits to reduce collisions
-   * for inputs that share a common low-bit pattern. {@link UTF8BytesString#hashCode} is
-   * content-stable with the underlying String, so a String input and a UTF8BytesString of the same
-   * content map to the same slot.
+   * for inputs that share a common low-bit pattern. The hash is always the content's {@code String}
+   * hash (see {@link #contentHash}), the same one {@link #grow} rehashes stored values by, so any
+   * {@code CharSequence} of the same content maps to the same slot.
    */
   UTF8BytesString register(CharSequence value) {
     if (value == null) {
       return UTF8BytesString.EMPTY;
     }
     // Spread hash, used to probe current and prior tables.
-    int h = value.hashCode();
+    int h = contentHash(value);
     int spread = h ^ (h >>> 16);
 
     // First, look in the current-cycle table.
@@ -159,7 +159,7 @@ final class PropertyCardinalityHandler {
     if (!capExhausted) {
       if (cur == null || (this.curSize + 1) * 2 > cur.length) {
         cur = grow(cur);
-        slot = freeSlot(cur, spread);
+        slot = findFreeSlot(cur, spread);
       }
       cur[slot] = utf8;
       this.curSize += 1;
@@ -167,6 +167,22 @@ final class PropertyCardinalityHandler {
     // If capExhausted && !useBlockedSentinel, this returns the real value but
     // does not cache it in the current cycle.
     return utf8;
+  }
+
+  /**
+   * The {@code String} hash of {@code value}'s content. {@code String} and {@link UTF8BytesString}
+   * already hash that way; other {@code CharSequence}s ({@code StringBuilder}, {@code CharBuffer})
+   * may not, and probing with their own hash would miss a stored value after the table grows.
+   */
+  private static int contentHash(CharSequence value) {
+    if (value instanceof String || value instanceof UTF8BytesString) {
+      return value.hashCode();
+    }
+    int h = 0;
+    for (int i = 0; i < value.length(); i++) {
+      h = 31 * h + value.charAt(i);
+    }
+    return h;
   }
 
   private UTF8BytesString findPrior(CharSequence value, int spread) {
@@ -195,7 +211,7 @@ final class PropertyCardinalityHandler {
       for (UTF8BytesString utf8 : old) {
         if (utf8 != null) {
           int h = utf8.hashCode();
-          grown[freeSlot(grown, h ^ (h >>> 16))] = utf8;
+          grown[findFreeSlot(grown, h ^ (h >>> 16))] = utf8;
         }
       }
     }
@@ -203,7 +219,7 @@ final class PropertyCardinalityHandler {
     return grown;
   }
 
-  private static int freeSlot(UTF8BytesString[] table, int spread) {
+  private static int findFreeSlot(UTF8BytesString[] table, int spread) {
     int mask = table.length - 1;
     int slot = spread & mask;
     while (table[slot] != null) {

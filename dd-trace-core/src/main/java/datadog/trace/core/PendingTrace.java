@@ -280,6 +280,11 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     return 0 >= COMPLETED_SPAN_COUNT.get(this) + PENDING_REFERENCE_COUNT.get(this);
   }
 
+  @Override
+  void onEnd() {
+    healthMetrics.onEndSpan();
+  }
+
   PublishState onPublish(final DDSpan span) {
     if (!pendingTraceBuffer.longRunningSpansEnabled()) {
       spans.addFirst(span);
