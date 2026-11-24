@@ -496,3 +496,10 @@ In priority order:
 - Upstream: JDK `split` fast path for `\\t \\n \\r \\f \\a \\e` (check JBS first).
 - Next batches (candidates): web frameworks and servlet stack not in the cache, Kotlin/Scala
   ecosystem libraries, security (Shiro, Spring Security, Keycloak), messaging, cloud SDK v1.
+
+## Viability for customer code (discussion with Doug, 2026-11-23)
+
+- **Reports and recommendations alone don't get acted on.** From Doug's time on Azul ReadyNow: only a handful of customers acted on the compilation-prerequisites report, even though Zing customers clearly cared about performance. Doug's rule: (1) show a significant gain first; a report only unlocks the last bit after that. (2) Automate rather than explain a report to one customer after another.
+- **What can be automated: changes within freedoms the JVM/JDK spec already grants.** ReadyNow could be automatic because it changed *when* code compiled, not *what* it did. The same applies to compile timing, compiler hints, caching constant `Pattern`s, presizing order-safe collections, and swapping in a method with identical documented semantics (intrinsic-style). Anything a correct program can observe (HashMap order, identity, exception shapes, implementation details) goes in the remainder report or nowhere.
+- **Datadog customers have a different risk profile.** They don't buy us for performance and expect the agent to slow them down, so a speedup, or less slowdown than expected, is a pleasant surprise. Aim the feature at **offsetting tracer overhead**: the test for each rule is whether it recovers a measurable share of the tracer's own cost where it fires.
+- **Do no harm stays non-negotiable.** For every rule: semantics-preserving by the spec, better-or-neutral performance, a per-rule remote-config off switch, canary rollout (internal services → opt-in → wider) with APM and profiler regression checks, and reporting which rules fired, so the overhead savings are real and attributable, not an accounting effect.
