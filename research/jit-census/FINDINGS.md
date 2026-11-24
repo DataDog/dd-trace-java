@@ -508,3 +508,14 @@ In priority order:
   - A rule is turned on by default only after it is proven: semantics guaranteed by the spec, differential tests, and clean runs on internal services and then opt-in customers. Off by default *during rollout* limits who is exposed while it is validated. It is not a way to ship something less correct.
   - Correct output isn't enough. Startup and transform time, code cache, metaspace and verifier behavior also count. If a transform fails (VerifyError, unusual bytecode), the class must load unchanged, with no visible error.
   - **The off switch has to work on classes that are already loaded.** Rewritten bytecode is already in the JVM, so a remote-config switch only helps if (a) the rewritten code checks a cheap guard and takes the original path, or (b) we retransform classes back, which carries its own risk. Decide this in the design; don't add it afterwards.
+- **What a customer-code rewrite may change (Doug, 2026-11-23): start with peephole-style changes only.**
+  - **No field changes in customer classes, not even additions.** Any new static goes in a helper class we inject.
+  - Why this also holds up mechanically:
+    - The *computed* `serialVersionUID` hashes non-private fields and methods, and whether a `<clinit>` exists. A rewrite that adds a static with an initializer to a `Serializable` class that had no `<clinit>` changes the SUID, and deserializing from hosts that weren't rewritten fails.
+    - Reflection, and frameworks that depend on field layout (JPA, Jackson, Kryo/field-order serializers, `Unsafe` offsets), see added members.
+    - **JVMTI retransformation can't change a class's fields or methods**, so changing only method bodies keeps "retransform back" possible for the off switch.
+  - Same reasoning for methods: no new methods in customer classes. Helpers go in the injected class.
+  - Constraints that remain with helpers:
+    - **Never move a caller-sensitive call into a helper** (`Class.forName`, `ServiceLoader.load`, `ResourceBundle.getBundle`, `MethodHandles.lookup`, `Logger.getLogger`, …): the caller class changes, and so does the result.
+    - An exception thrown inside a helper has an extra stack frame. Code that inspects stack traces can see it, so rewrite only operations that can't throw, or check and throw in the original frame.
+    - The helper must be visible from the customer's class loader and module (the same problems our instrumentation helpers solve). Static caches in helpers must not keep customer class loaders alive (weak keys, bounded).
