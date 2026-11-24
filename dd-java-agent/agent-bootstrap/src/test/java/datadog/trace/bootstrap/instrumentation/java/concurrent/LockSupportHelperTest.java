@@ -356,21 +356,18 @@ class LockSupportHelperTest {
     ProfilingContextIntegration profiling = virtualParkProfiling(false);
     long longAgo = TimeUnit.MILLISECONDS.toNanos(5);
 
+    // One virtual thread throughout: marks are per thread.
     onVirtualThread(() -> {
       LockSupportHelper.markPinnedPark();
-      long start = LockSupportHelper.virtualParkStart(); // 0: the profiler disables it
-      LockSupportHelper.virtualParkExit(start, null);
-      return null;
-    });
-    verify(profiling, never()).virtualParkExit(anyLong(), anyLong(), anyLong());
+      LockSupportHelper.virtualParkExit(LockSupportHelper.virtualParkStart(), null);
+      verify(profiling, never()).virtualParkExit(anyLong(), anyLong(), anyLong());
 
-    when(profiling.isVirtualParkEnabled()).thenReturn(true);
-    onVirtualThread(() -> {
-      LockSupportHelper.virtualParkExit(
-          LockSupportHelper.virtualParkStart() - longAgo, new Object());
+      when(profiling.isVirtualParkEnabled()).thenReturn(true);
+      LockSupportHelper.virtualParkExit(LockSupportHelper.virtualParkStart() - longAgo, null);
       return null;
     });
-    verify(profiling).virtualParkExit(anyLong(), anyLong(), eq(0L));
+
+    verify(profiling).virtualParkExit(anyLong(), eq(0L), eq(0L));
   }
 
   @Test
