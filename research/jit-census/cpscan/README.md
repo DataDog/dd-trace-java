@@ -69,3 +69,23 @@ A call to `owner.name(desc)` needs a `CONSTANT_Class` entry whose name is a text
 | 2000 | 62% | **39%** | 2.01 | 2.52 |
 
 The owner check cuts the classes that need a real look by 6× at 50 rules, for ~5% more scan cost. Owners like `java/lang/String` filter nothing; rare owners (`Pattern`, `MessageFormat`, `java/util/regex/Matcher`) filter a lot. It also means the Methodref-resolving second step only runs where all three needles are present.
+
+## Lowering instrumentation matchers (`CpScanInstr.java`)
+
+A hierarchy matcher such as "subtype of T that declares `name(desc)`" needs the class to **declare** the method. A class that doesn't declare it inherits the method from an ancestor, which gets matched and transformed itself. So the method's name and descriptor must both be text entries in the class's own constant pool. The pre-check uses only the class's own bytes; the hierarchy question, which needs other classes, is asked only of classes that pass. Ground truth: ASM-declared methods, with the hierarchy resolved over the corpus plus the running JDK. Types that can't be resolved count as "not a subtype", so "true" is a lower bound. That's why javax servlet is 0: the API jar isn't in the corpus.
+
+| matcher | passes pre-check | declares | true match | false negatives |
+|---|---|---|---|---|
+| HttpServlet.service | 0.01% | 0.01% | 0.01% | 0 |
+| jakarta Servlet.service | 0.03% | 0.02% | 0.01% | 0 |
+| Filter.doFilter | 0.02% | 0.02% | 0.02% | 0 |
+| Statement.executeQuery(String) | 0.02% | 0.01% | 0.01% | 0 |
+| Statement.execute(String) | 0.13% | 0.01% | 0.01% | 0 |
+| PreparedStatement.executeQuery() | 0.03% | <0.01% | <0.01% | 0 |
+| Netty channelRead | 0.03% | 0.02% | <0.01% | 0 |
+| OkHttp Interceptor.intercept | 0.02% | 0.02% | 0.02% | 0 |
+| Kafka Consumer.poll(Duration) | 0.04% | 0.02% | 0.01% | 0 |
+| Callable.call | 0.50% | 0.18% | 0.16% | 0 |
+| Runnable.run | 2.79% | 1.34% | 1.23% | 0 |
+
+**With all of these except Runnable, 0.79% of classes need a hierarchy check, against 100% without the pre-check.** Specific descriptors (`service`, `doFilter`, `intercept`) are nearly exact. Generic shapes (`run()V`, `call()Ljava/lang/Object;`) are the weak case, but even `Runnable.run` rules out 97% of classes.
