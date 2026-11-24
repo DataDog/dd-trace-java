@@ -40,7 +40,7 @@ public final class RouteTemplate {
     this.params = params;
     String body = hasOptionalParts(segments) ? null : renderBody(PresenceResolver.UNKNOWN);
     this.staticRoute = body == null || body.isEmpty() ? null : body;
-    this.trailingUnnamedCatchAll = findTrailingUnnamedCatchAll(segments, trailingSlash, params);
+    this.trailingUnnamedCatchAll = findTrailingUnnamedCatchAll(segments, params);
   }
 
   public static Builder builder() {
@@ -94,10 +94,14 @@ public final class RouteTemplate {
 
   /**
    * True when callers should compute the matcher remainder for a trailing {@code **} (only then is
-   * it used). The remainder must follow {@code AntPathMatcher.extractPathWithinPattern} semantics,
-   * which start at the first segment with {@code *} or {@code ?}, not {@code PathPattern} ones
-   * (first capture): so it equals the {@code **} match only when no earlier part is a wildcard or a
-   * regex, while plain named params ({@code {id}}) before it are fine.
+   * it used). The {@code **} must be the last segment, optionally followed by the declared trailing
+   * {@code /} (the matcher ignores empty segments, so {@code /files/**}{@code /} still ends with
+   * {@code **}). The remainder must follow {@code AntPathMatcher.extractPathWithinPattern}
+   * semantics, which start at the first raw pattern segment with {@code *} or {@code ?} (also
+   * inside {@code {...}}), not {@code PathPattern} ones (first capture): so it equals the {@code
+   * **} match only when no earlier parameter is unnamed, a catch-all, regex-constrained or has a
+   * {@code *} or {@code ?} in its name, while plain named params ({@code {id}}) before it are fine.
+   * Literals never hold {@code *} or {@code ?} here: the Spring parser turns them into parameters.
    */
   public boolean needsUnnamedCatchAllRemainder() {
     return trailingUnnamedCatchAll != null;
@@ -200,8 +204,9 @@ public final class RouteTemplate {
 
   /** See {@link #needsUnnamedCatchAllRemainder()} for the rule. */
   private static RoutePart.Param findTrailingUnnamedCatchAll(
-      RoutePart[][] segments, boolean trailingSlash, List<RoutePart.Param> params) {
-    if (trailingSlash || segments.length == 0) {
+      RoutePart[][] segments, List<RoutePart.Param> params) {
+    // a declared trailing "/" is an empty segment for the matcher: "**" is still the last one
+    if (segments.length == 0) {
       return null;
     }
     RoutePart[] last = segments[segments.length - 1];
@@ -214,11 +219,26 @@ public final class RouteTemplate {
     }
     for (RoutePart.Param param : params) {
       // the candidate is the last param: every other one comes before it
-      if (param != candidate && (param.frameworkName() == null || param.hasRegexConstraint())) {
+      if (param != candidate && isMatcherWildcard(param)) {
         return null;
       }
     }
     return candidate;
+  }
+
+  /**
+   * True when the raw declaration of {@code param} makes {@code AntPathMatcher} start extracting
+   * the remainder at its segment: unnamed ({@code *}, {@code ?}, {@code **}), a catch-all ({@code
+   * {*name}} is a single-segment variable in Ant), a regex constraint, or a name with {@code *} or
+   * {@code ?} (e.g. {@code {file?}}).
+   */
+  private static boolean isMatcherWildcard(RoutePart.Param param) {
+    String name = param.frameworkName();
+    return name == null
+        || param.isCatchAll()
+        || param.hasRegexConstraint()
+        || name.indexOf('*') >= 0
+        || name.indexOf('?') >= 0;
   }
 
   private static boolean isOptionalSegment(RoutePart[] segment) {

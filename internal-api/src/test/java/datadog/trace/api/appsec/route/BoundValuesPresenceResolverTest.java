@@ -88,12 +88,59 @@ class BoundValuesPresenceResolverTest {
     "trailing ** null remainder    | '/files/**'  |           | '/files'          ",
     "mid-path ** ignores remainder | '/a/**/b'    | 'x'       | '/a/b'            ",
     "two ** ignore remainder       | '/a/**/b/**' | 'x'       | '/a/b'            ",
-    "trailing slash ignores it     | '/files/**/' | 'x'       | '/files/'         ",
+    "trailing slash with remainder | '/files/**/' | 'css/a'   | '/files/{param1}/'",
+    "trailing slash empty          | '/files/**/' | ''        | '/files/'         ",
+    "trailing slash only slash     | '/files/**/' | '/'       | '/files/'         ",
+    "trailing slash null remainder | '/files/**/' |           | '/files/'         ",
     "wildcard before ignores it    | '/a/*/**'    | 'x/y'     | '/a/{param1}'     ",
     "named param before uses it    | '/a/{id}/**' | 'x/y'     | '/a/{id}/{param1}'"
   })
   void unnamedCatchAllRemainder(String route, String remainder, String expected) {
     assertEquals(expected, render(SpringRouteParser.parse(route), null, remainder));
+  }
+
+  @TableTest({
+    "Scenario                  | Route                 | Remainder | Expected        ",
+    "optional-like name before | '/files/{file?}/**'   | 'report'  | '/files/{file_}'",
+    "name with * before        | '/files/{f*}/**'      | 'report'  | '/files/{f_}'   ",
+    "regex param before        | '/files/{id:\\d+}/**' | '1/x'     | '/files/{id}'   ",
+    "named catch-all before    | '/a/{*p}/**'          | 'x/y'     | '/a'            ",
+    "trailing slash, * before  | '/a/*/**/'            | 'x/y'     | '/a/{param1}/'  "
+  })
+  void remainderIgnoredWhenTheMatcherStartsEarlier(
+      String route, String remainder, String expected) {
+    assertEquals(expected, render(SpringRouteParser.parse(route), null, remainder));
+  }
+
+  @TableTest({
+    "Scenario                       | Key     | Value    | Expected       ",
+    "PathPattern binding            | path    | '/a/b'   | '/files/{path}'",
+    "PathPattern binding only slash | path    | '/'      | '/files/'      ",
+    "PathPattern binding empty      | path    | ''       | '/files'       ",
+    "Ant binding single segment     | '*path' | 'report' | '/files/{path}'",
+    "Ant binding empty              | '*path' | ''       | '/files'       ",
+    "Ant binding null               | '*path' |          | '/files'       ",
+    "neither binding                | other   | 'report' | '/files'       "
+  })
+  void namedCatchAllPathPatternAndAntBindings(String key, String value, String expected) {
+    Map<String, Object> vars = new HashMap<>();
+    vars.put(key, value);
+
+    assertEquals(expected, render(SpringRouteParser.parse("/files/{*path}"), vars, null));
+  }
+
+  @Test
+  void pathPatternBindingWinsOverAntBinding() {
+    Map<String, Object> vars = new HashMap<>();
+    vars.put("path", "/a/b");
+    vars.put("*path", "");
+
+    assertEquals("/files/{path}", render(SpringRouteParser.parse("/files/{*path}"), vars, null));
+  }
+
+  @Test
+  void antBindingIsOnlyForCatchAlls() {
+    assertEquals("/p", render(OPTIONAL_ID, singletonMap("*id", "7"), null));
   }
 
   @Test
@@ -170,6 +217,22 @@ class BoundValuesPresenceResolverTest {
   void rawRemainderAppliesTheTrailingSlashRule(
       String remainder, boolean endsWithSlash, String expected) {
     RouteTemplate template = SpringRouteParser.parse("/files/**");
+
+    assertEquals(
+        expected,
+        template.render(
+            null, BoundValuesPresenceResolver.fromRaw(template, null, remainder, endsWithSlash)));
+  }
+
+  @TableTest({
+    "Scenario                    | Remainder   | Lookup ends with slash | Expected          ",
+    "remainder, slash path       | 'css/a.css' | true                   | '/files/{param1}/'",
+    "empty remainder, slash path | ''          | true                   | '/files/'         ",
+    "empty remainder, no slash   | ''          | false                  | '/files/'         "
+  })
+  void rawRemainderWithDeclaredTrailingSlash(
+      String remainder, boolean endsWithSlash, String expected) {
+    RouteTemplate template = SpringRouteParser.parse("/files/**/");
 
     assertEquals(
         expected,

@@ -7,11 +7,16 @@ import java.util.Map;
  * {@link PresenceResolver} backed by the path variables the framework bound for the current request
  * (e.g. Spring {@code URI_TEMPLATE_VARIABLES_ATTRIBUTE}), since RFC-1125 presence must come from
  * the framework's own binding. A null map is {@link RoutePresence#UNKNOWN} (not exposed), while a
- * missing key or null value is absent. Unnamed parts and groups have no binding, so they are
- * unknown, except a trailing {@code **} that takes the matcher remainder (see {@link
+ * missing key or null value is absent. A named catch-all {@code {*name}} is looked up under {@code
+ * name} (PathPattern) and then {@code *name} (legacy AntPathMatcher, which binds it as a
+ * single-segment variable with that literal name). Unnamed parts and groups have no binding, so
+ * they are unknown, except a trailing {@code **} that takes the matcher remainder (see {@link
  * RouteTemplate#needsUnnamedCatchAllRemainder()}).
  */
 public final class BoundValuesPresenceResolver implements PresenceResolver {
+
+  /** Key prefix under which {@code AntPathMatcher} binds a {@code {*name}} declaration. */
+  private static final String ANT_CATCH_ALL_PREFIX = "*";
 
   private final RoutePart.Param remainderCatchAll;
   private final Map<String, ?> boundValues;
@@ -81,9 +86,15 @@ public final class BoundValuesPresenceResolver implements PresenceResolver {
       return RoutePresence.UNKNOWN;
     }
     String value = valueOf(boundValues.get(name));
-    return param.isCatchAll()
-        ? RoutePresence.ofCatchAllValue(value)
-        : RoutePresence.ofBoundValue(value);
+    if (!param.isCatchAll()) {
+      return RoutePresence.ofBoundValue(value);
+    }
+    if (value == null) {
+      // legacy AntPathMatcher has no catch-all variable: it binds {*name} as a single-segment
+      // variable named "*name", which is still a value the framework bound from the URL
+      value = valueOf(boundValues.get(ANT_CATCH_ALL_PREFIX + name));
+    }
+    return RoutePresence.ofCatchAllValue(value);
   }
 
   @Override
