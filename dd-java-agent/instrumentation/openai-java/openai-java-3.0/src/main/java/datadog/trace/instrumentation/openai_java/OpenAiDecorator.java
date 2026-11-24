@@ -21,6 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import javax.annotation.Nonnull;
 
@@ -63,7 +64,7 @@ public class OpenAiDecorator extends ClientDecorator {
 
   private String detectProvider(String baseUrl) {
     if (baseUrl != null) {
-      String lower = baseUrl.toLowerCase();
+      String lower = baseUrl.toLowerCase(Locale.ROOT);
       if (lower.contains("azure")) return "azure_openai";
       if (lower.contains("deepseek")) return "deepseek";
     }

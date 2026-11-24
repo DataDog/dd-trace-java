@@ -17,7 +17,7 @@ def mainClassName = 'datadog.smoketest.grpc.App'
 dependencies {
   implementation "io.grpc:grpc-all:${grpcVersion}"
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 }
 

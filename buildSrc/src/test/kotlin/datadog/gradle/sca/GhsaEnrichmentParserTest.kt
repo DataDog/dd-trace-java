@@ -6,11 +6,10 @@ import org.junit.jupiter.api.Test
 
 class GhsaEnrichmentParserTest {
 
-  private fun fixture(name: String): String =
-      GhsaEnrichmentParserTest::class.java
-          .getResourceAsStream("/sca/fixtures/$name")!!
-          .bufferedReader()
-          .readText()
+  private fun fixture(name: String): String = GhsaEnrichmentParserTest::class.java
+    .getResourceAsStream("/sca/fixtures/$name")!!
+    .bufferedReader()
+    .readText()
 
   @Test
   fun `single package entry produces one record`() {
@@ -38,10 +37,10 @@ class GhsaEnrichmentParserTest {
     val symbols = entries[0]["symbols"] as List<Map<String, Any?>>
     assertThat(symbols).hasSize(2)
     assertThat(symbols.map { it["class"] })
-        .containsExactly(
-            "com/fasterxml/jackson/databind/ObjectMapper",
-            "com/fasterxml/jackson/databind/ObjectReader",
-        )
+      .containsExactly(
+        "com/fasterxml/jackson/databind/ObjectMapper",
+        "com/fasterxml/jackson/databind/ObjectReader",
+      )
   }
 
   @Test
@@ -68,10 +67,10 @@ class GhsaEnrichmentParserTest {
 
     assertThat(entries).hasSize(2)
     assertThat(entries.map { it["artifact"] })
-        .containsExactlyInAnyOrder(
-            "org.springframework.boot:spring-boot-starter-web",
-            "org.springframework:spring-webmvc",
-        )
+      .containsExactlyInAnyOrder(
+        "org.springframework.boot:spring-boot-starter-web",
+        "org.springframework:spring-webmvc",
+      )
   }
 
   @Test
@@ -79,12 +78,12 @@ class GhsaEnrichmentParserTest {
     val entries = GhsaEnrichmentParser.parse(fixture("GHSA-multi-package.json"))
 
     val webEntry =
-        entries.first { it["artifact"] == "org.springframework.boot:spring-boot-starter-web" }
+      entries.first { it["artifact"] == "org.springframework.boot:spring-boot-starter-web" }
     assertThat(webEntry["version_ranges"]).isEqualTo(listOf("< 2.5.12", ">= 2.6.0, < 2.6.6"))
 
     val mvcEntry = entries.first { it["artifact"] == "org.springframework:spring-webmvc" }
     assertThat(mvcEntry["version_ranges"])
-        .isEqualTo(listOf(">= 5.3.0, < 5.3.18", "< 5.2.20.RELEASE"))
+      .isEqualTo(listOf(">= 5.3.0, < 5.3.18", "< 5.2.20.RELEASE"))
   }
 
   @Test
@@ -95,13 +94,14 @@ class GhsaEnrichmentParserTest {
 
     @Suppress("UNCHECKED_CAST")
     val symbols0 = entries[0]["symbols"] as List<Map<String, Any?>>
+
     @Suppress("UNCHECKED_CAST")
     val symbols1 = entries[1]["symbols"] as List<Map<String, Any?>>
     assertThat(symbols0.map { it["class"] })
-        .containsExactlyInAnyOrder(
-            "org/springframework/stereotype/Controller",
-            "org/springframework/web/bind/annotation/RestController",
-        )
+      .containsExactlyInAnyOrder(
+        "org/springframework/stereotype/Controller",
+        "org/springframework/web/bind/annotation/RestController",
+      )
     assertThat(symbols0.map { it["class"] }).isEqualTo(symbols1.map { it["class"] })
   }
 
@@ -118,10 +118,10 @@ class GhsaEnrichmentParserTest {
     val symbols = entries[0]["symbols"] as List<Map<String, Any?>>
     assertThat(symbols).hasSize(2)
     assertThat(symbols.map { it["class"] })
-        .containsExactlyInAnyOrder(
-            "zserio/runtime/array/Array",
-            "zserio/runtime/io/ByteArrayBitStreamReader",
-        )
+      .containsExactlyInAnyOrder(
+        "zserio/runtime/array/Array",
+        "zserio/runtime/io/ByteArrayBitStreamReader",
+      )
     assertThat(symbols.map { it["method"] }).containsExactlyInAnyOrder("read", "readBitBuffer")
   }
 
@@ -143,7 +143,7 @@ class GhsaEnrichmentParserTest {
   @Test
   fun `targets without colon separator are silently skipped`() {
     val json =
-        """[{
+      """[{
         "targets": ["noColonHere", "valid.pkg:Class.method"],
         "lang": "maven",
         "dependency_name": "com.example:lib",
@@ -163,7 +163,7 @@ class GhsaEnrichmentParserTest {
   @Test
   fun `targets without dot after colon are silently skipped`() {
     val json =
-        """[{
+      """[{
         "targets": ["pkg:ClassWithNoMethod", "pkg:Class.method"],
         "lang": "maven",
         "dependency_name": "com.example:lib",
@@ -182,7 +182,7 @@ class GhsaEnrichmentParserTest {
   @Test
   fun `entry with all malformed targets produces no output`() {
     val json =
-        """[{
+      """[{
         "targets": ["noColon", "alsoNoColon"],
         "lang": "maven",
         "dependency_name": "com.example:lib",
@@ -197,7 +197,7 @@ class GhsaEnrichmentParserTest {
   @Test
   fun `non-json-array input throws IllegalArgumentException`() {
     assertThatThrownBy { GhsaEnrichmentParser.parse("""{"lang": "maven"}""") }
-        .isInstanceOf(IllegalArgumentException::class.java)
-        .hasMessageContaining("must be a JSON array")
+      .isInstanceOf(IllegalArgumentException::class.java)
+      .hasMessageContaining("must be a JSON array")
   }
 }

@@ -201,142 +201,141 @@ public class TestJfrRecorder {
     Field[] fields = event.getClass().getDeclaredFields();
 
     TypedValue typedValue =
-        eventType.asValue(
-            access -> {
-              boolean startTimeWritten = false;
-              boolean eventThreadWritten = false;
-              boolean stackTraceWritten = false;
-              for (Field f : fields) {
-                f.setAccessible(true);
+        eventType.asValue(access -> {
+          boolean startTimeWritten = false;
+          boolean eventThreadWritten = false;
+          boolean stackTraceWritten = false;
+          for (Field f : fields) {
+            f.setAccessible(true);
 
-                /*
-                 * From jdk.jfr.Event.java: Supported field types are the Java primitives: {@code
-                 * boolean}, {@code char}, {@code byte}, {@code short}, {@code int}, {@code long},
-                 * {@code float}, and {@code double}. Supported reference types are: {@code String},
-                 * {@code Thread} and {@code Class}. Arrays, enums, and other reference types are
-                 * silently ignored and not included. Fields that are of the supported types can be
-                 * excluded by using the transient modifier. Static fields, even of the supported
-                 * types, are not included.
-                 */
-                // Transient and static fields are excluded
-                if (Modifier.isTransient(f.getModifiers()) || Modifier.isStatic(f.getModifiers())) {
-                  continue;
-                }
+            /*
+             * From jdk.jfr.Event.java: Supported field types are the Java primitives: {@code
+             * boolean}, {@code char}, {@code byte}, {@code short}, {@code int}, {@code long},
+             * {@code float}, and {@code double}. Supported reference types are: {@code String},
+             * {@code Thread} and {@code Class}. Arrays, enums, and other reference types are
+             * silently ignored and not included. Fields that are of the supported types can be
+             * excluded by using the transient modifier. Static fields, even of the supported
+             * types, are not included.
+             */
+            // Transient and static fields are excluded
+            if (Modifier.isTransient(f.getModifiers()) || Modifier.isStatic(f.getModifiers())) {
+              continue;
+            }
 
-                String fldName = getFieldName(f);
-                if (fldName.equals("startTime")) {
-                  startTimeWritten = true;
-                } else if (fldName.equals("eventThread")) {
-                  eventThreadWritten = true;
-                } else if (fldName.equals("stackTrace")) {
-                  stackTraceWritten = true;
-                }
-                try {
-                  switch (f.getType().getName()) {
-                    case "byte":
-                      {
-                        byte byteValue = f.getByte(event);
-                        access.putField(fldName, byteValue);
-                        break;
-                      }
-                    case "char":
-                      {
-                        char charValue = f.getChar(event);
-                        access.putField(fldName, charValue);
-                        break;
-                      }
-                    case "short":
-                      {
-                        short shortValue = f.getShort(event);
-                        access.putField(fldName, shortValue);
-                        break;
-                      }
-                    case "int":
-                      {
-                        int intValue = f.getInt(event);
-                        access.putField(fldName, intValue);
-                        break;
-                      }
-                    case "long":
-                      {
-                        long longValue = f.getLong(event);
-                        access.putField(fldName, longValue);
-                        break;
-                      }
-                    case "float":
-                      {
-                        float floatValue = f.getFloat(event);
-                        access.putField(fldName, floatValue);
-                        break;
-                      }
-                    case "double":
-                      {
-                        double doubleValue = f.getDouble(event);
-                        access.putField(fldName, doubleValue);
-                        break;
-                      }
-                    case "boolean":
-                      {
-                        boolean booleanValue = f.getBoolean(event);
-                        access.putField(fldName, booleanValue);
-                        break;
-                      }
-                    case "java.lang.String":
-                      {
-                        String stringValue = (String) f.get(event);
-                        access.putField(fldName, stringValue);
-                        break;
-                      }
-                    case "java.lang.Class":
-                      {
-                        Class<?> clz = (Class<?>) f.get(event);
-                        access.putField(
-                            fldName,
-                            fldAccess -> {
-                              fldAccess
-                                  .putField(
-                                      "name",
-                                      nameAccess -> {
-                                        nameAccess.putField("string", clz.getSimpleName());
-                                      })
-                                  .putField("package", clz.getPackage().getName())
-                                  .putField("modifiers", clz.getModifiers());
-                            });
-                        break;
-                      }
-                    case "java.lang.Thread":
-                      {
-                        Thread thrd = (Thread) f.get(event);
-                        putThreadField(access, fldName, thrd);
-                        break;
-                      }
-                    case "java.lang.StackTraceElement[]":
-                      {
-                        StackTraceElement[] stackTrace = (StackTraceElement[]) f.get(event);
-                        putStackTraceField(access, fldName, stackTrace);
-                        break;
-                      }
-                    default:
-                      {
-                        // System.err.println("Cannot write type:" + f.getType().getName());
-                      }
+            String fldName = getFieldName(f);
+            if (fldName.equals("startTime")) {
+              startTimeWritten = true;
+            } else if (fldName.equals("eventThread")) {
+              eventThreadWritten = true;
+            } else if (fldName.equals("stackTrace")) {
+              stackTraceWritten = true;
+            }
+            try {
+              switch (f.getType().getName()) {
+                case "byte":
+                  {
+                    byte byteValue = f.getByte(event);
+                    access.putField(fldName, byteValue);
+                    break;
                   }
-                } catch (IllegalAccessException e) {
-                  throw new RuntimeException();
-                }
+                case "char":
+                  {
+                    char charValue = f.getChar(event);
+                    access.putField(fldName, charValue);
+                    break;
+                  }
+                case "short":
+                  {
+                    short shortValue = f.getShort(event);
+                    access.putField(fldName, shortValue);
+                    break;
+                  }
+                case "int":
+                  {
+                    int intValue = f.getInt(event);
+                    access.putField(fldName, intValue);
+                    break;
+                  }
+                case "long":
+                  {
+                    long longValue = f.getLong(event);
+                    access.putField(fldName, longValue);
+                    break;
+                  }
+                case "float":
+                  {
+                    float floatValue = f.getFloat(event);
+                    access.putField(fldName, floatValue);
+                    break;
+                  }
+                case "double":
+                  {
+                    double doubleValue = f.getDouble(event);
+                    access.putField(fldName, doubleValue);
+                    break;
+                  }
+                case "boolean":
+                  {
+                    boolean booleanValue = f.getBoolean(event);
+                    access.putField(fldName, booleanValue);
+                    break;
+                  }
+                case "java.lang.String":
+                  {
+                    String stringValue = (String) f.get(event);
+                    access.putField(fldName, stringValue);
+                    break;
+                  }
+                case "java.lang.Class":
+                  {
+                    Class<?> clz = (Class<?>) f.get(event);
+                    access.putField(
+                        fldName,
+                        fldAccess -> {
+                          fldAccess
+                              .putField(
+                                  "name",
+                                  nameAccess -> {
+                                    nameAccess.putField("string", clz.getSimpleName());
+                                  })
+                              .putField("package", clz.getPackage().getName())
+                              .putField("modifiers", clz.getModifiers());
+                        });
+                    break;
+                  }
+                case "java.lang.Thread":
+                  {
+                    Thread thrd = (Thread) f.get(event);
+                    putThreadField(access, fldName, thrd);
+                    break;
+                  }
+                case "java.lang.StackTraceElement[]":
+                  {
+                    StackTraceElement[] stackTrace = (StackTraceElement[]) f.get(event);
+                    putStackTraceField(access, fldName, stackTrace);
+                    break;
+                  }
+                default:
+                  {
+                    // System.err.println("Cannot write type:" + f.getType().getName());
+                  }
               }
-              if (!startTimeWritten) {
-                // default to 0
-                access.putField("startTime", 0L);
-              }
-              if (!eventThreadWritten) {
-                // default to current thread
-                putThreadField(access, "eventThread", Thread.currentThread());
-              }
-              if (!stackTraceWritten && hasStackTrace(event.getClass())) {
-                putStackTraceField(access, "stackTrace", Thread.currentThread().getStackTrace());
-              }
-            });
+            } catch (IllegalAccessException e) {
+              throw new RuntimeException();
+            }
+          }
+          if (!startTimeWritten) {
+            // default to 0
+            access.putField("startTime", 0L);
+          }
+          if (!eventThreadWritten) {
+            // default to current thread
+            putThreadField(access, "eventThread", Thread.currentThread());
+          }
+          if (!stackTraceWritten && hasStackTrace(event.getClass())) {
+            putStackTraceField(access, "stackTrace", Thread.currentThread().getStackTrace());
+          }
+        });
 
     return typedValue;
   }
@@ -406,32 +405,28 @@ public class TestJfrRecorder {
         k ->
             types
                 .getType(Types.JDK.STACK_FRAME)
-                .asValue(
-                    p -> {
-                      p.putField("method", methodValue(types, k))
-                          .putField("lineNumber", k.getLineNumber())
-                          .putField("bytecodeIndex", -1)
-                          .putField("type", k.isNativeMethod() ? "native" : "java");
-                    }));
+                .asValue(p -> {
+                  p.putField("method", methodValue(types, k))
+                      .putField("lineNumber", k.getLineNumber())
+                      .putField("bytecodeIndex", -1)
+                      .putField("type", k.isNativeMethod() ? "native" : "java");
+                }));
   }
 
   private TypedValue methodValue(Types types, StackTraceElement element) {
     return types
         .getType(Types.JDK.METHOD)
-        .asValue(
-            p -> {
-              p.putField("type", classValue(types, element))
-                  .putField("name", element.getMethodName());
-            });
+        .asValue(p -> {
+          p.putField("type", classValue(types, element)).putField("name", element.getMethodName());
+        });
   }
 
   private TypedValue classValue(Types types, StackTraceElement element) {
     return types
         .getType(Types.JDK.CLASS)
-        .asValue(
-            p -> {
-              p.putField("name", getSimpleName(element.getClassName()));
-            });
+        .asValue(p -> {
+          p.putField("name", getSimpleName(element.getClassName()));
+        });
   }
 
   private TypedValue classLoaderValue(Types types, String classLoaderName) {
@@ -440,19 +435,17 @@ public class TestJfrRecorder {
         k ->
             types
                 .getType(Types.JDK.CLASS_LOADER)
-                .asValue(
-                    p -> {
-                      p.putField("name", k);
-                    }));
+                .asValue(p -> {
+                  p.putField("name", k);
+                }));
   }
 
   private TypedValue packageValue(Types types, String packageName, String module) {
     return types
         .getType(Types.JDK.PACKAGE)
-        .asValue(
-            p -> {
-              p.putField("name", packageName).putField("module", moduleValue(types, module));
-            });
+        .asValue(p -> {
+          p.putField("name", packageName).putField("module", moduleValue(types, module));
+        });
   }
 
   private TypedValue moduleValue(Types types, String module) {
@@ -461,10 +454,9 @@ public class TestJfrRecorder {
         k ->
             types
                 .getType(Types.JDK.MODULE)
-                .asValue(
-                    p -> {
-                      p.putField("name", k);
-                    }));
+                .asValue(p -> {
+                  p.putField("name", k);
+                }));
   }
 
   private String getSimpleName(String className) {

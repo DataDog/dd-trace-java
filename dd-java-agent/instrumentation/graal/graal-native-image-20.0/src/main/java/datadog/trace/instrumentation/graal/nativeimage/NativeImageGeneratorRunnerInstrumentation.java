@@ -71,6 +71,11 @@ public final class NativeImageGeneratorRunnerInstrumentation
       args[oldLength++] =
           "-H:ClassInitialization="
               + contextStoresInitialization
+              // The MXBeanLookup substitution creates an empty map in the image heap.
+              // Strict image-heap handling (default since GraalVM for JDK 22) requires its type
+              // to be explicitly build-time initialized. The legacy policy in JDK 17/21 inferred
+              // this automatically because WeakIdentityHashMap has no static initializer.
+              + "com.sun.jmx.mbeanserver.WeakIdentityHashMap:build_time,"
               + "com.datadog.profiling.controller.openjdk.events.AvailableProcessorCoresEvent:build_time,"
               + "com.datadog.profiling.controller.openjdk.events.DeadlockEvent:build_time,"
               + "com.datadog.profiling.controller.openjdk.events.ProfilerSettingEvent:build_time,"

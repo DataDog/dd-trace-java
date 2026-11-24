@@ -14,6 +14,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
+import java.util.Base64;
 import java.util.List;
 
 /** Provides writers for OpenTelemetry's "common.proto" JSON encoding. */
@@ -97,6 +98,17 @@ public final class OtlpCommonJson {
     writer.beginObject();
     writer.name("key").value(key.toString());
     writer.name("value");
+  }
+
+  /** Writes the base64 representation required for bytes in OTLP JSON. */
+  public static void writeBytesAttribute(JsonWriter writer, String key, byte[] value) {
+    writeAttributeKey(writer, key);
+    writer
+        .beginObject()
+        .name("bytesValue")
+        .value(Base64.getEncoder().encodeToString(value))
+        .endObject();
+    writer.endObject();
   }
 
   private static void writeArrayValue(JsonWriter writer, int elementType, List<?> values) {

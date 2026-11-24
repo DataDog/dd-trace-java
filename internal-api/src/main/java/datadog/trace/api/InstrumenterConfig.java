@@ -302,10 +302,15 @@ public class InstrumenterConfig {
       featureFlaggingEnabled = true;
       featureFlaggingConfigurationSource = AGENTLESS;
     }
-    traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
+    // OTEL_SDK_DISABLED=true turns off every OpenTelemetry signal, whatever its Datadog setting
+    final boolean otelSdkEnabled = !configProvider.isOtelSdkDisabled();
+    traceOtelEnabled =
+        configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED) && otelSdkEnabled;
     metricsOtelEnabled =
-        configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
-    logsOtelEnabled = configProvider.getBoolean(LOGS_OTEL_ENABLED, DEFAULT_LOGS_OTEL_ENABLED);
+        configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED)
+            && otelSdkEnabled;
+    logsOtelEnabled =
+        configProvider.getBoolean(LOGS_OTEL_ENABLED, DEFAULT_LOGS_OTEL_ENABLED) && otelSdkEnabled;
 
     profilingEnabled =
         ProfilingEnablement.of(
@@ -398,8 +403,8 @@ public class InstrumenterConfig {
     runtimeContextMapPerStore =
         configProvider.getBoolean(
             RUNTIME_CONTEXT_MAP_PER_STORE,
-            // Gradually roll out shared context storage, starting with Java 25.
-            DEFAULT_RUNTIME_CONTEXT_MAP_PER_STORE && !isJavaVersionAtLeast(25));
+            // Gradually roll out shared context storage, starting with Java 17.
+            DEFAULT_RUNTIME_CONTEXT_MAP_PER_STORE && !isJavaVersionAtLeast(17));
 
     instrumentationConfigId = configProvider.getString(INSTRUMENTATION_CONFIG_ID, "");
 

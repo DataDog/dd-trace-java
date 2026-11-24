@@ -20,8 +20,7 @@ class JvmOtlpRuntimeMetricsEntrypointBasedirForkedTest {
 
   @Test
   void allDataPointsHaveEntrypointBasedir() {
-    forEachJvmPoint(
-        (metric, point) ->
-            assertEquals("test-basedir", point.attrs.get("entrypoint.basedir"), metric));
+    forEachJvmPoint((metric, point) ->
+        assertEquals("test-basedir", point.attrs.get("entrypoint.basedir"), metric));
   }
 }

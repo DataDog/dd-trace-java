@@ -5,8 +5,9 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * A <code>CharSequence</code> that is a view into a sub-sequence of a <code>String</code>. Unlike
- * <code>String.subSequence</code>, this class doesn't allocate an additional <code>String</code>,
- * <code>char[]</code>, or <code>byte[]</code>.
+ * <code>
+ * String.subSequence</code>, this class doesn't allocate an additional <code>String</code>, <code>
+ * char[]</code>, or <code>byte[]</code>.
  *
  * <p>Why that matters: <code>String.substring</code> / <code>subSequence</code> copy the selected
  * range into a fresh backing array on every call, so scanning or splitting a string into many

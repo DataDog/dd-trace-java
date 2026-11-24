@@ -11,7 +11,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
-import datadog.trace.test.util.DDJavaSpecification;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -24,7 +23,7 @@ import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Test;
 
-class TracerFlareTest extends DDJavaSpecification {
+class TracerFlareTest {
 
   // give each mock its own type - we use that to disambiguate reporters
   interface Reporter1 extends TracerFlare.Reporter {}

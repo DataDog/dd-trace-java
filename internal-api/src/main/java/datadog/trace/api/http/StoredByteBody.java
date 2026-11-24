@@ -68,8 +68,9 @@ public class StoredByteBody implements StoredBodySupplier {
   /**
    * Writes up to <code>len</code> bytes, in general through several invocations of the callback
    * <code>cb</code>. The callback must write exactly <code>undecodedData.remaining()</code> bytes
-   * on each invocation. The limit of <code>undecodedData</code> passed to the callback will be
-   * adjusted in the last iteration, if necessary.
+   * on each invocation. The limit of <code>
+   * undecodedData</code> passed to the callback will be adjusted in the last iteration, if
+   * necessary.
    *
    * @param cb the callback used to write directly into undecodedData
    * @param len the amount of data available to write
@@ -212,10 +213,13 @@ public class StoredByteBody implements StoredBodySupplier {
   public interface ByteBufferWriteCallback {
     /**
      * Asks the callback of {@link StoredByteBody#appendData(ByteBufferWriteCallback, int)} to write
-     * exactly <code>undecodedData.remaining()</code> bytes into the passed <code>ByteBuffer</code>.
-     * This amount of bytes will never be larger that the amount of data yet to be written; put
-     * another way, for one invocation of <code>appendData(cb, n)</code>, the sum of the values of
-     * <code>undecodedData.remaining()</code> for the several <code>cb</code> calls will be <code>n
+     * exactly <code>
+     * undecodedData.remaining()</code> bytes into the passed <code>ByteBuffer</code>. This amount
+     * of bytes will never be larger that the amount of data yet to be written; put another way, for
+     * one invocation of <code>
+     * appendData(cb, n)</code>, the sum of the values of <code>undecodedData.remaining()</code> for
+     * the several <code>
+     * cb</code> calls will be <code>n
      * </code> (or zero, if alternatively, cb is never invoked by <code>appendData</code>).
      *
      * @param undecodedData the buffer to write into
