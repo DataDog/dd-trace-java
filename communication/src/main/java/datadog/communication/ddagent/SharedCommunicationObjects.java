@@ -6,9 +6,11 @@ import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import datadog.common.container.ContainerInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.communication.http.SocketUtils;
+import datadog.environment.JavaVirtualMachine;
 import datadog.metrics.api.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.DefaultConfigurationPoller;
+import datadog.remoteconfig.WasmConfigurationPoller;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.util.AgentTaskScheduler;
@@ -172,6 +174,16 @@ public class SharedCommunicationObjects {
     } else {
       createRemaining(config);
       configUrlSupplier = new RetryConfigUrlSupplier(this, config);
+    }
+    // The wasm engine is the default (the shared libdatadog reactor), but it cannot load on
+    // Java 8: the Endive host runtime and the AOT machine classes are class-file v55. Fall
+    // back to the Java engine there rather than breaking remote configuration entirely.
+    if (config.isRemoteConfigWasmEnabled() && JavaVirtualMachine.isJavaVersionAtLeast(11)) {
+      return new WasmConfigurationPoller(
+          config, TRACER_VERSION, containerId, entityId, configUrlSupplier, agentHttpClient);
+    }
+    if (config.isRemoteConfigWasmEnabled()) {
+      log.debug("Remote configuration wasm engine unavailable on this JVM; using the Java engine");
     }
     return new DefaultConfigurationPoller(
         config, TRACER_VERSION, containerId, entityId, configUrlSupplier, agentHttpClient);

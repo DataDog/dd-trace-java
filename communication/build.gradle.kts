@@ -11,6 +11,7 @@ dependencies {
 
   api(project(":remote-config:remote-config-api"))
   implementation(project(":remote-config:remote-config-core"))
+  implementation(project(":remote-config:remote-config-wasm"))
   implementation(project(":internal-api"))
   implementation(project(":utils:container-utils"))
   implementation(project(":utils:filesystem-utils"))

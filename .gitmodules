@@ -4,3 +4,8 @@
 [submodule "dd-openfeature/src/test/fixtures/ffe-system-test-data"]
 	path = dd-openfeature/src/test/fixtures/ffe-system-test-data
 	url = https://github.com/DataDog/ffe-system-test-data.git
+[submodule "remote-config/remote-config-wasm/libdatadog"]
+	path = remote-config/remote-config-wasm/libdatadog
+	url = https://github.com/DataDog/libdatadog.git
+	shallow = true
+	branch = ban/rc-wasi-allow-better-java-use

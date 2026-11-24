@@ -227,6 +227,7 @@ public final class ConfigDefaults {
       asList("/resources/", "/java/", "/groovy/", "/kotlin/", "/scala/");
 
   static final boolean DEFAULT_REMOTE_CONFIG_ENABLED = true;
+  static final boolean DEFAULT_REMOTE_CONFIG_WASM_ENABLED = true;
   static final boolean DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED = false;
   static final int DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD_SIZE = 5120; // KiB
   static final int DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS = 5;

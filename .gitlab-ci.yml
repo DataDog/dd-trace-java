@@ -245,6 +245,23 @@ default:
       fallback_keys: # Use fallback keys because all cache types are not populated. See note under: populate_dep_cache
         - 'dependency-base'
         - 'dependency-lib'
+    # WASM remote-config engine (libdatadog submodule): rustup home + cargo registry
+    # (with Binaryen) and the crate's incremental build target dir. The crate's Rust
+    # sources and the toolchain are cross-platform, the compiled artifacts are not,
+    # hence the runner-architecture key. Upstream removed the incremental build cache
+    # that used to sit here; the wasm entries below are this branch's addition.
+    - &wasm_toolchain_cache
+      key: wasm-toolchain-v1-$CI_RUNNER_EXECUTABLE_ARCH
+      paths:
+        - .ci-wasm-toolchain
+      policy: pull-push
+      unprotect: true
+    - &wasm_cargo_target_cache
+      key: wasm-cargo-target-v1-$CI_RUNNER_EXECUTABLE_ARCH
+      paths:
+        - remote-config/remote-config-wasm/libdatadog/bindings/wasm/remote-config-poc/target
+      policy: pull-push
+      unprotect: true
   before_script:
     - source .gitlab/gitlab-utils.sh
     - *container_info
@@ -301,6 +318,14 @@ default:
     # GitLab's cache helper restores .gradle as root, but we run as non-root-user (uid 1001),
     # and Gradle does `chmod 700 .gradle` on startup which requires user ownership.
     - sudo chown -R 1001:1001 .gradle
+    # The caches above also restore the WASM remote-config toolchain and cargo target
+    # dir as root; make them usable before provisioning.
+    - sudo chown -R 1001:1001 .ci-wasm-toolchain remote-config/remote-config-wasm/libdatadog || true
+    # Provision the wasm remote-config toolchain (rustup + Binaryen v133; fast no-op when
+    # cached) and export RUSTUP_HOME/CARGO_HOME/WASM_OPT for the build.
+    - gitlab_section_start "wasm-rc-toolchain" "Provision WASM remote-config toolchain"
+    - . .gitlab/setup-wasm-remote-config-toolchain.sh
+    - gitlab_section_end "wasm-rc-toolchain"
   after_script:
     - *cgroup_info
     - *container_info

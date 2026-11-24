@@ -149,6 +149,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_WASM_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_MAJOR_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_ITERATION_KEEP_ALIVE;
@@ -573,6 +574,7 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_POLL_INT
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_TARGETS_KEY_ID;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL;
+import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_WASM_ENABLED;
 import static datadog.trace.api.config.RumConfig.RUM_APPLICATION_ID;
 import static datadog.trace.api.config.RumConfig.RUM_CLIENT_TOKEN;
 import static datadog.trace.api.config.RumConfig.RUM_DEFAULT_PRIVACY_LEVEL;
@@ -1267,6 +1269,7 @@ public class Config {
   private final boolean testOptimizationPayloadsInFiles;
 
   private final boolean remoteConfigEnabled;
+  private final boolean remoteConfigWasmEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
   private final String remoteConfigUrl;
   private final float remoteConfigPollIntervalSeconds;
@@ -3007,6 +3010,8 @@ public class Config {
     remoteConfigEnabled =
         configProvider.getBoolean(
             REMOTE_CONFIGURATION_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED, REMOTE_CONFIG_ENABLED);
+    remoteConfigWasmEnabled =
+        configProvider.getBoolean(REMOTE_CONFIG_WASM_ENABLED, DEFAULT_REMOTE_CONFIG_WASM_ENABLED);
     remoteConfigIntegrityCheckEnabled =
         configProvider.getBoolean(
             REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED, DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED);
@@ -5005,6 +5010,10 @@ public class Config {
 
   public boolean isRemoteConfigEnabled() {
     return remoteConfigEnabled;
+  }
+
+  public boolean isRemoteConfigWasmEnabled() {
+    return remoteConfigWasmEnabled;
   }
 
   public boolean isRemoteConfigIntegrityCheckEnabled() {
@@ -7050,6 +7059,8 @@ public class Config {
         + crashTrackingExtendedInfoEnabled
         + ", remoteConfigEnabled="
         + remoteConfigEnabled
+        + ", remoteConfigWasmEnabled="
+        + remoteConfigWasmEnabled
         + ", remoteConfigUrl="
         + remoteConfigUrl
         + ", remoteConfigPollIntervalSeconds="
