@@ -74,6 +74,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE = false;
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX = false;
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST = false;
+  static final boolean DEFAULT_RDS_TAGS_ENABLED = true;
   static final String DEFAULT_DB_DBM_PROPAGATION_MODE_MODE = "disabled";
   static final boolean DEFAULT_DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED = false;
   static final boolean DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS = false;
@@ -130,8 +131,9 @@ public final class ConfigDefaults {
   static final int DEFAULT_TRACE_STATS_INTERVAL = 10_000; // ms
 
   public static final boolean DEFAULT_METRICS_OTEL_EXPERIMENTAL_ENABLED = true;
+  static final boolean DEFAULT_TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED = false;
 
-  static final boolean DEFAULT_TRACE_OTEL_SEMANTICS_ENABLED = false;
+  public static final boolean DEFAULT_TRACE_OTEL_SEMANTICS_ENABLED = false;
   public static final int DEFAULT_OTLP_TRACES_TIMEOUT = 10_000; // ms
 
   static final String DEFAULT_OTLP_HTTP_LOGS_ENDPOINT = "v1/logs";
@@ -213,8 +215,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED = false;
-  static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.2.4";
-  static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION = "0.8.15";
+  static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.2.5";
+  static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION = "0.8.16";
   static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES =
       "datadog.trace.*:org.apache.commons.*:org.mockito.*";
   static final boolean DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED = true;

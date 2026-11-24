@@ -886,11 +886,10 @@ class ClientStatsAggregatorTest {
                 latch.countDown();
                 return null;
               })
-          .doAnswer(
-              invocation -> {
-                latch2.countDown();
-                return null;
-              })
+          .doAnswer(invocation -> {
+            latch2.countDown();
+            return null;
+          })
           .when(writer)
           .finishBucket();
 
@@ -2053,14 +2052,13 @@ class ClientStatsAggregatorTest {
 
       // call forceReport before start
       CompletableFuture<Boolean> async =
-          CompletableFuture.supplyAsync(
-              () -> {
-                try {
-                  return aggregator.forceReport().get();
-                } catch (Exception e) {
-                  throw new RuntimeException(e);
-                }
-              });
+          CompletableFuture.supplyAsync(() -> {
+            try {
+              return aggregator.forceReport().get();
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+          });
 
       assertThrows(TimeoutException.class, () -> async.get(3, SECONDS));
 

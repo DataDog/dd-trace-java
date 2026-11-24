@@ -12,7 +12,6 @@ muzzle {
 }
 
 addTestSuiteForDir("latestDepTest", "test")
-addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
 
 tasks.named('latestDepForkedTest', Test) {
   systemProperty 'test.dd.jetty92', 'true'
@@ -55,9 +54,4 @@ dependencies {
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.2.+'
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '9.2.+'
   latestDepTestImplementation group: 'org.eclipse.jetty.websocket', name: 'javax-websocket-server-impl', version: '9.2.+'
-
-  latestDepForkedTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.2.+'
-  latestDepForkedTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.2.+'
-  latestDepForkedTestImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '9.2.+'
-  latestDepForkedTestImplementation group: 'org.eclipse.jetty.websocket', name: 'javax-websocket-server-impl', version: '9.2.+'
 }

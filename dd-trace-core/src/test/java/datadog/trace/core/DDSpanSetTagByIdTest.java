@@ -31,9 +31,9 @@ class DDSpanSetTagByIdTest extends DDCoreJavaSpecification {
 
   @Test
   void storesTheTagUnderItsName() {
-    span.setTag(KnownTags.HTTP_RESEND_COUNT_ID, 2);
-    span.setTag(KnownTags.PEER_HOSTNAME_ID, "db.internal");
-    span.setTag(KnownTags.DD_PROFILING_ENABLED_ID, true);
+    span.setTag(KnownTags.HTTP_RESEND_COUNT, 2);
+    span.setTag(KnownTags.PEER_HOSTNAME, "db.internal");
+    span.setTag(KnownTags.DD_PROFILING_ENABLED, true);
 
     assertEquals(2, span.getTag(KnownTags.HTTP_RESEND_COUNT_NAME));
     assertEquals("db.internal", span.getTag(KnownTags.PEER_HOSTNAME_NAME));
@@ -42,11 +42,11 @@ class DDSpanSetTagByIdTest extends DDCoreJavaSpecification {
 
   @Test
   void aNullOrEmptyValueRemovesTheTagById() {
-    span.setTag(KnownTags.PEER_HOSTNAME_ID, "db.internal");
-    span.setTag(KnownTags.COMPONENT_ID, "okhttp");
+    span.setTag(KnownTags.PEER_HOSTNAME, "db.internal");
+    span.setTag(KnownTags.COMPONENT, "okhttp");
 
-    span.setTag(KnownTags.PEER_HOSTNAME_ID, (String) null);
-    span.setTag(KnownTags.COMPONENT_ID, "");
+    span.setTag(KnownTags.PEER_HOSTNAME, (String) null);
+    span.setTag(KnownTags.COMPONENT, "");
 
     assertNull(span.getTag(KnownTags.PEER_HOSTNAME_NAME));
     assertNull(span.getTag(KnownTags.COMPONENT_NAME));
@@ -65,21 +65,21 @@ class DDSpanSetTagByIdTest extends DDCoreJavaSpecification {
   void anIdReplacesAValueSetUnderTheName() {
     span.setTag("peer.port", 8080);
 
-    span.setTag(KnownTags.PEER_PORT_ID, 443);
+    span.setTag(KnownTags.PEER_PORT, 443);
 
     assertEquals(443, span.getTag("peer.port"));
 
-    span.setTag(KnownTags.PEER_PORT_ID, (Object) null);
+    span.setTag(KnownTags.PEER_PORT, (Object) null);
 
     assertNull(span.getTag("peer.port"));
   }
 
   @Test
   void removingTheSpanKindByIdClearsTheKind() {
-    span.setTag(KnownTags.SPAN_KIND_ID, "client");
+    span.setTag(KnownTags.SPAN_KIND, "client");
     assertEquals("client", span.getSpanKindString());
 
-    span.setTag(KnownTags.SPAN_KIND_ID, (String) null);
+    span.setTag(KnownTags.SPAN_KIND, (String) null);
 
     assertNull(span.getSpanKindString());
     assertNull(span.getTag(KnownTags.SPAN_KIND_NAME));
@@ -87,8 +87,8 @@ class DDSpanSetTagByIdTest extends DDCoreJavaSpecification {
 
   @Test
   void interceptedTagsAreStillIntercepted() {
-    span.setTag(KnownTags.DB_STATEMENT_ID, "select 1");
-    span.setTag(KnownTags.SERVICE_ID, "orders-db");
+    span.setTag(KnownTags.DB_STATEMENT, "select 1");
+    span.setTag(KnownTags.SERVICE, "orders-db");
 
     assertEquals("select 1", span.getResourceName().toString());
     assertNull(span.getTag(KnownTags.DB_STATEMENT_NAME));
@@ -97,19 +97,19 @@ class DDSpanSetTagByIdTest extends DDCoreJavaSpecification {
 
   @Test
   void httpStatusCodeSetsTheStatusField() {
-    span.setTag(KnownTags.HTTP_STATUS_CODE_ID, 503);
+    span.setTag(KnownTags.HTTP_STATUS_CODE, 503);
 
     assertEquals(503, span.getHttpStatusCode());
   }
 
   @Test
   void anEmptyOrNullValueRemovesTheTag() {
-    span.setTag(KnownTags.PEER_HOSTNAME_ID, "db.internal");
-    span.setTag(KnownTags.PEER_HOSTNAME_ID, "");
+    span.setTag(KnownTags.PEER_HOSTNAME, "db.internal");
+    span.setTag(KnownTags.PEER_HOSTNAME, "");
     assertNull(span.getTag(KnownTags.PEER_HOSTNAME_NAME));
 
-    span.setTag(KnownTags.PEER_HOSTNAME_ID, (CharSequence) "db.internal");
-    span.setTag(KnownTags.PEER_HOSTNAME_ID, (CharSequence) null);
+    span.setTag(KnownTags.PEER_HOSTNAME, (CharSequence) "db.internal");
+    span.setTag(KnownTags.PEER_HOSTNAME, (CharSequence) null);
     assertNull(span.getTag(KnownTags.PEER_HOSTNAME_NAME));
   }
 }

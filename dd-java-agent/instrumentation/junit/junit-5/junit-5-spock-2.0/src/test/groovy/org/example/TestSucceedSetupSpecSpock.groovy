@@ -10,7 +10,7 @@ class TestSucceedSetupSpecSpock extends Specification {
   def setupSpec() {
     AgentTracer.TracerAPI agentTracer = AgentTracer.get()
     AgentSpan span = agentTracer.buildSpan("spock-manual", "spec-setup").start()
-    try (ContextScope scope = agentTracer.activateManualSpan(span)) {
+    try (ContextScope scope = agentTracer.activateSpan(span)) {
       // manually trace spec setup to check whether ITR skips it or not
     }
     span.finish()

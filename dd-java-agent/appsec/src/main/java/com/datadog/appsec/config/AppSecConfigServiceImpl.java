@@ -54,6 +54,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ConfigCollector;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.UserIdCollectionMode;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.ByteArrayInputStream;
@@ -114,8 +115,10 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private boolean defaultConfigActivated;
 
   private final AtomicBoolean subscribedToRulesAndData = new AtomicBoolean();
-  private final Set<String> usedDDWafConfigKeys =
-      Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+  @VisibleForTesting
+  final Set<String> usedDDWafConfigKeys = Collections.newSetFromMap(new ConcurrentHashMap<>());
+
   private final Set<String> ignoredConfigKeys =
       Collections.newSetFromMap(new ConcurrentHashMap<>());
   private final String DEFAULT_WAF_CONFIG_RULE = "ASM_DD/default";
@@ -219,7 +222,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     return currentRuleVersion;
   }
 
-  private class AppSecConfigChangesListener implements ProductListener {
+  @VisibleForTesting
+  class AppSecConfigChangesListener implements ProductListener {
     @Override
     public void accept(ConfigKey configKey, byte[] content, PollingRateHinter pollingRateHinter)
         throws IOException {
@@ -241,6 +245,12 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           handleWafUpdateResultReport(key, contentMap);
         } catch (AppSecModule.AppSecModuleActivationException e) {
           throw new RuntimeException(e);
+        } catch (RuntimeException e) {
+          if (e.getCause() instanceof InvalidRuleSetException) {
+            // libddwaf >= 2.2.0 unregisters a rejected path: forget the key so defaults can return
+            afterRemove(key);
+          }
+          throw e;
         }
       }
     }
@@ -255,10 +265,11 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       try {
         maybeInitializeDefaultConfig();
         wafBuilder.removeConfig(key);
-        afterRemove(key);
       } catch (UnclassifiedWafException e) {
-        throw new RuntimeException(e);
+        // libddwaf >= 2.2.0 already unregistered a rejected path; RC drops the key anyway
+        log.debug("Could not remove waf config for config key {}: {}", key, e.getMessage());
       }
+      afterRemove(key);
     }
 
     @Override

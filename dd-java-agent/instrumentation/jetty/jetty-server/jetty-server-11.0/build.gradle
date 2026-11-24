@@ -16,7 +16,6 @@ tracerJava {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteForDir('latestDepForkedTest', 'test')
 
 dependencies {
   main_java11CompileOnly ("org.eclipse.jetty:jetty-server:11.0.0") {
@@ -77,8 +76,4 @@ dependencies {
 tasks.named("compileMain_java11Java", JavaCompile) {
   // Java 8 bytecode — override addSourceSetFor(11)'s Java 11 default
   configureCompiler(it, JavaVersion.VERSION_1_8)
-}
-
-tasks.withType(Test).configureEach {
-  javaLauncher = getJavaLauncherFor(11)
 }

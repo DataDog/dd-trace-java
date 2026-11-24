@@ -301,11 +301,10 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
               parentLatch.countDown();
               return null;
             })
-        .doAnswer(
-            invocation -> {
-              childLatch.countDown();
-              return null;
-            })
+        .doAnswer(invocation -> {
+          childLatch.countDown();
+          return null;
+        })
         .when(tracer)
         .write(any());
 
@@ -530,7 +529,6 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
             Collections.emptyMap(),
             false,
             "fakeType",
-            0,
             trace,
             null,
             null,
@@ -556,7 +554,6 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
             Collections.emptyMap(),
             false,
             "fakeType",
-            0,
             traceCollector,
             null,
             null,

@@ -28,7 +28,7 @@ class JardiffPlugin : Plugin<Project> {
     extension.ignoreHashCheck.convention(false)
 
     // Use a detached configuration (created here, resolved only when the task runs)
-    // 
+    //
     // This keeps the jardiff artifact out of `lockAllConfigurations()` dependency locking.
     // The dependency is added lazily, so overriding `jardiff.toolCoordinate` still takes effect.
     // The `@jar` requests the artifact only, because jardiff ships a self-contained "fat" CLI jar
@@ -50,8 +50,8 @@ class JardiffPlugin : Plugin<Project> {
     val compare = project.tasks.register<JardiffTask>(COMPARE_TASK_NAME) {
       group = "verification"
       description = "Compares the built jar against a reference jar (typically the CI `build` " +
-          "job artifact) using jardiff, failing if they differ. Set the reference with " +
-          "--reference-jar=<path> or -PjardiffReferenceDir=<dir>."
+        "job artifact) using jardiff, failing if they differ. Set the reference with " +
+        "--reference-jar=<path> or -PjardiffReferenceDir=<dir>."
       jardiffClasspath.convention(toolClasspath)
       mainClass.convention(extension.mainClass)
       mode.convention(extension.mode)
