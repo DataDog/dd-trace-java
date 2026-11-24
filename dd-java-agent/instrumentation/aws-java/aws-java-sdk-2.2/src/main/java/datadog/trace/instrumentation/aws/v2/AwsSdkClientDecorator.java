@@ -157,10 +157,11 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     if ("s3".equalsIgnoreCase(awsServiceName)) {
       // S3 enforces ExpectedBucketOwner (403 on mismatch), so it names the owner only once the
       // request has succeeded. Remember it here and tag it from the successful response.
-      request
-          .getValueForField("ExpectedBucketOwner", String.class)
-          .filter(AwsAccountIdentity::isAccountId)
-          .ifPresent(owner -> attributes.putAttribute(EXPECTED_BUCKET_OWNER_ATTRIBUTE, owner));
+      String expectedBucketOwner =
+          request.getValueForField("ExpectedBucketOwner", String.class).orElse(null);
+      if (AwsAccountIdentity.isAccountId(expectedBucketOwner)) {
+        attributes.putAttribute(EXPECTED_BUCKET_OWNER_ATTRIBUTE, expectedBucketOwner);
+      }
       // gate "Key" extraction to S3 — DynamoDB's Key is Map<String, AttributeValue>, would CCE
       request.getValueForField("Key", String.class).ifPresent(key -> setObjectKey(span, key));
       if (traceConfig().isDataStreamsEnabled()) {
@@ -214,14 +215,13 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     // DynamoDB. Other services (Timestream, Keyspaces, Athena, ...) also have TableName members;
     // only DynamoDB resolves a bare name in the caller's account, so only it gets the ownership
     // enrichment. Everything else keeps the plain table name tags.
-    if ("dynamodb".equalsIgnoreCase(awsServiceName)) {
-      request
-          .getValueForField("TableName", String.class)
-          .ifPresent(name -> onDynamoDbTable(span, name, attributes));
-    } else {
-      request
-          .getValueForField("TableName", String.class)
-          .ifPresent(name -> setTableName(span, name));
+    String tableName = request.getValueForField("TableName", String.class).orElse(null);
+    if (tableName != null) {
+      if ("dynamodb".equalsIgnoreCase(awsServiceName)) {
+        onDynamoDbTable(span, tableName, attributes);
+      } else {
+        setTableName(span, tableName);
+      }
     }
 
     // Step Functions. getValueForField matches the API model's member name verbatim, and the
@@ -370,8 +370,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   // Optional<String> accountId() was introduced on AwsCredentialsIdentity after 2.2.0, an interface
   // that does not exist at the 2.2.0 floor, so it is looked up by name per credentials class. The
   // handle is kept on the class itself (ClassValue) rather than in a static map: a credentials
-  // class from an application class loader must not be pinned by instrumentation state. A missing
-  // method is recorded as this sentinel.
+  // class from an application class loader must not be pinned by instrumentation state. The handle
+  // is adapted once to (Object)Optional so every call is an invokeExact. A missing method is
+  // recorded as this sentinel.
   private static final MethodHandle NO_ACCOUNT_ID_GETTER =
       MethodHandles.constant(Optional.class, Optional.empty());
   private static final ClassValue<MethodHandle> ACCOUNT_ID_GETTERS =
@@ -380,7 +381,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   private static MethodHandle accountIdGetter(final Class<?> type) {
     try {
       return MethodHandles.publicLookup()
-          .findVirtual(type, "accountId", MethodType.methodType(Optional.class));
+          .findVirtual(type, "accountId", MethodType.methodType(Optional.class))
+          .asType(MethodType.methodType(Optional.class, Object.class));
     } catch (NoSuchMethodException | IllegalAccessException e) {
       return NO_ACCOUNT_ID_GETTER;
     }
@@ -392,12 +394,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       return null;
     }
     try {
-      Object value = getter.invoke(credentials);
-      if (value instanceof Optional) {
-        Object account = ((Optional<?>) value).orElse(null);
-        if (account instanceof String && AwsAccountIdentity.isAccountId((String) account)) {
-          return (String) account;
-        }
+      Optional<?> value = (Optional<?>) getter.invokeExact((Object) credentials);
+      Object account = value == null ? null : value.orElse(null);
+      if (account instanceof String && AwsAccountIdentity.isAccountId((String) account)) {
+        return (String) account;
       }
     } catch (VirtualMachineError | ThreadDeath fatal) {
       // OutOfMemoryError, StackOverflowError, ...: never hide these from the application.
