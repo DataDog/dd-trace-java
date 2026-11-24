@@ -540,3 +540,14 @@ In priority order:
   - **Transform callbacks take ~1.9–2.2 s CPU per start** (6.2% of samples), about 0.12–0.14 ms CPU per loaded class over ~15.8k classes. **`CombiningMatcher.matches` is 28.6% of transform: ~560–650 ms CPU, ≈ 40 µs per class**, including what it calls.
   - **The sieve measured 0.9 µs/class** (≈ 14 ms for 15.8k classes) and rules out 99% of classes for typical hierarchy matchers. Even a fraction of the ~600 ms of matching would be **an order of magnitude more than the ~20 ms load-time rewriting needs.** Paying for rewriting by saving startup elsewhere looks easy, if the lowered matcher can replace most of `CombiningMatcher`'s work.
   - Caveats: calibrated ms are estimates (samples cover ~86% of process CPU); the profile cutoff is approximate (~270 ms stop roundtrip); inclusive matcher time includes type resolution, part of which remains for the ~1% that pass. Transform is only ~2.2 s of B−C's 7.5 s CPU, and where the rest goes (JIT of instrumented code, helper injection, advice running during startup) is not yet attributed.
+
+## General matching design: a globally optimized shared needle table (Doug, 2026-11-24)
+
+- **Prebuilt at agent build time.** Every instrumentation's patterns are string literals (owner, name and descriptor; `?`/`*` for parameters; flag conditions; `Type+` for subtypes). The build compiles them into **one shared, globally optimized needle table**: needles shared across instrumentations are merged, plus the length-keyed and prefix-keyed signature bitmaps. Each matcher gets a small program for the deep pass. At startup the agent loads these tables and builds no matcher object graphs.
+- **One pass with early exit.**
+  1. Walk the constant pool once, recording entry offsets in reusable scratch (nearly free: 0.87 vs 0.84 µs), checking bitmaps and needles. If no matcher has all its needles, stop (~99% of classes).
+  2. For survivors, continue the same pass into flags, super and interfaces, fields and methods. **The sieve's hits give constant-pool indices, so the deep pass compares u2 indices (`name_index`, `descriptor_index`, `super_class`) instead of strings.** Flag masks apply to the same records.
+  3. Hierarchy facts for the class itself come from the recorded offsets. Lookups of other classes happen only for matchers that need them, on classes that got this far.
+  4. **Hand the offsets and matched members to the transform**, so a matched class is parsed once in total (Stuart's parse-once idea).
+- Shape: a lexer generator. Patterns are compiled ahead of time into tables, with one linear pass and early rejection.
+- Open: where today's ~600 ms of `CombiningMatcher` CPU actually goes (true positives vs near-misses, hierarchy resolution vs evaluation). Mario's collapsed stacks in the startup-attribution thread can answer it.
