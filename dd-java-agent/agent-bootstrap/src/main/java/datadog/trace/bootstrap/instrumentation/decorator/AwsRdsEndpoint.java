@@ -10,6 +10,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.SpanData;
 import datadog.trace.bootstrap.instrumentation.api.TagContributor;
 import java.util.Locale;
 
@@ -137,7 +138,7 @@ public final class AwsRdsEndpoint implements TagContributor {
    * aws.rds.identifier} otherwise.
    */
   @Override
-  public void addTo(final AgentSpan span) {
+  public void addTo(final SpanData span) {
     span.setTag(type.identifierTag, identifier);
     span.setTag(AWS_RDS_ENDPOINT_TYPE, type.tagValue);
     if (region != null) {
