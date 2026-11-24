@@ -4,6 +4,7 @@ import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
@@ -168,11 +169,48 @@ public class PendingTraceTest extends PendingTraceTestBase {
         written.getAllValues().stream().anyMatch(spans -> spans.contains(root)),
         "the running root should have been written");
     verify(healthMetrics, never()).onCreateSpan(any());
+    verify(healthMetrics, never()).onEndSpan();
     verify(healthMetrics, never()).onFinishSpan();
 
     root.finish();
 
     verify(healthMetrics, never()).onCreateSpan(any());
+    verify(healthMetrics, times(1)).onEndSpan();
+    verify(healthMetrics, times(1)).onFinishSpan();
+  }
+
+  @Test
+  void phasedFinishCallsOnEndSpanBeforePublishCallsOnFinishSpan() {
+    CoreTracer stubTracer = mock(CoreTracer.class);
+    CoreTracer.ConfigSnapshot traceConfig = mock(CoreTracer.ConfigSnapshot.class);
+    HealthMetrics healthMetrics = mock(HealthMetrics.class);
+
+    when(stubTracer.captureTraceConfig()).thenReturn(traceConfig);
+    when(traceConfig.getServiceMapping()).thenReturn(emptyMap());
+
+    PendingTrace trace =
+        new PendingTrace(
+            stubTracer,
+            DDTraceId.from(0),
+            mock(PendingTraceBuffer.class),
+            mock(TimeSource.class),
+            null,
+            false,
+            healthMetrics);
+
+    DDSpan span = createSimpleSpan(trace);
+    trace.registerSpan(span);
+
+    assertTrue(span.phasedFinish());
+    assertFalse(span.phasedFinish());
+
+    verify(healthMetrics, times(1)).onEndSpan();
+    verify(healthMetrics, never()).onFinishSpan();
+
+    span.publish();
+    span.publish();
+
+    verify(healthMetrics, times(1)).onEndSpan();
     verify(healthMetrics, times(1)).onFinishSpan();
   }
 

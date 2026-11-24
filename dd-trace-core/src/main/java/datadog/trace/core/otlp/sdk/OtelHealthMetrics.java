@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.LongAdder;
 /**
  * {@link HealthMetrics} that records the OTel SDK self-monitoring metrics {@code
  * otel.sdk.span.started}, split by parent origin, and {@code otel.sdk.span.live}, which semantic
- * conventions do not split by parent origin. Only the span create/finish callbacks map to OTel
+ * conventions do not split by parent origin. Only the span create/end callbacks map to OTel
  * metrics; every other callback stays a no-op. The hot path only touches {@link LongAdder}s;
  * observable instruments report the adders at collection.
  */
@@ -62,8 +62,9 @@ final class OtelHealthMetrics extends HealthMetrics {
     live.increment();
   }
 
+  /** Called when the span ends, so a phased-finish span leaves {@code live} before publish. */
   @Override
-  public void onFinishSpan() {
+  public void onEndSpan() {
     live.decrement();
   }
 

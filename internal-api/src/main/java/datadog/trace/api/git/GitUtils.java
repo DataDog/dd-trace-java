@@ -331,9 +331,7 @@ public class GitUtils {
     return sha != null && (sha.length() == 40 || sha.length() == 64) && isValidCommitShaFull(sha);
   }
 
-  /**
-   * Canonicalizes full SHA-1 and SHA-256 object IDs without changing invalid or abbreviated input.
-   */
+  /** Lowercases full object IDs; leaves invalid or abbreviated input unchanged. */
   public static String normalizeCommitSha(@Nullable String sha) {
     return isFullLengthCommitSha(sha) ? sha.toLowerCase(Locale.ROOT) : sha;
   }

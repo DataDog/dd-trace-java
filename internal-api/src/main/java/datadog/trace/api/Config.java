@@ -141,6 +141,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_B3_PADDING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RDS_TAGS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES;
@@ -637,6 +638,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HT
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_INCLUDE_ROUTINGKEY_IN_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RDS_TAGS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESILIENCE4J_MEASURED_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESILIENCE4J_TAG_METRICS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
@@ -981,6 +983,7 @@ public class Config {
   private final boolean dbClientSplitByInstance;
   private final boolean dbClientSplitByInstanceTypeSuffix;
   private final boolean dbClientSplitByHost;
+  private final boolean rdsTagsEnabled;
   private final Set<String> splitByTags;
   private final Set<String> traceStatsAdditionalTags;
   private final boolean jeeSplitByDeployment;
@@ -1918,6 +1921,7 @@ public class Config {
     dbClientSplitByHost =
         configProvider.getBoolean(
             DB_CLIENT_HOST_SPLIT_BY_HOST, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST);
+    rdsTagsEnabled = configProvider.getBoolean(RDS_TAGS_ENABLED, DEFAULT_RDS_TAGS_ENABLED);
 
     dbmPropagationMode =
         configProvider.getString(
@@ -3909,6 +3913,10 @@ public class Config {
     return dbClientSplitByHost;
   }
 
+  public boolean isRdsTagsEnabled() {
+    return rdsTagsEnabled;
+  }
+
   public boolean isDbMetadataFetchingOnQueryEnabled() {
     return dbMetadataFetchingOnQuery;
   }
@@ -4163,27 +4171,22 @@ public class Config {
   }
 
   /**
-   * Upper bound for a configured stats cardinality limit. Each limit sizes a {@code
-   * TagCardinalityHandler} that eagerly allocates four reference arrays of {@code nextPow2(limit *
-   * 2)} slots, so an unbounded value (e.g. a mis-set env var) can exhaust the heap while the
-   * aggregator is constructed, before the tracer finishes starting. {@code 1 << 16} caps a single
-   * handler near ~2 MB while staying far above any useful setting -- the highest built-in default
-   * is 1024, and the aggregate table itself caps at a few thousand rows, so a larger per-key budget
-   * cannot produce more aggregate rows anyway.
+   * Upper bound for configured client-stats cardinality limits. Handlers allocate their lookup
+   * tables lazily and grow them as they see more distinct values. This bound limits how large those
+   * tables can grow during aggregation, even if a much larger limit is configured. It stays far
+   * above any useful setting: the highest built-in default is 1024, and the aggregate table itself
+   * caps at a few thousand rows, so a larger per-key budget cannot produce more aggregate rows
+   * anyway.
    */
   private static final int MAX_TRACE_STATS_CARDINALITY_LIMIT = 1 << 16;
 
   /**
-   * Returns the per-cycle cardinality limit for the named stats field, following the RFC naming
-   * pattern {@code DD_TRACE_STATS_{tagName}_CARDINALITY_LIMIT} (e.g. {@code
-   * DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT}). The caller supplies the default from {@code
-   * MetricCardinalityLimits} so per-field rationale stays co-located with the defaults.
+   * Reads the per-cycle distinct-value limit for a client-stats field. For example, the {@code
+   * resource} field uses {@code DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT}. The caller supplies the
+   * default from {@code MetricCardinalityLimits}, so per-field rationale stays with the defaults.
    *
-   * <p>A non-positive configured value is invalid -- each limit sizes a fixed-capacity handler
-   * table that requires a positive size -- so it falls back to {@code defaultLimit}, logged at
-   * debug. A value above {@link #MAX_TRACE_STATS_CARDINALITY_LIMIT} would eagerly allocate handler
-   * tables large enough to exhaust the heap at startup, so it likewise falls back to {@code
-   * defaultLimit}, logged at warn.
+   * <p>Non-positive settings fall back to the default and log at debug level. Settings above {@link
+   * #MAX_TRACE_STATS_CARDINALITY_LIMIT} fall back to the default and log a warning.
    */
   public int getTraceStatsCardinalityLimit(String tagName, int defaultLimit) {
     int limit =
@@ -6885,6 +6888,8 @@ public class Config {
         + dbClientSplitByInstanceTypeSuffix
         + ", dbClientSplitByHost="
         + dbClientSplitByHost
+        + ", rdsTagsEnabled="
+        + rdsTagsEnabled
         + ", dbMetadataFetchingEnabled="
         + dbMetadataFetchingOnQuery
         + ", dbMetadataFetchingOnConnect="

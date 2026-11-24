@@ -2711,7 +2711,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   public void ensureCallingSamplingProbeConditionError() throws IOException, URISyntaxException {
-    doSamplingTest(this::nullCondition, 1, 1);
+    doSamplingTest(this::nullCondition, ProbeRateLimiter::setGlobalSnapshotRate, 0, 0, 1);
   }
 
   @Test
@@ -2733,7 +2733,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void ensureCallingSamplingLogTemplateOnlyConditionError()
       throws IOException, URISyntaxException {
-    doSamplingTest(this::nullConditionTemplateOnly, ProbeRateLimiter::setGlobalLogRate, 1, 0, 1);
+    doSamplingTest(this::nullConditionTemplateOnly, ProbeRateLimiter::setGlobalLogRate, 0, 0, 1);
   }
 
   @Test
@@ -2753,9 +2753,9 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     doSamplingTest(
         this::captureExpressionsWithNullCondition,
         ProbeRateLimiter::setGlobalSnapshotRate,
-        1,
-        1,
-        0);
+        0,
+        0,
+        1);
   }
 
   private void doSamplingTest(TestMethod testRun, int expectedGlobalCount, int expectedProbeCount)

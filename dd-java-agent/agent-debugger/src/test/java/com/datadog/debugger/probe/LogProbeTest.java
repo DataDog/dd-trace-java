@@ -45,7 +45,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.datadog.debugger.agent.DebuggerAgentHelper;
+import com.datadog.debugger.agent.MockSampler;
 import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.EvaluationTimeOutException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
@@ -60,6 +62,7 @@ import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.sampling.ConstantSampler;
+import datadog.trace.api.sampling.IntervalSampler;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -795,6 +798,49 @@ public class LogProbeTest {
     assertEquals("timeout after 100ms", status.getErrors().get(0).getMessage());
     verify(sink).skipSnapshot(PROBE_ID.getId(), EVALUATION_TIME_OUT);
     verify(sink, times(1)).skipSnapshot(anyString(), any());
+  }
+
+  @ParameterizedTest(name = "captureSnapshot={0}")
+  @ValueSource(booleans = {true, false})
+  public void conditionErrorsAreRateLimitedWithDedicatedSampler(boolean captureSnapshot) {
+    DebuggerSink sink = spy(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
+    DebuggerAgentHelper.injectSink(sink);
+    List<Double> requestedRates = new ArrayList<>();
+    MockSampler probeSampler = new MockSampler();
+    ProbeRateLimiter.setSamplerSupplier(rate -> {
+      requestedRates.add(rate);
+      // real interval sampler for condition errors: at most 1 sample every 5 minutes
+      return rate < 1 ? new IntervalSampler(rate) : probeSampler;
+    });
+    try {
+      ProbeCondition failingCondition = mock(ProbeCondition.class);
+      when(failingCondition.execute(any(), any()))
+          .thenThrow(new EvaluationException("Cannot dereference field: foo", "foo.bar"));
+      LogProbe logProbe =
+          createLog(null)
+              .evaluateAt(MethodLocation.EXIT)
+              .captureSnapshot(captureSnapshot)
+              .when(failingCondition)
+              .build();
+      assertTrue(requestedRates.contains(ProbeRateLimiter.DEFAULT_EVALUATION_ERROR_RATE));
+
+      LogStatus first = new LogStatus(logProbe);
+      logProbe.evaluate(new CapturedContext(), first, MethodLocation.EXIT, false);
+      assertTrue(first.hasConditionErrors());
+      assertTrue(first.isSampled());
+      assertTrue(first.shouldReportError());
+
+      LogStatus second = new LogStatus(logProbe);
+      logProbe.evaluate(new CapturedContext(), second, MethodLocation.EXIT, false);
+      assertTrue(second.hasConditionErrors());
+      Assertions.assertFalse(second.isSampled());
+      Assertions.assertFalse(second.shouldReportError());
+      verify(sink, times(1)).skipSnapshot(PROBE_ID.getId(), RATE_LIMIT);
+      // condition errors must not consume the regular probe sampler
+      assertEquals(0, probeSampler.getCallCount());
+    } finally {
+      ProbeRateLimiter.setSamplerSupplier(null);
+    }
   }
 
   @Test

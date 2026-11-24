@@ -79,8 +79,8 @@ abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
     try {
       connection?.close()
       if (redisClient != null) {
-        // Let Netty's own shutdown timeout finish before timing out the wait.
-        redisClient.shutdownAsync(0, 10, SECONDS).get(15, SECONDS)
+        // Lettuce 5.1 needs its executor alive to deliver pending channel-close notifications.
+        redisClient.shutdownAsync(1, 10, SECONDS).get(15, SECONDS)
       }
     } finally {
       redisServer.stop()

@@ -11,6 +11,7 @@ import static datadog.trace.civisibility.git.tree.GitTestRepository.writeCommit;
 import static datadog.trace.civisibility.git.tree.GitTestRepository.writeObject;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.emptyList;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -33,10 +34,32 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 class GitRecoveryCompatibilityTest {
   @TempDir Path directory;
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void localDiffRemainsAvailableWithoutARemote(boolean workingTree) throws Exception {
+    Path checkout = directory.resolve("checkout");
+    ShellCommandExecutor command = fixture(checkout);
+    String base = git(command, "rev-parse", "HEAD");
+    git(command, "remote", "remove", "origin");
+    assertEquals("", git(command, "remote"));
+    Files.write(checkout.resolve("new.txt"), "local contents\n".getBytes(UTF_8));
+    String blob = git(command, "hash-object", "-w", "new.txt");
+    git(command, "read-tree", "--empty");
+    git(command, "update-index", "--add", "--cacheinfo", "100644", blob, "new.txt");
+    String selected = writeCommit(command, git(command, "write-tree"), base, "local change");
+    git(command, "update-ref", "HEAD", selected);
+    assertTrue(
+        client(checkout, "1 month ago")
+            .getGitDiff(base, workingTree ? null : selected)
+            .contains("new.txt", 1, 1));
+  }
 
   @Test
   void recoveryUsesTheCheckoutObjectFormat() throws Exception {
@@ -304,6 +327,63 @@ class GitRecoveryCompatibilityTest {
             assertThrows(failure.getClass(), () -> client.getMergeBase(GitClient.HEAD, selected)));
       }
     }
+  }
+
+  @TableTest({
+    "Scenario                  | shallow | backdated",
+    "complete checkout         | false   | false    ",
+    "shallow checkout          | true    | false    ",
+    "complete bounded fallback | false   | true     ",
+    "shallow bounded fallback  | true    | true     "
+  })
+  void selectedRecoveryFiltersHistoricalBlobsUntilDiffNeedsThem(boolean shallow, boolean backdated)
+      throws Exception {
+    Path origin = directory.resolve("origin");
+    ShellCommandExecutor remote = fixture(origin);
+    git(remote, "config", "uploadpack.allowFilter", "true");
+    Path checkout = directory.resolve("checkout");
+    if (!shallow) {
+      git(remote, "clone", "--no-local", origin.toString(), checkout.toString());
+    }
+    String parent = git(remote, "rev-parse", "HEAD");
+    Files.write(origin.resolve("deleted.txt"), "historical contents\n".getBytes(UTF_8));
+    String blob = git(remote, "hash-object", "-w", "deleted.txt");
+    git(remote, "read-tree", "--empty");
+    git(remote, "update-index", "--add", "--cacheinfo", "100644", blob, "deleted.txt");
+    String historical = writeCommit(remote, git(remote, "write-tree"), parent, "historical file");
+    git(remote, "read-tree", "--empty");
+    String tree = git(remote, "write-tree");
+    String selected =
+        backdated
+            ? writeObject(
+                remote,
+                "tree "
+                    + tree
+                    + "\nparent "
+                    + historical
+                    + "\nauthor Test <test@example.com> 1 +0000\ncommitter Test <test@example.com> 1 +0000\n\nbackdated tip\n")
+            : writeCommit(remote, tree, historical, "deleted file");
+    git(remote, "update-ref", "HEAD", selected);
+    if (shallow) {
+      git(remote, "clone", "--depth=1", origin.toUri().toString(), checkout.toString());
+    }
+    ShellCommandExecutor local =
+        new ShellCommandExecutor(checkout.toFile(), GIT_COMMAND_TIMEOUT_MILLIS);
+    git(local, "remote", "rename", "origin", "origin=a's");
+    byte[] configuration = Files.readAllBytes(checkout.resolve(".git/config"));
+    ShellGitClient client = client(checkout, backdated ? "1 month ago" : "1970-01-01T00:00:00Z");
+    client.fetchSelectedCommit(selected);
+    assertTrue(client.getLatestCommits(selected).contains(historical));
+    assertFalse(
+        git(local, "cat-file", "--batch-all-objects", "--batch-check=%(objectname)")
+            .contains(blob));
+    client = client(checkout, "1 month ago");
+    client.getGitDiff(historical, selected);
+    assertTrue(
+        git(local, "cat-file", "--batch-all-objects", "--batch-check=%(objectname)")
+            .contains(blob));
+    assertEquals(shallow, client.isShallow());
+    assertArrayEquals(configuration, Files.readAllBytes(checkout.resolve(".git/config")));
   }
 
   @TableTest({

@@ -1,0 +1,32 @@
+{
+  "rules": [
+    {
+      "id": "foo",
+      "name": "foo",
+      "tags": {
+        "type": "php_code_injection",
+        "crs_id": "933140",
+        "category": "attack_attempt",
+        "cwe": "94",
+        "capec": "1000/225/122/17/650",
+        "confidence": "1",
+        "module": "waf"
+      },
+      "conditions": [
+        {
+          "operator": "ip_match",
+          "parameters": {
+            "data": "suspicious_ips_data_id",
+            "inputs": [
+              {
+                "address": "http.client_ip"
+              }
+            ]
+          }
+        }
+      ],
+      "type": "",
+      "data": []
+    }
+  ]
+}

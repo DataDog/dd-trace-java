@@ -56,15 +56,15 @@ class OtelHealthMetricsForkedTest extends DDCoreJavaSpecification {
       metrics.onCreateSpan(root);
       metrics.onCreateSpan(child);
       metrics.onCreateSpan(server);
-      metrics.onFinishSpan();
+      metrics.onEndSpan();
       OtelMetricCollector collector = collect();
 
       assertEquals(byOrigin(1, 1, 1), valuesByOrigin(collector, "otel.sdk.span.started"));
       assertEquals(2L, liveValue(collector));
 
       // once every span ends, live reports 0
-      metrics.onFinishSpan();
-      metrics.onFinishSpan();
+      metrics.onEndSpan();
+      metrics.onEndSpan();
       assertEquals(0L, liveValue(collect()));
 
       server.finish();
