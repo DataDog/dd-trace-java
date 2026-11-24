@@ -9644,6 +9644,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_REDIS_ENABLED", "DD_INTEGRATION_REDIS_ENABLED"]
       }
     ],
+    "DD_TRACE_REDIS_POOL_VALIDATION_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_REDIS_POOL_VALIDATION_ENABLED", "DD_INTEGRATION_REDIS_POOL_VALIDATION_ENABLED"]
+      }
+    ],
     "DD_TRACE_REJECTED_EXECUTION_HANDLER_ENABLED": [
       {
         "version": "A",
