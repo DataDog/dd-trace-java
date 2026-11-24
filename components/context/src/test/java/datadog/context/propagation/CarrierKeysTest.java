@@ -63,6 +63,20 @@ class CarrierKeysTest {
     assertContains(false, "");
     // longer than any name, and not a prefix match
     assertContains(false, "x-a-key-longer-than-every-declared-name");
+    // as long as a declared name, in lower and upper case: the exact pass misses, and only the
+    // upper-case key is compared ignoring case, which misses too
+    assertContains(false, "traceparenu");
+    assertContains(false, "TRACEPARENU");
+  }
+
+  @Test
+  void headerMatchesIgnoringCaseOnlyWhenTheKeyHasUpperCase() {
+    CarrierKeys keys = CarrierKeys.of(HeaderSchema.TRACEPARENT);
+    assertSame(HeaderSchema.TRACEPARENT, keys.header("traceparent"));
+    assertSame(HeaderSchema.TRACEPARENT, keys.header("TraceParent"));
+    assertSame(HeaderSchema.TRACEPARENT, keys.header("TRACEPARENT"));
+    assertNull(keys.header("traceparenu"));
+    assertNull(keys.header("TRACEPARENU"));
   }
 
   @Test
