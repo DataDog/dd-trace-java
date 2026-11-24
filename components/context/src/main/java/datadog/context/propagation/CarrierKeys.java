@@ -23,9 +23,10 @@ import java.util.Set;
  */
 public final class CarrierKeys {
   private static final CarrierKeys ALL =
-      new CarrierKeys(true, new String[0][], new byte[0][][], new String[0]);
+      new CarrierKeys(true, new String[0][], new byte[0][][], new HeaderSchema[0][], new String[0]);
   private static final CarrierKeys NONE =
-      new CarrierKeys(false, new String[0][], new byte[0][][], new String[0]);
+      new CarrierKeys(
+          false, new String[0][], new byte[0][][], new HeaderSchema[0][], new String[0]);
 
   private final boolean all;
 
@@ -35,14 +36,22 @@ public final class CarrierKeys {
   /** Each name's lower-case ASCII bytes (null if it isn't ASCII), parallel to the names. */
   private final byte[][][] asciiByLength;
 
+  /** Each name's {@link HeaderSchema} constant, or null, parallel to {@link #namesByLength}. */
+  private final HeaderSchema[][] headersByLength;
+
   /** Lower-cased prefixes. */
   private final String[] prefixes;
 
   private CarrierKeys(
-      boolean all, String[][] namesByLength, byte[][][] asciiByLength, String[] prefixes) {
+      boolean all,
+      String[][] namesByLength,
+      byte[][][] asciiByLength,
+      HeaderSchema[][] headersByLength,
+      String[] prefixes) {
     this.all = all;
     this.namesByLength = namesByLength;
     this.asciiByLength = asciiByLength;
+    this.headersByLength = headersByLength;
     this.prefixes = prefixes;
   }
 
@@ -61,6 +70,15 @@ public final class CarrierKeys {
     return builder().names(Arrays.asList(names)).build();
   }
 
+  /** Exactly these headers. */
+  public static CarrierKeys of(HeaderSchema... headers) {
+    Builder builder = builder();
+    for (HeaderSchema header : headers) {
+      builder.header(header);
+    }
+    return builder.build();
+  }
+
   public static Builder builder() {
     return new Builder();
   }
@@ -75,19 +93,15 @@ public final class CarrierKeys {
     if (all) {
       return true;
     }
-    int length = key.length();
-    if (length < namesByLength.length) {
-      String[] names = namesByLength[length];
-      if (names != null) {
-        for (String name : names) {
-          if (name.equals(key) || name.regionMatches(true, 0, key, 0, length)) {
-            return true;
-          }
-        }
-      }
+    if (nameIndex(key) >= 0) {
+      return true;
     }
+    int length = key.length();
+    boolean upperCase = hasUpperCase(key);
     for (String prefix : prefixes) {
-      if (prefix.length() <= length && key.regionMatches(true, 0, prefix, 0, prefix.length())) {
+      if (prefix.length() <= length
+          && (key.startsWith(prefix)
+              || (upperCase && key.regionMatches(true, 0, prefix, 0, prefix.length())))) {
         return true;
       }
     }
@@ -109,13 +123,80 @@ public final class CarrierKeys {
    * that matched a key's bytes use the name as the key without decoding it. Reads only.
    */
   public String nameAscii(ByteBuffer key) {
-    int length = key.remaining();
+    int index = indexAscii(key);
+    return index < 0 ? null : namesByLength[key.remaining()][index];
+  }
+
+  /**
+   * The {@link HeaderSchema} constant of the declared name that the ASCII bytes between {@code
+   * key}'s position and limit spell, ignoring case; null if they spell no declared name, or one
+   * with no constant (such as a configured header tag). Reads only.
+   */
+  public HeaderSchema headerAscii(ByteBuffer key) {
+    int index = indexAscii(key);
+    return index < 0 ? null : headersByLength[key.remaining()][index];
+  }
+
+  /**
+   * The {@link HeaderSchema} constant of the declared name {@code key} is, ignoring case; null if
+   * it's no declared name, or one with no constant.
+   */
+  public HeaderSchema header(String key) {
+    int index = nameIndex(key);
+    return index < 0 ? null : headersByLength[key.length()][index];
+  }
+
+  /**
+   * The index, among the names of its length, of the name {@code key} is ignoring case, or -1. Keys
+   * are almost always lower case already (the declared name itself, or a decoded copy of it), so
+   * they're compared exactly first; the case-insensitive pass runs only for a key with an
+   * upper-case character at all. Most keys a carrier offers are no declared name, and comparing
+   * those ignoring case against every name of the same length was the bulk of the matching cost.
+   */
+  private int nameIndex(String key) {
+    int length = key.length();
     if (length >= namesByLength.length) {
-      return null;
+      return -1;
     }
     String[] names = namesByLength[length];
     if (names == null) {
-      return null;
+      return -1;
+    }
+    for (int i = 0; i < names.length; i++) {
+      if (names[i].equals(key)) {
+        return i;
+      }
+    }
+    if (!hasUpperCase(key)) {
+      return -1;
+    }
+    for (int i = 0; i < names.length; i++) {
+      if (names[i].regionMatches(true, 0, key, 0, length)) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  private static boolean hasUpperCase(String s) {
+    for (int i = 0; i < s.length(); i++) {
+      char c = s.charAt(i);
+      if (c >= 'A' && c <= 'Z') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** The index, among the names of its length, of the name {@code key}'s bytes spell, or -1. */
+  private int indexAscii(ByteBuffer key) {
+    int length = key.remaining();
+    if (length >= namesByLength.length) {
+      return -1;
+    }
+    String[] names = namesByLength[length];
+    if (names == null) {
+      return -1;
     }
     int start = key.position();
     if (key.hasArray()) {
@@ -126,19 +207,19 @@ public final class CarrierKeys {
       byte[][] asciiNames = asciiByLength[length];
       for (int i = 0; i < names.length; i++) {
         if (bytesEqual(bytes, offset, asciiNames[i], length)) {
-          return names[i];
+          return i;
         }
       }
       if (!hasUpperCase(bytes, offset, length)) {
-        return null;
+        return -1;
       }
     }
-    for (String name : names) {
-      if (asciiMatches(key, start, name, length)) {
-        return name;
+    for (int i = 0; i < names.length; i++) {
+      if (asciiMatches(key, start, names[i], length)) {
+        return i;
       }
     }
-    return null;
+    return -1;
   }
 
   /** Whether {@code length} bytes from {@code offset} are {@code expected}'s (null: never). */
@@ -227,6 +308,12 @@ public final class CarrierKeys {
 
     private Builder() {}
 
+    /** Adds {@code header}'s name, which then matches as that constant. */
+    public Builder header(HeaderSchema header) {
+      names.add(header.headerName);
+      return this;
+    }
+
     public Builder name(String name) {
       if (name != null && !name.isEmpty()) {
         names.add(name.toLowerCase(Locale.ROOT));
@@ -287,10 +374,16 @@ public final class CarrierKeys {
         sameLength.add(name);
       }
       String[][] namesByLength = new String[names.isEmpty() ? 0 : maxLength + 1][];
+      HeaderSchema[][] headersByLength = new HeaderSchema[namesByLength.length][];
       for (int i = 0; i < namesByLength.length; i++) {
         List<String> sameLength = grouped.get(i);
         if (sameLength != null) {
           namesByLength[i] = sameLength.toArray(new String[0]);
+          headersByLength[i] = new HeaderSchema[namesByLength[i].length];
+          for (int j = 0; j < namesByLength[i].length; j++) {
+            // any declared name that is a known header matches as its constant
+            headersByLength[i][j] = HeaderSchema.forName(namesByLength[i][j]);
+          }
         }
       }
       byte[][][] asciiByLength = new byte[namesByLength.length][][];
@@ -302,7 +395,8 @@ public final class CarrierKeys {
           }
         }
       }
-      return new CarrierKeys(false, namesByLength, asciiByLength, prefixes.toArray(new String[0]));
+      return new CarrierKeys(
+          false, namesByLength, asciiByLength, headersByLength, prefixes.toArray(new String[0]));
     }
 
     /** {@code name}'s ASCII bytes, or null if it has a char outside ASCII. */

@@ -1,6 +1,8 @@
 package datadog.context.propagation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import datadog.context.propagation.CompositePropagator.CarrierCache;
 import java.util.ArrayList;
@@ -48,6 +50,35 @@ class CarrierCacheTest {
     assertEquals(20, seen.size());
     assertEquals("key-0=value-0", seen.get(0));
     assertEquals("key-19=value-19", seen.get(19));
+  }
+
+  @Test
+  void recordsEachKeysHeaderConstant() {
+    CarrierCache cache =
+        new CarrierCache(
+            CarrierKeys.builder().header(HeaderSchema.TRACEPARENT).name("x-custom").build());
+    cache.accept("traceparent", "tp");
+    cache.accept("x-custom", "c");
+    cache.accept(null, "no key");
+    assertSame(HeaderSchema.TRACEPARENT, cache.header(0));
+    assertNull(cache.header(1));
+    assertNull(cache.header(2));
+    assertNull(cache.key(2));
+  }
+
+  @Test
+  void keepsHeaderConstantsPastItsInitialCapacity() {
+    CarrierCache cache = new CarrierCache(CarrierKeys.of(HeaderSchema.BAGGAGE));
+    for (int i = 0; i < 20; i++) {
+      cache.accept(i % 2 == 0 ? "baggage" : "key-" + i, "value-" + i);
+    }
+    for (int i = 0; i < 20; i++) {
+      if (i % 2 == 0) {
+        assertSame(HeaderSchema.BAGGAGE, cache.header(i));
+      } else {
+        assertNull(cache.header(i));
+      }
+    }
   }
 
   @Test

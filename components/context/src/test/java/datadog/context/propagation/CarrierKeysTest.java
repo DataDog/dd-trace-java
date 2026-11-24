@@ -63,6 +63,20 @@ class CarrierKeysTest {
     assertContains(false, "");
     // longer than any name, and not a prefix match
     assertContains(false, "x-a-key-longer-than-every-declared-name");
+    // as long as a declared name, in lower and upper case: the exact pass misses, and only the
+    // upper-case key is compared ignoring case, which misses too
+    assertContains(false, "traceparenu");
+    assertContains(false, "TRACEPARENU");
+  }
+
+  @Test
+  void headerMatchesIgnoringCaseOnlyWhenTheKeyHasUpperCase() {
+    CarrierKeys keys = CarrierKeys.of(HeaderSchema.TRACEPARENT);
+    assertSame(HeaderSchema.TRACEPARENT, keys.header("traceparent"));
+    assertSame(HeaderSchema.TRACEPARENT, keys.header("TraceParent"));
+    assertSame(HeaderSchema.TRACEPARENT, keys.header("TRACEPARENT"));
+    assertNull(keys.header("traceparenu"));
+    assertNull(keys.header("TRACEPARENU"));
   }
 
   @Test
@@ -78,6 +92,41 @@ class CarrierKeysTest {
     KEYS.nameAscii(buffer);
     KEYS.hasPrefixAscii(buffer);
     assertEquals(3, buffer.position(), "position moved");
+  }
+
+  @Test
+  void knownHeadersMatchAsTheirConstant() {
+    CarrierKeys keys =
+        CarrierKeys.builder()
+            .header(HeaderSchema.X_DATADOG_PARENT_ID)
+            .name("TraceParent")
+            .name("x-custom-header")
+            .prefix("ot-baggage-")
+            .build();
+    // declared as a constant, or by a name that is a known header, either way
+    assertSame(HeaderSchema.X_DATADOG_PARENT_ID, keys.header("X-Datadog-Parent-Id"));
+    assertSame(HeaderSchema.X_DATADOG_PARENT_ID, keys.headerAscii(bytes("x-datadog-parent-id")));
+    assertSame(HeaderSchema.TRACEPARENT, keys.header("traceparent"));
+    assertSame(HeaderSchema.TRACEPARENT, keys.headerAscii(bytes("TRACEPARENT")));
+    // a declared name with no constant, a prefix match, or an undeclared known header: no constant
+    assertNull(keys.header("x-custom-header"));
+    assertNull(keys.headerAscii(bytes("x-custom-header")));
+    assertTrue(keys.contains("x-custom-header"));
+    assertNull(keys.header("ot-baggage-user"));
+    assertNull(keys.header("tracestate"));
+    assertNull(keys.headerAscii(bytes("tracestate")));
+    assertSame(HeaderSchema.BAGGAGE, CarrierKeys.of(HeaderSchema.BAGGAGE).header("baggage"));
+    assertNull(CarrierKeys.all().header("baggage"));
+    assertNull(CarrierKeys.none().headerAscii(bytes("baggage")));
+  }
+
+  @Test
+  void unionKeepsConstants() {
+    CarrierKeys union =
+        CarrierKeys.of(HeaderSchema.TRACEPARENT).union(CarrierKeys.of("x-custom-header"));
+    assertSame(HeaderSchema.TRACEPARENT, union.header("traceparent"));
+    assertNull(union.header("x-custom-header"));
+    assertTrue(union.contains("x-custom-header"));
   }
 
   @Test
