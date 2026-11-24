@@ -1,6 +1,7 @@
 package datadog.trace.util;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Random;
 import java.util.TreeMap;
 import java.util.function.Supplier;
@@ -77,34 +78,32 @@ public class CaseInsensitiveMapBenchmark {
   }
 
   static final String[] UPPER_PREFIXES =
-      init(
-          () -> {
-            String[] upperPrefixes = new String[PREFIXES.length];
-            for (int i = 0; i < PREFIXES.length; ++i) {
-              upperPrefixes[i] = PREFIXES[i].toUpperCase();
-            }
-            return upperPrefixes;
-          });
+      init(() -> {
+        String[] upperPrefixes = new String[PREFIXES.length];
+        for (int i = 0; i < PREFIXES.length; ++i) {
+          upperPrefixes[i] = PREFIXES[i].toUpperCase(Locale.ROOT);
+        }
+        return upperPrefixes;
+      });
 
   // Fixed seed so every arm, in every fork, sees the same case and hit/miss mix -- the upper-case
   // share drives toLowerCase() allocation and suffix NUM_SUFFIXES is a miss, so an unseeded draw
   // would give each arm a different workload.
   static final String[] LOOKUP_KEYS =
-      init(
-          () -> {
-            Random curRandom = new Random(42);
+      init(() -> {
+        Random curRandom = new Random(42);
 
-            String[] keys = new String[32];
-            for (int i = 0; i < keys.length; ++i) {
-              int prefixIndex = curRandom.nextInt(PREFIXES.length);
-              boolean toUpper = curRandom.nextBoolean();
-              int suffixIndex = curRandom.nextInt(NUM_SUFFIXES + 1);
+        String[] keys = new String[32];
+        for (int i = 0; i < keys.length; ++i) {
+          int prefixIndex = curRandom.nextInt(PREFIXES.length);
+          boolean toUpper = curRandom.nextBoolean();
+          int suffixIndex = curRandom.nextInt(NUM_SUFFIXES + 1);
 
-              String key = PREFIXES[prefixIndex] + "-" + suffixIndex;
-              keys[i] = toUpper ? key.toUpperCase() : key.toLowerCase();
-            }
-            return keys;
-          });
+          String key = PREFIXES[prefixIndex] + "-" + suffixIndex;
+          keys[i] = toUpper ? key.toUpperCase(Locale.ROOT) : key.toLowerCase(Locale.ROOT);
+        }
+        return keys;
+      });
 
   // Per-thread (@State(Scope.Thread)) so cycling the lookup key doesn't contend a shared counter.
   // The maps stay static/shared (read-only after class-init); only the index is per-thread. A
@@ -160,13 +159,13 @@ public class CaseInsensitiveMapBenchmark {
     for (int suffix = 0; suffix < NUM_SUFFIXES; ++suffix) {
       for (String prefix : PREFIXES) {
         map.put(
-            (prefix + "-" + suffix).toLowerCase(),
+            (prefix + "-" + suffix).toLowerCase(Locale.ROOT),
             suffix); // arguable, but real caller probably doesn't know the case ahead-of-time
       }
     }
     for (int suffix = 0; suffix < NUM_SUFFIXES; suffix += 2) {
       for (String prefix : UPPER_PREFIXES) {
-        map.put((prefix + "-" + suffix).toLowerCase(), suffix + 1);
+        map.put((prefix + "-" + suffix).toLowerCase(Locale.ROOT), suffix + 1);
       }
     }
     return map;
@@ -178,7 +177,7 @@ public class CaseInsensitiveMapBenchmark {
   public Integer lookup_hashMap() {
     // This benchmark is still "correct" in multi-threaded context,
     // Map is populated under the class initialization lock and not changed thereafter
-    return HASH_MAP.get(nextLookupKey().toLowerCase());
+    return HASH_MAP.get(nextLookupKey().toLowerCase(Locale.ROOT));
   }
 
   @Benchmark
@@ -293,7 +292,7 @@ public class CaseInsensitiveMapBenchmark {
   static CIEntry[] _create_flat(float loadFactor) {
     // 16 distinct case-insensitive keys (foo-0..quux-3).
     CIEntry[] table =
-        FlatHashtable.create(CIEntry.class, PREFIXES.length * NUM_SUFFIXES, loadFactor);
+        FlatHashtable.create(PREFIXES.length * NUM_SUFFIXES, loadFactor, CIEntry[]::new);
     for (int suffix = 0; suffix < NUM_SUFFIXES; ++suffix) {
       for (String prefix : PREFIXES) {
         String key = prefix + "-" + suffix;

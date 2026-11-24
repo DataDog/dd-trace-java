@@ -7,8 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.context.Context;
 import datadog.context.ContextContinuation;
+import datadog.context.ContextHandle;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.writer.ListWriter;
@@ -318,8 +318,8 @@ class ScopeDiagnosticsIntegrationTest {
     ScopeDiagnostics.startRecording();
 
     AgentSpan span = tracer.startSpan("test", "op");
-    Context previous = tracer.swap(span);
-    previous.swap();
+    ContextHandle previous = tracer.swap(span);
+    tracer.swap(previous);
     span.finish();
 
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
@@ -356,15 +356,14 @@ class ScopeDiagnosticsIntegrationTest {
     CountDownLatch scopeOpened = new CountDownLatch(1);
     CountDownLatch closeScope = new CountDownLatch(1);
     Thread worker =
-        new Thread(
-            () -> {
-              try (ContextScope ignored = continuation.resume()) {
-                scopeOpened.countDown();
-                closeScope.await();
-              } catch (InterruptedException interrupted) {
-                Thread.currentThread().interrupt();
-              }
-            });
+        new Thread(() -> {
+          try (ContextScope ignored = continuation.resume()) {
+            scopeOpened.countDown();
+            closeScope.await();
+          } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+          }
+        });
     worker.start();
 
     assertTrue(scopeOpened.await(5, TimeUnit.SECONDS));

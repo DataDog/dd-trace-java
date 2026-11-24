@@ -35,6 +35,12 @@ import java.nio.file.Paths
 class TestJvmSpec(val project: Project) {
   companion object {
     const val TEST_JVM = "testJvm"
+
+    /**
+     * Environment variable set by the CI builder images to the latest GA Java major version, which
+     * early-access JDKs installed alongside it must not replace as `tip`.
+     */
+    const val LATEST_JDK_VERSION_ENV = "LATEST_VERSION"
   }
 
   /**
@@ -43,7 +49,8 @@ class TestJvmSpec(val project: Project) {
   val testJvmProperty: Provider<String> = project.providers.gradleProperty(TEST_JVM)
 
   /**
-   * Normalized `tip` string that's set to the highest JAVA_X_HOME version found in environment variables.
+   * Normalized `tip` string that's set to the `LATEST_VERSION` environment variable when present, or
+   * to the highest Java version found via toolchains or JAVA_X_HOME environment variables otherwise.
    */
   val normalizedTestJvm: Provider<String> = testJvmProperty.map { testJvm ->
     if (testJvm.isBlank()) {
@@ -52,19 +59,28 @@ class TestJvmSpec(val project: Project) {
 
     when (testJvm) {
       "tip" -> {
-        val javaVersions = discoverJavaVersionsViaToolchains()
-          ?: discoverJavaVersionsViaEnvVars()
+        val latestJdkVersion = project.providers.environmentVariable(LATEST_JDK_VERSION_ENV).orNull
+        if (latestJdkVersion != null) {
+          latestJdkVersion.toIntOrNull()?.takeIf { it > 0 }?.toString()
+            ?: throw GradleException("$LATEST_JDK_VERSION_ENV must be a Java major version, got '$latestJdkVersion'.")
+        } else {
+          val javaVersions = discoverJavaVersionsViaToolchains()
+            ?: discoverJavaVersionsViaEnvVars()
 
-        if (javaVersions.isEmpty()) {
-          throw GradleException("No Java installations found via toolchains or JAVA_X_HOME environment variables.")
+          if (javaVersions.isEmpty()) {
+            throw GradleException("No Java installations found via toolchains or JAVA_X_HOME environment variables.")
+          }
+
+          javaVersions.max().toString()
         }
-
-        javaVersions.max().toString()
       }
 
       else -> testJvm
     }
-  }.map { project.logger.info("normalized testJvm: {}", it); it }
+  }.map {
+    project.logger.info("normalized testJvm: {}", it)
+    it
+  }
 
   private val defaultJavaLauncher = project.javaToolchains.launcherFor(
     project.extensions.getByType(JavaPluginExtension::class.java).toolchain
@@ -92,6 +108,7 @@ class TestJvmSpec(val project: Project) {
 
     val launcher = when {
       javaHome != null -> javaHome.toLauncher()
+
       version.isNotBlank() -> {
         // Best effort to select a launcher for the passed testJvm
         // `8`, `11`, `ZULU8`, `GRAALVM25`, etc.
@@ -144,9 +161,11 @@ class TestJvmSpec(val project: Project) {
       )
     }
 
-    launcher.orElse(project.providers.provider {
-      throw GradleException("Unable to find launcher for Java '$testJvm'. Does $TEST_JVM point to a JDK?")
-    })
+    launcher.orElse(
+      project.providers.provider {
+        throw GradleException("Unable to find launcher for Java '$testJvm'. Does $TEST_JVM point to a JDK?")
+      }
+    )
   }
 
   /**
@@ -158,7 +177,10 @@ class TestJvmSpec(val project: Project) {
    * Absent when no `testJvm` is supplied.
    */
   val requestedTestJvmLauncher: Provider<JavaLauncher> =
-    testJvmLauncher.map { project.logger.info("testJvm launcher: {}", it.executablePath); it }
+    testJvmLauncher.map {
+      project.logger.info("testJvm launcher: {}", it.executablePath)
+      it
+    }
 
   /**
    * The launcher override required by test tasks.
@@ -190,8 +212,7 @@ class TestJvmSpec(val project: Project) {
     return if (javaHome.endsWith("jre")) javaHome.parent else javaHome
   }
 
-  private fun Path.toLauncher(): Provider<JavaLauncher> =
-    // No public API exists, use internal
+  private fun Path.toLauncher(): Provider<JavaLauncher> = // No public API exists, use internal
     project.javaToolchains.launcherFor(
       SpecificInstallationToolchainSpec(project.serviceOf<PropertyFactory>(), project.file(this))
     )
@@ -207,7 +228,7 @@ class TestJvmSpec(val project: Project) {
     // No public API exists, use internal
     val registry = (project as ProjectInternal).services.get(JavaInstallationRegistry::class.java)
     val versions = registry.toolchains().mapNotNull { installation ->
-        installation.metadata.languageVersion.majorVersion.toInt()
+      installation.metadata.languageVersion.majorVersion.toInt()
     }
 
     return if (versions.isNotEmpty()) {

@@ -10,6 +10,7 @@ import org.gradle.api.tasks.compile.AbstractCompile
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.newInstance
+import org.gradle.kotlin.dsl.withNormalizer
 import org.gradle.kotlin.dsl.withType
 
 /**
@@ -114,9 +115,21 @@ class BuildTimeInstrumentationPlugin : Plugin<Project> {
           "[BuildTimeInstrumentationPlugin] Applying '{}' configuration as compile task input",
           BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION
         )
+        // Track the ByteBuddy plugins and their dependencies because their implementation
+        // affects this compile task's instrumented output. ClasspathNormalizer fingerprints
+        // contents while ignoring absolute paths, JAR entry order and timestamps.
         inputs.files(project.configurations.named(BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION))
           .withPropertyName(BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION)
-          .withNormalizer(ClasspathNormalizer::class.java)
+          .withNormalizer(ClasspathNormalizer::class)
+
+        // JavaCompile overrides AbstractCompile's @Classpath getter with @CompileClasspath,
+        // which tracks class APIs for compile avoidance and ignores method-body changes.
+        // Muzzle generation scans our advice and helpers to identify the classes, methods
+        // and fields they require from the application's libraries. It records those
+        // requirements in `$Muzzle`. That's why method-body changes need to be tracked.
+        inputs.files(classpath)
+          .withPropertyName(INSTRUMENTATION_COMPILE_CLASSPATH)
+          .withNormalizer(ClasspathNormalizer::class)
 
         // Compute optional Java version.
         val match = Regex("compileMain_(.+)Java").matchEntire(compileTaskName)
@@ -136,7 +149,7 @@ class BuildTimeInstrumentationPlugin : Plugin<Project> {
 
         // Temporary location for raw (un-instrumented) classes.
         val tmpUninstrumentedClasses = project.objects.directoryProperty().value(
-          project.layout.buildDirectory.dir("tmp/${name}-raw-classes")
+          project.layout.buildDirectory.dir("tmp/$name-raw-classes")
         )
 
         // Class path to use for instrumentation post-processing.
@@ -173,5 +186,6 @@ class BuildTimeInstrumentationPlugin : Plugin<Project> {
   companion object {
     const val DEFAULT_JAVA_VERSION = "default"
     const val BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION = "buildTimeInstrumentationPlugin"
+    private const val INSTRUMENTATION_COMPILE_CLASSPATH = "instrumentationCompileClasspath"
   }
 }

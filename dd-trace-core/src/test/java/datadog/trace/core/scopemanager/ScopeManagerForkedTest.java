@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
+import datadog.context.ContextHandle;
 import datadog.context.ContextKey;
 import datadog.context.ContextScope;
 import datadog.trace.api.DDTraceId;
@@ -110,6 +111,77 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
   @AfterEach
   void cleanup() {
     tracer.close();
+  }
+
+  @Test
+  void noActiveScopeDefaultsToAsyncPropagation() {
+    assertNull(scopeManager.active());
+    assertTrue(tracer.isAsyncPropagationEnabled());
+
+    Context context = Context.root().with(ContextKey.named("test-key"), "value");
+    ContextContinuation continuation = tracer.capture(context);
+    try {
+      assertSame(context, continuation.context());
+    } finally {
+      continuation.release();
+    }
+  }
+
+  @TableTest({
+    "Scenario              | before | during",
+    "enabled throughout    | true   | true  ",
+    "restore enabled       | true   | false ",
+    "restore suppressed    | false  | true  ",
+    "suppressed throughout | false  | false "
+  })
+  void attachingNewContextResetsAsyncPropagation(boolean before, boolean during) {
+    ContextKey<String> key = ContextKey.named("test-key");
+    Context parent = Context.root().with(key, "parent");
+    Context child = parent.with(key, "child");
+    try (ContextScope ignored = parent.attach()) {
+      Context.setCaptureEnabled(before);
+      try (ContextScope ignored2 = child.attach()) {
+        assertSame(child, Context.current());
+        assertTrue(tracer.isAsyncPropagationEnabled());
+        assertTrue(Context.isCaptureEnabled());
+        ContextContinuation continuation = Context.current().capture();
+        assertSame(child, continuation.context());
+        continuation.release();
+        Context.setCaptureEnabled(during);
+      }
+      assertSame(parent, Context.current());
+      assertEquals(before, tracer.isAsyncPropagationEnabled());
+      assertEquals(before, Context.isCaptureEnabled());
+    }
+    assertSame(Context.root(), Context.current());
+    assertTrue(Context.isCaptureEnabled());
+    assertTrue(tracer.isAsyncPropagationEnabled());
+  }
+
+  @TableTest({
+    "Scenario              | before | during",
+    "enabled throughout    | true   | true  ",
+    "retain suppression    | true   | false ",
+    "retain enabled        | false  | true  ",
+    "suppressed throughout | false  | false "
+  })
+  void attachingTheCurrentContextPreservesAsyncPropagation(boolean before, boolean during) {
+    Context context = Context.root().with(ContextKey.named("test-key"), "value");
+    try (ContextScope ignored = context.attach()) {
+      Context.setCaptureEnabled(before);
+      try (ContextScope ignored2 = context.attach()) {
+        assertSame(ignored, ignored2);
+        assertEquals(before, tracer.isAsyncPropagationEnabled());
+        assertEquals(before, Context.isCaptureEnabled());
+        Context.setCaptureEnabled(during);
+      }
+      assertSame(context, Context.current());
+      assertEquals(during, tracer.isAsyncPropagationEnabled());
+      assertEquals(during, Context.isCaptureEnabled());
+    }
+    assertSame(Context.root(), Context.current());
+    assertTrue(Context.isCaptureEnabled());
+    assertTrue(tracer.isAsyncPropagationEnabled());
   }
 
   @Test
@@ -885,19 +957,18 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     for (int i = 0; i < numTasks; i++) {
       final int taskIndex = i;
       futures[i] =
-          executor.submit(
-              () -> {
-                ContextScope scope = tracer.activateSpan(span);
-                AgentSpan child = tracer.buildSpan("test", "foo" + taskIndex).start();
-                ContextScope childScope = tracer.activateSpan(child);
-                try {
-                  Thread.sleep(100);
-                } catch (InterruptedException ignored) {
-                  Thread.currentThread().interrupt();
-                }
-                childScope.close();
-                scope.close();
-              });
+          executor.submit(() -> {
+            ContextScope scope = tracer.activateSpan(span);
+            AgentSpan child = tracer.buildSpan("test", "foo" + taskIndex).start();
+            ContextScope childScope = tracer.activateSpan(child);
+            try {
+              Thread.sleep(100);
+            } catch (InterruptedException ignored) {
+              Thread.currentThread().interrupt();
+            }
+            childScope.close();
+            scope.close();
+          });
     }
     for (Future<?> future : futures) {
       future.get();
@@ -1060,7 +1131,7 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     Context context1 = Context.root().with(testKey, "first-value");
     Context context2 = context1.with(testKey, "second-value");
 
-    Context swappedOut = scopeManager.swap(Context.root());
+    ContextHandle swappedOut = scopeManager.swap(Context.root());
 
     assertNull(scopeManager.active());
     assertEquals(Context.root(), scopeManager.currentContext());
@@ -1087,7 +1158,7 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     assertEquals(context2, scopeManager.currentContext());
     assertEquals("first-value", swappedOut.get(testKey));
 
-    Context context3 = swappedOut.with(testKey, "third-value");
+    Context context3 = context1.with(testKey, "third-value");
     scopeManager.swap(context3);
 
     assertNotNull(scopeManager.active());
@@ -1162,13 +1233,12 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
   void captureContextWithoutSpanUsesNoopTraceCollector() {
     ContextKey<String> key = ContextKey.named("test-key");
     Context ctx = Context.root().with(key, "value");
-    assertDoesNotThrow(
-        () -> {
-          // NoopAgentTraceCollector handles capture/release without throwing
-          try (ContextScope scope = ctx.attach()) {
-            Context.current().capture().release();
-          }
-        });
+    assertDoesNotThrow(() -> {
+      // NoopAgentTraceCollector handles capture/release without throwing
+      try (ContextScope scope = ctx.attach()) {
+        Context.current().capture().release();
+      }
+    });
   }
 
   private boolean spanFinished(AgentSpan span) {

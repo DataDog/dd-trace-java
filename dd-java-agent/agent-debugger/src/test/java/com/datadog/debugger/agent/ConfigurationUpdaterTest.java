@@ -441,12 +441,11 @@ public class ConfigurationUpdaterTest {
           LogProbe probe =
               LogProbe.builder().probeId(probeId).where("java.lang.String", "concat").build();
           futures.add(
-              executor.submit(
-                  () -> {
-                    barrier.await();
-                    configurationUpdater.accept(source, singletonList(probe));
-                    return null;
-                  }));
+              executor.submit(() -> {
+                barrier.await();
+                configurationUpdater.accept(source, singletonList(probe));
+                return null;
+              }));
         }
         for (Future<?> future : futures) {
           future.get();

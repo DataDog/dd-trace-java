@@ -9,6 +9,7 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT;
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -18,6 +19,7 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.test.junit.utils.tabletest.TableTestTypeConverters;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 import org.tabletest.junit.TypeConverter;
 import org.tabletest.junit.TypeConverterSources;
@@ -177,5 +179,20 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
       default:
         throw new IllegalArgumentException("Value is invalid for " + value);
     }
+  }
+
+  @Test
+  void rootSpanKeepsExtractedSamplingState() {
+    PropagationTags propagationTags =
+        tracer.getPropagationTagsFactory().fromDatadogHeaderValue("_dd.p.dm=-1", SAMPLER_KEEP);
+    PropagationTags.SamplingState extractedState = propagationTags.samplingState();
+    AgentSpanContext extracted =
+        new ExtractedContext(
+            DDTraceId.from(123), 456, SAMPLER_KEEP, null, propagationTags, DATADOG);
+
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "top").asChildOf(extracted).start();
+
+    assertSame(extractedState, span.spanContext().getPropagationTags().samplingState());
+    assertEquals(SAMPLER_KEEP, span.spanContext().getSamplingPriority());
   }
 }

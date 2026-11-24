@@ -65,9 +65,8 @@ public final class OtelMetricRegistry {
   }
 
   public void collectMetrics(OtlpMetricsVisitor visitor) {
-    scopedStorage.forEach(
-        (scope, storage) ->
-            collectScopedMetrics(scope, storage, visitor.visitScopedMetrics(scope)));
+    scopedStorage.forEach((scope, storage) ->
+        collectScopedMetrics(scope, storage, visitor.visitScopedMetrics(scope)));
   }
 
   private void collectScopedMetrics(

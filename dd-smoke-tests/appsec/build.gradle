@@ -5,7 +5,7 @@ plugins {
 description = 'appsec-smoke-tests'
 
 dependencies {
-  api project(':dd-smoke-tests')
+  api project(':dd-smoke-tests:smoke-test-common')
 
   compileOnly(libs.bundles.groovy)
   compileOnly(libs.bundles.spock)

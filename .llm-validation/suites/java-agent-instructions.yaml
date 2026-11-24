@@ -1,0 +1,158 @@
+name: java-agent-instructions
+version: "0"
+cases:
+  # Ground truth: dd-trace-core/build.gradle, docs/how_to_test.md, and CONTRIBUTING.md.
+  - id: java-core-validation-001
+    files: [AGENTS.md, .claude/CLAUDE.md]
+    only_warn: true
+    input: |
+      My PR changes dd-trace-core/src/main/java/datadog/trace/core/CoreTracer.java
+      and updates these tests:
+      - dd-trace-core/src/test/java/datadog/trace/core/CoreTracerTest.java
+      - dd-trace-core/src/test/java/datadog/trace/core/ServiceNameInheritanceForkedTest.java
+      What should I run locally before requesting review, and in what order?
+      Read local files as needed. Give commands and a brief explanation, but do not
+      execute commands, edit files, or use external services.
+    expected_criteria:
+      - Uses the Gradle wrapper and starts with affected tests or dd-trace-core test tasks before broader validation.
+      - Runs CoreTracerTest with :dd-trace-core:test and ServiceNameInheritanceForkedTest with :dd-trace-core:forkedTest; test alone does not run both.
+      - Uses Spotless for formatting, with spotlessCheck or spotlessApply; module-qualified tasks are valid.
+      - Accepts either class-filtered commands or both module test tasks, combined or separate; no exact command spelling or optional broader suite is required.
+      - Distinguishes recommended commands from checks actually performed.
+    bad_signals:
+      - Claims :dd-trace-core:test alone runs ServiceNameInheritanceForkedTest.
+      - Recommends skipping affected tests or uses a whole-repository test suite or clean build as the first validation step.
+      - Invents a test class, module path, or Gradle task as a runnable recommendation.
+
+  # Ground truth: docs/how_to_test_with_junit.md and CONTRIBUTING.md#static-imports.
+  - id: java-unit-test-conventions-001
+    files: [AGENTS.md, .claude/CLAUDE.md]
+    only_warn: true
+    input: |
+      I added this helper to an existing Java unit-test module. Show a small test
+      class, including imports, covering null, empty text, spaces or tabs, and
+      ordinary text. Assume the helper is in the same package as the test.
+      Read local files as needed. Give an example only; do not execute commands,
+      edit files, or use external services.
+
+      final class TextHelper {
+        static boolean isBlank(String value) {
+          return value == null || value.trim().isEmpty();
+        }
+      }
+    expected_criteria:
+      - Uses Java and the repository's JUnit 5 TableTest support for the input and expected-result columns, with valid imports and parameter mapping.
+      - Covers null, empty text, and spaces or tabs as true, and ordinary text as false, with assertions matching those results.
+      - Represents null and empty text as distinct inputs; a blank TableTest cell means null, while two single quotes represent an empty string. Quoted whitespace remains a whitespace input.
+      - Uses explicit static imports for assertion helpers and avoids wildcard imports; equivalent assertion helpers and test names are acceptable.
+      - Keeps the example focused without changing the helper or requiring unrelated migrations or build changes.
+    bad_signals:
+      - Uses Groovy/Spock or JUnit 4 for this new unit test.
+      - Confuses the literal string "null" with null, merges null and empty coverage, or asserts the opposite of the helper's behavior.
+      - Uses wildcard imports or invents a test annotation or import.
+
+  # Ground truth: docs/bootstrap_design_guidelines.md (very early bootstrap and Java NIO).
+  - id: java-premain-safety-001
+    files: [AGENTS.md, .claude/CLAUDE.md]
+    only_warn: true
+    input: |
+      Review this proposed helper for very early agent bootstrap, before the
+      internal logger is configured. The file must be read at this stage; a read
+      failure should be reported and startup should continue. Show a minimal
+      correction if needed and explain the reason.
+      Read local files as needed. Give an example only; do not execute commands,
+      edit files, or use external services.
+
+      static byte[] readSettings(String filename) {
+        try {
+          return java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(filename));
+        } catch (java.io.IOException failure) {
+          java.util.logging.Logger.getLogger("bootstrap").warning("Cannot read settings");
+          return new byte[0];
+        }
+      }
+    expected_criteria:
+      - Replaces java.nio.file access with java.io in this early bootstrap path and avoids initializing JUL.
+      - Reports the failure through System.err before the internal logger is ready, preserves startup on an IOException, and closes opened file resources.
+      - Provides a Java 8-compatible example that reads the complete file on success; a stream loop or equivalent java.io solution is acceptable.
+      - Explains that premature initialization can lock in JVM facilities before the application configures them; exact implementation details are optional.
+      - Limits this advice to early bootstrap and allows the shaded internal logger after it is configured, without requiring a repository-wide logging change.
+    bad_signals:
+      - Leaves java.nio.file or JUL initialization in the proposed early-bootstrap fix, including moving it into another helper called at the same stage.
+      - Uses System.out for diagnostics or assumes the internal logger is already configured.
+      - Replaces the read with an empty result on every call, leaks an opened stream, or throws the IOException instead of continuing startup.
+
+  # Ground truth: the CI curl policy in AGENTS.md#ci-scripts or linked contributor documentation after relocation.
+  - id: java-ci-download-guidance-001
+    files: [AGENTS.md, .claude/CLAUDE.md]
+    only_warn: true
+    input: |
+      I am updating an existing CI shell step that downloads an installer from
+      a remote endpoint and then runs it:
+
+      curl -sSL "$INSTALLER_URL" | bash
+
+      Show a small replacement following this repository's CI download guidance
+      and briefly explain how failures are handled.
+      Read local files as needed. Give an example only; do not execute commands,
+      edit files, or use external services.
+    expected_criteria:
+      - Identifies the local source of the CI download guidance and applies it; a linked contributor guide is valid without duplicating the guidance in AGENTS.md.
+      - Makes curl fail on HTTP errors with -f or --fail and retries with --retry 5 --retry-delay 2 --retry-connrefused for the remote endpoint.
+      - Downloads the installer to a file and runs it only after a successful download; a conditional, an && chain, or a suitable fail-fast shell setting is acceptable.
+      - Preserves the installer URL variable and keeps the proposed change focused on the download step.
+    bad_signals:
+      - Pipes curl directly into bash or sh, including after adding failure and retry flags.
+      - Omits HTTP failure handling or retries, or allows the installer to execute after a failed download.
+      - Requires copying the detailed CI checklist into AGENTS.md to make a linked contributor guide usable.
+
+  # Control: a prose-only edit needs proportionate validation; CONTRIBUTING.md covers formatting and review.
+  - id: java-documentation-only-validation-001
+    files: [AGENTS.md, .claude/CLAUDE.md]
+    only_warn: true
+    input: |
+      My PR fixes one spelling mistake in an explanatory sentence in an existing
+      Markdown document. It changes no commands, code examples, links, generated
+      content, configuration, or agent instructions. What validation is appropriate
+      before requesting review?
+      Read local files as needed. Give a brief recommendation only; do not execute
+      commands, edit files, or use external services.
+    expected_criteria:
+      - Recommends reviewing the text diff for the intended correction and accidental changes.
+      - Keeps validation proportionate to the prose-only edit; a whitespace or Markdown check is acceptable without requiring an exact command.
+      - Does not require Java builds, runtime tests, benchmarks, migrations, or broad runtime-code review workflows for this spelling correction.
+      - Distinguishes recommended checks from checks actually performed and keeps the answer brief.
+    bad_signals:
+      - Requires a clean build, module tests, or whole-repository tests for this prose-only edit.
+      - Requires performance benchmarks, Groovy migrations, or unrelated CI-script checks before review.
+      - Requires reading the full architecture and all developer guides to validate the spelling correction.
+
+  # Ground truth: docs/how_to_test.md describes existing Spock instrumentation tests;
+  # .github/workflows/enforce-groovy-migration.yaml rejects newly introduced Groovy files.
+  - id: java-existing-spock-maintenance-001
+    files: [AGENTS.md, .claude/CLAUDE.md]
+    only_warn: true
+    input: |
+      I need one more input covered by an existing Groovy/Spock instrumentation
+      test. The production normalize helper already returns an empty string for
+      a string containing one space. Show the smallest change to this feature
+      to cover that input, and briefly explain the choice:
+
+      def "normalizes empty input"() {
+        expect:
+        normalize(input) == ""
+        where:
+        input << [null, ""]
+      }
+
+      Read local files as needed. Give an example only; do not execute commands,
+      edit files, or use external services.
+    expected_criteria:
+      - Adds a string containing one space to the existing Spock data inputs while preserving the null and empty-string cases.
+      - Keeps the existing feature and test file in place without introducing a new Groovy file or changing production code.
+      - Treats this as maintenance of an existing Spock instrumentation test rather than creation of a new Java unit test.
+      - Keeps a Groovy-to-Java migration outside the required scope of this small coverage change.
+    bad_signals:
+      - Requires migrating the existing file to Java or running migration skills before adding the input.
+      - Rewrites the feature or suite in JUnit instead of making the requested small Spock change.
+      - Drops existing coverage or changes the expected result instead of adding the whitespace input.

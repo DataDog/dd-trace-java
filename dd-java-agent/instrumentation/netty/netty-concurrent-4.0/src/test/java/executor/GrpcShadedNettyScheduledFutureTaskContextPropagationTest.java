@@ -177,11 +177,10 @@ class GrpcShadedNettyScheduledFutureTaskContextPropagationTest extends AbstractI
         parent.finish();
       }
       // Register without a span so listener instrumentation cannot mask early scope closure.
-      future.addListener(
-          done -> {
-            listenerSpan.set(activeSpan());
-            completed.countDown();
-          });
+      future.addListener(done -> {
+        listenerSpan.set(activeSpan());
+        completed.countDown();
+      });
       proceed.countDown();
       assertTrue(completed.await(5, SECONDS));
       assertSame(parent, listenerSpan.get());
