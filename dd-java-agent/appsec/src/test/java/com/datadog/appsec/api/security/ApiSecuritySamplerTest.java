@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -26,9 +27,7 @@ import org.junit.jupiter.api.Test;
 class ApiSecuritySamplerTest extends DDJavaSpecification {
 
   private static final String FRAMEWORK = "test-framework";
-
   private static final String MISSING_ROUTE_METRIC = "api_security.missing_route";
-
   private static final String USERS_ENDPOINT = "/api/users/{param:int}";
 
   @BeforeEach
@@ -630,8 +629,8 @@ class ApiSecuritySamplerTest extends DDJavaSpecification {
 
     // then: all return the same instance (cached)
     assertNotNull(endpoint1);
-    assertEquals(endpoint1, endpoint2);
-    assertEquals(endpoint2, endpoint3);
+    assertSame(endpoint1, endpoint2);
+    assertSame(endpoint2, endpoint3);
     assertEquals("/api/users/{param:int}/profile/settings", endpoint1);
   }
 

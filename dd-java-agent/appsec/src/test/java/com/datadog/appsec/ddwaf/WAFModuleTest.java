@@ -1,5 +1,6 @@
 package com.datadog.appsec.ddwaf;
 
+import static com.datadog.appsec.TestResources.readResource;
 import static com.datadog.appsec.event.data.KnownAddresses.HEADERS_NO_COOKIES;
 import static com.datadog.appsec.event.data.KnownAddresses.REQUEST_BODY_OBJECT;
 import static com.datadog.appsec.event.data.KnownAddresses.REQUEST_COOKIES;
@@ -105,9 +106,7 @@ import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackTraceFrame;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.AbstractList;
@@ -135,40 +134,30 @@ import org.tabletest.junit.TableTest;
 class WAFModuleTest extends DDJavaSpecification {
 
   private static final TracerAPI ORIGINAL_TRACER = AgentTracer.get();
-
   private static final WafMetricCollector ORIGINAL_METRIC_COLLECTOR = WafMetricCollector.get();
-
   private static final JsonAdapter<Map<String, Object>> ADAPTER =
       new Moshi.Builder()
           .build()
           .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
-
   private static final DataBundle ATTACK_BUNDLE = userAgentBundle("Arachni/v0");
-
   private static final String UUID_PATTERN = "[0-9a-f-]{36}";
 
   private final TracerAPI tracer = mock(TracerAPI.class);
   private final AgentSpan activeSpan = mock(AgentSpan.class);
   private final AgentSpan localRootSpan = mock(AgentSpan.class);
-
   private final AppSecRequestContext ctx = spy(new AppSecRequestContext());
   private GatewayContext gwCtx = new GatewayContext(false);
-
   private AppSecConfigServiceImpl service;
   private final AppSecModuleConfigurer.Reconfiguration serviceReconfiguration = () -> {};
   private WAFModule wafModule = new WAFModule();
   private DataListener dataListener;
-
   private WafContext wafContext;
   private final WafMetrics metrics = new WafMetrics();
-
   private final WafMetricCollector wafMetricCollector = mock(WafMetricCollector.class);
   private AppSecConfigService.TransactionalAppSecModuleConfigurer cfg;
   private ProductListener listener;
-
   private final AppSecModuleConfigurer.Reconfiguration reconf =
       mock(AppSecModuleConfigurer.Reconfiguration.class);
-
   private boolean originalActive;
 
   @BeforeEach
@@ -218,20 +207,9 @@ class WAFModuleTest extends DDJavaSpecification {
     // when
     initialRuleAdd("override_actions_config.json");
 
-    String actions =
-        "{\"actions\": [{"
-            + "\"id\": \"block2\","
-            + " \"type\": \"block_request\","
-            + " \"parameters\": {\"status_code\": 501, \"type\": \"json\"}}],"
-            + " \"rules_override\": [{"
-            + "\"rules_target\": [{\"rule_id\": \"ip_match_rule\"}],"
-            + " \"on_match\": [\"block2\"]}]}";
+    String actions = readResource("waf_module/override_on_match_actions.json");
 
-    String ipData =
-        "{\"rules_data\": [{"
-            + "\"id\": \"ip_data\","
-            + " \"type\": \"data_with_expiration\","
-            + " \"data\": [{\"value\": \"1.2.3.4\", \"expiration\": \"0\"}]}]}";
+    String ipData = readResource("waf_module/override_on_match_ip_data.json");
 
     send("b", actions);
     send("c", ipData);
@@ -279,11 +257,7 @@ class WAFModuleTest extends DDJavaSpecification {
     nextBlock(flow, newReconf);
 
     // when: merges new waf data with the one in the rules config
-    String newData =
-        "{\"rules_data\": [{"
-            + "\"id\": \"blocked_users\","
-            + " \"type\": \"data_with_expiration\","
-            + " \"data\": [{\"value\": \"user-to-block-2\", \"expiration\": \"0\"}]}]}";
+    String newData = readResource("waf_module/blocked_users_data.json");
     send("c", newData);
     wafModule.applyConfig(newReconf);
     dataListener.onDataAvailable(flow, ctx, bundle, gwCtx);
@@ -315,16 +289,7 @@ class WAFModuleTest extends DDJavaSpecification {
     nextBlock(flow, newReconf);
 
     // when: changes the rules config
-    String newCfg =
-        "{\"version\": \"2.1\","
-            + " \"rules\": [{"
-            + "\"id\": \"block-users\","
-            + " \"name\": \"Block User Addresses\","
-            + " \"tags\": {\"type\": \"block_user\", \"category\": \"security_response\"},"
-            + " \"conditions\": [{"
-            + "\"parameters\": {\"inputs\": [{\"address\": \"usr.id\"}], \"data\": \"blocked_users\"},"
-            + " \"operator\": \"exact_match\"}],"
-            + " \"on_match\": [\"block\"]}]}";
+    String newCfg = readResource("waf_module/block_users_rules_config.json");
     send("initial_waf", null);
     send("waf", newCfg);
     wafModule.applyConfig(newReconf);
@@ -363,15 +328,7 @@ class WAFModuleTest extends DDJavaSpecification {
 
     // when
     initialRuleAdd();
-    String exclusions =
-        "{\"exclusions\": [{"
-            + "\"id\": \"1\","
-            + " \"rules_target\": [{\"tags\": {\"type\": \"security_scanner\"}}],"
-            + " \"conditions\": [{"
-            + "\"operator\": \"exact_match\","
-            + " \"parameters\": {"
-            + "\"inputs\": [{\"address\": \"http.client_ip\"}],"
-            + " \"list\": [\"192.168.0.1\"]}}]}]}";
+    String exclusions = readResource("waf_module/exclusions_config.json");
 
     send("b", exclusions);
     wafModule.applyConfig(reconf);
@@ -417,19 +374,7 @@ class WAFModuleTest extends DDJavaSpecification {
     // when
     initialRuleAdd();
 
-    String customRules =
-        "{\"custom_rules\": [{"
-            + "\"id\": \"ua0-600-12x-copy\","
-            + " \"name\": \"Arachni\","
-            + " \"tags\": {\"category\": \"attack_attempt\", \"type\": \"security_scanner2\"},"
-            + " \"conditions\": [{"
-            + "\"operator\": \"match_regex\","
-            + " \"parameters\": {"
-            + "\"inputs\": [{"
-            + "\"address\": \"server.request.headers.no_cookies\","
-            + " \"key_path\": [\"user-agent\"]}],"
-            + " \"regex\": \"^Arachni/v\"}}],"
-            + " \"on_match\": [\"block\"]}]}";
+    String customRules = readResource("waf_module/custom_rules_config.json");
 
     send("b", customRules);
     wafModule.applyConfig(reconf);
@@ -467,17 +412,9 @@ class WAFModuleTest extends DDJavaSpecification {
     initialRuleAdd("test_multi_config_no_action.json");
 
     // original action
-    String action1 =
-        "{\"actions\": [{"
-            + "\"id\": \"block\","
-            + " \"type\": \"block_request\","
-            + " \"parameters\": {\"status_code\": 418, \"type\": \"html\"}}]}";
+    String action1 = readResource("waf_module/block_418_html_action.json");
 
-    String action2 =
-        "{\"actions\": [{"
-            + "\"id\": \"block\","
-            + " \"type\": \"block_request\","
-            + " \"parameters\": {\"status_code\": 401}}]}";
+    String action2 = readResource("waf_module/block_401_action.json");
 
     send("original config", action1);
     send("original config", null);
@@ -978,11 +915,7 @@ class WAFModuleTest extends DDJavaSpecification {
   void ruleDataGivenThroughConfiguration() throws Exception {
     initialRuleAdd();
     ChangeableFlow flow = mock(ChangeableFlow.class);
-    String ipData =
-        "{\"rules_data\": [{"
-            + "\"id\": \"ip_data\","
-            + " \"type\": \"ip_with_expiration\","
-            + " \"data\": [{\"value\": \"1.2.3.4\", \"expiration\": \"0\"}]}]}";
+    String ipData = readResource("waf_module/ip_with_expiration_data.json");
     doReturn(false).when(ctx).isWafContextClosed();
     nextBlock();
 
@@ -1007,19 +940,7 @@ class WAFModuleTest extends DDJavaSpecification {
   void reloadingRulesClearsWafDataAndRuleToggling() throws Exception {
     initialRuleAdd();
     ChangeableFlow flow = mock(ChangeableFlow.class);
-    String ipData =
-        "{\"rules_data\": [{"
-            + "\"id\": \"ip_data\","
-            + " \"name\": \"IP data\","
-            + " \"conditions\": [{"
-            + "\"parameters\": {"
-            + "\"inputs\": [{\"address\": \"http.client_ip\"}],"
-            + " \"data\": \"blocked_users\"},"
-            + " \"operator\": \"exact_match\"}],"
-            + " \"tags\": {\"type\": \"test\", \"category\": \"test\", \"confidence\": \"1\"},"
-            + " \"type\": \"ip_with_expiration\","
-            + " \"on_match\": [\"block\"],"
-            + " \"data\": [{\"value\": \"1.2.3.4\", \"expiration\": \"0\"}]}]}";
+    String ipData = readResource("waf_module/ip_data_with_conditions.json");
     doReturn(false).when(ctx).isWafContextClosed();
     stubWafContextCreation();
     stubWafContextClosing();
@@ -1235,8 +1156,7 @@ class WAFModuleTest extends DDJavaSpecification {
     wafModule.applyConfig(reconf);
     ChangeableFlow flow = mock(ChangeableFlow.class);
     doReturn(false).when(ctx).isWafContextClosed();
-    // the reported events are not inspected (the original stubs returned a value that was never
-    // asserted), only the reporting itself is verified
+    // do not record the events in the spied context, they are captured and checked below
     doAnswer(invocation -> null).when(ctx).reportEvents(anyCollection());
     nextBlock();
 
@@ -1248,7 +1168,8 @@ class WAFModuleTest extends DDJavaSpecification {
     verify(ctx).getWafContextIfReady(true, false);
     verify(ctx).getOrCreateWafContext(any(), eq(true), eq(false));
     verify(tracer, times(2)).activeSpan();
-    verify(ctx).reportEvents(anyCollection());
+    AppSecEvent firstEvent = verifyReportedEvent();
+    assertEquals("/cybercop", firstEvent.getRuleMatches().get(0).parameters.get(0).value);
     verify(ctx, times(2)).getWafMetrics();
     verify(flow).isBlocking();
     verify(ctx).isThrottled(null);
@@ -1267,7 +1188,8 @@ class WAFModuleTest extends DDJavaSpecification {
     verify(ctx, never()).getOrCreateWafContext(any(), anyBoolean(), anyBoolean());
     verify(flow).setAction(argThat(Flow.Action::isBlocking));
     verify(tracer, times(2)).activeSpan();
-    verify(ctx).reportEvents(anyCollection());
+    AppSecEvent secondEvent = verifyReportedEvent();
+    assertEquals("Arachni/v0", secondEvent.getRuleMatches().get(0).parameters.get(0).value);
     verify(ctx, times(2)).getWafMetrics();
     verify(ctx).isWafContextClosed();
     verify(ctx).closeWafContext();
@@ -1870,19 +1792,6 @@ class WAFModuleTest extends DDJavaSpecification {
     wafModule.setWafBuilder(service.getWafBuilder());
     wafModule.config(cfg);
     dataListener = wafModule.getDataSubscriptions().iterator().next();
-  }
-
-  private String readResource(String location) throws IOException {
-    try (InputStream stream = getClass().getClassLoader().getResourceAsStream(location)) {
-      assertNotNull(stream, "missing resource " + location);
-      ByteArrayOutputStream out = new ByteArrayOutputStream();
-      byte[] buffer = new byte[8192];
-      int read;
-      while ((read = stream.read(buffer)) != -1) {
-        out.write(buffer, 0, read);
-      }
-      return new String(out.toByteArray(), UTF_8);
-    }
   }
 
   private static String toggleById(String id, boolean enabled) {

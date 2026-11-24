@@ -31,9 +31,7 @@ import org.tabletest.junit.TableTest;
 class AppSecSpanPostProcessorTest extends DDJavaSpecification {
 
   private static final String SCHEMA_DERIVATIVE_PREFIX = "_dd.appsec.s.";
-
   private static final String FRAMEWORK = "netty";
-
   private static final WafMetricCollector ORIGINAL_METRIC_COLLECTOR = WafMetricCollector.get();
 
   private final WafMetricCollector wafMetricCollector = mock(WafMetricCollector.class);

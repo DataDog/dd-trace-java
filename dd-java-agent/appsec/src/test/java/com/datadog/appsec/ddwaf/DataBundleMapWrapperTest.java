@@ -104,13 +104,13 @@ class DataBundleMapWrapperTest extends DDJavaSpecification {
         mapMethod("values", Map::values),
         mapMethod("keySet", Map::keySet),
         mapMethod("clean", Map::clear),
+        mapMethod("empty", Map::isEmpty),
         mapMethod("putAll", map -> map.putAll(emptyMap())),
         mapMethod("remove", map -> map.remove("a")),
         mapMethod("put", map -> map.put("b", "a")),
         mapMethod("get", map -> map.get("a")),
         mapMethod("containsValue", map -> map.containsValue("b")),
-        mapMethod("containsKey", map -> map.containsKey("a")),
-        mapMethod("empty", Map::isEmpty));
+        mapMethod("containsKey", map -> map.containsKey("a")));
   }
 
   private static Arguments mapMethod(String methodName, Consumer<Map<String, Object>> method) {

@@ -1,0 +1,11 @@
+{
+  "actions": [
+    {
+      "id": "block",
+      "type": "block_request",
+      "parameters": {
+        "status_code": 401
+      }
+    }
+  ]
+}

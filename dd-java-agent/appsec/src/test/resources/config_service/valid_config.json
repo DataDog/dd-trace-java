@@ -1,0 +1,29 @@
+{
+  "version": "2.2",
+  "metadata": {
+    "rules_version": "1.2.3"
+  },
+  "rules": [
+    {
+      "id": "test-rule",
+      "name": "Test rule",
+      "tags": {
+        "type": "attack_attempt",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "operator": "match_regex",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.query"
+              }
+            ],
+            "regex": "^attack$"
+          }
+        }
+      ]
+    }
+  ]
+}

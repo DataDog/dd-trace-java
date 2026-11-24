@@ -1,0 +1,14 @@
+{
+  "rules_data": [
+    {
+      "id": "blocked_users",
+      "type": "data_with_expiration",
+      "data": [
+        {
+          "value": "user-to-block-2",
+          "expiration": "0"
+        }
+      ]
+    }
+  ]
+}

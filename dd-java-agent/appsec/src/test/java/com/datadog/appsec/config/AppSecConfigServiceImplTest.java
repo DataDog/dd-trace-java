@@ -1,5 +1,6 @@
 package com.datadog.appsec.config;
 
+import static com.datadog.appsec.TestResources.readResource;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_ACTIVATION;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE;
@@ -100,43 +101,19 @@ class AppSecConfigServiceImplTest extends DDJavaSpecification {
           | CAPABILITY_ASM_HEADER_FINGERPRINT
           | CAPABILITY_ASM_TRACE_TAGGING_RULES
           | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION;
-
   private static final long RASP_CAPABILITIES_WITHOUT_LFI =
       CAPABILITY_ASM_RASP_SQLI
           | CAPABILITY_ASM_RASP_SSRF
           | CAPABILITY_ASM_RASP_CMDI
           | CAPABILITY_ASM_RASP_SHI;
-
   private static final long RASP_CAPABILITIES =
       RASP_CAPABILITIES_WITHOUT_LFI | CAPABILITY_ASM_RASP_LFI;
-
   private static final String ASM_ENABLED = "{\"asm\":{\"enabled\": true}}";
   private static final String ASM_DISABLED = "{\"asm\":{\"enabled\": false}}";
   private static final String ASM_FEATURES_ACTIVATION = "asm_features_activation";
-
-  private static final String WAF_RULES_CONFIG =
-      "{\"rules\": [{"
-          + "\"id\": \"foo\","
-          + " \"name\": \"foo\","
-          + " \"tags\": {"
-          + "\"type\": \"php_code_injection\","
-          + " \"crs_id\": \"933140\","
-          + " \"category\": \"attack_attempt\","
-          + " \"cwe\": \"94\","
-          + " \"capec\": \"1000/225/122/17/650\","
-          + " \"confidence\": \"1\","
-          + " \"module\": \"waf\"},"
-          + " \"conditions\": [{"
-          + "\"operator\": \"ip_match\","
-          + " \"parameters\": {"
-          + "\"data\": \"suspicious_ips_data_id\","
-          + " \"inputs\": [{\"address\": \"http.client_ip\"}]}}],"
-          + " \"type\": \"\","
-          + " \"data\": []}]}";
-
+  private static final String WAF_RULES_CONFIG = "config_service/waf_rules_config.json";
   private static final String RULES_OVERRIDE_CONFIG =
       "{\"rules_override\": [{\"rules_target\": [{\"rule_id\": \"foo\"}], \"enabled\": false}]}";
-
   private static final WafMetricCollector ORIGINAL_METRIC_COLLECTOR = WafMetricCollector.get();
 
   private final ConfigurationPoller poller = mock(ConfigurationPoller.class);
@@ -382,7 +359,8 @@ class AppSecConfigServiceImplTest extends DDJavaSpecification {
     // when
     // AppSec is ACTIVE - rules trigger subscriptions
     ConfigKey ignoredConfigKey = ParsedConfigKey.parse("datadog/2/ASM_DD/ignored/config");
-    wafDataChangesListener.accept(ignoredConfigKey, WAF_RULES_CONFIG.getBytes(UTF_8), null);
+    wafDataChangesListener.accept(
+        ignoredConfigKey, readResource(WAF_RULES_CONFIG).getBytes(UTF_8), null);
     wafDataChangesListener.accept(ignoredConfigKey, RULES_OVERRIDE_CONFIG.getBytes(UTF_8), null);
     confEndListener.onConfigurationEnd();
 
@@ -458,7 +436,8 @@ class AppSecConfigServiceImplTest extends DDJavaSpecification {
     // when
     ConfigKey asmDdConfigKey = ParsedConfigKey.parse("datadog/1/ASM_DD/asm_dd_config/config");
     ConfigKey asmConfigKey = ParsedConfigKey.parse("datadog/1/ASM/asm_conf/config");
-    wafDataChangesListener.accept(asmDdConfigKey, WAF_RULES_CONFIG.getBytes(UTF_8), null);
+    wafDataChangesListener.accept(
+        asmDdConfigKey, readResource(WAF_RULES_CONFIG).getBytes(UTF_8), null);
     wafDataChangesListener.accept(asmConfigKey, RULES_OVERRIDE_CONFIG.getBytes(UTF_8), null);
     confEndListener.onConfigurationEnd();
 
@@ -569,17 +548,7 @@ class AppSecConfigServiceImplTest extends DDJavaSpecification {
     // Create a temporary file with invalid WAF configuration
     Path path = Files.createTempFile("appsec", ".json");
     try {
-      String invalidConfig =
-          "{\"version\": \"2.2\","
-              + " \"rules\": [{"
-              + "\"id\": \"invalid-rule\","
-              + " \"name\": \"Invalid Rule\","
-              + " \"tags\": {\"type\": \"invalid_type\", \"category\": \"invalid_category\"},"
-              + " \"conditions\": [{"
-              + "\"operator\": \"invalid_operator\","
-              + " \"parameters\": {\"invalid_param\": \"invalid_value\"}}],"
-              + " \"type\": \"invalid_type\","
-              + " \"data\": []}]}";
+      String invalidConfig = readResource("config_service/invalid_waf_config.json");
       Files.write(path, invalidConfig.getBytes(UTF_8));
       when(config.getAppSecRulesFile()).thenReturn(path.toString());
 
@@ -618,7 +587,8 @@ class AppSecConfigServiceImplTest extends DDJavaSpecification {
   }
 
   @Test
-  void currentRuleVersionIsUpdatedFromDiagnosticsWhenInvalidRuleSetExceptionIsThrownOnRcUpdate() {
+  void currentRuleVersionIsUpdatedFromDiagnosticsWhenInvalidRuleSetExceptionIsThrownOnRcUpdate()
+      throws IOException {
     // setup
     ConfigKey key = ParsedConfigKey.parse("datadog/1234/ASM_DD/ID/config");
     AppSecConfigServiceImpl service = new AppSecConfigServiceImpl(config, poller, reconf);
@@ -633,16 +603,7 @@ class AppSecConfigServiceImplTest extends DDJavaSpecification {
 
     // then
     ProductListener wafDataChangesListener = verifyProductListenerAdded(Product.ASM_DD);
-    String invalidRuleConfig =
-        "{\"version\": \"2.2\","
-            + " \"metadata\": {\"rules_version\": \"1.99.0\"},"
-            + " \"rules\": [{"
-            + "\"id\": \"invalid-rule\","
-            + " \"name\": \"Invalid Rule\","
-            + " \"tags\": {\"type\": \"attack_attempt\", \"category\": \"attack_attempt\"},"
-            + " \"conditions\": [{"
-            + "\"operator\": \"invalid_operator\","
-            + " \"parameters\": {\"inputs\": [{\"address\": \"server.request.query\"}]}}]}]}";
+    String invalidRuleConfig = readResource("config_service/invalid_rule_config.json");
 
     // when
     assertThrows(
@@ -732,50 +693,18 @@ class AppSecConfigServiceImplTest extends DDJavaSpecification {
     private final ConfigKey otherKey =
         ParsedConfigKey.parse("datadog/2/ASM_DD/other-config/config");
 
-    private static final String VALID_CONFIG =
-        "{\"version\": \"2.2\","
-            + " \"metadata\": {\"rules_version\": \"1.2.3\"},"
-            + " \"rules\": [{"
-            + "\"id\": \"test-rule\","
-            + " \"name\": \"Test rule\","
-            + " \"tags\": {\"type\": \"attack_attempt\", \"category\": \"attack_attempt\"},"
-            + " \"conditions\": [{"
-            + "\"operator\": \"match_regex\","
-            + " \"parameters\": {"
-            + "\"inputs\": [{\"address\": \"server.request.query\"}],"
-            + " \"regex\": \"^attack$\"}}]}]}";
-
-    private static final String INVALID_VERSION_CONFIG =
-        "{\"version\": \"abc\","
-            + " \"metadata\": {\"rules_version\": \"1.2.3\"},"
-            + " \"rules\": [{"
-            + "\"id\": \"test-rule\","
-            + " \"name\": \"Test rule\","
-            + " \"tags\": {\"type\": \"attack_attempt\", \"category\": \"attack_attempt\"},"
-            + " \"conditions\": [{"
-            + "\"operator\": \"match_regex\","
-            + " \"parameters\": {"
-            + "\"inputs\": [{\"address\": \"server.request.query\"}],"
-            + " \"regex\": \"^attack$\"}}]}]}";
-
-    private static final String OTHER_VALID_CONFIG =
-        "{\"version\": \"2.2\","
-            + " \"metadata\": {\"rules_version\": \"1.2.3\"},"
-            + " \"rules\": [{"
-            + "\"id\": \"other-rule\","
-            + " \"name\": \"Test rule\","
-            + " \"tags\": {\"type\": \"attack_attempt\", \"category\": \"attack_attempt\"},"
-            + " \"conditions\": [{"
-            + "\"operator\": \"match_regex\","
-            + " \"parameters\": {"
-            + "\"inputs\": [{\"address\": \"server.request.query\"}],"
-            + " \"regex\": \"^attack$\"}}]}]}";
+    private String validConfig;
+    private String invalidVersionConfig;
+    private String otherValidConfig;
 
     private ProductListener asmDdListener;
     private ConfigurationEndListener configurationEndListener;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws IOException {
+      validConfig = readResource("config_service/valid_config.json");
+      invalidVersionConfig = validConfig.replace("\"version\": \"2.2\"", "\"version\": \"abc\"");
+      otherValidConfig = validConfig.replace("\"id\": \"test-rule\"", "\"id\": \"other-rule\"");
       AppSecSystem.setActive(true);
       when(config.getAppSecActivation()).thenReturn(ProductActivation.FULLY_ENABLED);
       // keep the global user id collection mode untouched by the configuration-end listener
@@ -790,7 +719,7 @@ class AppSecConfigServiceImplTest extends DDJavaSpecification {
 
     @Test
     void defaultRulesAreRestoredAfterRemovingARejectedUpdate() throws Exception {
-      asmDdListener.accept(key, VALID_CONFIG.getBytes(UTF_8), NOOP);
+      asmDdListener.accept(key, validConfig.getBytes(UTF_8), NOOP);
       acceptRejectedUpdate(key);
 
       assertDoesNotThrow(() -> asmDdListener.remove(key, NOOP));
@@ -803,7 +732,7 @@ class AppSecConfigServiceImplTest extends DDJavaSpecification {
 
     @Test
     void defaultRulesAreRestoredWhileARejectedUpdateIsStillPublished() throws Exception {
-      asmDdListener.accept(key, VALID_CONFIG.getBytes(UTF_8), NOOP);
+      asmDdListener.accept(key, validConfig.getBytes(UTF_8), NOOP);
       acceptRejectedUpdate(key);
 
       configurationEndListener.onConfigurationEnd();
@@ -815,8 +744,8 @@ class AppSecConfigServiceImplTest extends DDJavaSpecification {
 
     @Test
     void defaultRulesStayRemovedWhileAnotherConfigIsApplied() throws Exception {
-      asmDdListener.accept(otherKey, OTHER_VALID_CONFIG.getBytes(UTF_8), NOOP);
-      asmDdListener.accept(key, VALID_CONFIG.getBytes(UTF_8), NOOP);
+      asmDdListener.accept(otherKey, otherValidConfig.getBytes(UTF_8), NOOP);
+      asmDdListener.accept(key, validConfig.getBytes(UTF_8), NOOP);
       acceptRejectedUpdate(key);
 
       configurationEndListener.onConfigurationEnd();
@@ -837,7 +766,7 @@ class AppSecConfigServiceImplTest extends DDJavaSpecification {
       RuntimeException exception =
           assertThrows(
               RuntimeException.class,
-              () -> asmDdListener.accept(configKey, INVALID_VERSION_CONFIG.getBytes(UTF_8), NOOP));
+              () -> asmDdListener.accept(configKey, invalidVersionConfig.getBytes(UTF_8), NOOP));
       assertInstanceOf(InvalidRuleSetException.class, exception.getCause());
     }
   }
