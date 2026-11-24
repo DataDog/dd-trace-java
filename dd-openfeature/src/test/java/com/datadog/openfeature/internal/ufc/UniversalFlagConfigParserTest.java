@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
@@ -464,6 +465,59 @@ class UniversalFlagConfigParserTest {
     assertEquals(MembershipIndex.MATCH, conditions.get(0).membership.lookup(2));
     assertEquals(MembershipIndex.MATCH, conditions.get(1).membership.lookup(4));
     assertNull(conditions.get(2).membership);
+  }
+
+  @Test
+  void storesListsAndMapsAtTheirExactSize() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{\"f\":{\"key\":\"f\",\"enabled\":true,\"variationType\":\"STRING\","
+                + "\"variations\":{\"a\":{\"key\":\"a\",\"value\":\"a\"},"
+                + "\"b\":{\"key\":\"b\",\"value\":\"b\"}},"
+                + "\"allocations\":[{\"key\":\"alloc\",\"rules\":[],"
+                + "\"splits\":[{\"variationKey\":\"a\",\"shards\":[],"
+                + "\"features\":[{\"key\":\"k\",\"value\":\"v\",\"destinations\":[\"HOOK\"]}]}]}]}}}");
+
+    final Flag flag = config.flags.get("f");
+    final Allocation allocation = flag.allocations.get(0);
+    // Every parsed list is the same class, so the evaluator's loops stay monomorphic.
+    final Class<?> listClass = CompactList.class;
+    assertTrue(allocation.rules.isEmpty());
+    assertEquals(listClass, allocation.rules.getClass());
+    assertEquals(listClass, flag.allocations.getClass());
+    assertEquals(listClass, allocation.splits.getClass());
+    assertEquals(listClass, allocation.splits.get(0).features.getClass());
+    assertEquals(2, flag.variations.size());
+    assertEquals("b", flag.variations.get("b").value);
+    assertThrows(UnsupportedOperationException.class, () -> flag.variations.put("c", null));
+    assertThrows(UnsupportedOperationException.class, () -> config.flags.remove("f"));
+    final List<Feature> features = allocation.splits.get(0).features;
+    assertEquals(1, features.size());
+    assertThrows(UnsupportedOperationException.class, () -> features.add(null));
+    assertThrows(
+        UnsupportedOperationException.class, () -> features.get(0).destinations.add("EXPOSURE"));
+  }
+
+  @Test
+  void keepsNullVariantsAndNullListElements() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{\"flags\":{\"f\":{\"key\":\"f\",\"enabled\":true,\"variationType\":\"STRING\","
+                + "\"variations\":{\"a\":{\"key\":\"a\",\"value\":\"a\"},\"gone\":null},"
+                + "\"allocations\":[{\"key\":\"alloc\",\"rules\":[{\"conditions\":["
+                + "{\"operator\":\"ONE_OF\",\"attribute\":\"x\",\"value\":[\"a\",null,\"b\"]},"
+                + "{\"operator\":\"ONE_OF\",\"attribute\":\"y\",\"value\":[null]},"
+                + "{\"operator\":\"ONE_OF\",\"attribute\":\"z\",\"value\":[]}]}],"
+                + "\"splits\":[]}]}}}");
+
+    final Flag flag = config.flags.get("f");
+    assertTrue(flag.variations.containsKey("gone"));
+    assertNull(flag.variations.get("gone"));
+    assertNull(flag.variations.get(null));
+    final List<ConditionConfiguration> conditions = flag.allocations.get(0).rules.get(0).conditions;
+    assertEquals(asList("a", null, "b"), conditions.get(0).value);
+    assertEquals(Collections.singletonList(null), conditions.get(1).value);
+    assertEquals(Collections.emptyList(), conditions.get(2).value);
   }
 
   private static ServerConfiguration deserialize(final String json) throws Exception {

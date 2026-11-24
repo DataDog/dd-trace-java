@@ -1,8 +1,5 @@
 package com.datadog.openfeature.internal.ufc;
 
-import static java.util.Collections.emptyList;
-import static java.util.Collections.unmodifiableList;
-
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -191,7 +188,7 @@ public final class UniversalFlagConfigParser {
         LOGGER.warn("Dropping malformed FFE flag {}: {}", flagKey, error.toString());
       }
     }
-    return flags;
+    return compactMap(flags);
   }
 
   @Nullable
@@ -217,7 +214,7 @@ public final class UniversalFlagConfigParser {
     for (final Map.Entry<?, ?> entry : asObject(value, "variations").entrySet()) {
       variants.put((String) entry.getKey(), toVariant(entry.getValue()));
     }
-    return variants;
+    return compactMap(variants);
   }
 
   @Nullable
@@ -267,7 +264,7 @@ public final class UniversalFlagConfigParser {
     return new ConditionConfiguration(
         asEnum(json.get("operator"), ConditionOperator.class, "operator"),
         asString(json.get("attribute"), "attribute"),
-        json.get("value"));
+        compactValue(json.get("value")));
   }
 
   @Nullable
@@ -301,7 +298,7 @@ public final class UniversalFlagConfigParser {
         features.add(feature);
       }
     }
-    return unmodifiableList(features);
+    return compactList(features);
   }
 
   @Nullable
@@ -327,7 +324,7 @@ public final class UniversalFlagConfigParser {
   /** Keeps every non-empty string, including destinations this SDK does not know yet. */
   private static List<String> toDestinations(@Nullable final Object value) {
     if (!(value instanceof List)) {
-      return emptyList();
+      return compactList(List.of());
     }
     final List<String> destinations = new ArrayList<>();
     for (final Object element : (List<?>) value) {
@@ -335,7 +332,7 @@ public final class UniversalFlagConfigParser {
         destinations.add((String) element);
       }
     }
-    return unmodifiableList(destinations);
+    return compactList(destinations);
   }
 
   @Nullable
@@ -370,7 +367,7 @@ public final class UniversalFlagConfigParser {
     for (final Map.Entry<?, ?> entry : asObject(value, "extraLogging").entrySet()) {
       map.put((String) entry.getKey(), asString(entry.getValue(), (String) entry.getKey()));
     }
-    return map;
+    return compactMap(map);
   }
 
   @Nullable
@@ -387,7 +384,33 @@ public final class UniversalFlagConfigParser {
     for (final Object element : json) {
       list.add(mapper.map(element));
     }
-    return list;
+    return compactList(list);
+  }
+
+  /** Copies a JSON array value, such as a {@code ONE_OF} list, without the reader's slack. */
+  @Nullable
+  private static Object compactValue(@Nullable final Object value) {
+    return value instanceof List ? compactList((List<?>) value) : value;
+  }
+
+  /** Stores a parsed list at its exact size, as a {@link CompactList}: see why there. */
+  private static <T> List<T> compactList(final List<T> list) {
+    return CompactList.copyOf(list);
+  }
+
+  /**
+   * Stores a parsed map at its exact size. A configuration lives in the old generation until the
+   * next one replaces it, so its small maps should not carry {@code HashMap}'s table and nodes.
+   * {@code Map.copyOf} rejects {@code null} keys and values (a JSON {@code null} variant, for
+   * example), so such a map stays as it is. The copy's iteration order differs from run to run;
+   * nothing reads these maps in order.
+   */
+  private static <K, V> Map<K, V> compactMap(final Map<K, V> map) {
+    // Map.copyOf returns the shared empty map for an empty one.
+    if (map.containsKey(null) || map.containsValue(null)) {
+      return map;
+    }
+    return Map.copyOf(map);
   }
 
   private static Map<?, ?> asObject(final Object value, final String name) {

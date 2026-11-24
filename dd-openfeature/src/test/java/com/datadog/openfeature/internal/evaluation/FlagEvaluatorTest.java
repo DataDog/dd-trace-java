@@ -234,6 +234,44 @@ class FlagEvaluatorTest {
     assertTrue(metadata.containsKey(DO_LOG));
   }
 
+  @Test
+  void reportsANullFlagKeyAsNotFoundWithParsedMaps() throws Exception {
+    final ProviderEvaluation<Integer> result =
+        new FlagEvaluator(false, notExposed())
+            .evaluate(
+                parse(oneFlag("\"variationKey\":\"on\",")), Integer.class, null, 0, context());
+
+    assertEquals(ErrorCode.FLAG_NOT_FOUND, result.getErrorCode());
+  }
+
+  @Test
+  void reportsAMissingVariationKeyAsAMissingVariantWithParsedMaps() throws Exception {
+    final ProviderEvaluation<Integer> result =
+        new FlagEvaluator(false, notExposed())
+            .evaluate(parse(oneFlag("")), Integer.class, "flag", 0, context());
+
+    assertEquals(ErrorCode.GENERAL, result.getErrorCode());
+    assertEquals("Variant not found for: null", result.getErrorMessage());
+  }
+
+  private static ServerConfiguration parse(final String json) throws Exception {
+    return UniversalFlagConfigParser.parse(json.getBytes(UTF_8));
+  }
+
+  /** One integer flag whose only split carries {@code variationKey}, which may be empty. */
+  private static String oneFlag(final String variationKey) {
+    return "{\"observeFullEvaluationData\":true,\"flags\":{\"flag\":{\"key\":\"flag\","
+        + "\"enabled\":true,\"variationType\":\"INTEGER\","
+        + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":1},\"off\":{\"key\":\"off\",\"value\":0}},"
+        + "\"allocations\":[{\"key\":\"allocation\",\"splits\":[{"
+        + variationKey
+        + "\"shards\":[]}]}]}}}";
+  }
+
+  private static MutableContext context() {
+    return new MutableContext("user-1");
+  }
+
   private static FlagEvaluator.ExposureLookup notExposed() {
     return (flag, subject, allocation, variant, serialId) -> false;
   }

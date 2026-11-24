@@ -341,6 +341,26 @@ class FlagEvaluationPipelineTest {
   }
 
   @Test
+  void keepsWorkingAfterAnIdlePoll() throws Exception {
+    // The worker polls with a 100 ms timeout. Stay idle past it, so the empty poll is exercised
+    // regardless of timing, then check that traffic arriving afterwards is still flushed.
+    final CountDownLatch posted = new CountDownLatch(1);
+    this.transport.onPost = posted::countDown;
+    final FlagEvaluationPipeline writer = writer(64, 1, TimeUnit.MILLISECONDS);
+
+    writer.start();
+    try {
+      Thread.sleep(250);
+      writer.enqueue(simpleEvent("after-idle-flag", "on"));
+      assertTrue(posted.await(5, TimeUnit.SECONDS));
+    } finally {
+      writer.close();
+    }
+    assertNotNull(
+        eventForFlag(readJson(this.transport.posts.get(0).body).parsed, "after-idle-flag"));
+  }
+
+  @Test
   void flushPostsToFlagevaluationEndpoint() {
     final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter();
 

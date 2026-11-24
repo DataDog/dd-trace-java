@@ -138,7 +138,8 @@ public final class FlagEvaluator {
             .build();
       }
 
-      final Flag flag = config.flags.get(key);
+      // Parsed maps are immutable compact maps, which reject null lookups.
+      final Flag flag = key == null ? null : config.flags.get(key);
       if (flag == null) {
         if (config.invalidFlags != null && config.invalidFlags.containsKey(key)) {
           return error(
@@ -505,7 +506,7 @@ public final class FlagEvaluator {
       final EvaluationContext context,
       final long evalTimestampMs,
       final boolean observeFullEvaluationData) {
-    final Variant variant = flag.variations.get(variationKey);
+    final Variant variant = variationKey == null ? null : flag.variations.get(variationKey);
     if (variant == null) {
       return error(
           defaultValue,
