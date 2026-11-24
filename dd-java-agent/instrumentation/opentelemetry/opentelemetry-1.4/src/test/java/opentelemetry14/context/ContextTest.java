@@ -1,9 +1,9 @@
 package opentelemetry14.context;
 
+import static datadog.context.Context.isCaptureEnabled;
+import static datadog.context.Context.setCaptureEnabled;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -29,32 +29,32 @@ import org.tabletest.junit.TableTest;
 public class ContextTest extends AbstractOpenTelemetry14Test {
 
   @Test
-  void firstManualAttachmentDefaultsToAsyncPropagation() {
+  void firstManualAttachmentDefaultsToCaptureEnabled() {
     Context context = Context.root().with(ContextKey.named("test-key"), "value");
     try (Scope ignored = context.makeCurrent()) {
-      assertTrue(isAsyncPropagationEnabled());
+      assertTrue(isCaptureEnabled());
     }
   }
 
   @TableTest({
-    "Scenario                         | asyncPropagation | sameContext",
-    "Enabled parent, new context      | true             | false      ",
-    "Disabled parent, new context     | false            | false      ",
-    "Enabled parent, current context  | true             | true       ",
-    "Disabled parent, current context | false            | true       "
+    "Scenario                         | captureEnabled | sameContext",
+    "Enabled parent, new context      | true           | false      ",
+    "Disabled parent, new context     | false          | false      ",
+    "Enabled parent, current context  | true           | true       ",
+    "Disabled parent, current context | false          | true       "
   })
-  void manualAttachmentInheritsAsyncPropagation(boolean asyncPropagation, boolean sameContext) {
+  void manualAttachmentInheritsCaptureFlag(boolean captureEnabled, boolean sameContext) {
     ContextKey<String> key = ContextKey.named("test-key");
     Context parent = Context.root().with(key, "parent");
     try (Scope ignored = parent.makeCurrent()) {
-      setAsyncPropagationEnabled(asyncPropagation);
+      setCaptureEnabled(captureEnabled);
       Context child = sameContext ? parent : parent.with(key, "child");
       try (Scope ignored2 = child.makeCurrent()) {
-        assertEquals(asyncPropagation, isAsyncPropagationEnabled());
+        assertEquals(captureEnabled, isCaptureEnabled());
       }
-      assertEquals(asyncPropagation, isAsyncPropagationEnabled());
+      assertEquals(captureEnabled, isCaptureEnabled());
     }
-    assertTrue(isAsyncPropagationEnabled());
+    assertTrue(isCaptureEnabled());
   }
 
   @DisplayName("test Span.current/makeCurrent()")
