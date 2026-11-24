@@ -3810,6 +3810,22 @@
         "aliases": []
       }
     ],
+    "DD_RESOLVER_DECLARED_METHOD_SIEVE": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_RESOLVER_DECLARED_METHOD_SIEVE_VERIFY": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_RESOLVER_NAMES_ARE_UNIQUE": [
       {
         "version": "A",

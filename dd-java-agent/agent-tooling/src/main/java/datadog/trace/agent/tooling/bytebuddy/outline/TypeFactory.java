@@ -110,6 +110,11 @@ final class TypeFactory {
 
   private LazyType targetType;
 
+  /** Name and class-file bytes of the type currently being matched/transformed, if known. */
+  String targetName;
+
+  byte[] targetBytecode;
+
   /** Sets the current class-loader context of this type-factory. */
   void switchContext(ClassLoader classLoader) {
     if (currentClassLoader != classLoader || null == classFileLocator) {
@@ -151,6 +156,8 @@ final class TypeFactory {
   void beginTransform(String name, byte[] bytecode) {
     targetType = new LazyType(name);
     targetType.location = new ClassFileLocator.Resolution.Explicit(bytecode);
+    targetName = name;
+    targetBytecode = bytecode;
 
     if (installing) {
       originalClassLoader = currentClassLoader;
@@ -183,6 +190,8 @@ final class TypeFactory {
     }
 
     targetType = null;
+    targetName = null;
+    targetBytecode = null;
     createOutlines = OUTLINING_ENABLED;
   }
 

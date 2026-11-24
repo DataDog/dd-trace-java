@@ -79,6 +79,8 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHOD
 import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_NATIVE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_DIR;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_DECLARED_METHOD_SIEVE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_DECLARED_METHOD_SIEVE_VERIFY;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_NAMES_ARE_UNIQUE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_SIMPLE_METHOD_GRAPH;
@@ -221,6 +223,8 @@ public class InstrumenterConfig {
   private final ResolverCacheConfig resolverCacheConfig;
   private final String resolverCacheDir;
   private final boolean resolverNamesAreUnique;
+  private final boolean resolverDeclaredMethodSieve;
+  private final boolean resolverDeclaredMethodSieveVerify;
   private final boolean resolverSimpleMethodGraph;
   private final boolean resolverUseLoadClass;
   private final Boolean resolverUseUrlCaches;
@@ -381,6 +385,9 @@ public class InstrumenterConfig {
             RESOLVER_CACHE_CONFIG, ResolverCacheConfig.class, ResolverCacheConfig.MEMOS);
     resolverCacheDir = configProvider.getString(RESOLVER_CACHE_DIR);
     resolverNamesAreUnique = configProvider.getBoolean(RESOLVER_NAMES_ARE_UNIQUE, false);
+    resolverDeclaredMethodSieve = configProvider.getBoolean(RESOLVER_DECLARED_METHOD_SIEVE, false);
+    resolverDeclaredMethodSieveVerify =
+        configProvider.getBoolean(RESOLVER_DECLARED_METHOD_SIEVE_VERIFY, false);
     resolverSimpleMethodGraph =
         // use simpler approach everywhere except GraalVM, where it affects reachability analysis
         configProvider.getBoolean(RESOLVER_SIMPLE_METHOD_GRAPH, !Platform.isNativeImageBuilder());
@@ -724,6 +731,19 @@ public class InstrumenterConfig {
     return resolverNamesAreUnique;
   }
 
+  /**
+   * Experimental: hierarchy instrumentations with only method advice match a type only if its
+   * constant pool contains the name of at least one advised method.
+   */
+  public boolean isResolverDeclaredMethodSieve() {
+    return resolverDeclaredMethodSieve;
+  }
+
+  /** Experimental: also runs the full check for types the sieve skips, logging any it missed. */
+  public boolean isResolverDeclaredMethodSieveVerify() {
+    return resolverDeclaredMethodSieveVerify;
+  }
+
   public boolean isResolverSimpleMethodGraph() {
     return resolverSimpleMethodGraph;
   }
@@ -918,6 +938,10 @@ public class InstrumenterConfig {
         + resolverCacheDir
         + ", resolverNamesAreUnique="
         + resolverNamesAreUnique
+        + ", resolverDeclaredMethodSieve="
+        + resolverDeclaredMethodSieve
+        + ", resolverDeclaredMethodSieveVerify="
+        + resolverDeclaredMethodSieveVerify
         + ", resolverSimpleMethodGraph="
         + resolverSimpleMethodGraph
         + ", resolverUseLoadClass="

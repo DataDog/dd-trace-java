@@ -173,6 +173,9 @@ public final class TraceInstrumentationConfig {
   public static final String RESOLVER_USE_URL_CACHES = "resolver.use.url.caches";
   public static final String RESOLVER_RESET_INTERVAL = "resolver.reset.interval";
   public static final String RESOLVER_NAMES_ARE_UNIQUE = "resolver.names.are.unique";
+  public static final String RESOLVER_DECLARED_METHOD_SIEVE = "resolver.declared-method-sieve";
+  public static final String RESOLVER_DECLARED_METHOD_SIEVE_VERIFY =
+      "resolver.declared-method-sieve.verify";
 
   public static final String UNSAFE_CLASS_INJECTION = "unsafe.class.injection";
   public static final String VISITOR_CLASS_PARSING = "visitor.class.parsing";

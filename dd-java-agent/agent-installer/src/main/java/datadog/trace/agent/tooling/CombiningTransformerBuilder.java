@@ -10,6 +10,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
+import datadog.trace.agent.tooling.bytebuddy.matcher.ConstantPoolSieve;
+import datadog.trace.agent.tooling.bytebuddy.matcher.DeclaredMethodNames;
 import datadog.trace.agent.tooling.context.FieldBackedContextInjector;
 import datadog.trace.agent.tooling.context.FieldBackedContextMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextRequestRewriter;
@@ -23,6 +25,7 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -86,6 +89,19 @@ public final class CombiningTransformerBuilder
 
   // temporary buffer for collecting advice; reset for each instrumenter
   private final List<AgentBuilder.Transformer> advice = new ArrayList<>();
+
+  // experimental: gate hierarchy matching on the names of advised methods
+  private final boolean declaredMethodSieve =
+      InstrumenterConfig.get().isResolverDeclaredMethodSieve();
+
+  // hierarchy matchers built for the current instrumenter; reset for each instrumenter
+  private final List<MatchRecorder.ForHierarchy> memberHierarchyMatchers = new ArrayList<>();
+
+  // method matchers passed to applyAdvices for the current instrumenter, while capturing
+  private List<ElementMatcher<? super MethodDescription>> capturedAdvice;
+
+  // all gated hierarchy matchers; their names make up the shared sieve
+  private final List<MatchRecorder.ForHierarchy> gatedHierarchyMatchers = new ArrayList<>();
 
   public CombiningTransformerBuilder(
       AgentBuilder agentBuilder,
@@ -175,8 +191,10 @@ public final class CombiningTransformerBuilder
       transformationId = allocateRuntimeTransformationId();
     }
 
+    memberHierarchyMatchers.clear();
     buildTypeMatcher(member, transformationId);
     buildTypeAdvice(member, transformationId);
+    memberHierarchyMatchers.clear();
   }
 
   private void buildTypeMatcher(Instrumenter member, int transformationId) {
@@ -196,8 +214,7 @@ public final class CombiningTransformerBuilder
         matchers.add(new MatchRecorder.ForType(transformationId, namedOneOf(names)));
       }
     } else if (member instanceof Instrumenter.ForTypeHierarchy) {
-      matchers.add(
-          new MatchRecorder.ForHierarchy(transformationId, (Instrumenter.ForTypeHierarchy) member));
+      addHierarchyMatcher(member, transformationId);
     } else if (member instanceof Instrumenter.ForCallSite) {
       matchers.add(
           new MatchRecorder.ForType(
@@ -214,8 +231,7 @@ public final class CombiningTransformerBuilder
 
     if (member instanceof Instrumenter.CanShortcutTypeMatching
         && !((Instrumenter.CanShortcutTypeMatching) member).onlyMatchKnownTypes()) {
-      matchers.add(
-          new MatchRecorder.ForHierarchy(transformationId, (Instrumenter.ForTypeHierarchy) member));
+      addHierarchyMatcher(member, transformationId);
     }
 
     if (classLoaderMatcher != ANY_CLASS_LOADER) {
@@ -235,6 +251,28 @@ public final class CombiningTransformerBuilder
         && !(member instanceof Instrumenter.HasMethodAdvice)) {
       addStructuralNarrowing((Instrumenter.WithStructuralChange) member, transformationId);
     }
+  }
+
+  private void addHierarchyMatcher(Instrumenter member, int transformationId) {
+    MatchRecorder.ForHierarchy matcher =
+        new MatchRecorder.ForHierarchy(transformationId, (Instrumenter.ForTypeHierarchy) member);
+    matchers.add(matcher);
+    memberHierarchyMatchers.add(matcher);
+  }
+
+  /**
+   * Whether hierarchy matching for this instrumenter can be gated on advised method names.
+   *
+   * <p>Method advice only applies to methods a type declares, so a type that declares none of the
+   * advised methods gains nothing from matching. That doesn't hold for type advice or structural
+   * changes, which apply to the type itself.
+   */
+  private boolean canGateOnDeclaredMethods(Instrumenter member) {
+    return declaredMethodSieve
+        && !memberHierarchyMatchers.isEmpty()
+        && member instanceof Instrumenter.HasMethodAdvice
+        && !(member instanceof Instrumenter.HasTypeAdvice)
+        && !(member instanceof Instrumenter.WithStructuralChange);
   }
 
   private void buildTypeAdvice(Instrumenter member, int transformationId) {
@@ -258,7 +296,15 @@ public final class CombiningTransformerBuilder
       ((Instrumenter.HasTypeAdvice) member).typeAdvice(this);
     }
     if (member instanceof Instrumenter.HasMethodAdvice) {
+      boolean gating = canGateOnDeclaredMethods(member);
+      if (gating) {
+        capturedAdvice = new ArrayList<>();
+      }
       ((Instrumenter.HasMethodAdvice) member).methodAdvice(this);
+      if (gating) {
+        gateOnDeclaredMethods(capturedAdvice);
+        capturedAdvice = null;
+      }
     }
     finishAdviceStack(transformationId);
 
@@ -273,6 +319,47 @@ public final class CombiningTransformerBuilder
       structuralChange.typeAdvice(this);
       finishAdviceStack(structuralTransformationId);
     }
+  }
+
+  /** Gates this instrumenter's hierarchy matchers on the names of its advised methods. */
+  private void gateOnDeclaredMethods(List<ElementMatcher<? super MethodDescription>> advised) {
+    Set<String> names = DeclaredMethodNames.lowerAll(advised);
+    if (null == names) {
+      return; // at least one advised method matcher can't be lowered, so don't gate
+    }
+    for (MatchRecorder.ForHierarchy matcher : memberHierarchyMatchers) {
+      matcher.gate(names, advised);
+      gatedHierarchyMatchers.add(matcher);
+    }
+  }
+
+  /** Builds the shared sieve over all gated names; {@code null} if nothing is gated. */
+  private ConstantPoolSieve buildDeclaredMethodSieve() {
+    if (gatedHierarchyMatchers.isEmpty()) {
+      return null;
+    }
+    Set<String> allNames = new HashSet<>();
+    for (MatchRecorder.ForHierarchy matcher : gatedHierarchyMatchers) {
+      allNames.addAll(matcher.declaredMethodNames());
+    }
+    ConstantPoolSieve sieve = new ConstantPoolSieve(allNames);
+    for (MatchRecorder.ForHierarchy matcher : gatedHierarchyMatchers) {
+      matcher.assignIds(sieve);
+    }
+    if (log.isDebugEnabled()) {
+      int hierarchyMatchers = 0;
+      for (MatchRecorder matcher : matchers) {
+        if (matcher instanceof MatchRecorder.ForHierarchy) {
+          hierarchyMatchers++;
+        }
+      }
+      log.debug(
+          "Declared-method sieve gates {} of {} hierarchy matchers on {} names",
+          gatedHierarchyMatchers.size(),
+          hierarchyMatchers,
+          sieve.size());
+    }
+    return sieve;
   }
 
   /** Narrows a transformation away from already-loaded types missing the structural marker. */
@@ -314,6 +401,9 @@ public final class CombiningTransformerBuilder
       log.debug("Skipping advice class {} as it is not enabled", adviceClass);
       return;
     }
+    if (null != capturedAdvice) {
+      capturedAdvice.add(matcher);
+    }
     log.debug("Installing advice class {}", adviceClass);
     Advice.WithCustomMapping customMapping = Advice.withCustomMapping();
     if (postProcessor != null) {
@@ -342,7 +432,9 @@ public final class CombiningTransformerBuilder
     }
 
     return agentBuilder
-        .type(new CombiningMatcher(instrumentation, knownTypesMask, matchers))
+        .type(
+            new CombiningMatcher(
+                instrumentation, knownTypesMask, matchers, buildDeclaredMethodSieve()))
         .and(NOT_DECORATOR_MATCHER)
         .transform(defaultTransformers())
         .transform(new SplittingTransformer(transformers))

@@ -18,6 +18,8 @@ public final class InstrumenterMetrics {
     static final AtomicLong knownTypeMiss = new AtomicLong();
     static final AtomicLong typeHierarchyHit = new AtomicLong();
     static final AtomicLong typeHierarchyMiss = new AtomicLong();
+    static final AtomicLong typeHierarchySieved = new AtomicLong();
+    static final AtomicLong typeHierarchySieveMissed = new AtomicLong();
     static final AtomicLong contextStoreHit = new AtomicLong();
     static final AtomicLong contextStoreMiss = new AtomicLong();
     static final AtomicLong narrowLocationHit = new AtomicLong();
@@ -93,6 +95,20 @@ public final class InstrumenterMetrics {
   public static void typeHierarchyMiss(long fromTick) {
     if (ENABLED) {
       record(Stats.typeHierarchyMiss, fromTick);
+    }
+  }
+
+  /** A hierarchy check skipped because the type declares none of the advised method names. */
+  public static void typeHierarchySieved(long fromTick) {
+    if (ENABLED) {
+      record(Stats.typeHierarchySieved, fromTick);
+    }
+  }
+
+  /** A skipped hierarchy check that verification found would have matched an advised method. */
+  public static void typeHierarchySieveMissed(long fromTick) {
+    if (ENABLED) {
+      record(Stats.typeHierarchySieveMissed, fromTick);
     }
   }
 
@@ -183,6 +199,8 @@ public final class InstrumenterMetrics {
     summarize(buf, "Known type miss:       ", Stats.knownTypeMiss);
     summarize(buf, "Type hierarchy hit:    ", Stats.typeHierarchyHit);
     summarize(buf, "Type hierarchy miss:   ", Stats.typeHierarchyMiss);
+    summarize(buf, "Type hierarchy sieved: ", Stats.typeHierarchySieved);
+    summarize(buf, "Sieve missed (verify): ", Stats.typeHierarchySieveMissed);
     summarize(buf, "Context store hit:     ", Stats.contextStoreHit);
     summarize(buf, "Context store miss:    ", Stats.contextStoreMiss);
     summarize(buf, "Narrow location hit:   ", Stats.narrowLocationHit);

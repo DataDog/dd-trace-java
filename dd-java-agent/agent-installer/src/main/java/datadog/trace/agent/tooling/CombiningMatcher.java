@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.RETRANSFORMER;
 
+import datadog.trace.agent.tooling.bytebuddy.matcher.ConstantPoolSieve;
 import datadog.trace.agent.tooling.bytebuddy.matcher.CustomExcludes;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ProxyClassIgnores;
 import datadog.trace.api.InstrumenterConfig;
@@ -46,12 +47,19 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
   private final BitSet knownTypesMask;
   private final MatchRecorder[] matchers;
 
+  /** Sieve for advised method names used by gated hierarchy matchers; {@code null} if unused. */
+  private final ConstantPoolSieve declaredMethodSieve;
+
   private volatile boolean deferring;
 
   CombiningMatcher(
-      Instrumentation instrumentation, BitSet knownTypesMask, List<MatchRecorder> matchers) {
+      Instrumentation instrumentation,
+      BitSet knownTypesMask,
+      List<MatchRecorder> matchers,
+      ConstantPoolSieve declaredMethodSieve) {
     this.knownTypesMask = knownTypesMask;
     this.matchers = matchers.toArray(new MatchRecorder[0]);
+    this.declaredMethodSieve = declaredMethodSieve;
 
     if (DEFER_MATCHING) {
       scheduleResumeMatching(instrumentation, InstrumenterConfig.get().deferIntegrationsUntil());
@@ -81,6 +89,8 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
     } else {
       InstrumenterMetrics.knownTypeHit(fromTick);
     }
+
+    DeclaredMethodGate.prepare(declaredMethodSieve, target.getName());
 
     for (MatchRecorder matcher : matchers) {
       try {
@@ -181,6 +191,7 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
     }
 
     TypeDescription target = new TypeDescription.ForLoadedType(clazz);
+    DeclaredMethodGate.open(); // no class-file bytes here, so don't sieve
 
     for (MatchRecorder matcher : matchers) {
       try {

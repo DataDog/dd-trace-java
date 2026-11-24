@@ -49,6 +49,19 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
     typeFactory.get().beginTransform(name, bytecode);
   }
 
+  /**
+   * Class-file bytes of the type currently being matched, or {@code null} if unknown (e.g. when
+   * re-matching already loaded classes). The array must not be modified.
+   */
+  public static byte[] currentTargetBytecode() {
+    return typeFactory.get().targetBytecode;
+  }
+
+  /** Name of the type whose bytes {@link #currentTargetBytecode()} returns, or {@code null}. */
+  public static String currentTargetName() {
+    return typeFactory.get().targetName;
+  }
+
   /** Switch to full descriptions, needed for the actual class transformation. */
   public static void enableFullDescriptions() {
     typeFactory.get().enableFullDescriptions();
