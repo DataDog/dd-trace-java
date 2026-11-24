@@ -5,7 +5,7 @@ plugins {
 description = 'Mock Datadog backend used by smoke tests.'
 
 dependencies {
-  implementation project(':dd-smoke-tests')
+  implementation project(':dd-smoke-tests:smoke-test-common')
   api project(':dd-java-agent:agent-ci-visibility:civisibility-test-fixtures')
 
   compileOnly(libs.bundles.groovy)

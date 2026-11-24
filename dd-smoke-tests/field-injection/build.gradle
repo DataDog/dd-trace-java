@@ -18,7 +18,7 @@ tasks.named("shadowJar", ShadowJar) {
 }
 
 dependencies {
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }
 
 tasks.withType(Test).configureEach {

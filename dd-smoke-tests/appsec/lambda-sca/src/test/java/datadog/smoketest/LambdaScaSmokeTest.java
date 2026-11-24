@@ -51,30 +51,26 @@ class LambdaScaSmokeTest {
     // method has executed yet, so this establishes readiness without a sleep or a warm-up call.
     app.backend()
         .telemetry()
-        .waitForFlat(
-            event ->
-                advisories(event).stream()
-                    .anyMatch(advisory -> Collections.emptyList().equals(advisory.get("reached"))));
+        .waitForFlat(event ->
+            advisories(event).stream()
+                .anyMatch(advisory -> Collections.emptyList().equals(advisory.get("reached"))));
 
     assertEquals(200, app.get("/invoke/warm"));
     new PollingConditions(30)
-        .eventually(
-            () ->
-                assertTrue(
-                    app.backend().traces().getTraces().stream()
-                        .flatMap(trace -> trace.getSpans().stream())
-                        .anyMatch(
-                            span ->
-                                "dd-tracer-serverless-span".equals(span.getName())
-                                    && "serverless".equals(span.getType())
-                                    && "warm".equals(span.getMeta().get("request_id"))),
-                    "expected serverless invocation span for request warm"));
+        .eventually(() ->
+            assertTrue(
+                app.backend().traces().getTraces().stream()
+                    .flatMap(trace -> trace.getSpans().stream())
+                    .anyMatch(span ->
+                        "dd-tracer-serverless-span".equals(span.getName())
+                            && "serverless".equals(span.getType())
+                            && "warm".equals(span.getMeta().get("request_id"))),
+                "expected serverless invocation span for request warm"));
     app.backend()
         .telemetry()
-        .waitForFlat(
-            event ->
-                reachedCallsites(event).stream()
-                    .anyMatch(hit -> "warmInvocation".equals(hit.get("symbol"))));
+        .waitForFlat(event ->
+            reachedCallsites(event).stream()
+                .anyMatch(hit -> "warmInvocation".equals(hit.get("symbol"))));
 
     Map<String, Object> caller =
         app.backend().telemetry().getFlatMessages().stream()

@@ -1,0 +1,23 @@
+{
+  "version": "2.2",
+  "rules": [
+    {
+      "id": "invalid-rule",
+      "name": "Invalid Rule",
+      "tags": {
+        "type": "invalid_type",
+        "category": "invalid_category"
+      },
+      "conditions": [
+        {
+          "operator": "invalid_operator",
+          "parameters": {
+            "invalid_param": "invalid_value"
+          }
+        }
+      ],
+      "type": "invalid_type",
+      "data": []
+    }
+  ]
+}

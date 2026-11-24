@@ -18,8 +18,8 @@ import javax.annotation.Nullable;
  * plain nullable field. See {@code EscapeShapeBenchmark}'s {@code phiWithStatic} arm for why an
  * {@code EMPTY} singleton would cost 8 B/op on every JDK measured, including 25.
  *
- * <p>This shape -- one allocation site, a plain nullable field, no singleton merge -- scalar-
- * replaces on ordinary escape analysis, on JDK 8/11/17/25, no JDK-21+ {@code
+ * <p>This shape -- one allocation site, a plain nullable field, no singleton merge --
+ * scalar-replaces on ordinary escape analysis, on JDK 8/11/17/25, no JDK-21+ {@code
  * ReduceAllocationMerges} needed (see {@code EscapeShapeBenchmark}). The discipline required of a
  * caller is that the wrapping method itself construct a {@code Maybe} at exactly one call site (fed
  * by a plain nullable local merged through ordinary branches, or by delegating to an

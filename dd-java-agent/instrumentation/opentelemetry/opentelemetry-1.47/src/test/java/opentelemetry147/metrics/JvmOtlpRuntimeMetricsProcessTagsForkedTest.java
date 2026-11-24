@@ -23,22 +23,18 @@ class JvmOtlpRuntimeMetricsProcessTagsForkedTest {
 
   @Test
   void processTagsPresentAtStartAreReported() {
-    forEachJvmPoint(
-        (metric, point) ->
-            assertEquals(
-                "present-at-start",
-                point.attrs.get("custom.process.tag"),
-                metric + " " + point.attrs));
+    forEachJvmPoint((metric, point) ->
+        assertEquals(
+            "present-at-start", point.attrs.get("custom.process.tag"), metric + " " + point.attrs));
   }
 
   @Test
   void processTagsDoNotReplaceJmxFetchAttributes() {
-    forEachJvmPoint(
-        (metric, point) -> {
-          String context = metric + " " + point.attrs;
-          assertEquals("dd-java-agent default", point.attrs.get("instance"), context);
-          // Threading, ClassLoading, OperatingSystem and Memory points have no "name" property
-          assertNotEquals("custom-name", point.attrs.get("name"), context);
-        });
+    forEachJvmPoint((metric, point) -> {
+      String context = metric + " " + point.attrs;
+      assertEquals("dd-java-agent default", point.attrs.get("instance"), context);
+      // Threading, ClassLoading, OperatingSystem and Memory points have no "name" property
+      assertNotEquals("custom-name", point.attrs.get("name"), context);
+    });
   }
 }

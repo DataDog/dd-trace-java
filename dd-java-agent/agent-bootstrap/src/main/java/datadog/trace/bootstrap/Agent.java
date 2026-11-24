@@ -121,8 +121,9 @@ public class Agent {
     PROFILING(ProfilingConfig.PROFILING_ENABLED, false),
     APPSEC(AppSecConfig.APPSEC_ENABLED, false),
     IAST(IastConfig.IAST_ENABLED, false),
-    REMOTE_CONFIG(RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED, true),
-    DEPRECATED_REMOTE_CONFIG(RemoteConfigConfig.REMOTE_CONFIG_ENABLED, true),
+    // Off by default in AWS Lambda: the Datadog Lambda extension serves no Remote Configuration
+    REMOTE_CONFIG(RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED, !isAwsLambdaRuntime()),
+    DEPRECATED_REMOTE_CONFIG(RemoteConfigConfig.REMOTE_CONFIG_ENABLED, !isAwsLambdaRuntime()),
     CWS(CwsConfig.CWS_ENABLED, false),
     CIVISIBILITY(CiVisibilityConfig.CIVISIBILITY_ENABLED, false),
     CIVISIBILITY_AGENTLESS(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, false),
@@ -274,9 +275,7 @@ public class Agent {
     appSecFullyDisabled = isFullyDisabled(AgentFeature.APPSEC);
     iastEnabled = isFeatureEnabled(AgentFeature.IAST);
     iastFullyDisabled = isIastFullyDisabled(appSecEnabled);
-    remoteConfigEnabled =
-        isFeatureEnabled(AgentFeature.REMOTE_CONFIG)
-            || isFeatureEnabled(AgentFeature.DEPRECATED_REMOTE_CONFIG);
+    remoteConfigEnabled = isRemoteConfigEnabled();
     cwsEnabled = isFeatureEnabled(AgentFeature.CWS);
     telemetryEnabled = isFeatureEnabled(AgentFeature.TELEMETRY);
     dynamicInstrumentationEnabled = isFeatureEnabled(AgentFeature.DYNAMIC_INSTRUMENTATION);
@@ -1625,15 +1624,24 @@ public class Agent {
 
   private static void initProfilerContext() {
     log.debug("Scheduling profiler context initialization");
-    WithGlobalTracer.registerOrExecute(
-        tracer -> {
-          log.debug("Initializing profiler context integration");
-          tracer.getProfilingContext().onStart();
-        });
+    WithGlobalTracer.registerOrExecute(tracer -> {
+      log.debug("Initializing profiler context integration");
+      tracer.getProfilingContext().onStart();
+    });
   }
 
   private static boolean isAwsLambdaRuntime() {
     return !EnvironmentVariables.getOrDefault("AWS_LAMBDA_FUNCTION_NAME", "").isEmpty();
+  }
+
+  /**
+   * Returns whether Remote Configuration is enabled under either setting name. Like the other
+   * startup checks, this ignores the {@code DD_TRACE_CONFIG} properties file. Must be kept in sync
+   * with Config.
+   */
+  static boolean isRemoteConfigEnabled() {
+    return isFeatureEnabled(AgentFeature.REMOTE_CONFIG)
+        || isFeatureEnabled(AgentFeature.DEPRECATED_REMOTE_CONFIG);
   }
 
   private static void shutdownProfilingAgent(final boolean sync) {

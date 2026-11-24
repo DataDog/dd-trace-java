@@ -192,14 +192,13 @@ public class HttpClientAsyncTest {
     CompletableFuture<Integer> future =
         this.client
             .executeAsync(request)
-            .thenApply(
-                response -> {
-                  try {
-                    return Integer.parseInt(response.bodyAsString().trim());
-                  } catch (IOException e) {
-                    throw new RuntimeException(e);
-                  }
-                });
+            .thenApply(response -> {
+              try {
+                return Integer.parseInt(response.bodyAsString().trim());
+              } catch (IOException e) {
+                throw new RuntimeException(e);
+              }
+            });
 
     Integer result = future.get(TIMEOUT_SECONDS, SECONDS);
     assertEquals(42, result);
