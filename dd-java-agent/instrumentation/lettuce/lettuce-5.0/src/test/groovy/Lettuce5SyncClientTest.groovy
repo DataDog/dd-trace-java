@@ -293,6 +293,7 @@ abstract class Lettuce5SyncClientTest extends Lettuce5ClientTestBase {
 
   def "debug segfault command (returns void) with no argument should produce span"() {
     setup:
+    redisServerStopsDuringTest()
     syncCommands.debugSegfault()
 
     expect:
@@ -322,6 +323,7 @@ abstract class Lettuce5SyncClientTest extends Lettuce5ClientTestBase {
 
   def "shutdown command (returns void) should produce a span"() {
     setup:
+    redisServerStopsDuringTest()
     syncCommands.shutdown(false)
 
     expect:

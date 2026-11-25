@@ -34,19 +34,54 @@ abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
   String dbUriNonExistent
   String embeddedDbUri
 
+  // One server and one client per spec: starting a container per test cost ~2s each, and each
+  // client shutdown waits a 1s quiet period. Tests that stop the server call
+  // redisServerStopsDuringTest() so cleanup() replaces both.
+  @Shared
   RedisContainer redisServer = new RedisContainer(
   DockerImageName.parse(System.getProperty("test.redis.image"))
   .asCompatibleSubstituteFor("redis"))
   .waitingFor(Wait.forListeningPort())
 
+  @Shared
   RedisClient redisClient
+
   StatefulRedisConnection connection
   RedisReactiveCommands<String, ?> reactiveCommands
   RedisAsyncCommands<String, ?> asyncCommands
   RedisCommands<String, ?> syncCommands
 
-  def setup() {
+  private boolean restartRedisServer
+
+  def setupSpec() {
     redisServer.start()
+  }
+
+  def cleanupSpec() {
+    try {
+      shutdownRedisClient()
+    } finally {
+      redisServer.stop()
+    }
+  }
+
+  private void shutdownRedisClient() {
+    if (redisClient != null) {
+      try {
+        // Lettuce 5.1 needs its executor alive to deliver pending channel-close notifications.
+        redisClient.shutdownAsync(1, 10, SECONDS).get(15, SECONDS)
+      } finally {
+        redisClient = null
+      }
+    }
+  }
+
+  /** Marks the current test as stopping the shared server, so cleanup() starts a fresh one. */
+  protected void redisServerStopsDuringTest() {
+    restartRedisServer = true
+  }
+
+  def setup() {
     println "Using redis: $redisServer.redisURI"
 
     port = redisServer.firstMappedPort
@@ -56,8 +91,10 @@ abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
     dbUriNonExistent = "redis://" + dbAddrNonExistent
     embeddedDbUri = "redis://" + dbAddr
 
-    redisClient = RedisClient.create(embeddedDbUri)
-    redisClient.setOptions(CLIENT_OPTIONS)
+    if (redisClient == null) {
+      redisClient = RedisClient.create(embeddedDbUri)
+      redisClient.setOptions(CLIENT_OPTIONS)
+    }
 
     runUnderTrace("setup") {
       new PollingConditions(delay: 3, timeout: 15).eventually {
@@ -67,6 +104,8 @@ abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
       asyncCommands = connection.async()
       syncCommands = connection.sync()
 
+      // The server is shared by the spec, so drop keys written by earlier tests.
+      syncCommands.flushall()
       syncCommands.set("TESTKEY", "TESTVAL")
       syncCommands.hmset("TESTHM", testHashMap)
     }
@@ -78,12 +117,16 @@ abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
   def cleanup() {
     try {
       connection?.close()
-      if (redisClient != null) {
-        // Lettuce 5.1 needs its executor alive to deliver pending channel-close notifications.
-        redisClient.shutdownAsync(1, 10, SECONDS).get(15, SECONDS)
-      }
     } finally {
-      redisServer.stop()
+      if (restartRedisServer) {
+        // The new server gets a new mapped port, so the client must be recreated too.
+        try {
+          shutdownRedisClient()
+        } finally {
+          redisServer.stop()
+          redisServer.start()
+        }
+      }
     }
   }
 }
