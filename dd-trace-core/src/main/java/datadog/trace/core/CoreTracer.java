@@ -118,6 +118,7 @@ import datadog.trace.core.servicediscovery.ServiceDiscovery;
 import datadog.trace.core.servicediscovery.ServiceDiscoveryFactory;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
+import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
 import datadog.trace.core.traceinterceptor.LatencyTraceInterceptor;
 import datadog.trace.lambda.LambdaAppSecHandler;
 import datadog.trace.lambda.LambdaHandler;
@@ -603,13 +604,21 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               injectLinksAsTags,
               flushOnClose);
       if (derivedTags) {
+        Config initial = tracer.initialConfig;
         tracer.deferredTags = true;
         tracer.baseDerivations =
             BaseTagDerivations.create(
                 SpanNaming.instance().namingSchema().peerService(),
-                tracer.initialConfig.getPeerServiceMapping(),
-                tracer.initialConfig.isTraceResourceRenamingEnabled(),
-                tracer.initialConfig.isTraceResourceRenamingAlwaysSimplifiedEndpoint());
+                initial.getPeerServiceMapping(),
+                initial.isTraceResourceRenamingEnabled(),
+                initial.isTraceResourceRenamingAlwaysSimplifiedEndpoint(),
+                TagsPostProcessorFactory.addsInternalTags(),
+                initial.getServiceName(),
+                initial.getVersion());
+        // Formulas now cover every eager post-processor: peer-service defaults, http.endpoint and
+        // the internal tags. Only mapping an explicit peer.service is left, so with no mapping the
+        // eager chain has nothing to do and isn't walked at all.
+        tracer.skipEagerTagProcessing = initial.getPeerServiceMapping().isEmpty();
       }
       return tracer;
     }
@@ -627,6 +636,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   boolean deferredTagsEnabled() {
     return deferredTags;
+  }
+
+  /** Whether formulas cover the eager post-processors, so spans skip that chain. */
+  private volatile boolean skipEagerTagProcessing;
+
+  boolean skipEagerTagProcessing() {
+    return skipEagerTagProcessing;
   }
 
   @Deprecated

@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.KnownTags.DD_BASE_SERVICE;
 import static datadog.trace.api.KnownTags.DD_INTEGRATION;
 import static datadog.trace.api.KnownTags.DD_SVC_SRC;
 import static datadog.trace.api.KnownTags.HTTP_ENDPOINT;
@@ -7,6 +8,7 @@ import static datadog.trace.api.KnownTags.HTTP_METHOD;
 import static datadog.trace.api.KnownTags.HTTP_ROUTE;
 import static datadog.trace.api.KnownTags.HTTP_URL;
 import static datadog.trace.api.KnownTags.URL_PATH;
+import static datadog.trace.api.KnownTags.VERSION;
 
 import datadog.trace.api.endpoint.EndpointResolver;
 import datadog.trace.api.naming.NamingSchema;
@@ -15,6 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.TagDerivations;
 import datadog.trace.bootstrap.instrumentation.api.TagFormula;
 import datadog.trace.bootstrap.instrumentation.api.TagReader;
 import datadog.trace.bootstrap.instrumentation.api.TagsFormula;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Map;
 
 /**
@@ -39,8 +42,27 @@ final class BaseTagDerivations {
       NamingSchema.ForPeerService peerServiceNaming,
       Map<String, String> peerServiceMapping,
       boolean resourceRenaming,
-      boolean alwaysSimplifiedEndpoint) {
+      boolean alwaysSimplifiedEndpoint,
+      boolean internalTags,
+      String ddService,
+      String version) {
     TagDerivations.Builder builder = TagDerivations.builder();
+    // Replaces InternalTagsAdder, as it behaves today: _dd.base_service on spans whose service
+    // isn't DD_SERVICE, version on spans whose service is. "Isn't DD_SERVICE" also catches client
+    // spans whose service field names the peer under legacy naming; that's today's behavior, kept
+    // until this service and the peer's service are told apart.
+    if (internalTags && ddService != null) {
+      final UTF8BytesString service = UTF8BytesString.create(ddService);
+      final String serviceName = ddService;
+      builder.add(
+          DD_BASE_SERVICE, in -> serviceName.equalsIgnoreCase(in.serviceName()) ? null : service);
+      if (version != null && !version.isEmpty()) {
+        final UTF8BytesString versionValue = UTF8BytesString.create(version);
+        // An explicit or inherited version suppresses it, as the processor's check did.
+        builder.add(
+            VERSION, in -> serviceName.equalsIgnoreCase(in.serviceName()) ? versionValue : null);
+      }
+    }
     // Replaces PeerServiceCalculator's defaults. Reads the component per span; ClientDecorator
     // overrides it with a formula resolved for its own component.
     TagsFormula peerService =

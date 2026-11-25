@@ -2218,6 +2218,10 @@ public class DDSpanContext
   }
 
   void earlyProcessTags(AppendableSpanLinks links) {
+    CoreTracer tracer = getTracer();
+    if (tracer != null && tracer.skipEagerTagProcessing()) {
+      return; // formulas produce these tags when something reads them
+    }
     synchronized (knownTags) {
       TagsPostProcessorFactory.eagerProcessor().processTags(this, this, links);
     }
