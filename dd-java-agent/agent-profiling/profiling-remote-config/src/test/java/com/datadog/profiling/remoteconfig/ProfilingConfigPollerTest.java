@@ -309,6 +309,38 @@ class ProfilingConfigPollerTest {
     assertEquals(null, stored.get(WALL_TIME));
   }
 
+  /**
+   * A config whose features are all invalid is dropped rather than taken for one that sets none,
+   * which would apply the local configuration and take the place of an older config of the same
+   * priority.
+   */
+  @Test
+  void configWhoseFeaturesAreAllInvalidIsDropped() throws Exception {
+    ProductListener listener = startAndCaptureListener();
+
+    listener.accept(
+        configKey("all-off"),
+        targeted(
+            "\"cpuTime\":false,\"wallTime\":false,\"heapObjects\":false,"
+                + "\"heapSize\":false,\"allocations\":false"),
+        hinter);
+    IOException error =
+        assertThrows(
+            IOException.class,
+            () ->
+                listener.accept(
+                    configKey("invalid"), targeted("\"cpuTime\":\"yes\",\"wallTime\":1"), hinter));
+    listener.commit(hinter);
+
+    assertEquals(
+        "APM_PROFILING config invalid ignored: "
+            + "profilers.cpuTime is not a boolean; profilers.wallTime is not a boolean",
+        error.getMessage());
+    RemoteConfigurationStack stack = committedStack();
+    assertEquals(asList("all-off"), new ArrayList<>(stack.configIds()));
+    assertTrue(stack.merged().disablesEverything());
+  }
+
   @Test
   void configMatchingThisServiceAfterNormalizationIsAccepted() throws Exception {
     ProductListener listener = startAndCaptureListener();

@@ -5,6 +5,7 @@ import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.CPU
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.HEAP_OBJECTS;
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.HEAP_SIZE;
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.WALL_TIME;
+import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -13,8 +14,10 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
@@ -69,6 +72,34 @@ class RemoteConfigurationTest {
   })
   void parseWithoutFeaturesGivesAnEmptyConfiguration(String json) {
     assertSame(RemoteConfiguration.EMPTY, RemoteConfiguration.parse(json));
+  }
+
+  @TableTest({
+    "Scenario            | Json                                                    | Problems                                                                     ",
+    "one invalid         | '{\"profilers\":{\"cpuTime\":\"yes\"}}'                 | ['profilers.cpuTime is not a boolean']                                       ",
+    "all invalid         | '{\"profilers\":{\"cpuTime\":1,\"wallTime\":null}}'     | ['profilers.cpuTime is not a boolean', 'profilers.wallTime is not a boolean']",
+    "invalid and unknown | '{\"profilers\":{\"heapSize\":{},\"exceptions\":true}}' | ['profilers.heapSize is not a boolean']                                      "
+  })
+  void parseDropsAConfigWhoseFeaturesAreAllInvalid(String json, List<String> expectedProblems) {
+    List<String> problems = new ArrayList<>();
+
+    // taking it for a config that sets no feature would apply the local configuration
+    assertNull(RemoteConfiguration.parse(ApmProfilingPayload.read(json, problems), problems));
+    assertEquals(expectedProblems, problems);
+  }
+
+  @TableTest({
+    "Scenario     | Json                                   ",
+    "empty        | '{\"profilers\":{}}'                   ",
+    "only unknown | '{\"profilers\":{\"exceptions\":true}}'"
+  })
+  void parseKeepsAConfigThatSetsNoFeatureWithoutInvalidOnes(String json) {
+    List<String> problems = new ArrayList<>();
+
+    assertSame(
+        RemoteConfiguration.EMPTY,
+        RemoteConfiguration.parse(ApmProfilingPayload.read(json, problems), problems));
+    assertEquals(emptyList(), problems);
   }
 
   @Test

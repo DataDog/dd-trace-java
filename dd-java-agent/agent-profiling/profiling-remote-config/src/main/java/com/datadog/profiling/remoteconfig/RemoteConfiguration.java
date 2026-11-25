@@ -75,9 +75,11 @@ public final class RemoteConfiguration {
    * @param payload the payload, see {@link ApmProfilingPayload#read}
    * @param problems receives a description of each thing that is invalid
    * @return the configuration, or null when the payload is not a usable profiling config: it has no
-   *     {@code profilers} section, as the shared {@code APM_PROFILING} product may carry others, or
-   *     the section is not an object, which is reported. Taking a malformed section for one that
-   *     sets no feature would start an armed profiler with the local configuration
+   *     {@code profilers} section, as the shared {@code APM_PROFILING} product may carry others,
+   *     the section is not an object, or it sets features but none of them validly, which are
+   *     reported. Taking a malformed section for one that sets no feature would start an armed
+   *     profiler with the local configuration, and would replace an older configuration of the same
+   *     priority. An empty section is a configuration that sets no feature
    */
   static RemoteConfiguration parse(Map<String, Object> payload, List<String> problems) {
     if (!payload.containsKey("profilers")) {
@@ -90,6 +92,7 @@ public final class RemoteConfiguration {
     }
     Map<?, ?> section = (Map<?, ?>) profilers;
     Map<Feature, Boolean> values = new EnumMap<>(Feature.class);
+    boolean anyInvalid = false;
     for (Feature feature : Feature.values()) {
       if (!section.containsKey(feature.jsonName)) {
         continue;
@@ -99,7 +102,12 @@ public final class RemoteConfiguration {
         values.put(feature, (Boolean) value);
       } else {
         problems.add("profilers." + feature.jsonName + " is not a boolean");
+        anyInvalid = true;
       }
+    }
+    if (anyInvalid && values.isEmpty()) {
+      // nothing valid is left of what it sets
+      return null;
     }
     return of(values);
   }
