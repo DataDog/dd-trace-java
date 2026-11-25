@@ -1,10 +1,10 @@
 package com.datadog.profiling.agent;
 
 import static com.datadog.profiling.controller.ProfilingSupport.isAllocationSamplerSafe;
-import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getAllocationProfilingSetting;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getHeapProfilingSetting;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeTrackingEnabled;
-import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
 import static com.datadog.profiling.remoteconfig.TestConfigKey.configKey;
 import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
@@ -15,6 +15,7 @@ import static com.datadog.profiling.utils.ProfilingMode.WALL;
 import static datadog.environment.JavaVirtualMachine.isJ9;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED;
@@ -401,10 +402,9 @@ class ProfilingRemoteConfigHandlerTest {
     assertEquals(false, reported.get(PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE).value);
     // the settings it doesn't override are reported with their local value
     assertEquals(
-        isAllocationProfilingEnabled(localConfig),
+        getAllocationProfilingSetting(localConfig),
         reported.get(PROFILING_ALLOCATION_ENABLED).value);
-    assertEquals(
-        isMemoryLeakProfilingEnabled(localConfig), reported.get(PROFILING_HEAP_ENABLED).value);
+    assertEquals(getHeapProfilingSetting(localConfig), reported.get(PROFILING_HEAP_ENABLED).value);
     assertEquals(5, reported.size(), String.valueOf(reported));
   }
 
@@ -458,12 +458,30 @@ class ProfilingRemoteConfigHandlerTest {
         isWallClockProfilerEnabled(localConfig),
         values.get(PROFILING_DATADOG_PROFILER_WALL_ENABLED));
     assertEquals(
-        isAllocationProfilingEnabled(localConfig), values.get(PROFILING_ALLOCATION_ENABLED));
-    assertEquals(isMemoryLeakProfilingEnabled(localConfig), values.get(PROFILING_HEAP_ENABLED));
+        getAllocationProfilingSetting(localConfig), values.get(PROFILING_ALLOCATION_ENABLED));
+    assertEquals(getHeapProfilingSetting(localConfig), values.get(PROFILING_HEAP_ENABLED));
     assertEquals(
         isLiveHeapSizeTrackingEnabled(localConfig),
         values.get(PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE));
     assertEquals(5, values.size(), String.valueOf(values));
+  }
+
+  /**
+   * The local values are the settings as configured, not whether the Datadog profiler does them,
+   * which also depends on the JVM.
+   */
+  @Test
+  void telemetryValuesAreTheConfiguredSettings() {
+    Properties properties = new Properties();
+    properties.put(PROFILING_HEAP_ENABLED, "true");
+    // the Datadog profiler doesn't do live heap profiling then, which the setting still enables
+    properties.put(PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, "false");
+
+    Map<String, Object> values =
+        ProfilingRemoteConfigHandler.telemetryValues(
+            emptyMap(), ConfigProvider.withPropertiesOverride(properties));
+
+    assertEquals(true, values.get(PROFILING_HEAP_ENABLED));
   }
 
   private static Map<String, Object> valuesOf(Map<String, ConfigSetting> settings) {

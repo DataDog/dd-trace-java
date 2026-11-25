@@ -225,16 +225,22 @@ public class ProfilingAgent {
    * immediately so that APM_PROFILING is included in the first remote config poll request; configs
    * received before the profiler is initialized are kept, and applied once it is.
    */
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Agent-internal class; Class object does not escape to app code and lock only guards one-time remote config registration.")
-  public static synchronized void startRemoteConfig(SharedCommunicationObjects sco) {
+  public static void startRemoteConfig(SharedCommunicationObjects sco) {
     Config config = Config.get();
+    // checked before taking the lock, which the profiler initialization holds
     if (!ProfilingConfigPoller.isEnabled(config)) {
       log.debug("Profiling remote config is only enabled with profiling enablement 'armed'");
       return;
     }
+    subscribeToRemoteConfig(config, sco);
+  }
+
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification =
+          "Agent-internal class; Class object does not escape to app code and lock only guards one-time remote config registration.")
+  private static synchronized void subscribeToRemoteConfig(
+      Config config, SharedCommunicationObjects sco) {
     if (remoteConfigHandler != null) {
       return; // already subscribed
     }

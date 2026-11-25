@@ -1637,7 +1637,11 @@ public class Agent {
   }
 
   private static void maybeStartProfilingRemoteConfig(final Class<?> scoClass, final Object sco) {
-    if (!profilingEnabled || isAwsLambdaRuntime()) {
+    // only armed profiling is driven by remote config: checked before calling into the profiling
+    // agent, whose lock its initialization holds
+    if (!profilingEnabled
+        || isAwsLambdaRuntime()
+        || Config.get().getProfilingEnablement() != ProfilingEnablement.ARMED) {
       return;
     }
 

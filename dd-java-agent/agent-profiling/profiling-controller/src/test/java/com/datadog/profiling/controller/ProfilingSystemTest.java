@@ -17,6 +17,7 @@ package com.datadog.profiling.controller;
 
 import static datadog.trace.api.profiling.RecordingType.CONTINUOUS;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
+import static java.util.Collections.emptyMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
@@ -1060,6 +1061,69 @@ public class ProfilingSystemTest {
   }
 
   /**
+   * A restart waits for the scheduler thread to stop a recording that it created after a stop gave
+   * up waiting for it.
+   */
+  @Test
+  public void testReconfigureWaitsForARecordingCreatedAfterTheStopToBeStopped() throws Exception {
+    final CountDownLatch creating = new CountDownLatch(1);
+    final CountDownLatch created = new CountDownLatch(1);
+    final CountDownLatch nativeStopReleased = new CountDownLatch(1);
+    when(controller.createRecording(any(), any()))
+        .thenAnswer(invocation -> {
+          creating.countDown();
+          awaitUninterruptibly(created);
+          return recording;
+        });
+    when(recording.stop())
+        .thenAnswer(invocation -> {
+          awaitUninterruptibly(nativeStopReleased);
+          return recordingData;
+        });
+    final ProfilingSystem system = systemWithShortTerminationTimeout();
+    system.start();
+    assertTrue(creating.await(10, SECONDS));
+    final ExecutorService helper = Executors.newSingleThreadExecutor();
+    final AtomicReference<Throwable> reconfigureFailure = new AtomicReference<>();
+    final Thread reconfigure =
+        new Thread(
+            () -> {
+              try {
+                system.reconfigure(configProvider, emptyMap());
+              } catch (Throwable t) {
+                reconfigureFailure.set(t);
+              }
+            },
+            "test-reconfigure");
+    reconfigure.setDaemon(true);
+    try {
+      helper.submit(() -> {
+        await().atMost(10, SECONDS).until(scheduler::isShutdown);
+        created.countDown();
+        return null;
+      });
+      // gives up waiting for the hanging native stop
+      system.stop(false);
+
+      reconfigure.start();
+      await()
+          .atMost(REASONABLE_TIMEOUT, MILLISECONDS)
+          .until(() -> reconfigure.getState() == Thread.State.TIMED_WAITING);
+      verify(controller, never()).reconfigure(any(), any());
+    } finally {
+      nativeStopReleased.countDown();
+      helper.shutdownNow();
+    }
+    reconfigure.join(REASONABLE_TIMEOUT);
+
+    assertFalse(reconfigure.isAlive());
+    assertNull(reconfigureFailure.get());
+    InOrder inOrder = inOrder(recording, controller);
+    inOrder.verify(recording).close();
+    inOrder.verify(controller).reconfigure(any(), any());
+  }
+
+  /**
    * A stop waits for the scheduler thread to stop a recording that it created after the scheduler
    * was shut down, so that a restart can start a new one.
    */
@@ -1407,6 +1471,96 @@ public class ProfilingSystemTest {
     inOrder.verify(recording).snapshot(any(), any());
     inOrder.verify(recording).stop();
     inOrder.verify(recording).close();
+  }
+
+  /**
+   * A restart waits for a recording that a stop left to the thread snapshotting it to be stopped:
+   * the profiler(s) can't be reconfigured while it runs.
+   */
+  @Test
+  public void testReconfigureWaitsForARecordingStoppedAfterItsSnapshot() throws Exception {
+    final CountDownLatch snapshotting = new CountDownLatch(1);
+    final CountDownLatch snapshotDone = new CountDownLatch(1);
+    when(recording.snapshot(any(), any()))
+        .thenAnswer(invocation -> {
+          snapshotting.countDown();
+          awaitUninterruptibly(snapshotDone);
+          return recordingData;
+        });
+    final List<Runnable> snapshotCallbacks = new ArrayList<>();
+    final ProfilingSystem system = systemWithCapturedSnapshotCallbacks(snapshotCallbacks);
+    system.start();
+    final Thread snapshot = new Thread(snapshotCallbacks.get(0), "test-snapshot");
+    snapshot.setDaemon(true);
+    final AtomicReference<Throwable> reconfigureFailure = new AtomicReference<>();
+    final Thread reconfigure =
+        new Thread(
+            () -> {
+              try {
+                system.reconfigure(configProvider, emptyMap());
+              } catch (Throwable t) {
+                reconfigureFailure.set(t);
+              }
+            },
+            "test-reconfigure");
+    reconfigure.setDaemon(true);
+    try {
+      snapshot.start();
+      assertTrue(snapshotting.await(REASONABLE_TIMEOUT, MILLISECONDS), "snapshot in progress");
+      system.stop(false);
+
+      reconfigure.start();
+      await()
+          .atMost(REASONABLE_TIMEOUT, MILLISECONDS)
+          .until(() -> reconfigure.getState() == Thread.State.TIMED_WAITING);
+      verify(controller, never()).reconfigure(any(), any());
+    } finally {
+      snapshotDone.countDown();
+    }
+    reconfigure.join(REASONABLE_TIMEOUT);
+
+    assertFalse(reconfigure.isAlive());
+    assertNull(reconfigureFailure.get());
+    InOrder inOrder = inOrder(recording, controller);
+    inOrder.verify(recording).close();
+    inOrder.verify(controller).reconfigure(any(), any());
+  }
+
+  /** A restart doesn't wait without bound for a recording that is still being stopped. */
+  @Test
+  public void testReconfigureFailsWhileTheRecordingIsStillBeingStopped() throws Exception {
+    final CountDownLatch snapshotting = new CountDownLatch(1);
+    final CountDownLatch snapshotDone = new CountDownLatch(1);
+    when(recording.snapshot(any(), any()))
+        .thenAnswer(invocation -> {
+          snapshotting.countDown();
+          awaitUninterruptibly(snapshotDone);
+          return recordingData;
+        });
+    final List<Runnable> snapshotCallbacks = new ArrayList<>();
+    final ProfilingSystem system = systemWithCapturedSnapshotCallbacks(snapshotCallbacks);
+    system.terminationTimeoutMillis = 200;
+    system.start();
+    final Thread snapshot = new Thread(snapshotCallbacks.get(0), "test-snapshot");
+    snapshot.setDaemon(true);
+    try {
+      snapshot.start();
+      assertTrue(snapshotting.await(REASONABLE_TIMEOUT, MILLISECONDS), "snapshot in progress");
+      system.stop(false);
+
+      IllegalStateException failure =
+          assertThrows(
+              IllegalStateException.class, () -> system.reconfigure(configProvider, emptyMap()));
+      assertTrue(failure.getMessage().contains("still being stopped"), failure.getMessage());
+      verify(controller, never()).reconfigure(any(), any());
+    } finally {
+      snapshotDone.countDown();
+    }
+    snapshot.join(REASONABLE_TIMEOUT);
+    verify(recording).close();
+    // once it is stopped
+    system.reconfigure(configProvider, emptyMap());
+    verify(controller).reconfigure(any(), any());
   }
 
   /** A recording that isn't being snapshot is stopped by the stop itself. */

@@ -128,7 +128,24 @@ public final class ProfilingSystem {
    * A recording that a stop couldn't stop, since it was being snapshot: it is stopped by the first
    * thread that gets {@link #snapshotLock} after it, see {@link #stopAbandonedRecording()}.
    */
-  private final AtomicReference<OngoingRecording> abandonedRecording = new AtomicReference<>();
+  private final AtomicReference<AbandonedRecording> abandonedRecording = new AtomicReference<>();
+
+  /**
+   * Counted down once the recording that the last stop left to another thread to stop is stopped,
+   * e.g. one that was being created or snapshot, so that a restart waits for it: the profiler(s)
+   * can't be reconfigured, nor start a new recording, while it runs.
+   */
+  private volatile CountDownLatch pendingRecordingStop;
+
+  /** A recording left to another thread to stop, see {@link #abandonedRecording}. */
+  private static final class AbandonedRecording {
+    final OngoingRecording recording;
+    final CountDownLatch stopped = new CountDownLatch(1);
+
+    AbandonedRecording(OngoingRecording recording) {
+      this.recording = recording;
+    }
+  }
 
   /**
    * Guards publishing the recording on the scheduler thread against a stop taking it away, since a
@@ -265,6 +282,10 @@ public final class ProfilingSystem {
       }
       init();
       startFailed = false;
+      if (!awaitPendingRecordingStop()) {
+        // starting a recording fails while the previous one runs, which is reported as such
+        log.debug("Starting profiling while the previous recording is still being stopped");
+      }
 
       final AgentTaskScheduler scheduler = schedulerFactory.get();
       this.scheduler = scheduler;
@@ -479,8 +500,11 @@ public final class ProfilingSystem {
       recordingCreation = null;
     }
     // a recording that the scheduler thread was still creating is stopped by that thread, once
-    // created; wait for it, without holding the lock, so that a restart can start a new one
-    awaitRecordingCreation(creation);
+    // created; wait for it, without holding the lock, so that a restart can start a new one, or
+    // let the restart wait for it, if it takes longer
+    if (!awaitRecordingCreation(creation)) {
+      pendingRecordingStop = creation;
+    }
     if (snapshot && snapshotRecording != null && !scheduler.isTerminated()) {
       // the scheduler thread is still taking a periodic snapshot, e.g. a slow upload: taking
       // another one at the same time would upload the same data twice
@@ -516,7 +540,9 @@ public final class ProfilingSystem {
       // possibly this one, stops it
       this.recording = null;
       log.debug("Profiling recording is being snapshot, stopping it once the snapshot is done");
-      abandonedRecording.set(recording);
+      final AbandonedRecording abandoned = new AbandonedRecording(recording);
+      pendingRecordingStop = abandoned.stopped;
+      abandonedRecording.set(abandoned);
       stopAbandonedRecording();
     }
   }
@@ -529,9 +555,13 @@ public final class ProfilingSystem {
   private void stopAbandonedRecording() {
     if (abandonedRecording.get() != null && snapshotLock.tryLock()) {
       try {
-        final OngoingRecording recording = abandonedRecording.getAndSet(null);
-        if (recording != null) {
-          stopRecording(recording);
+        final AbandonedRecording abandoned = abandonedRecording.getAndSet(null);
+        if (abandoned != null) {
+          try {
+            stopRecording(abandoned.recording);
+          } finally {
+            abandoned.stopped.countDown();
+          }
         }
       } finally {
         snapshotLock.unlock();
@@ -539,19 +569,48 @@ public final class ProfilingSystem {
     }
   }
 
-  private void awaitRecordingCreation(final CountDownLatch creation) {
+  /**
+   * @return whether the recording being created, if any, is published or stopped
+   */
+  private boolean awaitRecordingCreation(final CountDownLatch creation) {
     if (creation == null) {
-      return;
+      return true;
     }
     try {
       if (!creation.await(terminationTimeoutMillis, TimeUnit.MILLISECONDS)) {
         log.debug(
             "Profiling recording still being created or stopped after {}ms, not waiting for it",
             terminationTimeoutMillis);
+        return false;
+      }
+      return true;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return false;
+    }
+  }
+
+  /**
+   * Waits, a bounded time, for the recording that the last stop left to another thread to be
+   * stopped, if any. Called with {@link #lock} held.
+   *
+   * @return whether no such recording is still running
+   */
+  private boolean awaitPendingRecordingStop() {
+    final CountDownLatch pending = pendingRecordingStop;
+    if (pending == null) {
+      return true;
+    }
+    try {
+      if (!pending.await(terminationTimeoutMillis, TimeUnit.MILLISECONDS)) {
+        return false;
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
+      return false;
     }
+    pendingRecordingStop = null;
+    return true;
   }
 
   private static void stopRecording(final OngoingRecording recording) {
@@ -588,6 +647,10 @@ public final class ProfilingSystem {
     try {
       if (scheduler != null) {
         throw new IllegalStateException("Profiling system can't be reconfigured while running");
+      }
+      if (!awaitPendingRecordingStop()) {
+        throw new IllegalStateException(
+            "Profiling system can't be reconfigured: the previous recording is still being stopped");
       }
       init();
       controller.reconfigure(configProvider, modeOverrides);

@@ -199,16 +199,23 @@ public class DatadogProfilerConfig {
     return ProfilingSupport.isLiveHeapProfilingSafe();
   }
 
+  /**
+   * @return the value of the allocation profiling setting, whether the Datadog profiler can do it
+   *     or not, see {@link #isAllocationProfilingEnabled(ConfigProvider)}
+   */
+  public static boolean getAllocationProfilingSetting(ConfigProvider configProvider) {
+    return getBoolean(
+        configProvider,
+        PROFILING_ALLOCATION_ENABLED,
+        isJmethodIDSafe(),
+        PROFILING_DATADOG_PROFILER_ALLOC_ENABLED);
+  }
+
   public static boolean isAllocationProfilingEnabled(ConfigProvider configProvider) {
     // JVMTI Allocation Sampler is available since Java 11
     if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
       boolean dflt = isJmethodIDSafe();
-      boolean enableDdprofAlloc =
-          getBoolean(
-              configProvider,
-              PROFILING_ALLOCATION_ENABLED,
-              dflt,
-              PROFILING_DATADOG_PROFILER_ALLOC_ENABLED);
+      boolean enableDdprofAlloc = getAllocationProfilingSetting(configProvider);
 
       if (!dflt && enableDdprofAlloc) {
         log.warn(
@@ -234,9 +241,16 @@ public class DatadogProfilerConfig {
     return getAllocationInterval(ConfigProvider.getInstance());
   }
 
+  /**
+   * @return the value of the live heap profiling setting, whichever profiler does it, see {@link
+   *     #isMemoryLeakProfilingEnabled(ConfigProvider)} for the Datadog profiler
+   */
+  public static boolean getHeapProfilingSetting(ConfigProvider configProvider) {
+    return configProvider.getBoolean(PROFILING_HEAP_ENABLED, isMemoryLeakProfilingSafe());
+  }
+
   public static boolean isMemoryLeakProfilingEnabled(ConfigProvider configProvider) {
-    boolean unifiedEnabled =
-        configProvider.getBoolean(PROFILING_HEAP_ENABLED, isMemoryLeakProfilingSafe());
+    boolean unifiedEnabled = getHeapProfilingSetting(configProvider);
     if (!unifiedEnabled) {
       return false;
     }

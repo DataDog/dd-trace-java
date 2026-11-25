@@ -1,11 +1,11 @@
 package com.datadog.profiling.agent;
 
 import static com.datadog.profiling.controller.ProfilingSupport.isAllocationSamplerSafe;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getAllocationProfilingSetting;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getHeapProfilingSetting;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallContextFilter;
-import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeTrackingEnabled;
-import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabledByDefault;
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.ALLOCATIONS;
@@ -419,7 +419,10 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
     return values;
   }
 
-  /** The value of the local setting that the mode overrides. */
+  /**
+   * The value of the local setting that the mode overrides, as configured: not whether the Datadog
+   * profiler does it, which also depends on the JVM, and checking which logs warnings.
+   */
   private static boolean localValue(ProfilingMode mode, ConfigProvider localConfig) {
     switch (mode) {
       case CPU:
@@ -427,9 +430,9 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
       case WALL:
         return isWallClockProfilerEnabled(localConfig);
       case ALLOCATION:
-        return isAllocationProfilingEnabled(localConfig);
+        return getAllocationProfilingSetting(localConfig);
       case MEMLEAK:
-        return isMemoryLeakProfilingEnabled(localConfig);
+        return getHeapProfilingSetting(localConfig);
       case LIVEHEAP_SIZE:
         return isLiveHeapSizeTrackingEnabled(localConfig);
       default:
