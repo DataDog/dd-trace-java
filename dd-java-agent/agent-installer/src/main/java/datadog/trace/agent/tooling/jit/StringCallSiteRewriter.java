@@ -33,8 +33,10 @@ import java.util.concurrent.atomic.AtomicLong;
  *       window is only rewritten if nothing can observe the offsets inside it: no branch target,
  *       exception range boundary or handler, stack-map frame, line number or local variable range
  *       starts strictly inside it, and the method has no type annotations on code. Intermediate
- *       values (the Pattern, the Matcher, the formatter) never escape the window, and the stack
- *       never gets higher than in the original, so {@code max_stack} stays valid.
+ *       values (the Pattern, the Matcher, the formatter) never escape the window. When a load is
+ *       moved ahead of a first call that takes two or more operands, the stack holds one more value
+ *       than the original did, so the method's {@code max_stack} (a fixed-size field) is raised by
+ *       one.
  * </ul>
  *
  * <p>The helpers' constant-pool entries are appended to the pool. Nothing is parsed beyond the
@@ -45,6 +47,11 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
   private static final String JIT = "datadog/trace/bootstrap/jit/";
   private static final String STRINGS = JIT + "StringRewrites";
   private static final String FUSED = JIT + "FusedRewrites";
+  private static final String LOOKUPS = JIT + "LookupRewrites";
+  private static final String FUSIONS = JIT + "StringFusions";
+  private static final String JDK = JIT + "JdkRewrites";
+  private static final String NUMBERS = JIT + "NumberFusions";
+  private static final String COLLECTIONS = JIT + "CollectionFusions";
   private static final String FORMATS = JIT + "FormatRewrites";
 
   private static final int NOP = 0x00;
@@ -56,6 +63,9 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
   private static final int INVOKESPECIAL = 0xB7;
   private static final int INVOKESTATIC = 0xB8;
   private static final int NEW = 0xBB;
+  private static final int INVOKEINTERFACE = 0xB9;
+  private static final int ANEWARRAY = 0xBD;
+  private static final int ICONST_0 = 0x03;
 
   static final int SINGLE = 0;
   static final int SLOTTED = 1;
@@ -71,7 +81,35 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
   static final int OF_PATTERN = 7;
   static final int TEMPORAL_FORMAT = 8;
   static final int FORMATTER_FORMAT = 9;
-  static final int DECIMAL_FORMAT_INIT = 10;
+  static final int CONSTRUCTOR = 10;
+  static final int CASE_LOWER = 11;
+  static final int CASE_LOWER_LOCALE = 12;
+  static final int CASE_UPPER = 13;
+  static final int CASE_UPPER_LOCALE = 14;
+  static final int SUBSTRING_FROM = 15;
+  static final int SUBSTRING_RANGE = 16;
+  static final int TRIM = 17;
+  static final int STRING_EQUALS = 18;
+  static final int STRING_STARTS_WITH = 19;
+  static final int STRING_ENDS_WITH = 20;
+  static final int STRING_IS_EMPTY = 21;
+  static final int STRING_LENGTH = 22;
+  static final int PARSE_INT = 23;
+  static final int PARSE_LONG = 24;
+  static final int VALUE_OF_INT = 25;
+  static final int COLLECTION_SIZE = 26;
+  static final int COLLECTION_TO_ARRAY = 27;
+
+  /**
+   * Roles that start a window (the rest only end one, so they don't make a method worth scanning).
+   */
+  static boolean startsWindow(int role) {
+    return role == COMPILE
+        || role == OF_PATTERN
+        || role == CONSTRUCTOR
+        || (role >= CASE_LOWER && role <= TRIM)
+        || role == COLLECTION_SIZE;
+  }
 
   /** A call target: a Methodref and what to do with calls to it. */
   static final class Target {
@@ -137,6 +175,17 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
           operands);
     }
 
+    /** {@code new owner(args)} with only simple loads as arguments, replaced by a factory. */
+    static Target constructor(String owner, String desc, String helperOwner, String helperName) {
+      Helper factory =
+          new Helper(
+              helperOwner,
+              helperName,
+              desc.substring(0, desc.indexOf(')') + 1) + "L" + owner + ";");
+      return new Target(
+          INVOKESPECIAL, owner, "<init>", desc, PART, CONSTRUCTOR, factory, null, null);
+    }
+
     static Target part(int opcode, String owner, String name, String desc, int role) {
       return new Target(opcode, owner, name, desc, PART, role, null, null, null);
     }
@@ -183,6 +232,12 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
    * fills currency data lazily, which shows in serialized form), so the rewrite only pays there.
    */
   static final boolean DECIMAL_FORMAT_WINDOW = specificationVersion() < 9;
+
+  /** JDK 9+ formats a UUID directly. */
+  static final boolean UUID_TO_STRING = specificationVersion() < 9;
+
+  /** JDK 11+ caches the simple name. */
+  static final boolean SIMPLE_NAME = specificationVersion() < 11;
 
   static final Target[] TARGETS = buildTargets(JDK_REPLACE_IS_REGEX);
 
@@ -264,8 +319,73 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
             "format",
             "(Ljava/time/temporal/TemporalAccessor;)" + S,
             FORMATTER_FORMAT));
+    t.add(Target.single(INVOKEVIRTUAL, STRING, "getBytes", "(" + S + ")[B", LOOKUPS, "getBytes"));
+    if (UUID_TO_STRING) {
+      t.add(
+          Target.single(
+              INVOKEVIRTUAL, "java/util/UUID", "toString", "()" + S, JDK, "uuidToString"));
+    }
+    if (SIMPLE_NAME) {
+      t.add(
+          Target.single(
+              INVOKEVIRTUAL, "java/lang/Class", "getSimpleName", "()" + S, JDK, "simpleName"));
+    }
+    String locale = "Ljava/util/Locale;";
+    t.add(Target.part(INVOKEVIRTUAL, STRING, "toLowerCase", "()" + S, CASE_LOWER));
     t.add(
-        Target.part(INVOKESPECIAL, DECIMAL_FORMAT, "<init>", "(" + S + ")V", DECIMAL_FORMAT_INIT));
+        Target.part(
+            INVOKEVIRTUAL, STRING, "toLowerCase", "(" + locale + ")" + S, CASE_LOWER_LOCALE));
+    t.add(Target.part(INVOKEVIRTUAL, STRING, "toUpperCase", "()" + S, CASE_UPPER));
+    t.add(
+        Target.part(
+            INVOKEVIRTUAL, STRING, "toUpperCase", "(" + locale + ")" + S, CASE_UPPER_LOCALE));
+    t.add(Target.part(INVOKEVIRTUAL, STRING, "substring", "(I)" + S, SUBSTRING_FROM));
+    t.add(Target.part(INVOKEVIRTUAL, STRING, "substring", "(II)" + S, SUBSTRING_RANGE));
+    t.add(Target.part(INVOKEVIRTUAL, STRING, "trim", "()" + S, TRIM));
+    t.add(Target.part(INVOKEVIRTUAL, STRING, "equals", "(Ljava/lang/Object;)Z", STRING_EQUALS));
+    t.add(Target.part(INVOKEVIRTUAL, STRING, "startsWith", "(" + S + ")Z", STRING_STARTS_WITH));
+    t.add(Target.part(INVOKEVIRTUAL, STRING, "endsWith", "(" + S + ")Z", STRING_ENDS_WITH));
+    t.add(Target.part(INVOKEVIRTUAL, STRING, "isEmpty", "()Z", STRING_IS_EMPTY));
+    t.add(Target.part(INVOKEVIRTUAL, STRING, "length", "()I", STRING_LENGTH));
+    t.add(Target.part(INVOKESTATIC, "java/lang/Integer", "parseInt", "(" + S + ")I", PARSE_INT));
+    t.add(Target.part(INVOKESTATIC, "java/lang/Long", "parseLong", "(" + S + ")J", PARSE_LONG));
+    t.add(
+        Target.part(
+            INVOKESTATIC,
+            "java/lang/Integer",
+            "valueOf",
+            "(" + S + ")Ljava/lang/Integer;",
+            VALUE_OF_INT));
+    String toArray = "([Ljava/lang/Object;)[Ljava/lang/Object;";
+    for (String collection :
+        new String[] {"java/util/List", "java/util/Collection", "java/util/Set"}) {
+      t.add(Target.part(INVOKEINTERFACE, collection, "size", "()I", COLLECTION_SIZE));
+      t.add(Target.part(INVOKEINTERFACE, collection, "toArray", toArray, COLLECTION_TO_ARRAY));
+    }
+    t.add(Target.part(INVOKEVIRTUAL, "java/util/ArrayList", "size", "()I", COLLECTION_SIZE));
+    t.add(
+        Target.part(INVOKEVIRTUAL, "java/util/ArrayList", "toArray", toArray, COLLECTION_TO_ARRAY));
+    t.add(
+        Target.single(
+            INVOKESTATIC,
+            "java/nio/charset/Charset",
+            "forName",
+            "(" + S + ")Ljava/nio/charset/Charset;",
+            LOOKUPS,
+            "forName"));
+    t.add(
+        Target.single(
+            INVOKESTATIC,
+            "java/time/ZoneId",
+            "of",
+            "(" + S + ")Ljava/time/ZoneId;",
+            LOOKUPS,
+            "zoneOf"));
+    t.add(Target.constructor(STRING, "([B" + S + ")V", LOOKUPS, "newString"));
+    t.add(Target.constructor(STRING, "([BII" + S + ")V", LOOKUPS, "newString"));
+    if (DECIMAL_FORMAT_WINDOW) {
+      t.add(Target.constructor(DECIMAL_FORMAT, "(" + S + ")V", FUSED, "newDecimalFormat"));
+    }
     return t.toArray(new Target[0]);
   }
 
@@ -282,7 +402,19 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
     ascii("formatted"),
     ascii("compile"),
     ascii("ofPattern"),
-    ascii(DECIMAL_FORMAT)
+    ascii(DECIMAL_FORMAT),
+    ascii("getBytes"),
+    ascii("toLowerCase"),
+    ascii("toUpperCase"),
+    ascii("substring"),
+    ascii("trim"),
+    ascii("getSimpleName"),
+    ascii("java/util/UUID"),
+    ascii("toArray"),
+    ascii("forName"),
+    ascii("java/time/ZoneId"),
+    ascii("([BLjava/lang/String;)V"),
+    ascii("([BIILjava/lang/String;)V")
   };
 
   private static final byte[] CODE = ascii("Code");
@@ -345,7 +477,25 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
     } catch (Throwable e) {
       return "slot report failed: " + e;
     }
-    return "compiled="
+    String cache;
+    try {
+      Class<?> type = Class.forName("datadog.trace.bootstrap.jit.FormatCache", false, null);
+      java.lang.reflect.Field field = type.getDeclaredField("entries");
+      field.setAccessible(true);
+      java.util.Map<?, ?> entries = (java.util.Map<?, ?>) field.get(null);
+      StringBuilder keys = new StringBuilder();
+      int shown = 0;
+      for (Object key : entries.keySet()) {
+        if (shown++ < 12) {
+          keys.append('[').append(key).append("] ");
+        }
+      }
+      cache = "unslottedCache=" + entries.size() + " e.g. " + keys;
+    } catch (Throwable e) {
+      cache = "unslottedCache=? " + e;
+    }
+    return cache
+        + " compiled="
         + compiled
         + " disabled="
         + disabled
@@ -471,10 +621,28 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
     final int length;
     final int prefixFrom; // offset in the class file of a load instruction to keep first, or -1
     final int prefixLength;
+    final int lead; // an opcode to emit before the kept instruction, or -1
     final Helper helper;
     final boolean inLoop;
 
     Patch(int at, int length, int prefixFrom, int prefixLength, Helper helper, boolean inLoop) {
+      this(at, length, -1, prefixFrom, prefixLength, helper, inLoop);
+    }
+
+    /** Raises the max_stack field at {@code at} (in the class file) by one. */
+    static Patch maxStackBump(int at) {
+      return new Patch(at, 0, -1, -1, 0, null, false);
+    }
+
+    Patch(
+        int at,
+        int length,
+        int lead,
+        int prefixFrom,
+        int prefixLength,
+        Helper helper,
+        boolean inLoop) {
+      this.lead = lead;
       this.at = at;
       this.length = length;
       this.prefixFrom = prefixFrom;
@@ -491,7 +659,6 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
     final int[] offsets;
     final int end;
     final int[] targetForEntry; // Methodref index -> target index, or -1
-    int decimalFormatClass = -1;
     int code = -1;
     int stackMapTable = -1;
     int lineNumberTable = -1;
@@ -559,27 +726,23 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
     boolean anyTarget = false;
     int[] targetForEntry = new int[count];
     Arrays.fill(targetForEntry, -1);
-    int decimalFormatClass = -1;
     for (int i = 1; i < count; i++) {
       int o = offsets[i];
       if (o == 0) {
         continue;
       }
-      if (b[o] == 10) {
+      if (b[o] == 10 || b[o] == 11) { // Methodref, InterfaceMethodref
         int t = matchTarget(b, offsets, o, targets);
         if (t >= 0) {
           targetForEntry[i] = t;
           anyTarget = true;
         }
-      } else if (b[o] == 7 && utf8Equals(b, offsets[readU2(b, o + 1)], DECIMAL_FORMAT)) {
-        decimalFormatClass = i;
       }
     }
     if (!anyTarget) {
       return null;
     }
     Pool pool = new Pool(b, count, offsets, offset, targetForEntry);
-    pool.decimalFormatClass = decimalFormatClass;
     pool.code = findUtf8(b, offsets, count, CODE);
     if (pool.code < 0) {
       return null;
@@ -610,7 +773,7 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
     Map<String, Integer> methodrefs = new HashMap<>();
     for (Patch patch : patches) {
       Helper helper = patch.helper;
-      if (methodrefs.containsKey(helper.key())) {
+      if (null == helper || methodrefs.containsKey(helper.key())) {
         continue;
       }
       Integer classIndex = classes.get(helper.owner);
@@ -649,8 +812,15 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
     System.arraycopy(b, pool.end, result, pool.end + extra.length, b.length - pool.end);
     for (Patch patch : patches) {
       int at = patch.at + extra.length;
+      if (null == patch.helper) {
+        writeU2(result, at, readU2(b, patch.at) + 1); // max_stack
+        continue;
+      }
       Arrays.fill(result, at, at + patch.length, (byte) NOP);
       int w = at;
+      if (patch.lead >= 0) {
+        result[w++] = (byte) patch.lead;
+      }
       if (patch.prefixFrom >= 0) {
         System.arraycopy(b, patch.prefixFrom, result, w, patch.prefixLength);
         w += patch.prefixLength;
@@ -659,8 +829,11 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
       writeU2(result, w + 1, methodrefs.get(patch.helper.key()));
     }
     rewritten.incrementAndGet();
-    rewrittenSites.addAndGet(patches.size());
     for (Patch patch : patches) {
+      if (null == patch.helper) {
+        continue;
+      }
+      rewrittenSites.incrementAndGet();
       if (patch.inLoop) {
         inLoopSites.incrementAndGet();
       }
@@ -765,12 +938,13 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
     while (pc < codeLength) {
       int opcode = b[code + pc] & 0xFF;
       starts[n++] = pc;
-      if (opcode == INVOKEVIRTUAL || opcode == INVOKESTATIC || opcode == INVOKESPECIAL) {
+      if (isInvoke(opcode)) {
         int t = pool.target(readU2(b, code + pc + 1));
         if (t >= 0) {
-          anyTarget = true;
           int role = targets[t].role;
-          anyWindow |= role == COMPILE || role == OF_PATTERN || role == DECIMAL_FORMAT_INIT;
+          boolean beginsWindow = startsWindow(role);
+          anyTarget |= targets[t].kind != PART || beginsWindow;
+          anyWindow |= beginsWindow;
         }
       }
       int length = instructionLength(b, code, pc, opcode);
@@ -854,7 +1028,8 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
       }
     }
 
-    Method m = new Method(b, code, starts, n, pool, targets, boundary, windowsAllowed, patches);
+    Method m =
+        new Method(b, attribute, code, starts, n, pool, targets, boundary, windowsAllowed, patches);
     for (int k = 0; k < n; k++) {
       int at = starts[k];
       int opcode = b[code + at] & 0xFF;
@@ -897,9 +1072,12 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
     final byte[] boundary;
     final boolean windowsAllowed;
     final List<Patch> patches;
+    final int maxStackAt; // offset of this method's max_stack field
+    boolean maxStackRaised;
 
     Method(
         byte[] b,
+        int maxStackAt,
         int code,
         int[] starts,
         int n,
@@ -917,6 +1095,7 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
       this.boundary = boundary;
       this.windowsAllowed = windowsAllowed;
       this.patches = patches;
+      this.maxStackAt = maxStackAt;
     }
 
     /** The target called by instruction {@code k}, if it's an invoke with the expected opcode. */
@@ -925,7 +1104,7 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
         return null;
       }
       int opcode = b[code + starts[k]] & 0xFF;
-      if (opcode != INVOKEVIRTUAL && opcode != INVOKESTATIC && opcode != INVOKESPECIAL) {
+      if (!isInvoke(opcode)) {
         return null;
       }
       int t = pool.target(readU2(b, code + starts[k] + 1));
@@ -944,20 +1123,54 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
       return opcode == ALOAD ? 2 : 0;
     }
 
-    /** Length of an {@code ldc}/{@code ldc_w} of a String constant at instruction {@code k}. */
-    int stringConstantLength(int k) {
+    /**
+     * Length of an instruction at {@code k} that only pushes a local or a constant (int, float or
+     * String), with no side effects, or 0.
+     */
+    int pureLoadLength(int k) {
       if (k >= n) {
         return 0;
       }
       int at = code + starts[k];
       int opcode = b[at] & 0xFF;
-      if (opcode == LDC && pool.isString(b[at + 1] & 0xFF)) {
-        return 2;
+      if (opcode >= 0x01 && opcode <= 0x08) {
+        return 1; // aconst_null, iconst_*
       }
-      if (opcode == LDC_W && pool.isString(readU2(b, at + 1))) {
-        return 3;
+      if ((opcode >= 0x1A && opcode <= 0x1D) || (opcode >= 0x2A && opcode <= 0x2D)) {
+        return 1; // iload_n, aload_n
       }
-      return 0;
+      switch (opcode) {
+        case 0x10: // bipush
+        case 0x15: // iload
+        case ALOAD:
+          return 2;
+        case 0x11: // sipush
+          return 3;
+        case LDC:
+          return isPlainConstant(b[at + 1] & 0xFF) ? 2 : 0;
+        case LDC_W:
+          return isPlainConstant(readU2(b, at + 1)) ? 3 : 0;
+        default:
+          return 0;
+      }
+    }
+
+    /** An int, float or String constant (not a class, method handle or dynamic constant). */
+    private boolean isPlainConstant(int index) {
+      if (index <= 0 || index >= pool.count || pool.offsets[index] == 0) {
+        return false;
+      }
+      int tag = b[pool.offsets[index]];
+      return tag == 3 || tag == 4 || tag == 8;
+    }
+
+    /** Whether constant {@code index} is a Class entry naming {@code name}. */
+    private boolean isClass(int index, String name) {
+      if (index <= 0 || index >= pool.count || pool.offsets[index] == 0) {
+        return false;
+      }
+      int o = pool.offsets[index];
+      return b[o] == 7 && utf8Equals(b, pool.offsets[readU2(b, o + 1)], name);
     }
 
     /**
@@ -965,6 +1178,30 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
      * instructions it covers, or 0.
      */
     int matchWindow(int k, int opcode, Target first, boolean inLoop) {
+      if (null == first && k > 0 && loadLength(k) > 0 && sameInstruction(k - 1, k) && k + 3 < n) {
+        // c (kept), then c, c.size(), anewarray T, c.toArray(array): one helper call that is given
+        // a fresh zero-length T[] instead (iconst_0, anewarray T)
+        Target size = targetAt(k + 1);
+        Target toArray = targetAt(k + 3);
+        if (null != size
+            && size.role == COLLECTION_SIZE
+            && (b[code + starts[k + 2]] & 0xFF) == ANEWARRAY
+            && null != toArray
+            && toArray.role == COLLECTION_TO_ARRAY) {
+          return window(
+              k,
+              4,
+              ICONST_0,
+              k + 2,
+              3,
+              new Helper(
+                  COLLECTIONS,
+                  "toArrayPresized",
+                  "(Ljava/util/Collection;[Ljava/lang/Object;)[Ljava/lang/Object;"),
+              inLoop,
+              "toArrayPresized");
+        }
+      }
       if (null != first && first.role == COMPILE) {
         // Pattern.compile(r), load s, .matcher(s), .matches()/.find()/.lookingAt() | .split(s)
         int load = loadLength(k + 1);
@@ -1001,6 +1238,115 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
         }
         return 0;
       }
+      if (null != first && first.role >= CASE_LOWER && first.role <= CASE_UPPER_LOCALE) {
+        // s.toLowerCase([locale]) then equals/startsWith/endsWith, or x.equals(s.toLowerCase())
+        boolean upper = first.role >= CASE_UPPER;
+        String locale =
+            first.role == CASE_LOWER_LOCALE || first.role == CASE_UPPER_LOCALE
+                ? "Ljava/util/Locale;"
+                : "";
+        Target second = targetAt(k + 1);
+        if (null != second && second.role == STRING_EQUALS) {
+          return window(
+              k,
+              2,
+              -1,
+              0,
+              new Helper(
+                  FUSIONS, upper ? "equalsUpper" : "equalsLower", "(" + S + S + locale + ")Z"),
+              inLoop,
+              "caseEqualsReceiver");
+        }
+        int load = pureLoadLength(k + 1);
+        Target third = load > 0 ? targetAt(k + 2) : null;
+        String op = null == third ? null : comparison(third.role);
+        if (null != op) {
+          return window(
+              k,
+              3,
+              k + 1,
+              load,
+              new Helper(
+                  FUSIONS,
+                  (upper ? "upper" : "lower") + op,
+                  "(" + S + locale + comparisonArgument(third.role) + ")Z"),
+              inLoop,
+              "case" + op);
+        }
+        return 0;
+      }
+      if (null != first && (first.role == SUBSTRING_FROM || first.role == SUBSTRING_RANGE)) {
+        // s.substring(..) then equals/startsWith/endsWith, or x.equals(s.substring(..))
+        String indexes = first.role == SUBSTRING_RANGE ? "II" : "I";
+        Target second = targetAt(k + 1);
+        if (null != second
+            && (second.role == PARSE_INT
+                || second.role == PARSE_LONG
+                || second.role == VALUE_OF_INT)) {
+          // Integer.parseInt(s.substring(..)), Long.parseLong(..), Integer.valueOf(..)
+          String name =
+              second.role == PARSE_INT
+                  ? "parseIntSubstring"
+                  : second.role == PARSE_LONG ? "parseLongSubstring" : "valueOfSubstring";
+          String result =
+              second.role == PARSE_INT
+                  ? "I"
+                  : second.role == PARSE_LONG ? "J" : "Ljava/lang/Integer;";
+          return window(
+              k,
+              2,
+              -1,
+              0,
+              new Helper(NUMBERS, name, "(" + S + indexes + ")" + result),
+              inLoop,
+              name);
+        }
+        if (null != second && second.role == STRING_EQUALS) {
+          return window(
+              k,
+              2,
+              -1,
+              0,
+              new Helper(FUSIONS, "equalsSubstring", "(" + S + S + indexes + ")Z"),
+              inLoop,
+              "substringEqualsReceiver");
+        }
+        int load = pureLoadLength(k + 1);
+        Target third = load > 0 ? targetAt(k + 2) : null;
+        String op = null == third ? null : comparison(third.role);
+        if (null != op) {
+          return window(
+              k,
+              3,
+              k + 1,
+              load,
+              new Helper(
+                  FUSIONS,
+                  "substring" + op,
+                  "(" + S + indexes + comparisonArgument(third.role) + ")Z"),
+              inLoop,
+              "substring" + op);
+        }
+        return 0;
+      }
+      if (null != first && first.role == TRIM) {
+        Target second = targetAt(k + 1);
+        if (null != second && second.role == STRING_IS_EMPTY) {
+          return window(
+              k,
+              2,
+              -1,
+              0,
+              new Helper(FUSIONS, "trimIsEmpty", "(" + S + ")Z"),
+              inLoop,
+              "trimIsEmpty");
+        }
+        if (null != second && second.role == STRING_LENGTH) {
+          return window(
+              k, 2, -1, 0, new Helper(FUSIONS, "trimLength", "(" + S + ")I"), inLoop, "trimLength");
+        }
+        return 0;
+      }
       if (null != first && first.role == OF_PATTERN) {
         Target second = targetAt(k + 1);
         if (null != second && second.role == TEMPORAL_FORMAT) {
@@ -1029,27 +1375,21 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
         }
         return 0;
       }
-      if (opcode == NEW
-          && DECIMAL_FORMAT_WINDOW
-          && pool.decimalFormatClass > 0
-          && readU2(b, code + starts[k] + 1) == pool.decimalFormatClass
-          && k + 3 < n
-          && (b[code + starts[k + 1]] & 0xFF) == DUP) {
-        // new DecimalFormat, dup, load or ldc the pattern, invokespecial <init>(String)
-        int arg = loadLength(k + 2);
-        if (arg == 0) {
-          arg = stringConstantLength(k + 2);
+      if (opcode == NEW && k + 2 < n && (b[code + starts[k + 1]] & 0xFF) == DUP) {
+        // new C, dup, simple loads of the arguments, invokespecial C.<init>(args)
+        int j = k + 2;
+        int argBytes = 0;
+        int length;
+        while (j < n && j < k + 6 && (length = pureLoadLength(j)) > 0) {
+          argBytes += length;
+          j++;
         }
-        Target init = arg > 0 ? targetAt(k + 3) : null;
-        if (null != init && init.role == DECIMAL_FORMAT_INIT) {
-          return window(
-              k,
-              4,
-              k + 2,
-              arg,
-              new Helper(FUSED, "newDecimalFormat", "(" + S + ")L" + DECIMAL_FORMAT + ";"),
-              inLoop,
-              "newDecimalFormat");
+        Target init = targetAt(j);
+        if (null != init
+            && init.role == CONSTRUCTOR
+            && j - (k + 2) == parameterCount(init.descriptor)
+            && isClass(readU2(b, code + starts[k] + 1), init.owner)) {
+          return window(k, j - k + 1, k + 2, argBytes, init.helper, inLoop, init.helper.name);
         }
       }
       return 0;
@@ -1063,6 +1403,32 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
     int window(
         int k,
         int instructions,
+        int prefix,
+        int prefixLength,
+        Helper helper,
+        boolean inLoop,
+        String kind) {
+      return window(k, instructions, -1, prefix, prefixLength, helper, inLoop, kind);
+    }
+
+    /** Whether instructions i and j are byte-for-byte the same (e.g. two loads of one local). */
+    boolean sameInstruction(int i, int j) {
+      int length = starts[i + 1] - starts[i];
+      if (length != starts[j + 1] - starts[j]) {
+        return false;
+      }
+      for (int o = 0; o < length; o++) {
+        if (b[code + starts[i] + o] != b[code + starts[j] + o]) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    int window(
+        int k,
+        int instructions,
+        int lead,
         int prefix,
         int prefixLength,
         Helper helper,
@@ -1084,19 +1450,95 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
         count(rejectedWindows, kind + ((inside & CONTROL) != 0 ? ":control" : ":debugInfo"));
         return 0;
       }
-      if (prefixLength + 3 > end - start) {
+      if ((lead >= 0 ? 1 : 0) + prefixLength + 3 > end - start) {
         return 0; // never grow code (can't happen for the shapes above)
+      }
+      Target call = targetAt(k);
+      boolean growsStack = prefix > k && null != call && operandSlots(call) >= 2;
+      if (growsStack && !maxStackRaised) {
+        if (readU2(b, maxStackAt) >= 0xFFFF) {
+          count(rejectedWindows, kind + ":maxStack");
+          return 0;
+        }
+        patches.add(Patch.maxStackBump(maxStackAt));
+        maxStackRaised = true;
       }
       patches.add(
           new Patch(
               code + start,
               end - start,
+              lead,
               prefix >= 0 ? code + starts[prefix] : -1,
               prefixLength,
               helper,
               inLoop));
       return instructions;
     }
+  }
+
+  /** Stack slots a call takes: the receiver (unless static) and its parameters. */
+  static int operandSlots(Target target) {
+    int slots = target.opcode == INVOKESTATIC ? 0 : 1;
+    String d = target.descriptor;
+    for (int i = 1; d.charAt(i) != ')'; i++) {
+      char c = d.charAt(i);
+      if (c == 'J' || c == 'D') {
+        slots += 2;
+        continue;
+      }
+      while (c == '[') {
+        c = d.charAt(++i);
+      }
+      if (c == 'L') {
+        i = d.indexOf(';', i);
+      }
+      slots++;
+    }
+    return slots;
+  }
+
+  static boolean isInvoke(int opcode) {
+    return opcode == INVOKEVIRTUAL
+        || opcode == INVOKESTATIC
+        || opcode == INVOKESPECIAL
+        || opcode == INVOKEINTERFACE;
+  }
+
+  /** The helper suffix for a String comparison that can end a window, or null. */
+  static String comparison(int role) {
+    switch (role) {
+      case STRING_EQUALS:
+        return "Equals";
+      case STRING_STARTS_WITH:
+        return "StartsWith";
+      case STRING_ENDS_WITH:
+        return "EndsWith";
+      default:
+        return null;
+    }
+  }
+
+  /** The type of that comparison's argument. */
+  static String comparisonArgument(int role) {
+    return role == STRING_EQUALS ? "Ljava/lang/Object;" : "Ljava/lang/String;";
+  }
+
+  /** Number of parameters in a method descriptor (all single-slot types here). */
+  static int parameterCount(String descriptor) {
+    int count = 0;
+    int i = 1;
+    while (descriptor.charAt(i) != ')') {
+      char c = descriptor.charAt(i);
+      while (c == '[') {
+        c = descriptor.charAt(++i);
+      }
+      if (c == 'L') {
+        i = descriptor.indexOf(';', i);
+      }
+      i++;
+      count++;
+    }
+    return count;
   }
 
   private static void branch(int from, int to, List<int[]> loops, byte[] boundary) {

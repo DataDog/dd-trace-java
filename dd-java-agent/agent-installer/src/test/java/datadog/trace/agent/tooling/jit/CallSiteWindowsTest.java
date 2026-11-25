@@ -22,36 +22,71 @@ import org.junit.jupiter.api.Test;
 class CallSiteWindowsTest {
 
   private static final Object[][] CALLS = {
-    {"formatConstant", "a", 1},
-    {"formatConstant", null, -42},
-    {"formatDynamic", "<%s>", "x"},
-    {"formatDynamic", "%d", "not a number"},
-    {"formatLocale", "b", 1234567},
-    {"formatInLoop", "z", 3},
-    {"formatInTry", "q"},
-    {"compileMatches", "aab"},
-    {"compileMatches", "ba"},
-    {"compileMatches", null},
-    {"compileFind", "abc"},
-    {"compileLookingAt", "abc"},
-    {"compileLookingAt", "bc"},
-    {"compileSplit", "a, b,c ,d"},
-    {"compileMatchesAcrossLines", "aaa"},
-    {"compileNotASimpleLoad", "a", true},
-    {"compileNotASimpleLoad", "a", false},
-    {"compileInvalid", "a"},
-    {"localDate", "2026-11-24"},
-    {"localDateTime", "2026-02-03"},
-    {"formatterFormat", "2026-07-04"},
-    {"decimalFormat", 1234.567},
-    {"decimalFormat", -0.005},
-    {"decimalFormatDynamic", "0.###E0", 98765.4321},
-    {"decimalFormatDynamic", "#,##0.0#;(#)", -12.3},
-    {"decimalFormatDynamic", "#.#.#", 1.0},
-    {"urlEncode", "plain-text_1.2*"},
-    {"urlEncode", "needs encoding & more"},
-    {"urlDecode", "plain"},
-    {"urlDecode", "a+b%20c"},
+    {"shapeFormatConstant", "a", 1},
+    {"shapeFormatConstant", null, -42},
+    {"shapeFormatDynamic", "<%s>", "x"},
+    {"shapeFormatDynamic", "%d", "not a number"},
+    {"shapeFormatLocale", "b", 1234567},
+    {"shapeFormatInLoop", "z", 3},
+    {"shapeFormatInTry", "q"},
+    {"shapeCompileMatches", "aab"},
+    {"shapeCompileMatches", "ba"},
+    {"shapeCompileMatches", null},
+    {"shapeCompileFind", "abc"},
+    {"shapeCompileLookingAt", "abc"},
+    {"shapeCompileLookingAt", "bc"},
+    {"shapeCompileSplit", "a, b,c ,d"},
+    {"shapeCompileMatchesAcrossLines", "aaa"},
+    {"shapeCompileNotASimpleLoad", "a", true},
+    {"shapeCompileNotASimpleLoad", "a", false},
+    {"shapeCompileInvalid", "a"},
+    {"shapeLocalDate", "2026-11-24"},
+    {"shapeLocalDateTime", "2026-02-03"},
+    {"shapeFormatterFormat", "2026-07-04"},
+    {"shapeDecimalFormat", 1234.567},
+    {"shapeDecimalFormat", -0.005},
+    {"shapeDecimalFormatDynamic", "0.###E0", 98765.4321},
+    {"shapeDecimalFormatDynamic", "#,##0.0#;(#)", -12.3},
+    {"shapeDecimalFormatDynamic", "#.#.#", 1.0},
+    {"shapeUrlEncode", "plain-text_1.2*"},
+    {"shapeUrlEncode", "needs encoding & more"},
+    {"shapeUrlDecode", "plain"},
+    {"shapeUrlDecode", "a+b%20c"},
+    {"shapeGetBytes", "caf\u00e9"},
+    {"shapeNewString", "caf\u00e9"},
+    {"shapeNewStringRange", "xyz"},
+    {"shapeNewStringRange", "x"},
+    {"shapeNewStringNotSimple", "\u65e5"},
+    {"shapeZone", "Europe/Paris"},
+    {"shapeZone", "bogus"},
+    {"shapeLowerEquals", "GZIP"},
+    {"shapeLowerEquals", "\u0130"},
+    {"shapeLowerEquals", null},
+    {"shapeLowerEqualsRoot", "Content-Type"},
+    {"shapeEqualsLower", "ACCEPT"},
+    {"shapeUpperStartsWith", "stra\u00dfe", "STRA"},
+    {"shapeUpperStartsWith", "abc", null},
+    {"shapeLowerEndsWith", "A.JSON"},
+    {"shapeSubstringStartsWith", "xxabc", 2},
+    {"shapeSubstringStartsWith", "xx", 3},
+    {"shapeSubstringEndsWith", "abz", 1},
+    {"shapeSubstringRangeEquals", "axyb", 1, 3},
+    {"shapeSubstringRangeEquals", "axyb", 3, 1},
+    {"shapeEqualsSubstring", "prefix"},
+    {"shapeEqualsSubstring", "pr"},
+    {"shapeTrimIsEmpty", " \t "},
+    {"shapeTrimLength", " ab "},
+    {"shapeUuid", "123e4567-e89b-12d3-a456-426614174000"},
+    {"shapeSimpleName", "x"},
+    {"shapeParseIntRange", "x42y"},
+    {"shapeParseIntRange", "x-y"},
+    {"shapeParseIntRange", "x"},
+    {"shapeParseLongFrom", "ab-9000000000"},
+    {"shapeParseLongFrom", "ab\u0663"},
+    {"shapeValueOfRange", "77"},
+    {"shapeToArrayList", "a,b,c"},
+    {"shapeToArrayArrayList", "a"},
+    {"shapeToArrayCounting", "a,b"},
   };
 
   @Test
@@ -69,6 +104,24 @@ class CallSiteWindowsTest {
           "formatterFormat",
           "urlEncode",
           "urlDecode",
+          "getBytes",
+          "newString",
+          "forName",
+          "zoneOf",
+          "lowerEquals",
+          "equalsLower",
+          "upperStartsWith",
+          "lowerEndsWith",
+          "substringStartsWith",
+          "substringEndsWith",
+          "substringEquals",
+          "equalsSubstring",
+          "trimIsEmpty",
+          "trimLength",
+          "parseIntSubstring",
+          "parseLongSubstring",
+          "valueOfSubstring",
+          "toArrayPresized",
           "JitSites",
           "format$",
           "formatLocale$"
@@ -76,6 +129,8 @@ class CallSiteWindowsTest {
       assertTrue(pool.contains(helper), helper);
     }
     assertEquals(StringCallSiteRewriter.DECIMAL_FORMAT_WINDOW, pool.contains("newDecimalFormat"));
+    assertEquals(StringCallSiteRewriter.UUID_TO_STRING, pool.contains("uuidToString"));
+    assertEquals(StringCallSiteRewriter.SIMPLE_NAME, pool.contains("simpleName"));
 
     // initialize, so the verifier checks every method of the rewritten class
     Class<?> patched =
@@ -140,8 +195,10 @@ class CallSiteWindowsTest {
             new ChildClassLoader(chunkLoader, WindowFixture.class.getName(), rewritten));
     for (int pass = 0; pass < 40; pass++) {
       assertEquals(
-          WindowFixture.formatConstant("s", pass),
-          patched.getMethod("formatConstant", String.class, int.class).invoke(null, "s", pass));
+          WindowFixture.shapeFormatConstant("s", pass),
+          patched
+              .getMethod("shapeFormatConstant", String.class, int.class)
+              .invoke(null, "s", pass));
     }
     Field own = Class.forName(chunk1, true, chunkLoader).getDeclaredField("SITES");
     Field template =

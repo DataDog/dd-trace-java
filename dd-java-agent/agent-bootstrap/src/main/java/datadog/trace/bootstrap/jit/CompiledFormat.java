@@ -8,8 +8,9 @@ import java.util.Locale;
 /**
  * A {@link String#format} format string compiled into literal text and argument conversions.
  *
- * <p>Only literal text, {@code %s}, {@code %d}, {@code %n} and {@code %%} are supported, with no
- * argument index, flags, width or precision; {@link #parse} returns {@code null} for anything else.
+ * <p>Only literal text, {@code %s}, {@code %d}, {@code %n}, {@code %%} and hex ({@code %x}, {@code
+ * %X}, optionally zero-padded to a width as in {@code %02x}) are supported, with no argument index
+ * and no other flags, width or precision; {@link #parse} returns {@code null} for anything else.
  * {@code %n} and {@code %%} are folded into the literal text.
  *
  * <p>{@link #apply} reproduces {@link Formatter}: {@code %s} prints {@code "null"} or the
@@ -28,6 +29,10 @@ final class CompiledFormat {
 
   private static final byte DECIMAL = 1;
 
+  private static final byte HEX = 2;
+
+  private static final byte HEX_UPPER = 3;
+
   /** The format string this was compiled from. */
   final String source;
 
@@ -40,15 +45,24 @@ final class CompiledFormat {
   /** Where each conversion starts in {@link #source}. */
   private final int[] starts;
 
+  /** Zero-padded width of each hex conversion, or 0. */
+  private final byte[] widths;
+
   /** Total length of the literal text, for sizing the result. */
   private final int literalLength;
 
   private CompiledFormat(
-      String source, String[] literals, byte[] kinds, int[] starts, int literalLength) {
+      String source,
+      String[] literals,
+      byte[] kinds,
+      int[] starts,
+      byte[] widths,
+      int literalLength) {
     this.source = source;
     this.literals = literals;
     this.kinds = kinds;
     this.starts = starts;
+    this.widths = widths;
     this.literalLength = literalLength;
   }
 
@@ -62,6 +76,7 @@ final class CompiledFormat {
     String[] literals = new String[length / 2 + 1];
     byte[] kinds = new byte[length / 2];
     int[] starts = new int[length / 2];
+    byte[] widths = new byte[length / 2];
     int count = 0;
     int literalLength = 0;
     StringBuilder literal = new StringBuilder();
@@ -73,7 +88,34 @@ final class CompiledFormat {
       }
       literal.append(format, from, percent);
       char conversion = format.charAt(percent + 1);
+      int end = percent + 2; // just after the conversion
+      int width = 0;
+      if (conversion == '0') {
+        // zero-padded hex: '0', a width of 1-99 not starting with '0', then 'x' or 'X'
+        int digits = percent + 2;
+        while (digits < length && digits < percent + 4 && isDigit(format.charAt(digits))) {
+          width = width * 10 + (format.charAt(digits) - '0');
+          digits++;
+        }
+        if (digits == percent + 2 || format.charAt(percent + 2) == '0' || digits >= length) {
+          return null; // no width, a leading zero, or nothing after it
+        }
+        conversion = format.charAt(digits);
+        if (conversion != 'x' && conversion != 'X') {
+          return null;
+        }
+        end = digits + 1;
+      }
       switch (conversion) {
+        case 'x':
+        case 'X':
+          literals[count] = literal.toString();
+          literalLength += literal.length();
+          literal.setLength(0);
+          starts[count] = percent;
+          widths[count] = (byte) width;
+          kinds[count++] = conversion == 'x' ? HEX : HEX_UPPER;
+          break;
         case 's':
         case 'd':
           literals[count] = literal.toString();
@@ -91,7 +133,7 @@ final class CompiledFormat {
         default:
           return null; // flags, width, precision, index, or another conversion
       }
-      from = percent + 2;
+      from = end;
     }
     literal.append(format, from, length);
     literals[count] = literal.toString();
@@ -102,7 +144,14 @@ final class CompiledFormat {
     System.arraycopy(kinds, 0, trimmedKinds, 0, count);
     int[] trimmedStarts = new int[count];
     System.arraycopy(starts, 0, trimmedStarts, 0, count);
-    return new CompiledFormat(format, trimmedLiterals, trimmedKinds, trimmedStarts, literalLength);
+    byte[] trimmedWidths = new byte[count];
+    System.arraycopy(widths, 0, trimmedWidths, 0, count);
+    return new CompiledFormat(
+        format, trimmedLiterals, trimmedKinds, trimmedStarts, trimmedWidths, literalLength);
+  }
+
+  private static boolean isDigit(char c) {
+    return c >= '0' && c <= '9';
   }
 
   /** Whether this was compiled from the given format string. */
@@ -128,6 +177,10 @@ final class CompiledFormat {
         if (arg instanceof Formattable) {
           return null;
         }
+      } else if (kinds[i] >= HEX) {
+        if (!isFixedInteger(arg)) {
+          return null; // includes null, which the JDK prints padded with spaces
+        }
       } else if (null != arg) {
         if (!isFixedInteger(arg)) {
           return null;
@@ -148,6 +201,11 @@ final class CompiledFormat {
           return finishWithFormatter(sb, locale, args, i);
         }
         sb.append(null == arg ? null : arg.toString()); // a null String appends "null"
+      } else if (kinds[i] >= HEX) {
+        if (!isFixedInteger(arg)) {
+          return finishWithFormatter(sb, locale, args, i);
+        }
+        appendHex(sb, (Number) arg, widths[i], kinds[i] == HEX_UPPER);
       } else if (null == arg) {
         sb.append("null");
       } else if (zero != 0 && isFixedInteger(arg)) {
@@ -165,6 +223,35 @@ final class CompiledFormat {
         || arg instanceof Long
         || arg instanceof Short
         || arg instanceof Byte;
+  }
+
+  /**
+   * Appends like {@code Formatter}'s {@code %x}: a negative byte, short or int is shown as its
+   * unsigned value at that width, digits are never localized, and zero padding uses '0'.
+   */
+  private static void appendHex(StringBuilder sb, Number arg, int width, boolean upper) {
+    long value;
+    if (arg instanceof Integer) {
+      value = arg.intValue() & 0xFFFFFFFFL;
+    } else if (arg instanceof Long) {
+      value = arg.longValue();
+    } else if (arg instanceof Short) {
+      value = arg.shortValue() & 0xFFFFL;
+    } else {
+      value = arg.byteValue() & 0xFFL;
+    }
+    String digits = Long.toHexString(value);
+    for (int pad = width - digits.length(); pad > 0; pad--) {
+      sb.append('0');
+    }
+    if (upper) {
+      for (int i = 0, length = digits.length(); i < length; i++) {
+        char c = digits.charAt(i);
+        sb.append(c >= 'a' ? (char) (c - ('a' - 'A')) : c);
+      }
+    } else {
+      sb.append(digits);
+    }
   }
 
   /**
@@ -208,8 +295,8 @@ final class CompiledFormat {
       rest.append(c);
       if (c == '%') {
         char conversion = source.charAt(++i);
-        if (conversion == 's' || conversion == 'd') {
-          rest.append(++index).append('$');
+        if (conversion != 'n' && conversion != '%') {
+          rest.append(++index).append('$'); // %s, %d, %x, or the '0' flag of %0Nx
         }
         rest.append(conversion);
       }

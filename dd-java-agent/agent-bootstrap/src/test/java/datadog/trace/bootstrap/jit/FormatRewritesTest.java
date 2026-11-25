@@ -57,6 +57,15 @@ class FormatRewritesTest {
     "%s\u0000%d",
     " %d %s %d ",
     "%d %d %d %d %d %d",
+    "%x",
+    "%X",
+    "%02x",
+    "%02X",
+    "%08x",
+    "id=%04X %s",
+    "%02x%02x%02x",
+    "%x-%d-%s",
+    "%010x",
   };
 
   private static final String[] UNSUPPORTED_FORMATS = {
@@ -80,7 +89,18 @@ class FormatRewritesTest {
     "%#s",
     "%S",
     "%D",
-    "%x",
+    "%2x",
+    "%1x",
+    "%-2x",
+    "%#x",
+    "%0x",
+    "%00x",
+    "%02",
+    "%0",
+    "%02d",
+    "%02s",
+    "%0100x",
+    "%02xx%",
     "%o",
     "%b",
     "%c",
@@ -582,7 +602,15 @@ class FormatRewritesTest {
     for (int i = 0; i + 1 < format.length(); i++) {
       if (format.charAt(i) == '%') {
         char c = format.charAt(++i);
-        if (c == 's' || c == 'd') {
+        if (c == '0') { // zero-padded hex takes the same arguments as %d
+          while (i + 1 < format.length() && Character.isDigit(format.charAt(i + 1))) {
+            i++;
+          }
+          i++;
+          conversions.append('d');
+        } else if (c == 'x' || c == 'X') {
+          conversions.append('d');
+        } else if (c == 's' || c == 'd') {
           conversions.append(c);
         } else if (c != '%' && c != 'n') {
           conversions.append('s');
