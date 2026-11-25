@@ -111,9 +111,13 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     return new DatadogProfilingScope(DDPROF);
   }
 
+  /**
+   * Endpoints are skipped while no recording is running, e.g. while remote config keeps the
+   * profiler armed but idle: they label the samples of the recording, and there are none.
+   */
   @Override
   public void onRootSpanFinished(AgentSpan rootSpan, EndpointTracker tracker) {
-    if (IS_ENDPOINT_COLLECTION_ENABLED && rootSpan != null) {
+    if (IS_ENDPOINT_COLLECTION_ENABLED && rootSpan != null && DatadogProfiler.isRecordingActive()) {
       CharSequence resourceName = rootSpan.getResourceName();
       CharSequence operationName = rootSpan.getOperationName();
       if (resourceName != null && operationName != null) {
@@ -128,9 +132,16 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     return NoOpEndpointTracker.INSTANCE;
   }
 
+  /**
+   * Queue timing is skipped while no recording is running, e.g. while remote config keeps the
+   * profiler armed but idle, so that queued tasks don't pay for a tracker whose event would go
+   * nowhere. Tasks queued before a recording starts aren't timed.
+   */
   @Override
   public Timing start(TimerType type) {
-    if (IS_PROFILING_QUEUEING_TIME_ENABLED && type == TimerType.QUEUEING) {
+    if (IS_PROFILING_QUEUEING_TIME_ENABLED
+        && type == TimerType.QUEUEING
+        && DatadogProfiler.isRecordingActive()) {
       return DDPROF.newQueueTimeTracker();
     }
     return Timing.NoOp.INSTANCE;

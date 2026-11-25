@@ -118,6 +118,13 @@ public final class DatadogProfiler {
     return new DatadogProfiler(configProvider);
   }
 
+  /**
+   * Whether a recording is running in the native profiler, which all the instances share: the
+   * profiling context integration has its own instance, and checks it to skip the work, e.g. queue
+   * timing, whose events would have no recording to go to.
+   */
+  private static volatile boolean recordingActive;
+
   private final AtomicBoolean recordingFlag = new AtomicBoolean(false);
   private final JavaProfiler profiler;
 
@@ -443,6 +450,7 @@ public final class DatadogProfiler {
   /** A call-back from {@linkplain DatadogProfilerRecording#stop()} */
   void stopProfiler() {
     if (recordingFlag.compareAndSet(true, false)) {
+      recordingActive = false;
       profiler.stop();
       if (isActive()) {
         log.debug("Profiling is still active. Waiting to stop.");
@@ -554,6 +562,7 @@ public final class DatadogProfiler {
       String rslt = executeProfilerCmd(cmd);
       log.debug("DatadogProfiler.execute({}) = {}", cmd, rslt);
       started = true;
+      recordingActive = true;
       return recFile;
     } catch (IOException | RuntimeException e) {
       if (log.isDebugEnabled()) {
@@ -1211,8 +1220,18 @@ public final class DatadogProfiler {
     return new QueueTimeTracker(this, profiler.getCurrentTicks());
   }
 
+  /** Whether a recording is running in the native profiler, by any instance. */
+  static boolean isRecordingActive() {
+    return recordingActive;
+  }
+
+  /**
+   * Whether a queue time measured from {@code startMillis} is long enough to record, and there is
+   * still a recording to record it to, since it may have stopped while the task was queued.
+   */
   boolean shouldRecordQueueTimeEvent(long startMillis) {
-    return System.currentTimeMillis() - startMillis >= queueTimeThresholdMillis;
+    return isRecordingActive()
+        && System.currentTimeMillis() - startMillis >= queueTimeThresholdMillis;
   }
 
   void recordQueueTimeEvent(

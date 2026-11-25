@@ -60,15 +60,18 @@ class DatadogProfilerTest {
       return;
     }
 
+    assertFalse(DatadogProfiler.isRecordingActive());
     OngoingRecording recording = profiler.start();
     if (recording != null) {
       try {
+        assertTrue(DatadogProfiler.isRecordingActive());
         long cumulative = 0L;
         for (int i = 0; i < 5000; i++) {
           cumulative ^= UUID.randomUUID().getLeastSignificantBits();
         }
         log.info("calculated: {}", cumulative);
         RecordingData data = profiler.stop(recording);
+        assertFalse(DatadogProfiler.isRecordingActive());
         assertNotNull(data);
         IItemCollection events = JfrLoaderToolkit.loadEvents(data.getStream());
         assertTrue(events.hasItems());
