@@ -20,12 +20,14 @@ import datadog.trace.api.Config;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
+import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.naming.PeerServiceFormulas;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.util.ArrayList;
@@ -45,6 +47,7 @@ import org.junit.jupiter.api.Test;
 @WithConfig(
     key = TracerConfig.TRACE_PEER_SERVICE_COMPONENT_OVERRIDES,
     value = "rmi-client:rmi-override")
+@WithConfig(key = TraceInstrumentationConfig.TRACE_RESOURCE_RENAMING_ENABLED, value = "true")
 class DerivedTagsForkedTest extends DDCoreJavaSpecification {
   private static final long CUSTOM_A = KnownTags.DB_USER;
   private static final long CUSTOM_B = KnownTags.DB_OPERATION;
@@ -378,6 +381,99 @@ class DerivedTagsForkedTest extends DDCoreJavaSpecification {
           + " prototype="
           + viaPrototype;
     }
+  }
+
+  // --- differential check: http.endpoint vs HttpEndpointPostProcessor ---
+
+  private static final String[] METHODS = {null, "GET"};
+  private static final String[] ROUTES = {null, "", "*", "*/*", "/owners/{ownerId}"};
+  private static final int URL_SOURCES = 5; // none, url, lazy url, path, url and path
+
+  @Test
+  void endpointFormulaMatchesThePostProcessor() {
+    CoreTracer legacy = tracer(false);
+    CoreTracer derived = tracer(true);
+    List<String> mismatches = new ArrayList<>();
+    int cases = 0;
+    int derivedCases = 0;
+    for (String method : METHODS) {
+      for (String route : ROUTES) {
+        for (int urls = 0; urls < URL_SOURCES; ++urls) {
+          String expected = endpointOf(legacy, method, route, urls, null);
+          DDSpan[] span = {null};
+          String actual = endpointOf(derived, method, route, urls, span);
+          if (span[0].spanContext().isDerivedTag(KnownTags.HTTP_ENDPOINT) || actual != null) {
+            derivedCases++;
+          }
+          cases++;
+          if (!String.valueOf(expected).equals(String.valueOf(actual))) {
+            mismatches.add(
+                "method="
+                    + method
+                    + " route="
+                    + route
+                    + " urls="
+                    + urls
+                    + ": post-processor="
+                    + expected
+                    + " formula="
+                    + actual);
+          }
+        }
+      }
+    }
+    assertTrue(derivedCases > 0, "the formula produced http.endpoint");
+    assertTrue(
+        mismatches.isEmpty(),
+        mismatches.size() + " of " + cases + " cases differ:\n" + first(mismatches, 5));
+  }
+
+  @Test
+  void explicitEndpointNowWins() {
+    // A known shift: HttpEndpointPostProcessor overwrites an explicit http.endpoint; the formula,
+    // like every formula, leaves an explicit value alone.
+    DDSpan span = (DDSpan) derivedTracer().buildSpan("test", "op").start();
+    span.setTag(KnownTags.HTTP_METHOD, "GET");
+    span.setTag(KnownTags.HTTP_URL, "http://localhost:8080/owners/42");
+    span.setTag(KnownTags.HTTP_ENDPOINT, "explicit");
+    span.finish();
+    assertEquals(
+        "explicit", serializedTags(span).getString(KnownTagCodec.nameOf(KnownTags.HTTP_ENDPOINT)));
+  }
+
+  private String endpointOf(
+      CoreTracer tracer, String method, String route, int urls, DDSpan[] spanOut) {
+    DDSpan span = (DDSpan) tracer.buildSpan("test", "servlet.request").start();
+    span.setTag(SPAN_KIND, Tags.SPAN_KIND_SERVER);
+    if (method != null) {
+      span.setTag(KnownTags.HTTP_METHOD, method);
+    }
+    if (route != null) {
+      span.setTag(KnownTags.HTTP_ROUTE, route);
+    }
+    switch (urls) {
+      case 1:
+        span.setTag(KnownTags.HTTP_URL, "http://localhost:8080/owners/42?visit=7");
+        break;
+      case 2:
+        span.setTag(
+            KnownTags.HTTP_URL, URIUtils.lazyValidURL("http", "localhost", 8080, "/owners/42"));
+        break;
+      case 3:
+        span.setTag(KnownTags.URL_PATH, "/owners/42/pets/9");
+        break;
+      case 4:
+        span.setTag(KnownTags.HTTP_URL, "http://localhost:8080/users/0d8f3c2a");
+        span.setTag(KnownTags.URL_PATH, "/owners/42");
+        break;
+      default:
+        break;
+    }
+    span.finish();
+    if (spanOut != null) {
+      spanOut[0] = span;
+    }
+    return serializedTags(span).getString(KnownTagCodec.nameOf(KnownTags.HTTP_ENDPOINT));
   }
 
   // --- helpers ---
