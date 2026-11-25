@@ -1,9 +1,15 @@
 package datadog.trace.common.writer;
 
+import datadog.common.socket.NamedPipeSocketFactory;
+import datadog.common.socket.UnixDomainSocketFactory;
 import datadog.logging.IOLogger;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.OptionalInt;
+import javax.annotation.Nullable;
+import javax.net.SocketFactory;
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
 
 public abstract class RemoteApi {
@@ -89,6 +95,29 @@ public abstract class RemoteApi {
   protected abstract Response sendSerializedTraces(final Payload payload);
 
   protected abstract Logger getLogger();
+
+  /**
+   * The URL payloads are sent to, whose host and port identify the destination in self-monitoring
+   * metrics; null when unknown, such as over a unix domain socket or a named pipe.
+   */
+  @Nullable
+  public abstract HttpUrl destination();
+
+  /**
+   * Returns {@code url}, or null when {@code client} reaches it over a unix domain socket or a
+   * named pipe: the URL is then only a placeholder, so its host and port aren't the destination.
+   */
+  @Nullable
+  protected static HttpUrl destination(@Nullable OkHttpClient client, HttpUrl url) {
+    if (client == null) {
+      return url;
+    }
+    SocketFactory socketFactory = client.socketFactory();
+    return socketFactory instanceof UnixDomainSocketFactory
+            || socketFactory instanceof NamedPipeSocketFactory
+        ? null
+        : url;
+  }
 
   /**
    * Encapsulates an attempted response from the remote location.

@@ -7,6 +7,7 @@ import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.Recording;
 import datadog.trace.core.CoreSpan;
+import datadog.trace.core.monitor.ExportRecorder;
 import datadog.trace.core.monitor.HealthMetrics;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.ByteBuffer;
@@ -24,6 +25,7 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
   private final RemoteApi api;
   private final RemoteMapperDiscovery mapperDiscovery;
   private final HealthMetrics healthMetrics;
+  private final ExportRecorder exportRecorder;
   private final Monitoring monitoring;
 
   private Recording batchTimer;
@@ -39,17 +41,38 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
       justification = "confined to the one thread that encodes traces, which also runs the flushes")
   private boolean payloadStarted;
 
+  /** The number of spans the buffer holds, which the next send exports. */
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification = "confined to the one thread that encodes traces, which also runs the flushes")
+  private long pendingSpanCount;
+
   private final LongAdder droppedSpanCount = new LongAdder();
   private final LongAdder droppedTraceCount = new LongAdder();
 
+  /** A dispatcher that reports no span exporter metrics. */
   public PayloadDispatcherImpl(
       RemoteMapperDiscovery mapperDiscovery,
       RemoteApi api,
       HealthMetrics healthMetrics,
       Monitoring monitoring) {
+    this(mapperDiscovery, api, healthMetrics, monitoring, ExportRecorder.NO_OP);
+  }
+
+  /**
+   * @param exportRecorder reports each send as a span export, or {@link ExportRecorder#NO_OP} when
+   *     what this dispatcher sends aren't spans
+   */
+  public PayloadDispatcherImpl(
+      RemoteMapperDiscovery mapperDiscovery,
+      RemoteApi api,
+      HealthMetrics healthMetrics,
+      Monitoring monitoring,
+      ExportRecorder exportRecorder) {
     this.mapperDiscovery = mapperDiscovery;
     this.api = api;
     this.healthMetrics = healthMetrics;
+    this.exportRecorder = exportRecorder;
     this.monitoring = monitoring;
   }
 
@@ -101,6 +124,8 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
           trace.isEmpty() ? 0 : trace.get(0).samplingPriority(), trace.size());
     } else {
       payloadStarted = true;
+      // counted only once written: a flush while it was being written sent only earlier traces
+      pendingSpanCount += mapper.mappedSpanCount(trace);
     }
   }
 
@@ -142,11 +167,21 @@ public class PayloadDispatcherImpl implements ChunkedBufferConsumer, PayloadDisp
     // or when the packer is flushed at a heartbeat
     if (messageCount > 0) {
       payloadStarted = false;
+      long spanCount = pendingSpanCount;
+      pendingSpanCount = 0;
       batchTimer.reset();
       Payload payload = newPayload(messageCount, chunks);
       final int sizeInBytes = payload.sizeInBytes();
       healthMetrics.onSerialize(sizeInBytes);
-      RemoteApi.Response response = api.sendSerializedTraces(payload);
+      ExportRecorder.Export export = exportRecorder.start(spanCount);
+      RemoteApi.Response response;
+      try {
+        response = api.sendSerializedTraces(payload);
+      } catch (Throwable e) {
+        export.failure(e);
+        throw e;
+      }
+      export.finish(response);
       mapper.reset();
       if (response.success()) {
         if (log.isDebugEnabled()) {

@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -176,6 +177,12 @@ public class DDAgentApi extends RemoteApi {
     if (!Objects.equals(state, previous)) {
       featuresDiscovery.discover();
     }
+  }
+
+  @Override
+  @Nullable
+  public HttpUrl destination() {
+    return destination(httpClient, agentUrl);
   }
 
   @Override
