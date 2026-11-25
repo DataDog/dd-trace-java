@@ -285,7 +285,7 @@ public final class ProfilingSystem {
           this.recording = recording;
           scheduler.scheduleAtFixedRate(
               SnapshotRecording::snapshot,
-              snapshotRecording = createSnapshotRecording(now),
+              snapshotRecording = createSnapshotRecording(recording, now),
               uploadPeriod.toMillis(),
               uploadPeriod.toMillis(),
               TimeUnit.MILLISECONDS);
@@ -345,8 +345,8 @@ public final class ProfilingSystem {
   }
 
   // Used for mocking
-  SnapshotRecording createSnapshotRecording(Instant now) {
-    return new SnapshotRecording(now);
+  SnapshotRecording createSnapshotRecording(OngoingRecording recording, Instant now) {
+    return new SnapshotRecording(recording, now);
   }
 
   void stop() {
@@ -533,12 +533,20 @@ public final class ProfilingSystem {
     return duration.plus(Duration.ofMillis(random.nextLong(range.toMillis())));
   }
 
+  /**
+   * Takes the snapshots of one recording, the one it was created for: its {@link #lastSnapshot}
+   * only makes sense for that recording, so it never snapshots another one, e.g. the recording of a
+   * restart, when its scheduler thread outlives a stop.
+   */
   final class SnapshotRecording {
     private final Duration ONE_NANO = Duration.ofNanos(1);
 
+    private final OngoingRecording recording;
+
     private Instant lastSnapshot;
 
-    SnapshotRecording(final Instant startTime) {
+    SnapshotRecording(final OngoingRecording recording, final Instant startTime) {
+      this.recording = recording;
       lastSnapshot = startTime;
     }
 
@@ -552,9 +560,9 @@ public final class ProfilingSystem {
      */
     public void snapshot(ProfilingSnapshot.Kind kind, boolean sync) {
       final RecordingType recordingType = RecordingType.CONTINUOUS;
-      // cleared by stop(), which a scheduler thread that didn't terminate in time can outlive
-      final OngoingRecording recording = ProfilingSystem.this.recording;
-      if (recording == null) {
+      // cleared by stop(), which a scheduler thread that didn't terminate in time can outlive,
+      // and replaced by a restart after it
+      if (ProfilingSystem.this.recording != recording) {
         log.debug("Profiling recording is stopped, skipping the snapshot");
         return;
       }

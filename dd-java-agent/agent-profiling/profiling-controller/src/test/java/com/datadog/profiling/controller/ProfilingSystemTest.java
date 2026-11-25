@@ -252,9 +252,9 @@ public class ProfilingSystemTest {
                 () -> scheduler,
                 threadLocalRandom));
     final ProfilingSystem.SnapshotRecording snapshotRecording =
-        spy(system.createSnapshotRecording(Instant.now()));
+        spy(system.createSnapshotRecording(recording, Instant.now()));
 
-    when(system.createSnapshotRecording(any())).thenReturn(snapshotRecording);
+    when(system.createSnapshotRecording(any(), any())).thenReturn(snapshotRecording);
     startProfilingSystem(system);
     verify(controller).createRecording(any(), any());
     system.shutdown(true);
@@ -287,8 +287,8 @@ public class ProfilingSystemTest {
                 () -> stuckScheduler,
                 threadLocalRandom));
     final ProfilingSystem.SnapshotRecording snapshotRecording =
-        spy(system.createSnapshotRecording(Instant.now()));
-    when(system.createSnapshotRecording(any())).thenReturn(snapshotRecording);
+        spy(system.createSnapshotRecording(recording, Instant.now()));
+    when(system.createSnapshotRecording(any(), any())).thenReturn(snapshotRecording);
     when(recording.stop()).thenReturn(recordingData);
 
     system.start();
@@ -355,7 +355,7 @@ public class ProfilingSystemTest {
             threadLocalRandom);
     system.start();
     final ProfilingSystem.SnapshotRecording snapshotRecording =
-        system.createSnapshotRecording(Instant.now());
+        system.createSnapshotRecording(recording, Instant.now());
     system.stop(false);
 
     // as from a scheduler thread that outlived the stop
@@ -363,6 +363,46 @@ public class ProfilingSystemTest {
 
     verify(recording, never()).snapshot(any(), any());
     verify(listener, never()).onNewData(any(), any(), anyBoolean());
+  }
+
+  /**
+   * A snapshot callback of a scheduler thread that outlived its stop doesn't snapshot the recording
+   * of a restart after it, which has its own callback.
+   */
+  @Test
+  public void testSnapshotOfARecordingReplacedByARestartIsSkipped() throws Exception {
+    final OngoingRecording restartedRecording = mock(OngoingRecording.class);
+    when(controller.createRecording(eq(ProfilingSystem.RECORDING_NAME), any()))
+        .thenReturn(recording, restartedRecording);
+    final ProfilingSystem system =
+        new ProfilingSystem(
+            configProvider,
+            controllerFactory,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ZERO,
+            Duration.ofHours(1),
+            true,
+            () -> new AgentTaskScheduler(PROFILER_RECORDING_SCHEDULER),
+            threadLocalRandom);
+    try {
+      system.start();
+      // the callback of the first recording, as its scheduler thread runs it
+      final ProfilingSystem.SnapshotRecording oldCallback =
+          system.createSnapshotRecording(recording, Instant.now());
+      system.stop(false);
+      system.start();
+      assertTrue(system.isStarted());
+
+      // as from the first scheduler thread, resuming after the restart
+      oldCallback.snapshot(ProfilingSnapshot.Kind.PERIODIC, false);
+
+      verify(restartedRecording, never()).snapshot(any(), any());
+      verify(recording, never()).snapshot(any(), any());
+      verify(listener, never()).onNewData(any(), any(), anyBoolean());
+    } finally {
+      system.shutdown(false);
+    }
   }
 
   @Test
@@ -380,9 +420,9 @@ public class ProfilingSystemTest {
                 () -> scheduler,
                 threadLocalRandom));
     final ProfilingSystem.SnapshotRecording snapshotRecording =
-        spy(system.createSnapshotRecording(Instant.now()));
+        spy(system.createSnapshotRecording(recording, Instant.now()));
 
-    when(system.createSnapshotRecording(any())).thenReturn(snapshotRecording);
+    when(system.createSnapshotRecording(any(), any())).thenReturn(snapshotRecording);
     startProfilingSystem(system);
     verify(controller).createRecording(any(), any());
     system.stop(true);
