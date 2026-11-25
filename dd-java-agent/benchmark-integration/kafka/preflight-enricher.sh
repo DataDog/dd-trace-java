@@ -88,6 +88,8 @@ for i in $(seq 0 $((records - 1))); do
     log "FAIL record $i: missing trace headers (input '$in_trace', output '$out_trace')"
   elif [ "$in_trace" != "$out_trace" ]; then
     log "FAIL record $i: enricher started a new trace (input $in_trace, output $out_trace)"
+  elif [ "$in_span" = - ] || [ "$out_span" = - ]; then
+    log "FAIL record $i: missing span headers (input '$in_span', output '$out_span')"
   elif [ "$in_span" = "$out_span" ]; then
     # The output must carry the enricher's produce span, not just the input's forwarded headers.
     log "FAIL record $i: output headers still name the input's span ($in_span)"
