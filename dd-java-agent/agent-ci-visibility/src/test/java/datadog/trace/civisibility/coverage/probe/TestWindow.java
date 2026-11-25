@@ -1,0 +1,73 @@
+package datadog.trace.civisibility.coverage.probe;
+
+import datadog.trace.api.civisibility.coverage.CoverageWindow;
+import datadog.trace.api.civisibility.coverage.InstrumentedClass;
+import datadog.trace.api.civisibility.coverage.ProbeRecorder;
+import java.util.Arrays;
+import java.util.BitSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import javax.annotation.Nullable;
+
+/** A coverage window that tests open and close by hand, and the lines that windows collect. */
+final class TestWindow extends CoverageWindow {
+
+  TestWindow() {}
+
+  TestWindow(@Nullable CoverageWindow replaced) {
+    super(replaced);
+  }
+
+  /** Closes the window: the lines it collected, by source path. */
+  Map<String, BitSet> closeAndCollect() {
+    return lines(close());
+  }
+
+  static Map<String, BitSet> lines(List<CoverageWindow.ClassHits> classHits) {
+    Map<String, BitSet> lines = new HashMap<>();
+    for (CoverageWindow.ClassHits hits : classHits) {
+      BitSet classLines = new BitSet();
+      hits.instrumentedClass.addLines(hits.probes, classLines);
+      lines
+          .computeIfAbsent(sourcePath(hits.instrumentedClass), path -> new BitSet())
+          .or(classLines);
+    }
+    return lines;
+  }
+
+  /** The Shared lines of the classes a loader defined, by source path. */
+  static Map<String, BitSet> sharedLines(ClassLoader loader) {
+    ProbeRecorder.flushShared();
+    Map<String, BitSet> lines = new HashMap<>();
+    for (int classId = 0; classId < ProbeRecorder.getClassCount(); classId++) {
+      InstrumentedClass instrumentedClass = ProbeRecorder.getInstrumentedClass(classId);
+      if (instrumentedClass != null && instrumentedClass.loader() == loader) {
+        BitSet classLines = new BitSet();
+        if (ProbeRecorder.addSharedLines(classId, classLines)) {
+          lines.computeIfAbsent(sourcePath(instrumentedClass), path -> new BitSet()).or(classLines);
+        }
+      }
+    }
+    return lines;
+  }
+
+  @SafeVarargs
+  static Map<String, BitSet> union(Map<String, BitSet>... parts) {
+    return union(Arrays.asList(parts));
+  }
+
+  static Map<String, BitSet> union(List<Map<String, BitSet>> parts) {
+    Map<String, BitSet> union = new HashMap<>();
+    for (Map<String, BitSet> lines : parts) {
+      for (Map.Entry<String, BitSet> entry : lines.entrySet()) {
+        union.computeIfAbsent(entry.getKey(), path -> new BitSet()).or(entry.getValue());
+      }
+    }
+    return union;
+  }
+
+  private static String sourcePath(InstrumentedClass instrumentedClass) {
+    return ReferenceLines.sourcePath(instrumentedClass.name(), instrumentedClass.sourceFile());
+  }
+}

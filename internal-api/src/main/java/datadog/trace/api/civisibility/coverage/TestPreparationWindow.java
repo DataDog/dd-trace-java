@@ -1,14 +1,13 @@
 package datadog.trace.api.civisibility.coverage;
 
-import java.util.Collections;
-import java.util.List;
+import javax.annotation.Nullable;
 
 /**
  * Coverage of the code that a test framework runs for a test before it reports the test started,
  * such as JUnit 5 building the test instance. A framework integration opens the window where it
- * starts preparing a test, on the thread that then runs the test, and the test takes the window's
- * probes when it starts. Probes that no test takes, as when the test is skipped before it starts,
- * go to Shared.
+ * starts preparing a test, on the thread that then runs the test, and the test's window takes it
+ * over when the test starts. Probes that no test takes, as when the test is skipped before it
+ * starts, go to Shared.
  */
 public final class TestPreparationWindow extends CoverageWindow {
 
@@ -33,21 +32,23 @@ public final class TestPreparationWindow extends CoverageWindow {
   }
 
   /**
-   * Closes the window open on this thread, if any.
-   *
-   * @return the probes the window hit
+   * Removes the window open on this thread, if any, so that the window of the test that starts can
+   * take it over.
    */
-  public static List<ClassHits> take() {
+  @Nullable
+  public static CoverageWindow detach() {
     TestPreparationWindow window = OPEN.get();
-    if (window == null) {
-      return Collections.emptyList();
+    if (window != null) {
+      OPEN.remove();
     }
-    OPEN.remove();
-    return window.close();
+    return window;
   }
 
   /** Gives the probes of the window open on this thread, if any, to Shared. */
   public static void discard() {
-    ProbeRecorder.addSharedHits(take());
+    CoverageWindow window = detach();
+    if (window != null) {
+      ProbeRecorder.addSharedHits(window.close());
+    }
   }
 }

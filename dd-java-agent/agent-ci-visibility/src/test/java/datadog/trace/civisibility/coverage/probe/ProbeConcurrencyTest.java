@@ -1,17 +1,15 @@
 package datadog.trace.civisibility.coverage.probe;
 
+import static datadog.trace.civisibility.coverage.probe.TestWindow.sharedLines;
+import static datadog.trace.civisibility.coverage.probe.TestWindow.union;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.api.civisibility.coverage.CoverageWindow;
-import datadog.trace.api.civisibility.coverage.InstrumentedClass;
-import datadog.trace.api.civisibility.coverage.ProbeRecorder;
 import datadog.trace.api.civisibility.coverage.TestPreparationWindow;
 import datadog.trace.civisibility.coverage.probe.fixtures.ConcurrentWorkload;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.BitSet;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -50,7 +48,6 @@ class ProbeConcurrencyTest {
     AtomicReference<Map<String, BitSet>> first = new AtomicReference<>();
     AtomicReference<Map<String, BitSet>> second = new AtomicReference<>();
 
-    // the first window is primary and uses the global table, the second one a table of its own
     Thread firstThread =
         new Thread(() -> first.set(runInWindow(loader, 0, firstOpen::countDown, allOpen, allRan)));
     Thread secondThread =
@@ -96,7 +93,7 @@ class ProbeConcurrencyTest {
   }
 
   @Test
-  void aWindowThatReusesATableStartsEmpty() throws Exception {
+  void windowsOpenedOneAfterAnotherOnAThreadEachGetTheirOwnLines() throws Exception {
     FixtureLoader loader = new FixtureLoader(null, FIXTURES);
     TestWindow primary = new TestWindow();
     List<Map<String, BitSet>> lines = new ArrayList<>();
@@ -128,8 +125,7 @@ class ProbeConcurrencyTest {
     TestPreparationWindow.enable();
     TestPreparationWindow.open();
     run(loader, 0);
-    List<CoverageWindow.ClassHits> preparation = TestPreparationWindow.take();
-    TestWindow test = new TestWindow();
+    TestWindow test = new TestWindow(TestPreparationWindow.detach());
     Map<String, BitSet> testLines;
     try {
       run(loader, 1);
@@ -137,9 +133,8 @@ class ProbeConcurrencyTest {
       testLines = test.closeAndCollect();
     }
 
-    assertEquals(WORKER_LINES.get(0), lines(preparation));
-    assertEquals(WORKER_LINES.get(1), testLines);
-    assertTrue(TestPreparationWindow.take().isEmpty());
+    assertEquals(union(WORKER_LINES.get(0), WORKER_LINES.get(1)), testLines);
+    assertNull(TestPreparationWindow.detach());
     assertTrue(sharedLines(loader).isEmpty());
   }
 
@@ -156,6 +151,16 @@ class ProbeConcurrencyTest {
     TestPreparationWindow.discard();
 
     assertEquals(union(WORKER_LINES.get(0), WORKER_LINES.get(1)), sharedLines(loader));
+  }
+
+  @Test
+  void aThreadThatDiesWithNoWindowOpenLeavesItsLinesToShared() throws Exception {
+    FixtureLoader loader = new FixtureLoader(null, FIXTURES);
+    Thread thread = new Thread(() -> run(loader, 0));
+    thread.start();
+    thread.join(TimeUnit.SECONDS.toMillis(30));
+
+    assertEquals(WORKER_LINES.get(0), sharedLines(loader));
   }
 
   private static Map<String, BitSet> runInWindow(
@@ -199,52 +204,6 @@ class ProbeConcurrencyTest {
       assertTrue(latch.await(30, TimeUnit.SECONDS));
     } catch (InterruptedException e) {
       throw new AssertionError(e);
-    }
-  }
-
-  private static Map<String, BitSet> sharedLines(ClassLoader loader) {
-    Map<String, BitSet> lines = new HashMap<>();
-    for (int classId = 0; classId < ProbeRecorder.getClassCount(); classId++) {
-      InstrumentedClass instrumentedClass = ProbeRecorder.getInstrumentedClass(classId);
-      if (instrumentedClass != null && instrumentedClass.loader() == loader) {
-        BitSet classLines = new BitSet();
-        if (ProbeRecorder.addSharedLines(classId, classLines)) {
-          lines.computeIfAbsent(sourcePath(instrumentedClass), path -> new BitSet()).or(classLines);
-        }
-      }
-    }
-    return lines;
-  }
-
-  private static Map<String, BitSet> union(Map<String, BitSet> a, Map<String, BitSet> b) {
-    Map<String, BitSet> union = new HashMap<>();
-    for (Map<String, BitSet> lines : Arrays.asList(a, b)) {
-      for (Map.Entry<String, BitSet> entry : lines.entrySet()) {
-        union.computeIfAbsent(entry.getKey(), path -> new BitSet()).or(entry.getValue());
-      }
-    }
-    return union;
-  }
-
-  private static String sourcePath(InstrumentedClass instrumentedClass) {
-    return ReferenceLines.sourcePath(instrumentedClass.name(), instrumentedClass.sourceFile());
-  }
-
-  private static Map<String, BitSet> lines(List<CoverageWindow.ClassHits> classHits) {
-    Map<String, BitSet> lines = new HashMap<>();
-    for (CoverageWindow.ClassHits hits : classHits) {
-      BitSet classLines = new BitSet();
-      hits.instrumentedClass.addLines(hits.probes, classLines);
-      lines
-          .computeIfAbsent(sourcePath(hits.instrumentedClass), path -> new BitSet())
-          .or(classLines);
-    }
-    return lines;
-  }
-
-  private static final class TestWindow extends CoverageWindow {
-    Map<String, BitSet> closeAndCollect() {
-      return lines(close());
     }
   }
 }

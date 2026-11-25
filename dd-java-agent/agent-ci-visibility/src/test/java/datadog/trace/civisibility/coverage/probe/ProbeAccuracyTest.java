@@ -117,6 +117,7 @@ class ProbeAccuracyTest {
   /** Lines of the classes this loader defined: hits outside any window plus initializers. */
   private static Map<String, BitSet> probeLines(ClassLoader loader) {
     Map<String, BitSet> lines = new HashMap<>();
+    ProbeRecorder.flushShared();
     for (int classId = 0; classId < ProbeRecorder.getClassCount(); classId++) {
       InstrumentedClass instrumentedClass = ProbeRecorder.getInstrumentedClass(classId);
       if (instrumentedClass == null || instrumentedClass.loader() != loader) {

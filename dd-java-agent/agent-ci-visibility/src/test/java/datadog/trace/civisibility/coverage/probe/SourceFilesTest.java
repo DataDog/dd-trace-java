@@ -133,6 +133,7 @@ class SourceFilesTest {
     }
     SourceFiles sourceFiles = new SourceFiles(FIXTURE_FILES);
     Map<String, BitSet> linesBySourcePath = new HashMap<>();
+    ProbeRecorder.flushShared();
     for (int classId = 0; classId < ProbeRecorder.getClassCount(); classId++) {
       InstrumentedClass instrumentedClass = ProbeRecorder.getInstrumentedClass(classId);
       if (instrumentedClass == null

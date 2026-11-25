@@ -192,6 +192,7 @@ class LargeMethodTest {
   /** The lines that ran, with no test window open. */
   private static BitSet coveredLines(ClassLoader loader) {
     BitSet lines = new BitSet();
+    ProbeRecorder.flushShared();
     for (int classId = 0; classId < ProbeRecorder.getClassCount(); classId++) {
       InstrumentedClass instrumentedClass = ProbeRecorder.getInstrumentedClass(classId);
       if (instrumentedClass != null && instrumentedClass.loader() == loader) {
