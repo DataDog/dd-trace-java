@@ -51,6 +51,29 @@ class DependencyAgeScriptTest(unittest.TestCase):
                 outputs[match.group(1)] = match.group(2)
         return outputs
 
+    def maven_repo(self, group_id: str, artifact_id: str, fixture: str) -> str:
+        """
+        Build a file:// Maven repository from a fixture mapping versions to publish times.
+        Each POM's mtime is its publish time, which file:// responses report as Last-Modified.
+        """
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp, True)
+        artifact_dir = tmp / group_id.replace(".", "/") / artifact_id
+        artifact_dir.mkdir(parents=True)
+        published = json.loads((FIXTURES / fixture).read_text(encoding="utf-8"))
+        versions = "".join(f"<version>{version}</version>" for version in published)
+        (artifact_dir / "maven-metadata.xml").write_text(
+            f"<metadata><versioning><versions>{versions}</versions></versioning></metadata>",
+            encoding="utf-8",
+        )
+        for version, timestamp in published.items():
+            pom = artifact_dir / version / f"{artifact_id}-{version}.pom"
+            pom.parent.mkdir()
+            pom.write_text("<project/>", encoding="utf-8")
+            mtime = dependency_age.parse_datetime(timestamp).timestamp()
+            os.utime(pom, (mtime, mtime))
+        return tmp.as_uri()
+
     def test_selects_previous_gradle_release_when_newest_is_too_new(self) -> None:
         result = self.run_script(
             "select-gradle",
@@ -88,8 +111,8 @@ class DependencyAgeScriptTest(unittest.TestCase):
             "org.apache.maven",
             "--artifact-id",
             "apache-maven",
-            "--search-response-file",
-            str(FIXTURES / "maven-newest-too-new.json"),
+            "--repo-url",
+            self.maven_repo("org.apache.maven", "apache-maven", "maven-newest-too-new.json"),
             "--prerelease-pattern",
             "alpha",
             "--prerelease-pattern",
@@ -124,8 +147,8 @@ class DependencyAgeScriptTest(unittest.TestCase):
             "org.apache.maven.plugins",
             "--artifact-id",
             "maven-surefire-plugin",
-            "--search-response-file",
-            str(FIXTURES / "surefire-boundary.json"),
+            "--repo-url",
+            self.maven_repo("org.apache.maven.plugins", "maven-surefire-plugin", "surefire-boundary.json"),
             "--prerelease-pattern",
             "alpha",
             "--prerelease-pattern",
@@ -147,8 +170,8 @@ class DependencyAgeScriptTest(unittest.TestCase):
             "org.apache.maven",
             "--artifact-id",
             "apache-maven",
-            "--search-response-file",
-            str(FIXTURES / "maven-ga-replaces-beta.json"),
+            "--repo-url",
+            self.maven_repo("org.apache.maven", "apache-maven", "maven-ga-replaces-beta.json"),
             "--prerelease-pattern",
             "alpha",
             "--prerelease-pattern",
@@ -174,8 +197,8 @@ class DependencyAgeScriptTest(unittest.TestCase):
             "org.apache.maven",
             "--artifact-id",
             "apache-maven",
-            "--search-response-file",
-            str(FIXTURES / "maven-newest-too-new.json"),
+            "--repo-url",
+            self.maven_repo("org.apache.maven", "apache-maven", "maven-newest-too-new.json"),
             "--prerelease-pattern",
             "alpha",
             "--prerelease-pattern",
@@ -201,8 +224,8 @@ class DependencyAgeScriptTest(unittest.TestCase):
             "org.apache.maven.plugins",
             "--artifact-id",
             "maven-surefire-plugin",
-            "--search-response-file",
-            str(FIXTURES / "surefire-boundary.json"),
+            "--repo-url",
+            self.maven_repo("org.apache.maven.plugins", "maven-surefire-plugin", "surefire-boundary.json"),
             "--prerelease-pattern",
             "alpha",
             "--prerelease-pattern",
@@ -216,6 +239,47 @@ class DependencyAgeScriptTest(unittest.TestCase):
         self.assertEqual(outputs["found"], "true")
         self.assertEqual(outputs["version"], "3.5.5")
         self.assertEqual(outputs["published_at"], "2026-04-22")
+
+    def test_selects_newest_eligible_release_listed_in_maven_metadata(self) -> None:
+        result = self.run_script(
+            "select-maven",
+            "--now",
+            NOW,
+            "--group-id",
+            "org.apache.maven.plugins",
+            "--artifact-id",
+            "maven-surefire-plugin",
+            "--repo-url",
+            self.maven_repo("org.apache.maven.plugins", "maven-surefire-plugin", "surefire-milestone-and-too-new.json"),
+            "--prerelease-pattern=-m\\d",
+            "--current-version",
+            "3.5.6",
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        outputs = self.parse_outputs(result.stdout)
+        self.assertEqual(outputs["version"], "3.6.0")
+        self.assertEqual(outputs["published_at"], "2026-04-20")
+
+    def test_fails_when_maven_versions_cannot_be_listed(self) -> None:
+        missing_repo = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, missing_repo, True)
+        result = self.run_script(
+            "select-maven",
+            "--now",
+            NOW,
+            "--group-id",
+            "org.apache.maven.plugins",
+            "--artifact-id",
+            "maven-surefire-plugin",
+            "--repo-url",
+            missing_repo.as_uri(),
+            "--current-version",
+            "3.5.6",
+        )
+
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("::error::Could not list versions", result.stdout)
 
     def test_keeps_current_version_when_no_eligible_version_exists(self) -> None:
         result = self.run_script(
