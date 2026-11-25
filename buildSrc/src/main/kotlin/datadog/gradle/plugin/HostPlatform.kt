@@ -4,7 +4,10 @@ import java.util.Locale
 
 object HostPlatform {
   @JvmStatic
-  fun isLinuxArm64(): Boolean = isExpectedOs("linux") && isArm64()
+  fun isLinux(): Boolean = isExpectedOs("linux")
+
+  @JvmStatic
+  fun isLinuxArm64(): Boolean = isLinux() && isArm64()
 
   @JvmStatic
   fun isMacArm64(): Boolean = isExpectedOs("mac") && isArm64()
