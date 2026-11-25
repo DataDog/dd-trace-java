@@ -95,24 +95,35 @@ class NormalizedRouteRequestValuesTest {
   }
 
   @Test
-  void matrixParametersOfTheParsedRequestPathAreNotCatchAllContent() {
+  void parsedRequestPathRemainderIsMatchedWithoutSemicolonContentAndDecoded() {
     assertTag(parsedRequestPath("/ctx/static/;v=1"), "/static/**", "/ctx/static/");
     assertTag(parsedRequestPath("/ctx/static/a;v=1/b"), "/static/**", "/ctx/static/{param1}");
     assertTag(parsedRequestPath("/ctx/static/;v=1/x"), "/static/**", "/ctx/static/{param1}");
+    // an encoded slash accepted by the container is only '/' once decoded
+    assertTag(parsedRequestPath("/ctx/static/%2F"), "/static/**", "/ctx/static/");
+    assertTag(parsedRequestPath("/ctx/static/%3Bfoo"), "/static/**", "/ctx/static/{param1}");
   }
 
   @Test
-  void matrixParametersOfACachedLookupPathAreNotCatchAllContent() {
-    // removeSemicolonContent=false keeps the ';' parameters in the cached lookup path
-    assertTag(cachedLookupPath("/ctx/static/;v=1", "/static/;v=1"), "/static/**", "/ctx/static/");
+  void cachedLookupPathIsMatchedAsIs() {
+    // decoded by UrlPathHelper: ';' from '%3B' is content
+    assertTag(
+        cachedLookupPath("/ctx/static/%3Bfoo", "/static/;foo"),
+        "/static/**",
+        "/ctx/static/{param1}");
+    // removeSemicolonContent=false: AntPathMatcher matched the ';' parameters as content
+    assertTag(
+        cachedLookupPath("/ctx/static/;v=1", "/static/;v=1"), "/static/**", "/ctx/static/{param1}");
     assertTag(
         cachedLookupPath("/ctx/static/a;v=1/b", "/static/a;v=1/b"),
         "/static/**",
         "/ctx/static/{param1}");
-    assertTag(
-        cachedLookupPath("/ctx/static/;v=1/x", "/static/;v=1/x"),
-        "/static/**",
-        "/ctx/static/{param1}");
+  }
+
+  @Test
+  void catchAllRemainderKeepsTheSegmentPositionsOfTheCachedLookupPath() {
+    // removeSemicolonContent=false: '{id}' matched ';v=1' and '**' matched 'x'
+    assertTag(cachedLookupPath("/ctx/a/;v=1/x", "/a/;v=1/x"), "/a/{id}/**", "/ctx/a/{id}/{param1}");
   }
 
   @Test

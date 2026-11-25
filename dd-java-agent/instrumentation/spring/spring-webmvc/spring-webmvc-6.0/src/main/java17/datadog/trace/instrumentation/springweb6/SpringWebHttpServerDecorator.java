@@ -215,16 +215,17 @@ public class SpringWebHttpServerDecorator
         return;
       }
       String lookupPath = cachedLookupPath;
+      boolean rawLookupPath = false;
       if (lookupPath == null) {
         lookupPath = parsedLookupPath(request);
+        rawLookupPath = lookupPath != null;
       }
       if (lookupPath == null) {
         lookupPath = fallbackLookupPath(servletPath, pathInfo, pathMapping);
       }
-      if (lookupPath != null) {
-        // Spring matches the segments without their ';' parameters
-        lookupPath = ServletMountPrefix.removeSemicolonContent(lookupPath);
-      }
+      // extracted from the untouched lookup path: the segment positions are the matched ones
+      final String extracted = unnamedCatchAllRemainder(template, pattern, lookupPath);
+      final String remainder = rawLookupPath ? matchedValue(extracted) : extracted;
       NormalizedRouteHelper.tag(
           span,
           template,
@@ -232,8 +233,11 @@ public class SpringWebHttpServerDecorator
           BoundValuesPresenceResolver.fromRaw(
               template,
               request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE),
-              unnamedCatchAllRemainder(template, pattern, lookupPath),
-              lookupPath != null && lookupPath.endsWith("/")));
+              remainder,
+              lookupPath != null
+                  && (lookupPath.endsWith("/")
+                      // a raw remainder made only of ';' content followed a '/'
+                      || (remainder != null && remainder.isEmpty() && !extracted.isEmpty()))));
     } catch (final Throwable t) {
       // never break the request: drop the tag
       log.debug("Failed to compute the normalized route", t);
@@ -295,6 +299,16 @@ public class SpringWebHttpServerDecorator
       return null;
     }
     return PathMatcherHolder.PATH_MATCHER.extractPathWithinPattern(pattern, lookupPath);
+  }
+
+  /**
+   * Value Spring matched for a remainder of the raw parsed request path: the {@code ;} content of
+   * each segment removed, then decoded. Same instance when there is no {@code ;} nor {@code %}.
+   */
+  private static String matchedValue(final String rawRemainder) {
+    return rawRemainder == null
+        ? null
+        : NormalizedRouteHelper.decodePath(ServletMountPrefix.removeSemicolonContent(rawRemainder));
   }
 
   /** Defers loading {@link AntPathMatcher} until a trailing {@code **} needs it. */

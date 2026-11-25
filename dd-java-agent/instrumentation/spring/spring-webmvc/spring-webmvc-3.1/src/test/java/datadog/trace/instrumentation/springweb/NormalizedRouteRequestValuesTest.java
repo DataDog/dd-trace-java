@@ -106,29 +106,33 @@ class NormalizedRouteRequestValuesTest {
   }
 
   @Test
-  void matrixParametersOfACachedLookupPathAreNotCatchAllContent() {
-    // removeSemicolonContent=false keeps the ';' parameters in the cached lookup path
-    assertTag(cachedLookupPath("/ctx/static/;v=1", "/static/;v=1"), "/static/**", "/ctx/static/");
+  void cachedLookupPathIsMatchedAsIs() {
+    // decoded by UrlPathHelper: ';' from '%3B' is content
     assertTag(
-        cachedLookupPath("/ctx/static/a;v=1/b", "/static/a;v=1/b"),
+        cachedLookupPath("/ctx/static/%3Bfoo", "/static/;foo"),
         "/static/**",
         "/ctx/static/{param1}");
+    // removeSemicolonContent=false: AntPathMatcher matched the ';' parameters as content
     assertTag(
-        cachedLookupPath("/ctx/static/;v=1/x", "/static/;v=1/x"),
+        cachedLookupPath("/ctx/static/;v=1", "/static/;v=1"), "/static/**", "/ctx/static/{param1}");
+    assertTag(
+        cachedLookupPath("/ctx/static/a;v=1/b", "/static/a;v=1/b"),
         "/static/**",
         "/ctx/static/{param1}");
   }
 
   @Test
-  void matrixParametersOfTheFallbackLookupPathAreNotCatchAllContent() {
+  void catchAllRemainderKeepsTheSegmentPositionsOfTheCachedLookupPath() {
+    // removeSemicolonContent=false: '{id}' matched ';v=1' and '**' matched 'x'
+    assertTag(cachedLookupPath("/ctx/a/;v=1/x", "/a/;v=1/x"), "/a/{id}/**", "/ctx/a/{id}/{param1}");
+  }
+
+  @Test
+  void fallbackLookupPathIsMatchedAsIs() {
+    // the container already removed the ';' parameters and decoded the servlet path
+    assertTag(request("/ctx/static/;v=1", "/ctx", "/static/", null), "/static/**", "/ctx/static/");
     assertTag(
-        request("/ctx/static/;v=1", "/ctx", "/static/;v=1", null), "/static/**", "/ctx/static/");
-    assertTag(
-        request("/ctx/static/a;v=1/b", "/ctx", "/static/a;v=1/b", null),
-        "/static/**",
-        "/ctx/static/{param1}");
-    assertTag(
-        request("/ctx/static/;v=1/x", "/ctx", "/static/;v=1/x", null),
+        request("/ctx/static/%3Bfoo", "/ctx", "/static/;foo", null),
         "/static/**",
         "/ctx/static/{param1}");
   }
