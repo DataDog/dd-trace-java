@@ -80,7 +80,6 @@ class ProfilingConfigPollerTest {
     when(sco.configurationPoller(config)).thenReturn(null);
 
     assertFalse(profilingConfigPoller.start(config, sco), "nothing to subscribe to");
-    profilingConfigPoller.stop();
 
     verifyNoInteractions(handler);
   }
@@ -417,17 +416,6 @@ class ProfilingConfigPollerTest {
     listener.accept(configKey("a"), targeted("\"cpuTime\":true"), hinter);
 
     assertDoesNotThrow(() -> listener.commit(hinter));
-  }
-
-  @Test
-  void stopUnsubscribesWithoutStoppingSharedPoller() {
-    startAndCaptureListener();
-
-    profilingConfigPoller.stop();
-    profilingConfigPoller.stop();
-
-    verify(poller).removeListeners(Product.APM_PROFILING);
-    verify(poller, never()).stop();
   }
 
   private ProductListener startAndCaptureListener() {

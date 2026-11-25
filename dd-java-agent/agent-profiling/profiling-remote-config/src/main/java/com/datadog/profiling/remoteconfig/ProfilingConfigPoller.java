@@ -28,8 +28,6 @@ public final class ProfilingConfigPoller {
 
   private final ProfilingConfigHandler handler;
 
-  private ConfigurationPoller configPoller;
-
   public ProfilingConfigPoller(ProfilingConfigHandler handler) {
     this.handler = handler;
   }
@@ -40,7 +38,8 @@ public final class ProfilingConfigPoller {
   }
 
   /**
-   * Subscribes to the {@code APM_PROFILING} product.
+   * Subscribes to the {@code APM_PROFILING} product, for good: at shutdown, the handler is closed
+   * instead, since unsubscribing would remove every listener of the shared product.
    *
    * @return whether it subscribed, which it doesn't when remote config is not enabled
    */
@@ -54,18 +53,8 @@ public final class ProfilingConfigPoller {
     }
     // the poller itself is started by the agent once all products have been registered
     poller.addListener(Product.APM_PROFILING, new Updater());
-    configPoller = poller;
     log.debug("Subscribed to APM_PROFILING remote config");
     return true;
-  }
-
-  public void stop() {
-    if (null != configPoller) {
-      // only unsubscribe; the poller is shared and its start/stop calls are reference-counted
-      configPoller.removeListeners(Product.APM_PROFILING);
-      configPoller = null;
-    }
-    log.debug("Stopped APM_PROFILING remote config");
   }
 
   /**
