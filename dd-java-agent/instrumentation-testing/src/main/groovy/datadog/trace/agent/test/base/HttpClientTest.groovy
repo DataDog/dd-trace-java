@@ -1,6 +1,7 @@
 package datadog.trace.agent.test.base
 
 
+import datadog.appsec.api.blocking.BlockingContentType
 import datadog.trace.agent.test.asserts.TagsAssert
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
@@ -9,7 +10,6 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.KnownTags
-import datadog.appsec.api.blocking.BlockingContentType
 import datadog.trace.api.appsec.HttpClientRequest
 import datadog.trace.api.appsec.HttpClientResponse
 import datadog.trace.api.config.TracerConfig
