@@ -12353,6 +12353,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_JAVA_MODULE_ENABLED", "DD_INTEGRATION_JAVA_MODULE_ENABLED"]
       }
     ],
+    "DD_TRACE_AWS_SERVICE_REPRESENTATION_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_DETAILED_INSTRUMENTATION_ERRORS": [
       {
         "version": "A",
