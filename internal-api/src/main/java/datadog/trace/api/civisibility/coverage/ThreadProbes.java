@@ -9,7 +9,8 @@ import javax.annotation.Nullable;
 /**
  * The probe arrays of one thread, and the owner of the code the thread runs: the innermost window
  * open on the thread; with none open, the open window of the test whose context the thread carries;
- * else Shared.
+ * else Shared. While a scope whose context carries another test is active on a thread with a window
+ * open, the owner is that test's window, or Shared once that window has closed.
  *
  * <p>Only the thread stores into its arrays. A method takes its array at entry and keeps it until
  * it returns, and what an array holds belongs to the owner it was handed out to: a method's lines
@@ -25,6 +26,9 @@ final class ThreadProbes {
 
   private static final int IDLE_CHANGES = 2;
   private static final int IDLE_CHANGES_AFTER_LATE_STORE = 64;
+
+  /** Retired arrays beyond which a change of the owner for a scope also counts against them. */
+  private static final int RETIRED_ARRAYS_KEPT_ACROSS_SCOPES = 256;
 
   final Thread thread;
 
@@ -42,6 +46,12 @@ final class ThreadProbes {
 
   /** The innermost window open on the thread. Written under the lock. */
   @Nullable private volatile CoverageWindow innermost;
+
+  /**
+   * Whether the owner comes from the context of the active scope rather than from the innermost
+   * window. Written under the lock.
+   */
+  private boolean ownerFromScope;
 
   // guarded by this: the arrays handed out since the last change
   private int[] handedClassIds = new int[16];
@@ -120,6 +130,60 @@ final class ThreadProbes {
     return innermost != null;
   }
 
+  /**
+   * A scope became active on the thread, and its context carries the test whose coverage store is
+   * {@code window}. While a window is open on the thread, the code the scope runs belongs to {@code
+   * window} if it is open, and to Shared once it has closed. Called by the thread.
+   */
+  void scopeActivated(CoverageWindow window) {
+    if (window == innermost && window == owner && !ownerFromScope) {
+      return;
+    }
+    followScope(window);
+  }
+
+  private synchronized void followScope(CoverageWindow window) {
+    CoverageWindow current = innermost;
+    if (current == null) {
+      // take() follows the context
+      return;
+    }
+    CoverageWindow next;
+    if (window == current) {
+      next = current;
+    } else if (window.addOtherThread(this)) {
+      next = window;
+    } else {
+      // the test's window closed
+      next = null;
+    }
+    if (next != owner) {
+      changeScopeOwner(next);
+    }
+    ownerFromScope = next != current;
+  }
+
+  /**
+   * The active scope of the thread closed: the innermost window owns the code again, until a scope
+   * that becomes active says otherwise. Called by the thread.
+   */
+  void scopeClosed() {
+    if (ownerFromScope) {
+      endScopeOwner();
+    }
+  }
+
+  private synchronized void endScopeOwner() {
+    if (!ownerFromScope) {
+      return;
+    }
+    ownerFromScope = false;
+    CoverageWindow current = innermost;
+    if (current != owner) {
+      changeScopeOwner(current);
+    }
+  }
+
   private synchronized void followContext(@Nullable CoverageWindow window) {
     if (innermost != null || window == owner) {
       return;
@@ -144,6 +208,7 @@ final class ThreadProbes {
     CoverageWindow outer = innermost;
     changeOwner(window);
     innermost = window;
+    ownerFromScope = false;
     if (primary) {
       ProbeRecorder.primaryThread = thread;
     }
@@ -162,7 +227,9 @@ final class ThreadProbes {
       return false;
     }
     innermost = window;
-    owner = window;
+    if (!ownerFromScope) {
+      owner = window;
+    }
     for (int i = 0; i < retiredCount; i++) {
       if (retiredOwners[i] == replaced) {
         retiredOwners[i] = window;
@@ -183,6 +250,7 @@ final class ThreadProbes {
     }
     changeOwner(next);
     innermost = next;
+    ownerFromScope = false;
     if (primary && next == null) {
       ProbeRecorder.primaryThread = null;
     }
@@ -218,6 +286,19 @@ final class ThreadProbes {
   /** Holds the lock. */
   private void changeOwner(@Nullable CoverageWindow next) {
     moveRetiredHits();
+    moveHandedHits();
+    owner = next;
+  }
+
+  /**
+   * Changes the owner for the code a scope runs. Unlike other changes, it does not count against
+   * the arrays handed out before, which the methods that run around the scope keep storing into,
+   * unless many of them wait to be read again. Holds the lock.
+   */
+  private void changeScopeOwner(@Nullable CoverageWindow next) {
+    if (retiredCount > RETIRED_ARRAYS_KEPT_ACROSS_SCOPES) {
+      moveRetiredHits();
+    }
     moveHandedHits();
     owner = next;
   }

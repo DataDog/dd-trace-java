@@ -51,6 +51,12 @@ public final class ProbeRecorder {
         }
       };
 
+  /**
+   * The probe arrays of the current thread if it opened a window, so that scope changes on other
+   * threads do not create any.
+   */
+  private static final ThreadLocal<ThreadProbes> WINDOW_THREAD_PROBES = new ThreadLocal<>();
+
   private static final Object LOCK = new Object();
 
   // guarded by LOCK
@@ -183,17 +189,44 @@ public final class ProbeRecorder {
    */
   @Nullable
   static CoverageWindow contextWindow() {
+    CoverageWindow window = testWindow();
+    return window != null && !window.isClosed() ? window : null;
+  }
+
+  /** The window of the test whose context the current thread carries, open or closed. */
+  @Nullable
+  private static CoverageWindow testWindow() {
     TestContext test = InstrumentationTestBridge.getCurrentTestContext();
     if (test != null) {
       CoverageStore store = test.getCoverageStore();
       if (store instanceof CoverageWindow) {
-        CoverageWindow window = (CoverageWindow) store;
-        if (!window.isClosed()) {
-          return window;
-        }
+        return (CoverageWindow) store;
       }
     }
     return null;
+  }
+
+  /**
+   * Called after a scope becomes active on the current thread. On a thread with a window open, the
+   * code that a scope carrying another test's context runs belongs to that test while its window is
+   * open, and to Shared after it closed. A scope that carries no test leaves the owner as it is.
+   */
+  static void scopeActivated() {
+    ThreadProbes threadProbes = WINDOW_THREAD_PROBES.get();
+    if (threadProbes != null && threadProbes.hasOpenWindow()) {
+      CoverageWindow window = testWindow();
+      if (window != null) {
+        threadProbes.scopeActivated(window);
+      }
+    }
+  }
+
+  /** Called after a scope closes on the current thread. */
+  static void scopeClosed() {
+    ThreadProbes threadProbes = WINDOW_THREAD_PROBES.get();
+    if (threadProbes != null) {
+      threadProbes.scopeClosed();
+    }
   }
 
   /**
@@ -203,6 +236,7 @@ public final class ProbeRecorder {
    */
   @Nullable
   static CoverageWindow openWindow(ThreadProbes threadProbes, CoverageWindow window) {
+    WINDOW_THREAD_PROBES.set(threadProbes);
     if (!threadProbes.isPrimary()) {
       synchronized (LOCK) {
         if (primary == null) {

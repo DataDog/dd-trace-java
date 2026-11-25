@@ -3,12 +3,14 @@ package datadog.trace.civisibility;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.ddagent.TracerVersion;
 import datadog.trace.api.Config;
+import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
+import datadog.trace.api.civisibility.coverage.ProbeScopeListener;
 import datadog.trace.api.civisibility.coverage.TestPreparationWindow;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
@@ -105,6 +107,7 @@ public class CiVisibilitySystem {
               createLineProbesInstrumentationFilter(services, repoServices);
           inst.addTransformer(new ProbeClassTransformer(instrumentationFilter));
           TestPreparationWindow.enable();
+          WithGlobalTracer.registerOrExecute(new ProbeScopeListener());
         } else if (!config.isCiVisibilityCoverageLinesEnabled()) {
           // lines coverage is built on top of Jacoco,
           // so if lines are explicitly enabled,

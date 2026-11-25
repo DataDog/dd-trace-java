@@ -1,8 +1,13 @@
 package datadog.trace.civisibility.coverage.probe;
 
+import datadog.trace.api.DDTraceId;
+import datadog.trace.api.civisibility.coverage.CoverageProbes;
+import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.coverage.CoverageWindow;
 import datadog.trace.api.civisibility.coverage.InstrumentedClass;
+import datadog.trace.api.civisibility.coverage.NoOpProbes;
 import datadog.trace.api.civisibility.coverage.ProbeRecorder;
+import datadog.trace.api.civisibility.coverage.TestReport;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashMap;
@@ -10,13 +15,32 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-/** A coverage window that tests open and close by hand, and the lines that windows collect. */
-final class TestWindow extends CoverageWindow {
+/**
+ * A coverage window that tests open and close by hand, and the lines that windows collect. It is
+ * also the coverage store of a test context that tests make by hand.
+ */
+final class TestWindow extends CoverageWindow implements CoverageStore {
 
   TestWindow() {}
 
   TestWindow(@Nullable CoverageWindow replaced) {
     super(replaced);
+  }
+
+  @Override
+  public CoverageProbes getProbes() {
+    return NoOpProbes.INSTANCE;
+  }
+
+  @Override
+  public boolean report(DDTraceId testSessionId, Long testSuiteId, long testSpanId) {
+    return false;
+  }
+
+  @Nullable
+  @Override
+  public TestReport getReport() {
+    return null;
   }
 
   /** Closes the window: the lines it collected, by source path. */
