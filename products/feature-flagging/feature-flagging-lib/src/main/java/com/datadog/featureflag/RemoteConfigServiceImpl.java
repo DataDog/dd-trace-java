@@ -25,6 +25,9 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
   private final List<Consumer<byte[]>> subscribers = new CopyOnWriteArrayList<>();
   private volatile byte[] current;
 
+  /** Key of the current document, guarded by the subscribers lock. */
+  @Nullable private String currentConfigKey;
+
   /**
    * Whether the current document was received before any subscriber, so the poller acknowledged it
    * without validation. Guarded by the subscribers lock.
@@ -114,8 +117,11 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
     this.configurationPoller.removeCapabilities(CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
     this.configurationPoller.removeListeners(FFE_FLAGS);
     this.configurationPoller.stop();
-    this.subscribers.clear();
-    this.current = null;
+    synchronized (this.subscribers) {
+      this.subscribers.clear();
+      this.current = null;
+      this.currentConfigKey = null;
+    }
   }
 
   /**
@@ -134,6 +140,11 @@ public class RemoteConfigServiceImpl implements ConfigurationChangesTypedListene
       final PollingRateHinter pollingRateHinter) {
     final Iterator<Consumer<byte[]>> snapshot;
     synchronized (this.subscribers) {
+      // RC applies a replacement before removing the old target.
+      if (content == null && !configKey.equals(this.currentConfigKey)) {
+        return;
+      }
+      this.currentConfigKey = content == null ? null : configKey;
       this.current = content;
       this.unvalidated = content != null && this.subscribers.isEmpty();
       snapshot = this.subscribers.iterator();
