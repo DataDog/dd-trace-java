@@ -24,7 +24,6 @@ import dev.openfeature.sdk.Value;
 import dev.openfeature.sdk.exceptions.FatalError;
 import dev.openfeature.sdk.exceptions.OpenFeatureError;
 import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -126,24 +125,23 @@ public class Provider extends EventProvider implements Metadata {
 
     // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
     // allocates nothing, including when the gate is off.
-    final List<Hook> hooks = new ArrayList<>(5);
+    // The hooks all act at the finally stage, so they run behind one composite hook: the SDK sets
+    // up
+    // a hook context for each registered hook on every evaluation.
+    final CompositeProviderHook.Builder hooks = new CompositeProviderHook.Builder();
     if (flagEvalMetricsHook != null) {
-      hooks.add(flagEvalMetricsHook);
+      hooks.addTelemetry(flagEvalMetricsHook);
     }
     // EVP flagevaluation hook: registered when evaluation telemetry is enabled; no-op when the
     // pipeline is absent (killswitch off or provider not initialized). The pipeline is resolved
     // lazily on each call.
     if (this.evaluationTelemetryEnabled) {
-      hooks.add(new FlagEvalLoggingHook<>(this::flagEvaluationPipeline));
+      hooks.addTelemetry(new FlagEvalLoggingHook<>(this::flagEvaluationPipeline));
     }
     if (spanEnrichmentHook != null) {
-      hooks.add(spanEnrichmentHook);
+      hooks.addTelemetry(spanEnrichmentHook);
     }
-    if (options.isEvaluationTelemetryOptOutParameterEnabled(this.settings)) {
-      for (int i = 0; i < hooks.size(); i++) {
-        hooks.set(i, new EvaluationTelemetryOptOutHook(hooks.get(i)));
-      }
-    }
+    hooks.optOutEnabled(options.isEvaluationTelemetryOptOutParameterEnabled(this.settings));
     // Local debug diagnostics are not telemetry, so the opt-out does not apply to them.
     if (this.settings.isTraceDebug()) {
       if (DebugLoggingHook.isLoggerEnabled()) {
@@ -166,8 +164,7 @@ public class Provider extends EventProvider implements Metadata {
     if (this.exposuresEnabled) {
       hooks.add(new ExposureLoggingHook<>(this::datadogEvaluator));
     }
-    this.providerHooks =
-        hooks.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(hooks);
+    this.providerHooks = hooks.build();
 
     // Announce the span-enrichment state at startup (matches the reference implementation).
     // "enabled" only when the gate is on (the capture hook was constructed), otherwise "disabled".
@@ -368,6 +365,13 @@ public class Provider extends EventProvider implements Metadata {
   @Override
   public List<Hook> getProviderHooks() {
     return providerHooks;
+  }
+
+  /** The hooks behind the composite provider hook, in the order they run. For tests. */
+  List<Hook<Object>> registeredHooks() {
+    return this.providerHooks.isEmpty()
+        ? Collections.<Hook<Object>>emptyList()
+        : ((CompositeProviderHook) this.providerHooks.get(0)).hooks();
   }
 
   @Override

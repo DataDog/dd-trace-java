@@ -259,7 +259,7 @@ class EvaluationTelemetryAndExposuresTest {
   private static void assertHookCount(
       final Provider provider, final Class<?> hookClass, final int expected) {
     long count = 0;
-    for (final Hook<?> hook : provider.getProviderHooks()) {
+    for (final Hook<?> hook : provider.registeredHooks()) {
       if (hookClass.isInstance(hook)) {
         count++;
       }
@@ -268,7 +268,7 @@ class EvaluationTelemetryAndExposuresTest {
   }
 
   private static void assertNoTelemetryOrExposureHooks(final Provider provider) {
-    for (final Hook<?> hook : provider.getProviderHooks()) {
+    for (final Hook<?> hook : provider.registeredHooks()) {
       assertFalse(
           hook instanceof FlagEvalMetricsHook
               || hook instanceof FlagEvalLoggingHook
