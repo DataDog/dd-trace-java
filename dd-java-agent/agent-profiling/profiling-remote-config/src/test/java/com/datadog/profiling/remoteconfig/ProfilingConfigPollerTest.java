@@ -340,13 +340,23 @@ class ProfilingConfigPollerTest {
     assertTrue(stack.merged().disablesEverything());
   }
 
+  /**
+   * Remote config only delivers the configs whose targets the agent matched to this application, so
+   * the listener accepts them without matching the targets itself, which only rank them.
+   */
   @Test
-  void configMatchingThisServiceAfterNormalizationIsAccepted() throws Exception {
+  void configDeliveredByRemoteConfigIsAcceptedWithoutMatchingItsTargets() throws Exception {
     ProductListener listener = startAndCaptureListener();
 
     listener.accept(
         configKey("a"),
-        json("{\"profilers\":{\"cpuTime\":true},\"targets\":[{\"service\":\"MY-APP\"}]}"),
+        json(
+            "{\"profilers\":{\"cpuTime\":true},"
+                + "\"targets\":[{\"service\":\"not-"
+                + SERVICE
+                + "\",\"env\":\"not-"
+                + ENV
+                + "\"}]}"),
         hinter);
     listener.commit(hinter);
 
