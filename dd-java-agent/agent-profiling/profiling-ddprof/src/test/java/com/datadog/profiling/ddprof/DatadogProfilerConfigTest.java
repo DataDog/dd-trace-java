@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -148,6 +149,19 @@ class DatadogProfilerConfigTest {
     DatadogProfiler.warnIfProfilerOptionsConfigured(logger, "cpu=7m");
 
     verify(logger).warn(SEND_TELEMETRY, DatadogProfiler.PROFILER_OPTIONS_WARNING);
+  }
+
+  @Test
+  void warningIsOnlyEmittedAgainWhenTheProfilerOptionsChange() {
+    Logger logger = mock(Logger.class);
+
+    // the same options, e.g. the local ones that a remote config change applies again
+    DatadogProfiler.warnIfProfilerOptionsChanged(logger, "cpu=7m", "cpu=7m");
+    verifyNoInteractions(logger);
+
+    DatadogProfiler.warnIfProfilerOptionsChanged(logger, "cpu=7m", "cpu=9m");
+    DatadogProfiler.warnIfProfilerOptionsChanged(logger, null, "cpu=7m");
+    verify(logger, times(2)).warn(SEND_TELEMETRY, DatadogProfiler.PROFILER_OPTIONS_WARNING);
   }
 
   private static Stream<Arguments> profilerOptionMergeCases() {

@@ -64,6 +64,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
@@ -516,14 +517,17 @@ public final class DatadogProfiler {
           requestedAttributes);
     }
     RecordingSettings newSettings = RecordingSettings.of(configProvider, modeOverrides);
+    final RecordingSettings previousSettings;
     synchronized (settingsLock) {
       if (recordingFlag.get()) {
         throw new IllegalStateException(
             "Datadog profiler can't be reconfigured while a recording is running");
       }
+      previousSettings = settings;
       settings = newSettings;
     }
-    warnIfProfilerOptionsConfigured(log, newSettings.profilerOptions);
+    warnIfProfilerOptionsChanged(
+        log, previousSettings.profilerOptions, newSettings.profilerOptions);
     log.debug("Datadog profiler reconfigured, modes: {}", newSettings.profilingModes);
   }
 
@@ -779,6 +783,17 @@ public final class DatadogProfiler {
   private static String normalizeProfilerOption(String name, String option) {
     int equals = option.indexOf('=');
     return equals < 0 ? name : name + '=' + option.substring(equals + 1).trim();
+  }
+
+  /**
+   * Warns about the profiler options of a new configuration unless they are the ones already warned
+   * about, e.g. the local ones that each remote config change applies again.
+   */
+  static void warnIfProfilerOptionsChanged(
+      Logger logger, String previousOptions, String configuredOptions) {
+    if (!Objects.equals(previousOptions, configuredOptions)) {
+      warnIfProfilerOptionsConfigured(logger, configuredOptions);
+    }
   }
 
   static void warnIfProfilerOptionsConfigured(Logger logger, String configuredOptions) {
