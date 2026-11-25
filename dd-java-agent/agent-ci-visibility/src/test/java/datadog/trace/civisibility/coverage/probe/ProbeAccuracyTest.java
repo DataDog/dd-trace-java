@@ -2,10 +2,13 @@ package datadog.trace.civisibility.coverage.probe;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.civisibility.coverage.InstrumentedClass;
 import datadog.trace.api.civisibility.coverage.ProbeRecorder;
 import datadog.trace.civisibility.coverage.probe.fixtures.CoverageFixture;
+import datadog.trace.civisibility.coverage.probe.fixtures.KotlinCoverageFixture;
+import datadog.trace.civisibility.coverage.probe.fixtures.OkioWorkload;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,36 +22,66 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Runs each fixture scenario twice, once under the line probes and once under {@link
- * ReferenceLines}, and expects the same lines and the same outcome.
+ * Runs each scenario twice, once under the line probes and once under {@link ReferenceLines}, and
+ * expects the same lines and the same outcome.
  */
 class ProbeAccuracyTest {
 
   private static final String FIXTURES = CoverageFixture.class.getPackage().getName() + ".";
 
-  static IntStream scenarios() {
+  static IntStream fixtureScenarios() {
     return IntStream.range(0, CoverageFixture.SCENARIOS);
   }
 
+  static IntStream kotlinScenarios() {
+    return IntStream.range(0, KotlinCoverageFixture.SCENARIOS);
+  }
+
+  static IntStream okioScenarios() {
+    return IntStream.range(0, OkioWorkload.SCENARIOS);
+  }
+
   @ParameterizedTest
-  @MethodSource("scenarios")
-  void probesReportTheReferenceLines(int scenario) throws Exception {
+  @MethodSource("fixtureScenarios")
+  void probesReportTheReferenceLinesOfJavaCode(int scenario) throws Exception {
+    assertSameLines(CoverageFixture.class, scenario, FIXTURES);
+  }
+
+  @ParameterizedTest
+  @MethodSource("kotlinScenarios")
+  void probesReportTheReferenceLinesOfKotlinCode(int scenario) throws Exception {
+    assertSameLines(KotlinCoverageFixture.class, scenario, FIXTURES);
+  }
+
+  /** Library code that was compiled by its own build rather than by this one. */
+  @ParameterizedTest
+  @MethodSource("okioScenarios")
+  void probesReportTheReferenceLinesOfLibraryCode(int scenario) throws Exception {
+    Map<String, BitSet> lines = assertSameLines(OkioWorkload.class, scenario, FIXTURES, "okio.");
+    assertTrue(
+        lines.keySet().stream().anyMatch(path -> path.startsWith("okio/")),
+        "no okio line was covered: " + lines.keySet());
+  }
+
+  private static Map<String, BitSet> assertSameLines(
+      Class<?> workload, int scenario, String... instrumented) throws Exception {
     ReferenceLines.drain();
-    FixtureLoader referenceLoader = new FixtureLoader(ReferenceLines::instrument);
-    String referenceOutcome = run(referenceLoader, scenario);
+    FixtureLoader referenceLoader = new FixtureLoader(ReferenceLines::instrument, instrumented);
+    String referenceOutcome = run(referenceLoader, workload, scenario);
     Map<String, BitSet> referenceLines = ReferenceLines.drain();
 
-    FixtureLoader probeLoader = new FixtureLoader(null);
-    String probeOutcome = run(probeLoader, scenario);
+    FixtureLoader probeLoader = new FixtureLoader(null, instrumented);
+    String probeOutcome = run(probeLoader, workload, scenario);
     Map<String, BitSet> probeLines = probeLines(probeLoader);
 
     assertFalse(referenceLines.isEmpty(), "the reference recorded no lines");
     assertEquals(referenceOutcome, probeOutcome);
     assertEquals(referenceLines, probeLines);
+    return referenceLines;
   }
 
-  private static String run(ClassLoader loader, int scenario) throws Exception {
-    Class<?> fixture = Class.forName(CoverageFixture.class.getName(), true, loader);
+  private static String run(ClassLoader loader, Class<?> workload, int scenario) throws Exception {
+    Class<?> fixture = Class.forName(workload.getName(), true, loader);
     try {
       return String.valueOf(fixture.getMethod("run", int.class).invoke(null, scenario));
     } catch (InvocationTargetException e) {
@@ -68,24 +101,37 @@ class ProbeAccuracyTest {
       instrumentedClass.addUnownedLines(classLines);
       instrumentedClass.addInitLines(ProbeRecorder.PROBES[classId], classLines);
       if (!classLines.isEmpty()) {
-        lines.computeIfAbsent(instrumentedClass.sourceFile(), file -> new BitSet()).or(classLines);
+        String path =
+            ReferenceLines.sourcePath(instrumentedClass.name(), instrumentedClass.sourceFile());
+        lines.computeIfAbsent(path, file -> new BitSet()).or(classLines);
       }
     }
     return lines;
   }
 
-  /** Defines the fixture classes, instrumented by probes or by the given instrumenter. */
+  /** Defines classes of the given packages, instrumented by probes or by the given instrumenter. */
   private static final class FixtureLoader extends ClassLoader {
     private final Function<byte[], byte[]> instrumenter;
+    private final String[] packages;
 
-    FixtureLoader(Function<byte[], byte[]> instrumenter) {
+    FixtureLoader(Function<byte[], byte[]> instrumenter, String... packages) {
       super(ProbeAccuracyTest.class.getClassLoader());
       this.instrumenter = instrumenter;
+      this.packages = packages;
+    }
+
+    private boolean isInstrumented(String name) {
+      for (String prefix : packages) {
+        if (name.startsWith(prefix)) {
+          return true;
+        }
+      }
+      return false;
     }
 
     @Override
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-      if (!name.startsWith(FIXTURES)) {
+      if (!isInstrumented(name)) {
         return super.loadClass(name, resolve);
       }
       synchronized (getClassLoadingLock(name)) {
