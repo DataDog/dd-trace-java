@@ -114,9 +114,9 @@ class OpenAiCallbackExclusionTest extends AbstractInstrumentationTest {
       complete(source, response, failure ? cause : null);
       application.finish();
       span.finish();
-      writer.waitForTraces(2);
-      assertEquals(3, writer.stream().mapToInt(List::size).sum());
     }
+    writer.waitForTraces(2);
+    assertEquals(3, writer.stream().mapToInt(List::size).sum());
   }
 
   private static int captures() {
