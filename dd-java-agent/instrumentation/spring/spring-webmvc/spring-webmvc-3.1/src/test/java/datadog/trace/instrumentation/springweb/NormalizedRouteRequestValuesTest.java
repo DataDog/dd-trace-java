@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -20,7 +19,8 @@ import org.springframework.web.servlet.HandlerMapping;
 
 /**
  * Request values the decorator reads for {@code _dd.appsec.normalized_route}, on the Servlet 3 /
- * Spring 4 test classpath (no {@code HttpServletMapping}, no {@code RequestPath}).
+ * Spring 4 test classpath (no {@code HttpServletMapping}, no {@code RequestPath}). A real {@code
+ * RequestPath} is covered by {@code NormalizedRouteParsedRequestPathTest} (latestDepTest).
  */
 class NormalizedRouteRequestValuesTest {
 
@@ -76,33 +76,6 @@ class NormalizedRouteRequestValuesTest {
         HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, Collections.singletonMap("rest", ""));
 
     assertTag(request, "/api/{*rest}", "/ctx/api");
-  }
-
-  @Test
-  void withoutParsedRequestPathTheServletMappingIsNotRead() {
-    // before Spring 5.3 the lookup path of the exact mount URL is the servlet path: '/api' matched
-    MockHttpServletRequest request = spy(request("/ctx/main", "/ctx", "/main", null));
-    request.setAttribute("javax.servlet.include.request_uri", "/ctx/api");
-    request.setAttribute("javax.servlet.include.context_path", "/ctx");
-    request.setAttribute("javax.servlet.include.servlet_path", "/api");
-    request.setAttribute("javax.servlet.include.mapping", "path mapping");
-
-    assertTag(request, "/api", "/ctx/api");
-    verify(request, never()).getAttribute("javax.servlet.include.mapping");
-  }
-
-  @Test
-  void withParsedRequestPathTheServletMappingIsRead() {
-    MockHttpServletRequest request = spy(request("/ctx/main", "/ctx", "/main", null));
-    request.setAttribute("javax.servlet.include.request_uri", "/ctx/api");
-    request.setAttribute("javax.servlet.include.context_path", "/ctx");
-    request.setAttribute("javax.servlet.include.servlet_path", "/api");
-    request.setAttribute("javax.servlet.include.mapping", "path mapping");
-    request.setAttribute("org.springframework.web.util.ServletRequestPathUtils.PATH", "parsed");
-
-    // Servlet 3: no HttpServletMapping to tell a path mapping
-    assertTag(request, "/api", "/ctx/api");
-    verify(request).getAttribute("javax.servlet.include.mapping");
   }
 
   @Test

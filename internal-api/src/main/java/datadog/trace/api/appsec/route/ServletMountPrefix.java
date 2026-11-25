@@ -92,6 +92,23 @@ public final class ServletMountPrefix {
         : decodedContextPath;
   }
 
+  /**
+   * Prefix the framework itself excluded from the path it matched: its parsed raw request path
+   * (Spring 5.3+ {@code RequestPath.value()}) minus the raw path within the application it matched
+   * ({@code pathWithinApplication()}), without {@code ;} parameters and decoded. That is the
+   * context path, plus the servlet mount only when Spring applied one (Servlet 4+ path mapping).
+   * Null when the path within the application does not end the request path.
+   */
+  public static String parsed(String rawRequestPath, String rawPathWithinApplication) {
+    if (rawRequestPath == null
+        || rawPathWithinApplication == null
+        || !rawRequestPath.endsWith(rawPathWithinApplication)) {
+      return null;
+    }
+    return decodedContextPath(
+        rawRequestPath.substring(0, rawRequestPath.length() - rawPathWithinApplication.length()));
+  }
+
   /** Context path as emitted: without {@code ;} parameters, decoded. */
   private static String decodedContextPath(String rawContextPath) {
     return RouteEncoding.decodePath(removeSemicolonContent(rawContextPath));

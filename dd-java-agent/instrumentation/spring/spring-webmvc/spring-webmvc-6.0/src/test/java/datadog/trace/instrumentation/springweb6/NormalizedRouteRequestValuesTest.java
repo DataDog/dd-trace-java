@@ -15,6 +15,7 @@ import java.util.Collections;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.server.RequestPath;
 import org.springframework.mock.web.MockHttpServletMapping;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.servlet.HandlerMapping;
@@ -82,6 +83,16 @@ class NormalizedRouteRequestValuesTest {
         HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, Collections.singletonMap("rest", ""));
 
     assertTag(request, "/{*rest}", "/ctx/api");
+  }
+
+  @Test
+  void prefixIsWhatTheParsedRequestPathExcludes() {
+    // no servlet mount applied by Spring: the matched pattern includes the servlet path
+    MockHttpServletRequest request = request("/ctx/api/users/42", "/ctx", "/api", "/users/42");
+    request.setAttribute(
+        ServletRequestPathUtils.PATH_ATTRIBUTE, RequestPath.parse("/ctx/api/users/42", "/ctx"));
+
+    assertTag(request, "/api/users/{id}", "/ctx/api/users/{id}");
   }
 
   @Test

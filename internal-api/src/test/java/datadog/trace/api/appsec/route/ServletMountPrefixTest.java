@@ -176,6 +176,21 @@ class ServletMountPrefixTest {
     assertEquals(expected, ServletMountPrefix.fallback(context, servletPath, pathMapping));
   }
 
+  @TableTest({
+    "Scenario           | Path                       | Within          | Expected   ",
+    "context and mount  | '/ctx/api/users/42'        | '/users/42'     | '/ctx/api' ",
+    "context only       | '/ctx/api/users/42'        | '/api/users/42' | '/ctx'     ",
+    "parameters dropped | '/ctx;jsessionid=AB/api/a' | '/api/a'        | '/ctx'     ",
+    "escapes decoded    | '/caf%C3%A9/a%20b/x'       | '/x'            | '/café/a b'",
+    "no prefix          | '/x'                       | '/x'            | ''         ",
+    "not a suffix       | '/ctx/a'                   | '/b'            |            ",
+    "null path          |                            | '/b'            |            ",
+    "null within        | '/ctx/a'                   |                 |            "
+  })
+  void parsedPrefixIsWhatTheParsedPathExcludes(String path, String within, String expected) {
+    assertEquals(expected, ServletMountPrefix.parsed(path, within));
+  }
+
   @Test
   void inferredIsNullWithoutCachedLookupPath() {
     assertNull(ServletMountPrefix.inferred("/ctx/a", "/ctx", "/a", null, null));

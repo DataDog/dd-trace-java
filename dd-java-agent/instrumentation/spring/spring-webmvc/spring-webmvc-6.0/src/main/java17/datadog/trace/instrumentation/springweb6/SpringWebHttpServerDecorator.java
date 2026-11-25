@@ -20,10 +20,8 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.Servlet;
-import jakarta.servlet.http.HttpServletMapping;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.MappingMatch;
 import java.lang.reflect.Method;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -197,17 +195,15 @@ public class SpringWebHttpServerDecorator
               servletPath,
               cachedLookupPath,
               request.getCharacterEncoding());
-      boolean pathMapping = false;
+      final RequestPath requestPath = cachedLookupPath == null ? parsedRequestPath(request) : null;
+      final String parsedLookupPath =
+          requestPath == null ? null : requestPath.pathWithinApplication().value();
+      if (prefix == null && parsedLookupPath != null) {
+        // what Spring excluded from the path it matched: context path and servlet mount
+        prefix = ServletMountPrefix.parsed(requestPath.value(), parsedLookupPath);
+      }
       if (prefix == null) {
-        // a lookup path from UrlPathHelper (cached, or legacy before Spring 5.3) is the path within
-        // the application on the exact mount URL of a path mapping: only a parsed request path
-        // starts after the servlet path then
-        pathMapping =
-            pathInfo != null
-                || (cachedLookupPath == null
-                    && request.getAttribute(ServletRequestPathUtils.PATH_ATTRIBUTE) != null
-                    && isPathMapping(request, include));
-        prefix = ServletMountPrefix.fallback(contextPath, servletPath, pathMapping);
+        prefix = ServletMountPrefix.fallback(contextPath, servletPath, pathInfo != null);
       }
       if (template.staticRoute() != null) {
         // nothing depends on the request: no presence to resolve
@@ -216,12 +212,13 @@ public class SpringWebHttpServerDecorator
       }
       String lookupPath = cachedLookupPath;
       boolean rawLookupPath = false;
-      if (lookupPath == null) {
-        lookupPath = parsedLookupPath(request);
-        rawLookupPath = lookupPath != null;
+      if (lookupPath == null && parsedLookupPath != null) {
+        lookupPath = parsedLookupPath;
+        rawLookupPath = true;
       }
       if (lookupPath == null) {
-        lookupPath = fallbackLookupPath(servletPath, pathInfo, pathMapping);
+        // the path the pattern matched when Spring did not cache nor parse it
+        lookupPath = pathInfo != null ? pathInfo : servletPath;
       }
       // extracted from the untouched lookup path: the segment positions are the matched ones
       final String extracted = unnamedCatchAllRemainder(template, pattern, lookupPath);
@@ -256,40 +253,10 @@ public class SpringWebHttpServerDecorator
     return lookupPath instanceof String ? (String) lookupPath : null;
   }
 
-  /**
-   * Path within the application parsed by Spring for PathPatternParser mode (raw, after the context
-   * path and the servlet mount), or null when not parsed.
-   */
-  private static String parsedLookupPath(final HttpServletRequest request) {
+  /** Request path parsed by Spring for PathPatternParser mode, or null when not parsed. */
+  private static RequestPath parsedRequestPath(final HttpServletRequest request) {
     final Object requestPath = request.getAttribute(ServletRequestPathUtils.PATH_ATTRIBUTE);
-    return requestPath instanceof RequestPath
-        ? ((RequestPath) requestPath).pathWithinApplication().value()
-        : null;
-  }
-
-  /** Whether the DispatcherServlet has a path mapping ({@code /api/*}); false when unknown. */
-  private static boolean isPathMapping(final HttpServletRequest request, final boolean include) {
-    try {
-      final Object included =
-          include ? request.getAttribute(RequestDispatcher.INCLUDE_MAPPING) : null;
-      final HttpServletMapping mapping =
-          included instanceof HttpServletMapping
-              ? (HttpServletMapping) included
-              : request.getHttpServletMapping();
-      return mapping != null && mapping.getMappingMatch() == MappingMatch.PATH;
-    } catch (final Throwable t) {
-      return false;
-    }
-  }
-
-  /** Path the pattern matched when Spring did not cache nor parse it (servlet-mapping relative). */
-  private static String fallbackLookupPath(
-      final String servletPath, final String pathInfo, final boolean pathMapping) {
-    if (pathInfo != null) {
-      return pathInfo;
-    }
-    // exact mount URL of a path mapping: nothing after the servlet path
-    return pathMapping ? "" : servletPath;
+    return requestPath instanceof RequestPath ? (RequestPath) requestPath : null;
   }
 
   /** Part matched by a trailing {@code **}, computed by Spring's own matcher; null if not used. */
