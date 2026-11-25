@@ -73,15 +73,24 @@ final class SourceFiles {
       return true;
     }
     MappedFiles mappedFiles = mappedFiles(instrumentedClass, sourceMap);
+    // the lines of each mapped file, looked up once per file rather than once per line
+    BitSet[] fileLines = new BitSet[mappedFiles.sourcePaths.length];
     for (int line = classLines.nextSetBit(0); line >= 0; line = classLines.nextSetBit(line + 1)) {
       long sourceLine = sourceMap.map(line);
       if (sourceLine < 0) {
         continue;
       }
-      String sourcePath = mappedFiles.sourcePaths[(int) (sourceLine >>> 32)];
-      if (sourcePath != NOT_IN_REPOSITORY) {
-        linesBySourcePath.computeIfAbsent(sourcePath, path -> new BitSet()).set((int) sourceLine);
+      int file = (int) (sourceLine >>> 32);
+      BitSet lines = fileLines[file];
+      if (lines == null) {
+        String sourcePath = mappedFiles.sourcePaths[file];
+        if (sourcePath == NOT_IN_REPOSITORY) {
+          continue;
+        }
+        lines = linesBySourcePath.computeIfAbsent(sourcePath, path -> new BitSet());
+        fileLines[file] = lines;
       }
+      lines.set((int) sourceLine);
     }
     return mappedFiles.ownFileInRepository;
   }
