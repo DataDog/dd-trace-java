@@ -90,31 +90,17 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
           eventBridgeMessage = EventBridgeMessage.tryParseFrom(message);
         }
         AgentSpanContext spanContext = batchContext;
-        if (spanContext == null) {
-          // first grab any incoming distributed context
+        boolean firstInBatch = spanContext == null;
+        if (firstInBatch || (eventBridgeMessage != null && sqsPropagationEnabled)) {
           spanContext =
               sqsPropagationEnabled ? extractMessageContext(message, eventBridgeMessage) : null;
-          // next add a time-in-queue span for non-legacy SQS traces
-          if (TIME_IN_QUEUE_ENABLED) {
-            long timeInQueueStart = GETTER.extractTimeInQueueStart(message);
-            if (timeInQueueStart > 0) {
-              queueSpan =
-                  startSpan(
-                      COMPONENT_NAME.toString(),
-                      SQS_TIME_IN_QUEUE_OPERATION,
-                      spanContext,
-                      MILLISECONDS.toMicros(timeInQueueStart));
-              BROKER_DECORATE.afterStart(queueSpan);
-              BROKER_DECORATE.onTimeInQueue(queueSpan, queueUrl, queueName, requestId);
-              spanContext = queueSpan.spanContext();
-              // The queueSpan will be finished after inner span has been activated to ensure that
-              // spans are written out together by TraceStructureWriter when running in strict mode
-            }
+          queueSpan = startTimeInQueueSpan(message, spanContext);
+          if (queueSpan != null) {
+            spanContext = queueSpan.spanContext();
           }
-          // re-use this context for any other messages received in this batch
-          batchContext = spanContext;
-        } else if (eventBridgeMessage != null && sqsPropagationEnabled) {
-          spanContext = extractMessageContext(message, eventBridgeMessage);
+          if (firstInBatch) {
+            batchContext = spanContext;
+          }
         }
         AgentSpan span = startSpan(COMPONENT_NAME.toString(), SQS_INBOUND_OPERATION, spanContext);
 
@@ -151,6 +137,27 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
   @Override
   public void remove() {
     delegate.remove();
+  }
+
+  private AgentSpan startTimeInQueueSpan(Message message, AgentSpanContext parent) {
+    if (!TIME_IN_QUEUE_ENABLED) {
+      return null;
+    }
+    long timeInQueueStart = GETTER.extractTimeInQueueStart(message);
+    if (timeInQueueStart <= 0) {
+      return null;
+    }
+    // Finished after the consumer span is activated so TraceStructureWriter writes them together
+    // in strict mode.
+    AgentSpan queueSpan =
+        startSpan(
+            COMPONENT_NAME.toString(),
+            SQS_TIME_IN_QUEUE_OPERATION,
+            parent,
+            MILLISECONDS.toMicros(timeInQueueStart));
+    BROKER_DECORATE.afterStart(queueSpan);
+    BROKER_DECORATE.onTimeInQueue(queueSpan, queueUrl, queueName, requestId);
+    return queueSpan;
   }
 
   private static AgentSpanContext extractMessageContext(
