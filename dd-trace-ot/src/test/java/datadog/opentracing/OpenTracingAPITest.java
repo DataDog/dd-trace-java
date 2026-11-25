@@ -1,6 +1,7 @@
 package datadog.opentracing;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -13,6 +14,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import datadog.context.Context;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
@@ -22,6 +24,7 @@ import datadog.trace.common.writer.ListWriter;
 import datadog.trace.context.TraceScope;
 import datadog.trace.core.DDSpan;
 import datadog.trace.test.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.context.LegacyContextTestingExtension;
 import datadog.trace.test.util.DDJavaSpecification;
 import io.opentracing.Scope;
 import io.opentracing.Span;
@@ -35,9 +38,12 @@ import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+@ExtendWith(LegacyContextTestingExtension.class)
 class OpenTracingAPITest extends DDJavaSpecification {
 
+  AgentTracer.TracerAPI previousTracer;
   ListWriter writer = new ListWriter();
   DDTracer tracer = DDTracer.builder().writer(writer).build();
   TraceInterceptor traceInterceptor = mock(TraceInterceptor.class);
@@ -45,6 +51,8 @@ class OpenTracingAPITest extends DDJavaSpecification {
 
   @BeforeEach
   void setup() {
+    previousTracer = AgentTracer.get();
+    AgentTracer.forceRegister(tracer.getInternalTracer());
     assertNull(tracer.scopeManager().active());
     tracer.addTraceInterceptor(traceInterceptor);
     tracer.getInternalTracer().addScopeListener(scopeListener);
@@ -56,7 +64,11 @@ class OpenTracingAPITest extends DDJavaSpecification {
 
   @AfterEach
   void tearDown() throws Exception {
-    tracer.close();
+    try {
+      tracer.close();
+    } finally {
+      AgentTracer.forceRegister(previousTracer);
+    }
   }
 
   @Test
@@ -219,23 +231,21 @@ class OpenTracingAPITest extends DDJavaSpecification {
   }
 
   @Test
-  void spanWithAsyncPropagation() throws Exception {
-    AgentTracer.TracerAPI internalTracer = tracer.getInternalTracer();
-
+  void scopeCaptureCanBeReenabled() throws Exception {
     Scope scope =
         tracer
             .buildSpan("someOperation")
             .withTag(DDTags.SERVICE_NAME, "someService")
             .startActive(true);
-    internalTracer.setAsyncPropagationEnabled(false);
+    Context.setCaptureEnabled(false);
 
     assertTrue(scope instanceof TraceScope);
-    assertTrue(!internalTracer.isAsyncPropagationEnabled());
+    assertFalse(Context.isCaptureEnabled());
 
-    internalTracer.setAsyncPropagationEnabled(true);
+    Context.setCaptureEnabled(true);
     TraceScope.Continuation continuation = ((TraceScope) scope).capture();
 
-    assertTrue(internalTracer.isAsyncPropagationEnabled());
+    assertTrue(Context.isCaptureEnabled());
     assertNotNull(continuation);
 
     continuation.cancel();
@@ -254,26 +264,24 @@ class OpenTracingAPITest extends DDJavaSpecification {
   }
 
   @Test
-  void spanInheritsAsyncPropagation() throws Exception {
-    AgentTracer.TracerAPI internalTracer = tracer.getInternalTracer();
-
+  void nestedScopeKeepsCaptureEnabled() throws Exception {
     Scope outer =
         tracer
             .buildSpan("someOperation")
             .withTag(DDTags.SERVICE_NAME, "someService")
             .startActive(true);
-    internalTracer.setAsyncPropagationEnabled(false);
+    Context.setCaptureEnabled(false);
 
-    assertTrue(!internalTracer.isAsyncPropagationEnabled());
+    assertFalse(Context.isCaptureEnabled());
 
-    internalTracer.setAsyncPropagationEnabled(true);
+    Context.setCaptureEnabled(true);
     Scope inner =
         tracer
             .buildSpan("otherOperation")
             .withTag(DDTags.SERVICE_NAME, "otherService")
             .startActive(true);
 
-    assertTrue(internalTracer.isAsyncPropagationEnabled());
+    assertTrue(Context.isCaptureEnabled());
 
     inner.close();
     outer.close();

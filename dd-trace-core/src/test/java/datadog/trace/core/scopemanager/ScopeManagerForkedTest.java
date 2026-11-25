@@ -15,9 +15,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -114,9 +116,43 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void noActiveScopeDefaultsToAsyncPropagation() {
+  void contextCaptureBypassesLegacyAsyncPropagationMethods() {
+    CoreTracer registeredTracer = spy(tracer);
+    AgentTracer.forceRegister(registeredTracer);
+    Context context = Context.root().with(ContextKey.named("test-key"), "value");
+    try (ContextScope ignored = context.attach()) {
+      Context.setCaptureEnabled(false);
+      assertFalse(Context.isCaptureEnabled());
+      assertFalse(scopeManager.isCaptureEnabled());
+      Context.setCaptureEnabled(true);
+      assertTrue(Context.isCaptureEnabled());
+      assertTrue(scopeManager.isCaptureEnabled());
+    } finally {
+      AgentTracer.forceRegister(tracer);
+    }
+    verify(registeredTracer, never()).isAsyncPropagationEnabled();
+    verify(registeredTracer, never()).setAsyncPropagationEnabled(anyBoolean());
+  }
+
+  @Test
+  @SuppressWarnings("deprecation")
+  void legacyAsyncPropagationAndContextCaptureShareScopeState() {
+    Context context = Context.root().with(ContextKey.named("test-key"), "value");
+    try (ContextScope ignored = context.attach()) {
+      tracer.setAsyncPropagationEnabled(false);
+      assertFalse(Context.isCaptureEnabled());
+      Context.setCaptureEnabled(true);
+      assertTrue(tracer.isAsyncPropagationEnabled());
+      tracer.setAsyncPropagationEnabled(false);
+      assertFalse(scopeManager.isCaptureEnabled());
+    }
+    assertTrue(Context.isCaptureEnabled());
+  }
+
+  @Test
+  void captureEnabledByDefaultWithoutAnActiveScope() {
     assertNull(scopeManager.active());
-    assertTrue(tracer.isAsyncPropagationEnabled());
+    assertTrue(Context.isCaptureEnabled());
 
     Context context = Context.root().with(ContextKey.named("test-key"), "value");
     ContextContinuation continuation = tracer.capture(context);
@@ -134,7 +170,7 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     "restore suppressed    | false  | true  ",
     "suppressed throughout | false  | false "
   })
-  void attachingNewContextResetsAsyncPropagation(boolean before, boolean during) {
+  void attachingNewContextResetsCaptureFlag(boolean before, boolean during) {
     ContextKey<String> key = ContextKey.named("test-key");
     Context parent = Context.root().with(key, "parent");
     Context child = parent.with(key, "child");
@@ -142,7 +178,7 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
       Context.setCaptureEnabled(before);
       try (ContextScope ignored2 = child.attach()) {
         assertSame(child, Context.current());
-        assertTrue(tracer.isAsyncPropagationEnabled());
+        assertTrue(scopeManager.isCaptureEnabled());
         assertTrue(Context.isCaptureEnabled());
         ContextContinuation continuation = Context.current().capture();
         assertSame(child, continuation.context());
@@ -150,12 +186,12 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
         Context.setCaptureEnabled(during);
       }
       assertSame(parent, Context.current());
-      assertEquals(before, tracer.isAsyncPropagationEnabled());
+      assertEquals(before, scopeManager.isCaptureEnabled());
       assertEquals(before, Context.isCaptureEnabled());
     }
     assertSame(Context.root(), Context.current());
     assertTrue(Context.isCaptureEnabled());
-    assertTrue(tracer.isAsyncPropagationEnabled());
+    assertTrue(scopeManager.isCaptureEnabled());
   }
 
   @TableTest({
@@ -165,23 +201,23 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     "retain enabled        | false  | true  ",
     "suppressed throughout | false  | false "
   })
-  void attachingTheCurrentContextPreservesAsyncPropagation(boolean before, boolean during) {
+  void attachingTheCurrentContextPreservesCaptureFlag(boolean before, boolean during) {
     Context context = Context.root().with(ContextKey.named("test-key"), "value");
     try (ContextScope ignored = context.attach()) {
       Context.setCaptureEnabled(before);
       try (ContextScope ignored2 = context.attach()) {
         assertSame(ignored, ignored2);
-        assertEquals(before, tracer.isAsyncPropagationEnabled());
+        assertEquals(before, scopeManager.isCaptureEnabled());
         assertEquals(before, Context.isCaptureEnabled());
         Context.setCaptureEnabled(during);
       }
       assertSame(context, Context.current());
-      assertEquals(during, tracer.isAsyncPropagationEnabled());
+      assertEquals(during, scopeManager.isCaptureEnabled());
       assertEquals(during, Context.isCaptureEnabled());
     }
     assertSame(Context.root(), Context.current());
     assertTrue(Context.isCaptureEnabled());
-    assertTrue(tracer.isAsyncPropagationEnabled());
+    assertTrue(scopeManager.isCaptureEnabled());
   }
 
   @Test
@@ -291,15 +327,15 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void ddScopeCreatesNoOpContinuationsWhenPropagationIsNotSet() {
+  void captureReturnsNoopContinuationWhenDisabled() {
     AgentSpan span = tracer.buildSpan("test", "test").start();
     tracer.activateSpan(span);
-    tracer.setAsyncPropagationEnabled(false);
+    Context.setCaptureEnabled(false);
     ContextContinuation continuation = Context.current().capture();
 
     assertSame(Context.root(), continuation.context());
 
-    tracer.setAsyncPropagationEnabled(true);
+    Context.setCaptureEnabled(true);
     continuation = Context.current().capture();
 
     assertNotSame(Context.root(), continuation.context());
@@ -398,7 +434,7 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
 
     // the continued scope becomes active and span state doesn't change
     assertInstanceOf(ContinuableScope.class, newScope);
-    assertTrue(tracer.isAsyncPropagationEnabled());
+    assertTrue(Context.isCaptureEnabled());
     assertSame(newScope, scopeManager.active());
     assertNotSame(childScope, newScope);
     assertNotSame(parentScope, newScope);
