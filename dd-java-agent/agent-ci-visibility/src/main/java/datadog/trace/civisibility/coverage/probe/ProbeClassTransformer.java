@@ -107,7 +107,8 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
       int classId,
       Map<String, Integer> reductions) {
     ClassNode classNode = new ClassNode();
-    reader.accept(classNode, ClassReader.EXPAND_FRAMES);
+    // frames stay compressed; the inserter expands those of the methods it changes
+    reader.accept(classNode, 0);
     if (classNode.sourceFile == null) {
       return null; // lines are reported per source file
     }
