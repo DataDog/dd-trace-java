@@ -99,6 +99,10 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     private final ClassNameTrie.Builder trieBuilder;
     private final Map<String, Integer> trieKeyToSourceRootIdx;
     private final Map<String, List<Integer>> duplicateSourceRootIndices;
+
+    /** Repository paths of files whose names contain a dot before the extension, by trie key. */
+    private final Map<String, Map<Integer, String>> pathsOfDottedFileNames;
+
     private final Map<RepoIndex.SourceRoot, Integer> sourceRoots;
     private final PackageTree packageTree;
     private final RepoIndexingStats indexingStats;
@@ -117,6 +121,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       trieBuilder = new ClassNameTrie.Builder();
       trieKeyToSourceRootIdx = new HashMap<>();
       duplicateSourceRootIndices = new HashMap<>();
+      pathsOfDottedFileNames = new HashMap<>();
       sourceRoots = new HashMap<>();
       packageTree = new PackageTree(config);
       indexingStats = new RepoIndexingStats();
@@ -178,6 +183,11 @@ public class RepoIndexBuilder implements RepoIndexProvider {
           if (!relativePath.isEmpty()) {
             String key = Utils.toTrieKey(relativePath);
             trieBuilder.put(key, sourceRootIdx);
+            if (Utils.stripExtension(fileName).indexOf('.') >= 0) {
+              pathsOfDottedFileNames
+                  .computeIfAbsent(key, k -> new HashMap<>())
+                  .put(sourceRootIdx, repoRoot.relativize(file).toString());
+            }
 
             Integer existingSourceRootIdx = trieKeyToSourceRootIdx.put(key, sourceRootIdx);
             if (existingSourceRootIdx != null) {
@@ -260,17 +270,32 @@ public class RepoIndexBuilder implements RepoIndexProvider {
         String key = entry.getKey();
         List<String> paths = new ArrayList<>(entry.getValue().size());
         for (int idx : entry.getValue()) {
-          RepoIndex.SourceRoot sr = roots[idx];
-          paths.add(sr.resolveSourcePath(key));
+          paths.add(sourcePath(key, idx, roots));
         }
         duplicateTrieKeyPaths.put(key, paths);
+      }
+
+      Map<String, String> indexedPathsOfDottedFileNames = new HashMap<>();
+      for (Map.Entry<String, Map<Integer, String>> entry : pathsOfDottedFileNames.entrySet()) {
+        // like this map, the trie keeps the source root of the last file put under a key
+        String path = entry.getValue().get(trieKeyToSourceRootIdx.get(entry.getKey()));
+        if (path != null) {
+          indexedPathsOfDottedFileNames.put(entry.getKey(), path);
+        }
       }
 
       return new RepoIndex(
           trieBuilder.buildTrie(),
           duplicateTrieKeyPaths,
+          indexedPathsOfDottedFileNames,
           Arrays.asList(roots),
           packageTree.asList());
+    }
+
+    private String sourcePath(String key, int sourceRootIdx, RepoIndex.SourceRoot[] roots) {
+      Map<Integer, String> dottedPaths = pathsOfDottedFileNames.get(key);
+      String path = dottedPaths != null ? dottedPaths.get(sourceRootIdx) : null;
+      return path != null ? path : roots[sourceRootIdx].resolveSourcePath(key);
     }
   }
 
