@@ -34,6 +34,7 @@ import datadog.trace.util.AgentTaskScheduler;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -52,6 +53,12 @@ public final class ProfilingSystem {
   static final String RECORDING_NAME = "dd-profiling";
 
   private static final long TERMINATION_TIMEOUT = 10;
+
+  /**
+   * How long, in milliseconds, a stop waits for the scheduler thread, and then for a recording that
+   * the thread was creating to be stopped.
+   */
+  @VisibleForTesting long terminationTimeoutMillis = TimeUnit.SECONDS.toMillis(TERMINATION_TIMEOUT);
 
   private final ConfigProvider configProvider;
   private final ControllerFactory controllerFactory;
@@ -99,6 +106,13 @@ public final class ProfilingSystem {
    * stop only waits a bounded time for that thread.
    */
   private final Object recordingLock = new Object();
+
+  /**
+   * Counted down once the recording that the scheduler thread creates is published or, if the
+   * system was stopped meanwhile, stopped, so that a stop can wait for the latter without holding
+   * {@link #recordingLock}. Guarded by {@link #recordingLock}.
+   */
+  private CountDownLatch recordingCreation;
 
   /**
    * Constructor.
@@ -230,7 +244,7 @@ public final class ProfilingSystem {
         startProfilingRecording(scheduler);
       } catch (RuntimeException e) {
         this.scheduler = null;
-        scheduler.shutdown(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
+        scheduler.shutdown(terminationTimeoutMillis, TimeUnit.MILLISECONDS);
         throw e;
       }
     } else {
@@ -251,25 +265,38 @@ public final class ProfilingSystem {
    * that thread.
    */
   private void startProfilingRecording(final AgentTaskScheduler scheduler) {
+    final CountDownLatch creation = new CountDownLatch(1);
+    synchronized (recordingLock) {
+      if (scheduler.isShutdown()) {
+        // stopped before the recording was created
+        return;
+      }
+      recordingCreation = creation;
+    }
     try {
       final Instant now = Instant.now();
       final OngoingRecording recording = controller.createRecording(RECORDING_NAME, context);
+      final boolean published;
       synchronized (recordingLock) {
         // stop() marks the scheduler as shut down before it takes the recording, under this lock,
-        // so a recording is either published before stop() takes it, or stopped here
-        if (scheduler.isShutdown()) {
-          // stopped while the recording was being created
-          stopRecording(recording);
-          return;
+        // so a recording is either published before stop() takes it, or stopped below
+        published = !scheduler.isShutdown();
+        if (published) {
+          this.recording = recording;
+          scheduler.scheduleAtFixedRate(
+              SnapshotRecording::snapshot,
+              snapshotRecording = createSnapshotRecording(now),
+              uploadPeriod.toMillis(),
+              uploadPeriod.toMillis(),
+              TimeUnit.MILLISECONDS);
+          started = true;
         }
-        this.recording = recording;
-        scheduler.scheduleAtFixedRate(
-            SnapshotRecording::snapshot,
-            snapshotRecording = createSnapshotRecording(now),
-            uploadPeriod.toMillis(),
-            uploadPeriod.toMillis(),
-            TimeUnit.MILLISECONDS);
-        started = true;
+      }
+      if (!published) {
+        // stopped while the recording was being created. Stopping the profiler(s) can take a
+        // while, so it is done outside the lock that stop() takes; stop() waits for it through
+        // recordingCreation instead, since a restart can only start once it is stopped
+        stopRecording(recording);
       }
     } catch (UnsupportedEnvironmentException unsupported) {
       startFailed = !scheduler.isShutdown();
@@ -312,6 +339,8 @@ public final class ProfilingSystem {
           throw t instanceof RuntimeException ? (RuntimeException) t : new RuntimeException(t);
         }
       }
+    } finally {
+      creation.countDown();
     }
   }
 
@@ -368,15 +397,21 @@ public final class ProfilingSystem {
     stopping = true;
     try {
       this.scheduler = null;
-      scheduler.shutdown(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
+      scheduler.shutdown(terminationTimeoutMillis, TimeUnit.MILLISECONDS);
 
       // the scheduler is shut down, so after this the scheduler thread can't publish a recording,
       // even if it didn't terminate in time
       final SnapshotRecording snapshotRecording;
+      final CountDownLatch creation;
       synchronized (recordingLock) {
         snapshotRecording = this.snapshotRecording;
         this.snapshotRecording = null;
+        creation = recordingCreation;
+        recordingCreation = null;
       }
+      // a recording that the scheduler thread was still creating is stopped by that thread, once
+      // created; wait for it, without holding the lock, so that a restart can start a new one
+      awaitRecordingCreation(creation);
       if (snapshot && snapshotRecording != null && !scheduler.isTerminated()) {
         // the scheduler thread is still taking a periodic snapshot, e.g. a slow upload: taking
         // another one at the same time would upload the same data twice
@@ -402,6 +437,21 @@ public final class ProfilingSystem {
       }
     } finally {
       stopping = false;
+    }
+  }
+
+  private void awaitRecordingCreation(final CountDownLatch creation) {
+    if (creation == null) {
+      return;
+    }
+    try {
+      if (!creation.await(terminationTimeoutMillis, TimeUnit.MILLISECONDS)) {
+        log.debug(
+            "Profiling recording still being created or stopped after {}ms, not waiting for it",
+            terminationTimeoutMillis);
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
     }
   }
 

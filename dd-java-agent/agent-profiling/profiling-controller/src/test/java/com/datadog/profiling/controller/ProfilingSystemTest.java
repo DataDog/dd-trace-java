@@ -953,6 +953,124 @@ public class ProfilingSystemTest {
     verify(recording).close();
   }
 
+  /**
+   * A recording created after its scheduler was shut down is stopped by the scheduler thread
+   * without holding the lock that stop() takes, so a stop whose wait for that thread timed out is
+   * not held up by a native stop that hangs.
+   */
+  @Test
+  public void testStopIsNotBlockedByTheStopOfARecordingCreatedAfterIt() throws Exception {
+    final CountDownLatch creating = new CountDownLatch(1);
+    final CountDownLatch created = new CountDownLatch(1);
+    final CountDownLatch nativeStopReleased = new CountDownLatch(1);
+    when(controller.createRecording(any(), any()))
+        .thenAnswer(invocation -> {
+          creating.countDown();
+          awaitUninterruptibly(created);
+          return recording;
+        });
+    when(recording.stop())
+        .thenAnswer(invocation -> {
+          awaitUninterruptibly(nativeStopReleased);
+          return recordingData;
+        });
+    final ProfilingSystem system = systemWithShortTerminationTimeout();
+    system.start();
+    assertTrue(creating.await(10, SECONDS));
+
+    final ExecutorService stopper = Executors.newSingleThreadExecutor();
+    try {
+      final Future<?> stop = stopper.submit(() -> system.stop(false));
+      // the recording is created once the scheduler is shut down, so it isn't published
+      await().atMost(10, SECONDS).until(scheduler::isShutdown);
+      created.countDown();
+
+      // stop() waits a bounded time for the hanging native stop instead of blocking on the lock
+      stop.get(10, SECONDS);
+      verify(recording).stop();
+      verify(recording, never()).close();
+    } finally {
+      nativeStopReleased.countDown();
+      stopper.shutdownNow();
+    }
+    verify(recording, timeout(10_000)).close();
+  }
+
+  /**
+   * A stop waits for the scheduler thread to stop a recording that it created after the scheduler
+   * was shut down, so that a restart can start a new one.
+   */
+  @Test
+  public void testStopWaitsForTheStopOfARecordingCreatedAfterIt() throws Exception {
+    final CountDownLatch creating = new CountDownLatch(1);
+    final CountDownLatch created = new CountDownLatch(1);
+    when(controller.createRecording(any(), any()))
+        .thenAnswer(invocation -> {
+          creating.countDown();
+          awaitUninterruptibly(created);
+          return recording;
+        });
+    when(recording.stop()).thenReturn(recordingData);
+    final ProfilingSystem system = systemWithShortTerminationTimeout();
+    system.terminationTimeoutMillis = 1_000;
+    system.start();
+    assertTrue(creating.await(10, SECONDS));
+
+    final ExecutorService creator = Executors.newSingleThreadExecutor();
+    try {
+      creator.submit(() -> {
+        // let the recording be created once stop() has shut the scheduler down and its wait
+        // for the scheduler thread has timed out, so that stop() waits for the recording
+        await().atMost(10, SECONDS).until(scheduler::isShutdown);
+        Thread.sleep(1_500);
+        created.countDown();
+        return null;
+      });
+
+      system.stop(false);
+
+      // already stopped and closed when stop() returns
+      verify(recording).stop();
+      verify(recording).close();
+      assertFalse(system.isStarted());
+    } finally {
+      creator.shutdownNow();
+    }
+  }
+
+  /** The scheduler join times out quickly, while the scheduler thread creates the recording. */
+  private ProfilingSystem systemWithShortTerminationTimeout() throws Exception {
+    final ProfilingSystem system =
+        new ProfilingSystem(
+            configProvider,
+            controllerFactory,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ZERO,
+            Duration.ofMillis(100),
+            false,
+            () -> scheduler,
+            threadLocalRandom);
+    system.terminationTimeoutMillis = 500;
+    return system;
+  }
+
+  /** The scheduler interrupts its thread when shut down, which must not end the waits. */
+  private static void awaitUninterruptibly(final CountDownLatch latch) {
+    boolean interrupted = false;
+    while (true) {
+      try {
+        latch.await();
+        break;
+      } catch (InterruptedException e) {
+        interrupted = true;
+      }
+    }
+    if (interrupted) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
   @Test
   public void testStopWithSnapshotBeforeRecording() throws Exception {
     final ProfilingSystem system =
