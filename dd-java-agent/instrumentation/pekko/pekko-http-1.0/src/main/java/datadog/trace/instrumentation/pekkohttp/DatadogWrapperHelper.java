@@ -5,6 +5,7 @@ import static datadog.trace.instrumentation.pekkohttp.PekkoHttpServerDecorator.D
 import static java.util.Collections.singletonList;
 
 import datadog.context.Context;
+import datadog.context.ContextHandle;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
@@ -51,7 +52,7 @@ public class DatadogWrapperHelper {
 
   static final class SwappedContextScope implements ContextScope {
     private final Context context;
-    private final Context previousContext;
+    private final ContextHandle previousContext;
     private final Thread ownerThread;
     private boolean closed;
 
