@@ -1,8 +1,10 @@
 package test.camel;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -11,11 +13,14 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.DDSpan;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.camel.Exchange;
+import org.apache.camel.ExchangePattern;
 import org.apache.camel.ProducerTemplate;
+import org.apache.camel.SafeCopyProperty;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.impl.engine.DefaultUnitOfWork;
@@ -24,6 +29,88 @@ import org.apache.camel.spi.UnitOfWorkFactory;
 import org.junit.jupiter.api.Test;
 
 class CamelLifecycleTest extends AbstractCamelTest {
+  @Test
+  void nestedRouteFinishesEvenWhenItClearsExchangeProperties() throws Exception {
+    AtomicReference<DDSpan> outer = new AtomicReference<>();
+    AtomicReference<DDSpan> inner = new AtomicReference<>();
+    try (DefaultCamelContext context = new DefaultCamelContext()) {
+      context.addRoutes(
+          new RouteBuilder() {
+            @Override
+            public void configure() {
+              from("direct:outer")
+                  .routeId("outer")
+                  .process(exchange -> outer.set((DDSpan) activeSpan()))
+                  .to("direct:inner")
+                  .process(exchange -> {
+                    assertNull(exchange.getProperty("business"));
+                    assertTrue(inner.get().isFinished(), "the nested route has returned");
+                    assertFalse(outer.get().isFinished());
+                    assertSame(outer.get(), activeSpan());
+                  });
+              from("direct:inner")
+                  .routeId("inner")
+                  .process(exchange -> inner.set((DDSpan) activeSpan()))
+                  .removeProperties("*");
+            }
+          });
+      context.start();
+      try (ProducerTemplate producer = context.createProducerTemplate()) {
+        Exchange result =
+            producer.request("direct:outer", exchange -> exchange.setProperty("business", "value"));
+        assertNull(result.getException());
+      }
+    }
+    assertEquals(2, routeSpans(2).size());
+    assertEquals(outer.get().getSpanId(), inner.get().getParentId());
+  }
+
+  @Test
+  void oneWaySedaLoopCopiesOnlyParentContextAndKeepsEachHopConnected() throws Exception {
+    int hops = 32;
+    List<DDSpan> observed = new ArrayList<>();
+    CompletableFuture<Exchange> copy = new CompletableFuture<>();
+    try (DefaultCamelContext context = new DefaultCamelContext()) {
+      context.addRoutes(
+          new RouteBuilder() {
+            @Override
+            public void configure() {
+              from("seda:hop?concurrentConsumers=1")
+                  .routeId("hop")
+                  .process(exchange -> {
+                    observed.add((DDSpan) activeSpan());
+                    int remaining = exchange.getMessage().getBody(Integer.class) - 1;
+                    exchange.getMessage().setBody(remaining);
+                    if (remaining == 0) {
+                      copy.complete(exchange.copy());
+                    }
+                  })
+                  .filter(body().isGreaterThan(0))
+                  .to("seda:hop?waitForTaskToComplete=Never");
+            }
+          });
+      context.start();
+      try (ProducerTemplate producer = context.createProducerTemplate()) {
+        producer.sendBody("seda:hop", ExchangePattern.InOnly, hops);
+        Exchange snapshot = copy.get(10, SECONDS);
+        assertNull(snapshot.getProperty(STATE_KEY));
+        SafeCopyProperty parent = routeContext(snapshot);
+        assertNotNull(parent);
+        assertFalse(
+            parent instanceof Synchronization, "copies carry context without completion state");
+        assertSame(parent, routeContext(snapshot.copy()), "copied parent context is immutable");
+      }
+    }
+    assertEquals(hops, observed.size());
+    assertEquals(hops, routeSpans(hops).size());
+    DDSpan first = observed.get(0);
+    assertEquals(0, first.getParentId());
+    for (int hop = 1; hop < observed.size(); hop++) {
+      assertEquals(first.getTraceId(), observed.get(hop).getTraceId());
+      assertEquals(observed.get(hop - 1).getSpanId(), observed.get(hop).getParentId());
+    }
+  }
+
   @Test
   void completedNestedRoutesReleaseTheirFallbackWhileTheOuterRouteIsLive() throws Exception {
     int invocations = 32;
@@ -159,8 +246,7 @@ class CamelLifecycleTest extends AbstractCamelTest {
     @Override
     public void addSynchronization(Synchronization synchronization) {
       super.addSynchronization(synchronization);
-      if ("datadog.trace.instrumentation.camel.CamelState"
-          .equals(synchronization.getClass().getName())) {
+      if (STATE_KEY.equals(synchronization.getClass().getName())) {
         routeSynchronizations.add(synchronization);
       }
     }

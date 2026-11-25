@@ -19,60 +19,57 @@ import java.util.function.BiConsumer;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
 import org.apache.camel.Route;
+import org.apache.camel.SafeCopyProperty;
 import org.apache.camel.spi.UnitOfWork;
 import org.apache.camel.support.SynchronizationAdapter;
 import org.apache.camel.util.CaseInsensitiveMap;
 
 /** A copied exchange shares only immutable parent context, never a mutable route stack. */
-public final class CamelState extends SynchronizationAdapter {
+public final class CamelState extends SynchronizationAdapter implements SafeCopyProperty {
   private static final String KEY = CamelState.class.getName();
-  private final CamelState previous;
+  private final SafeCopyProperty previous;
   private final String routeId;
-  private final String exchangeId;
   private final AgentSpan span;
   private final Context context;
   private final AtomicBoolean finished = new AtomicBoolean();
 
-  private CamelState(
-      CamelState previous, Route route, Exchange exchange, AgentSpan span, Context parent) {
+  private CamelState(SafeCopyProperty previous, Route route, AgentSpan span, Context parent) {
     this.previous = previous;
     this.routeId = route.getId();
-    this.exchangeId = exchange.getExchangeId();
     this.span = span;
     this.context = parent.with(span);
   }
 
-  private static CamelState state(Exchange exchange) {
-    return exchange.getProperty(KEY, CamelState.class);
+  private static SafeCopyProperty state(Exchange exchange) {
+    return exchange.getExchangeExtension().getSafeCopyProperty(KEY, SafeCopyProperty.class);
+  }
+
+  private static Context context(SafeCopyProperty state) {
+    if (state instanceof CamelState) {
+      return ((CamelState) state).context;
+    }
+    return state == null ? null : ((ParentContext) state).context;
   }
 
   public static Context exchangeContext(Exchange exchange) {
     try {
-      CamelState state = state(exchange);
-      return state == null ? null : state.context;
+      return context(state(exchange));
     } catch (Throwable ignored) {
       return null;
-    }
-  }
-
-  public static Context context(Exchange exchange) {
-    try {
-      CamelState state = state(exchange);
-      return state == null ? Context.current() : state.context;
-    } catch (Throwable ignored) {
-      return Context.current();
     }
   }
 
   public static void begin(Route route, Exchange exchange) {
     AgentSpan span = null;
     try {
-      CamelState previous = state(exchange);
-      Context parent = previous == null ? Context.current() : previous.context;
+      SafeCopyProperty previous = state(exchange);
+      Context inherited = context(previous);
+      Context parent = inherited == null ? Context.current() : inherited;
+      AgentSpan inheritedSpan = inherited == null ? null : AgentSpan.fromContext(inherited);
       AgentSpan active = AgentSpan.current();
-      if (previous != null
+      if (inheritedSpan != null
           && active != null
-          && active.getTraceId().equals(previous.span.getTraceId())) {
+          && active.getTraceId().equals(inheritedSpan.getTraceId())) {
         parent = Context.current();
       }
       if (AgentSpan.fromContext(parent) == null) {
@@ -85,9 +82,9 @@ public final class CamelState extends SynchronizationAdapter {
       }
       DECORATE.afterStart(span);
       DECORATE.onRoute(span, route);
-      CamelState state = new CamelState(previous, route, exchange, span, parent);
+      CamelState state = new CamelState(previous, route, span, parent);
       exchange.getExchangeExtension().addOnCompletion(state);
-      exchange.setProperty(KEY, state);
+      exchange.getExchangeExtension().setSafeCopyProperty(KEY, state);
     } catch (Throwable ignored) {
       if (span != null) {
         span.finish();
@@ -97,10 +94,9 @@ public final class CamelState extends SynchronizationAdapter {
 
   public static void complete(Route route, Exchange exchange) {
     try {
-      CamelState state = state(exchange);
-      if (state != null
-          && state.routeId.equals(route.getId())
-          && state.exchangeId.equals(exchange.getExchangeId())) {
+      SafeCopyProperty current = state(exchange);
+      if (current instanceof CamelState && ((CamelState) current).routeId.equals(route.getId())) {
+        CamelState state = (CamelState) current;
         try {
           UnitOfWork unitOfWork = exchange.getUnitOfWork();
           if (unitOfWork != null) {
@@ -123,11 +119,7 @@ public final class CamelState extends SynchronizationAdapter {
     try {
       // An older completion must not pop a newer route state from this exchange.
       if (state(exchange) == this) {
-        if (previous == null) {
-          exchange.removeProperty(KEY);
-        } else {
-          exchange.setProperty(KEY, previous);
-        }
+        exchange.getExchangeExtension().setSafeCopyProperty(KEY, previous);
       }
       DECORATE.onError(span, exchange.getException());
       DECORATE.beforeFinish(span);
@@ -143,13 +135,31 @@ public final class CamelState extends SynchronizationAdapter {
     return false;
   }
 
+  @Override
+  public SafeCopyProperty safeCopy() {
+    return new ParentContext(context);
+  }
+
+  public static final class ParentContext implements SafeCopyProperty {
+    private final Context context;
+
+    private ParentContext(Context context) {
+      this.context = context;
+    }
+
+    @Override
+    public SafeCopyProperty safeCopy() {
+      return this;
+    }
+  }
+
   public static void propagate(Exchange exchange) {
     try {
       Context context = Context.current();
       if (AgentSpan.fromContext(context) == null) {
-        context = context(exchange);
+        context = exchangeContext(exchange);
       }
-      if (AgentSpan.fromContext(context) != null) {
+      if (context != null && AgentSpan.fromContext(context) != null) {
         Message message = exchange.getIn();
         Map<String, Object> headers = message.getHeaders();
         if (headers.getClass() == CaseInsensitiveMap.class) {
@@ -172,10 +182,12 @@ public final class CamelState extends SynchronizationAdapter {
 
     @Override
     public void set(Map<String, Object> carrier, String key, String value) {
-      Iterator<String> keys = carrier.keySet().iterator();
-      while (keys.hasNext()) {
-        if (key.equalsIgnoreCase(keys.next())) {
-          keys.remove();
+      if (carrier.getClass() != CaseInsensitiveMap.class) {
+        Iterator<String> keys = carrier.keySet().iterator();
+        while (keys.hasNext()) {
+          if (key.equalsIgnoreCase(keys.next())) {
+            keys.remove();
+          }
         }
       }
       carrier.put(key, value);

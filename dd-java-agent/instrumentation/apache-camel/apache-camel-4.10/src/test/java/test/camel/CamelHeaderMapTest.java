@@ -49,6 +49,10 @@ class CamelHeaderMapTest extends AbstractCamelTest {
         assertNull(result.getException());
         assertSame(before.get(), result.getIn().getHeaders());
         assertEquals(routeParent.get(), result.getIn().getHeader("x-datadog-parent-id"));
+        assertEquals(
+            1,
+            before.get().keySet().stream().filter("X-Datadog-Parent-Id"::equals).count(),
+            "keyed replacement preserves the existing key spelling");
       }
     }
     assertEquals(1, routeSpans(1).size());

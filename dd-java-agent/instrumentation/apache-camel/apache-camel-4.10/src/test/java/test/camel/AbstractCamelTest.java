@@ -10,8 +10,16 @@ import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.core.DDSpan;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.camel.Exchange;
+import org.apache.camel.SafeCopyProperty;
 
 abstract class AbstractCamelTest extends AbstractInstrumentationTest {
+  static final String STATE_KEY = "datadog.trace.instrumentation.camel.CamelState";
+
+  static SafeCopyProperty routeContext(Exchange exchange) {
+    return exchange.getExchangeExtension().getSafeCopyProperty(STATE_KEY, SafeCopyProperty.class);
+  }
+
   final DDSpan routeSpan(List<DDSpan> spans, String resource) {
     return spans.stream()
         .filter(span -> resource.contentEquals(span.getResourceName()))

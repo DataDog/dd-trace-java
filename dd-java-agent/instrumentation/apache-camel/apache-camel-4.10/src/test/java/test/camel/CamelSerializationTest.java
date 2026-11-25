@@ -19,8 +19,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class CamelSerializationTest extends AbstractCamelTest {
-  private static final String STATE_KEY = "datadog.trace.instrumentation.camel.CamelState";
-
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void serializesApplicationDataWithoutRouteState(boolean allowSerializedValues) throws Exception {
@@ -34,7 +32,7 @@ class CamelSerializationTest extends AbstractCamelTest {
                   .process(exchange -> {
                     assertNotNull(activeSpan());
                     assertNotNull(
-                        exchange.getProperty(STATE_KEY),
+                        routeContext(exchange),
                         "serialization must run while instrumentation state is present");
                     DefaultExchangeHolder holder =
                         DefaultExchangeHolder.marshal(exchange, true, allowSerializedValues);
@@ -53,10 +51,10 @@ class CamelSerializationTest extends AbstractCamelTest {
                     assertEquals("header-value", restored.getMessage().getHeader("business"));
                     assertEquals("property-value", restored.getProperty("business"));
                     assertNull(
-                        restored.getProperty(STATE_KEY),
+                        routeContext(restored),
                         "agent state must not cross a serialized exchange boundary");
                     assertNotNull(
-                        exchange.getProperty(STATE_KEY),
+                        routeContext(exchange),
                         "serialization must not remove the live route state");
                   });
             }
@@ -69,7 +67,7 @@ class CamelSerializationTest extends AbstractCamelTest {
         exchange.setProperty("business", "property-value");
         producer.send("direct:serialize", exchange);
         assertNull(exchange.getException());
-        assertNull(exchange.getProperty(STATE_KEY), "completion must remove the live route state");
+        assertNull(routeContext(exchange), "completion must remove the live route state");
       }
     }
     assertEquals(1, routeSpans(1).size());
