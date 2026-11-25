@@ -33,6 +33,7 @@ class CamelLifecycleTest extends AbstractCamelTest {
   void nestedRouteFinishesEvenWhenItClearsExchangeProperties() throws Exception {
     AtomicReference<DDSpan> outer = new AtomicReference<>();
     AtomicReference<DDSpan> inner = new AtomicReference<>();
+
     try (DefaultCamelContext context = new DefaultCamelContext()) {
       context.addRoutes(
           new RouteBuilder() {
@@ -48,19 +49,23 @@ class CamelLifecycleTest extends AbstractCamelTest {
                     assertFalse(outer.get().isFinished());
                     assertSame(outer.get(), activeSpan());
                   });
+
               from("direct:inner")
                   .routeId("inner")
                   .process(exchange -> inner.set((DDSpan) activeSpan()))
                   .removeProperties("*");
             }
           });
+
       context.start();
       try (ProducerTemplate producer = context.createProducerTemplate()) {
         Exchange result =
             producer.request("direct:outer", exchange -> exchange.setProperty("business", "value"));
+
         assertNull(result.getException());
       }
     }
+
     assertEquals(2, routeSpans(2).size());
     assertEquals(outer.get().getSpanId(), inner.get().getParentId());
   }
@@ -70,6 +75,7 @@ class CamelLifecycleTest extends AbstractCamelTest {
     int hops = 32;
     List<DDSpan> observed = new ArrayList<>();
     CompletableFuture<Exchange> copy = new CompletableFuture<>();
+
     try (DefaultCamelContext context = new DefaultCamelContext()) {
       context.addRoutes(
           new RouteBuilder() {
@@ -89,10 +95,12 @@ class CamelLifecycleTest extends AbstractCamelTest {
                   .to("seda:hop?waitForTaskToComplete=Never");
             }
           });
+
       context.start();
       try (ProducerTemplate producer = context.createProducerTemplate()) {
         producer.sendBody("seda:hop", ExchangePattern.InOnly, hops);
         Exchange snapshot = copy.get(10, SECONDS);
+
         assertNull(snapshot.getProperty(STATE_KEY));
         SafeCopyProperty parent = routeContext(snapshot);
         assertNotNull(parent);
@@ -101,8 +109,10 @@ class CamelLifecycleTest extends AbstractCamelTest {
         assertSame(parent, routeContext(snapshot.copy()), "copied parent context is immutable");
       }
     }
+
     assertEquals(hops, observed.size());
     assertEquals(hops, routeSpans(hops).size());
+
     DDSpan first = observed.get(0);
     assertEquals(0, first.getParentId());
     for (int hop = 1; hop < observed.size(); hop++) {

@@ -34,12 +34,14 @@ class CamelSerializationTest extends AbstractCamelTest {
                     assertNotNull(
                         routeContext(exchange),
                         "serialization must run while instrumentation state is present");
+
                     DefaultExchangeHolder holder =
                         DefaultExchangeHolder.marshal(exchange, true, allowSerializedValues);
                     ByteArrayOutputStream bytes = new ByteArrayOutputStream();
                     try (ObjectOutputStream output = new ObjectOutputStream(bytes)) {
                       output.writeObject(holder);
                     }
+
                     DefaultExchangeHolder restoredHolder;
                     try (ObjectInputStream input =
                         new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
@@ -47,6 +49,7 @@ class CamelSerializationTest extends AbstractCamelTest {
                     }
                     Exchange restored = new DefaultExchange(context);
                     DefaultExchangeHolder.unmarshal(restored, restoredHolder);
+
                     assertEquals("payload", restored.getMessage().getBody());
                     assertEquals("header-value", restored.getMessage().getHeader("business"));
                     assertEquals("property-value", restored.getProperty("business"));
@@ -60,16 +63,20 @@ class CamelSerializationTest extends AbstractCamelTest {
             }
           });
       context.start();
+
       try (ProducerTemplate producer = context.createProducerTemplate()) {
         Exchange exchange = new DefaultExchange(context);
         exchange.getMessage().setBody("payload");
         exchange.getMessage().setHeader("business", "header-value");
         exchange.setProperty("business", "property-value");
+
         producer.send("direct:serialize", exchange);
+
         assertNull(exchange.getException());
         assertNull(routeContext(exchange), "completion must remove the live route state");
       }
     }
+
     assertEquals(1, routeSpans(1).size());
   }
 }

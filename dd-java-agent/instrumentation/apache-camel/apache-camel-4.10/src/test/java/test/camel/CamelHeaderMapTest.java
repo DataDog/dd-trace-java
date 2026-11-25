@@ -27,6 +27,7 @@ class CamelHeaderMapTest extends AbstractCamelTest {
   void updatesDefaultHeadersInPlace() throws Exception {
     AtomicReference<Map<String, Object>> before = new AtomicReference<>();
     AtomicReference<String> routeParent = new AtomicReference<>();
+
     try (DefaultCamelContext context = new DefaultCamelContext()) {
       context.addRoutes(
           new RouteBuilder() {
@@ -44,8 +45,10 @@ class CamelHeaderMapTest extends AbstractCamelTest {
           });
       context.getEndpoint("mock:headers", MockEndpoint.class).setCopyOnExchange(false);
       context.start();
+
       try (ProducerTemplate producer = context.createProducerTemplate()) {
         Exchange result = producer.send("direct:headers", new DefaultExchange(context));
+
         assertNull(result.getException());
         assertSame(before.get(), result.getIn().getHeaders());
         assertEquals(routeParent.get(), result.getIn().getHeader("x-datadog-parent-id"));
@@ -55,6 +58,7 @@ class CamelHeaderMapTest extends AbstractCamelTest {
             "keyed replacement preserves the existing key spelling");
       }
     }
+
     assertEquals(1, routeSpans(1).size());
   }
 
