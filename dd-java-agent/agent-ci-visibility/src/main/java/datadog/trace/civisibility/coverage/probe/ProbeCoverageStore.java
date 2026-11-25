@@ -25,15 +25,14 @@ import javax.annotation.Nullable;
 
 /**
  * Line coverage of one test, collected by the probes that {@link ProbeClassTransformer} inserts.
- * The window opens when the store is created and closes when the test reports; it also gets the
- * lines that ran while the framework prepared the test (see {@link TestPreparationWindow}). The
- * report is built later, on the thread that serializes it.
+ * The window opens when the store is created, taking over the window of the test's preparation (see
+ * {@link TestPreparationWindow}), and closes when the test reports. The report is built later, on
+ * the thread that serializes it.
  */
 public final class ProbeCoverageStore extends CoverageWindow implements CoverageStore {
 
   private final CiVisibilityMetricCollector metrics;
   private final SourceFiles sourceFiles;
-  private final List<ClassHits> preparationHits;
 
   // guards the fields below, which the test thread sets and the serializing thread reads
   private final Object reportLock = new Object();
@@ -46,10 +45,10 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
   private ProbeCoverageStore(
       CiVisibilityMetricCollector metrics,
       SourceFiles sourceFiles,
-      List<ClassHits> preparationHits) {
+      @Nullable CoverageWindow preparation) {
+    super(preparation);
     this.metrics = metrics;
     this.sourceFiles = sourceFiles;
-    this.preparationHits = preparationHits;
   }
 
   @Override
@@ -59,30 +58,17 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
 
   @Override
   public boolean report(DDTraceId testSessionId, Long testSuiteId, long testSpanId) {
-    // closing waits for other threads still marking probes, so no lock is held meanwhile
-    List<ClassHits> closedHits = isClosed() ? Collections.emptyList() : close();
+    // closing collects from other threads, so no lock is held meanwhile
+    List<ClassHits> closedHits = close();
     synchronized (reportLock) {
       if (hits == null) {
-        hits = withPreparationHits(closedHits);
+        hits = closedHits;
         this.testSessionId = testSessionId;
         this.testSuiteId = testSuiteId;
         this.testSpanId = testSpanId;
       }
       return !hits.isEmpty();
     }
-  }
-
-  private List<ClassHits> withPreparationHits(List<ClassHits> closedHits) {
-    if (preparationHits.isEmpty()) {
-      return closedHits;
-    }
-    if (closedHits.isEmpty()) {
-      return preparationHits;
-    }
-    List<ClassHits> all = new ArrayList<>(preparationHits.size() + closedHits.size());
-    all.addAll(preparationHits);
-    all.addAll(closedHits);
-    return all;
   }
 
   /**
@@ -96,11 +82,11 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
 
   @Override
   public void discard() {
-    List<ClassHits> closedHits = isClosed() ? Collections.emptyList() : close();
+    List<ClassHits> closedHits = close();
     synchronized (reportLock) {
       if (hits == null) {
         hits = Collections.emptyList();
-        ProbeRecorder.addSharedHits(withPreparationHits(closedHits));
+        ProbeRecorder.addSharedHits(closedHits);
       }
     }
   }
@@ -118,13 +104,24 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
 
   private TestReport buildReport() {
     Map<String, BitSet> linesBySourcePath = new HashMap<>();
+    // a class can have several entries
+    BitSet classesNotInRepository = null;
     for (ClassHits classHits : hits) {
       // a test that runs code of a class is credited with the lines of its initializer
       boolean[] initProbes = ProbeRecorder.PROBES[classHits.classId];
       if (!sourceFiles.addLines(
           classHits.instrumentedClass, classHits.probes, initProbes, linesBySourcePath)) {
-        metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
+        if (classesNotInRepository == null) {
+          classesNotInRepository = new BitSet();
+        }
+        classesNotInRepository.set(classHits.classId);
       }
+    }
+    if (classesNotInRepository != null) {
+      metrics.add(
+          CiVisibilityCountMetric.CODE_COVERAGE_ERRORS,
+          classesNotInRepository.cardinality(),
+          CoverageErrorType.PATH);
     }
 
     List<TestReportFileEntry> entries = new ArrayList<>(linesBySourcePath.size());
@@ -148,8 +145,7 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
 
     @Override
     public CoverageStore create(@Nullable TestIdentifier testIdentifier) {
-      // the preparation window closes before the test's window opens
-      return new ProbeCoverageStore(metrics, sourceFiles, TestPreparationWindow.take());
+      return new ProbeCoverageStore(metrics, sourceFiles, TestPreparationWindow.detach());
     }
 
     @Override

@@ -122,14 +122,16 @@ public final class InstrumentedClass {
   }
 
   /**
-   * @return the probes set in {@code probes}, other than class initializer probes, as a bit set;
-   *     {@code null} if none is set
+   * Clears the probes set in {@code probes}, other than class initializer probes.
+   *
+   * @return the probes that were set, as a bit set; {@code null} if none was set
    */
   @Nullable
-  public long[] methodHits(boolean[] probes) {
+  public long[] takeMethodHits(boolean[] probes) {
     long[] bits = null;
     for (int probe = 1; probe < initStart; probe++) {
       if (probes[probe]) {
+        probes[probe] = false;
         if (bits == null) {
           bits = new long[(initStart + 63) >>> 6];
         }

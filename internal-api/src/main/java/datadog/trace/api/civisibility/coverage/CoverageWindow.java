@@ -1,84 +1,61 @@
 package datadog.trace.api.civisibility.coverage;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 
 /**
  * The period during which probe hits are credited to one test.
  *
- * <p>A window opens on the thread that creates it and closes in {@link #close()}, on the same
- * thread. Closing collects the probes the test hit and drops the window's probe arrays, so the next
- * window that uses the same table allocates new ones (see {@link ProbeRecorder}). Code running on
- * other threads on behalf of the test can be taking arrays from the table while the window closes,
- * so those threads register while they do and {@link #close()} waits for them: no thread can take
- * an array that the table holds for a later window.
+ * <p>A window opens on the thread that creates it and closes in {@link #close()}. While it is the
+ * innermost window open on that thread, it owns the code the thread starts. It also owns the code
+ * other threads start while they carry the context of the test whose coverage store it is. A thread
+ * moves what it hit to the window when its owner changes (see {@link ThreadProbes}); closing the
+ * window ends what every thread runs for it and collects what they moved.
  */
 public abstract class CoverageWindow {
 
-  private final Thread thread = Thread.currentThread();
-  private final AtomicInteger otherThreadsTakingProbes = new AtomicInteger();
-  private final Object touchedClassesLock = new Object();
+  private final ThreadProbes threadProbes;
+  @Nullable private final CoverageWindow outer;
   private volatile boolean closed;
 
-  // guarded by touchedClassesLock
-  private int[] touchedClasses = new int[32];
-  private int touchedClassCount;
+  private final Object lock = new Object();
 
-  @Nullable private final CoverageWindow outer;
-  private final boolean[][] table;
+  /** Threads that ran code for the window through its test's context; null once it closed. */
+  private List<ThreadProbes> otherThreads = new ArrayList<>(); // guarded by lock
 
-  /** The primary window whose thread this window took over, guarded by the recorder's lock. */
-  @Nullable CoverageWindow suspendedPrimary;
+  /** What threads moved to the window; null once collected. */
+  private List<ClassHits> hits = new ArrayList<>(); // guarded by lock
 
   protected CoverageWindow() {
-    outer = ProbeRecorder.ownWindow();
-    table = ProbeRecorder.openWindow(this);
-  }
-
-  final Thread thread() {
-    return thread;
+    this(null);
   }
 
   /**
-   * @return the probe array of a class in this window, or {@code null} if the window is closed
+   * @param replaced a window whose code and hits this window takes over, such as the window of a
+   *     test's preparation when the test starts; it is closed
    */
-  @Nullable
-  final boolean[] probes(int classId) {
-    if (Thread.currentThread() == thread) {
-      return closed ? null : probesWhileOpen(classId);
+  protected CoverageWindow(@Nullable CoverageWindow replaced) {
+    threadProbes = ProbeRecorder.threadProbes();
+    if (replaced != null
+        && replaced.threadProbes == threadProbes
+        && threadProbes.replace(replaced, this)) {
+      outer = replaced.outer;
+    } else {
+      outer = ProbeRecorder.openWindow(threadProbes, this);
     }
-    if (closed) {
-      return null;
-    }
-    otherThreadsTakingProbes.incrementAndGet();
-    try {
-      return closed ? null : probesWhileOpen(classId);
-    } finally {
-      otherThreadsTakingProbes.decrementAndGet();
+    if (replaced != null) {
+      List<ClassHits> replacedHits = replaced.close();
+      synchronized (lock) {
+        hits.addAll(replacedHits);
+      }
     }
   }
 
-  private boolean[] probesWhileOpen(int classId) {
-    boolean[] probes = table[classId];
-    if (probes != null) {
-      return probes;
-    }
-    synchronized (touchedClassesLock) {
-      probes = table[classId];
-      if (probes == null) {
-        probes = ProbeRecorder.newProbes(classId);
-        table[classId] = probes;
-        if (touchedClassCount == touchedClasses.length) {
-          touchedClasses = Arrays.copyOf(touchedClasses, touchedClassCount * 2);
-        }
-        touchedClasses[touchedClassCount++] = classId;
-      }
-      return probes;
-    }
+  @Nullable
+  final CoverageWindow outer() {
+    return outer;
   }
 
   public final boolean isClosed() {
@@ -86,39 +63,65 @@ public abstract class CoverageWindow {
   }
 
   /**
-   * Closes the window. Must be called once, on the thread that opened it.
+   * Registers a thread that runs code for this window through its test's context.
    *
-   * @return the probes hit while the window was open, one entry per class
+   * @return {@code false} if the window is closed
+   */
+  final boolean addOtherThread(ThreadProbes other) {
+    synchronized (lock) {
+      if (otherThreads == null) {
+        return false;
+      }
+      if (!otherThreads.contains(other)) {
+        otherThreads.add(other);
+      }
+      return true;
+    }
+  }
+
+  /**
+   * Adds what a thread hit for the window. Once the window reported, the hits go to Shared.
+   *
+   * @return {@code false} if the window reported
+   */
+  final boolean addHits(List<ClassHits> moved) {
+    synchronized (lock) {
+      if (hits != null) {
+        hits.addAll(moved);
+        return true;
+      }
+    }
+    ProbeRecorder.addSharedHits(moved);
+    return false;
+  }
+
+  /**
+   * Closes the window. Must be called once.
+   *
+   * @return the probes hit by the code the window owned, possibly several entries per class
    */
   protected final List<ClassHits> close() {
     closed = true;
-    while (otherThreadsTakingProbes.get() != 0) {
-      Thread.yield();
+    List<ThreadProbes> others;
+    synchronized (lock) {
+      others = otherThreads;
+      otherThreads = null;
     }
-
-    int[] classIds;
-    int classCount;
-    synchronized (touchedClassesLock) {
-      classIds = touchedClasses;
-      classCount = touchedClassCount;
+    if (others == null) {
+      return Collections.emptyList();
     }
-    List<ClassHits> hits = classCount == 0 ? Collections.emptyList() : new ArrayList<>(classCount);
-    for (int i = 0; i < classCount; i++) {
-      int classId = classIds[i];
-      boolean[] probes = table[classId];
-      // code still running with this array stores into it where no window reads
-      table[classId] = null;
-      InstrumentedClass instrumentedClass = ProbeRecorder.CLASSES[classId];
-      long[] bits = instrumentedClass.methodHits(probes);
-      if (bits != null) {
-        hits.add(new ClassHits(classId, instrumentedClass, bits));
-      }
+    threadProbes.close(this);
+    for (ThreadProbes other : others) {
+      other.leave(this);
     }
-    ProbeRecorder.closeWindow(this, table, outer);
-    return hits;
+    synchronized (lock) {
+      List<ClassHits> collected = hits;
+      hits = null;
+      return collected;
+    }
   }
 
-  /** The probes one class had hit in a window. */
+  /** The probes one class had hit for a window. */
   public static final class ClassHits {
     public final int classId;
     public final InstrumentedClass instrumentedClass;
