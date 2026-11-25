@@ -606,7 +606,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         tracer.baseDerivations =
             BaseTagDerivations.create(
                 SpanNaming.instance().namingSchema().peerService(),
-                tracer.initialConfig.getPeerServiceMapping());
+                tracer.initialConfig.getPeerServiceMapping(),
+                tracer.initialConfig.isTraceResourceRenamingEnabled(),
+                tracer.initialConfig.isTraceResourceRenamingAlwaysSimplifiedEndpoint());
       }
       return tracer;
     }
