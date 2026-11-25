@@ -37,6 +37,9 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,8 +101,34 @@ public final class ProfilingSystem {
   /** Terminal: a shut down system can't be started again. */
   private volatile boolean closed = false;
 
-  /** Set while a stop runs, so that {@link #shutdown} doesn't wait behind its final upload. */
-  private volatile boolean stopping = false;
+  /**
+   * Guards the lifecycle: init, start, stop, reconfigure and shutdown. A lock rather than a
+   * monitor, so that a shutdown without snapshot can tell that a stop holds it instead of waiting
+   * for it.
+   */
+  @VisibleForTesting final ReentrantLock lock = new ReentrantLock();
+
+  /**
+   * The stops that hold or wait for {@link #lock}, so that {@link #shutdown} without snapshot
+   * doesn't wait behind their final upload.
+   */
+  private final AtomicInteger pendingStops = new AtomicInteger();
+
+  /**
+   * Held while a recording is snapshot, so that it isn't stopped meanwhile: a stop that gets it
+   * clears the published recording under it, so that later snapshots skip it, and stops it. A stop
+   * doesn't wait for it, since the only snapshots that can be in progress then are those of a
+   * scheduler thread that didn't terminate in time, which the stop already waited for: it hands the
+   * recording over with {@link #abandonedRecording} instead. The snapshot is uploaded outside of
+   * it.
+   */
+  @VisibleForTesting final ReentrantLock snapshotLock = new ReentrantLock();
+
+  /**
+   * A recording that a stop couldn't stop, since it was being snapshot: it is stopped by the first
+   * thread that gets {@link #snapshotLock} after it, see {@link #stopAbandonedRecording()}.
+   */
+  private final AtomicReference<OngoingRecording> abandonedRecording = new AtomicReference<>();
 
   /**
    * Guards publishing the recording on the scheduler thread against a stop taking it away, since a
@@ -189,14 +218,19 @@ public final class ProfilingSystem {
    *
    * @throws UnsupportedEnvironmentException if no profiler is supported in this environment
    */
-  public synchronized void init() throws UnsupportedEnvironmentException {
-    if (controller != null) {
-      return;
+  public void init() throws UnsupportedEnvironmentException {
+    lock.lock();
+    try {
+      if (controller != null) {
+        return;
+      }
+      final ControllerContext controllerContext = new ControllerContext();
+      controller = controllerFactory.create(controllerContext);
+      context = controllerContext.snapshot();
+      log.debug("Profiling system initialized");
+    } finally {
+      lock.unlock();
     }
-    final ControllerContext controllerContext = new ControllerContext();
-    controller = controllerFactory.create(controllerContext);
-    context = controllerContext.snapshot();
-    log.debug("Profiling system initialized");
   }
 
   /**
@@ -218,50 +252,55 @@ public final class ProfilingSystem {
    *     'main' has started
    * @throws UnsupportedEnvironmentException if no profiler is supported in this environment
    */
-  public synchronized void start(boolean immediately) throws UnsupportedEnvironmentException {
-    if (closed) {
-      log.debug("Profiling system is shut down, not starting it");
-      return;
-    }
-    if (scheduler != null) {
-      log.debug("Profiling system is already started");
-      return;
-    }
-    init();
-    startFailed = false;
-
-    final AgentTaskScheduler scheduler = schedulerFactory.get();
-    this.scheduler = scheduler;
-    log.debug(
-        "Starting profiling system: startupDelay={}ms, uploadPeriod={}ms, isStartingFirst={}, immediately={}",
-        startupDelay.toMillis(),
-        uploadPeriod.toMillis(),
-        isStartingFirst,
-        immediately);
-
-    if (immediately || isStartingFirst) {
-      try {
-        startProfilingRecording(scheduler);
-      } catch (RuntimeException e) {
-        this.scheduler = null;
-        scheduler.shutdown(terminationTimeoutMillis, TimeUnit.MILLISECONDS);
-        throw e;
+  public void start(boolean immediately) throws UnsupportedEnvironmentException {
+    lock.lock();
+    try {
+      if (closed) {
+        log.debug("Profiling system is shut down, not starting it");
+        return;
       }
-    } else {
-      // Delay JFR initialization. This code is run from 'premain' and there is a known bug in JVM
-      // which makes it crash if JFR is run before 'main' starts.
-      // See https://bugs.openjdk.java.net/browse/JDK-8227011 and
-      // https://bugs.openjdk.java.net/browse/JDK-8233197.
-      scheduler.schedule(
-          system -> system.startProfilingRecording(scheduler),
-          this,
-          Math.max(0, startupDeadlineNanos - System.nanoTime()),
-          TimeUnit.NANOSECONDS);
+      if (scheduler != null) {
+        log.debug("Profiling system is already started");
+        return;
+      }
+      init();
+      startFailed = false;
+
+      final AgentTaskScheduler scheduler = schedulerFactory.get();
+      this.scheduler = scheduler;
+      log.debug(
+          "Starting profiling system: startupDelay={}ms, uploadPeriod={}ms, isStartingFirst={}, immediately={}",
+          startupDelay.toMillis(),
+          uploadPeriod.toMillis(),
+          isStartingFirst,
+          immediately);
+
+      if (immediately || isStartingFirst) {
+        try {
+          startProfilingRecording(scheduler);
+        } catch (RuntimeException e) {
+          this.scheduler = null;
+          scheduler.shutdown(terminationTimeoutMillis, TimeUnit.MILLISECONDS);
+          throw e;
+        }
+      } else {
+        // Delay JFR initialization. This code is run from 'premain' and there is a known bug in JVM
+        // which makes it crash if JFR is run before 'main' starts.
+        // See https://bugs.openjdk.java.net/browse/JDK-8227011 and
+        // https://bugs.openjdk.java.net/browse/JDK-8233197.
+        scheduler.schedule(
+            system -> system.startProfilingRecording(scheduler),
+            this,
+            Math.max(0, startupDeadlineNanos - System.nanoTime()),
+            TimeUnit.NANOSECONDS);
+      }
+    } finally {
+      lock.unlock();
     }
   }
 
   /**
-   * Runs on the scheduler thread, so it must not lock {@code this}: a stop holds it while joining
+   * Runs on the scheduler thread, so it must not take {@link #lock}: a stop holds it while joining
    * that thread.
    */
   private void startProfilingRecording(final AgentTaskScheduler scheduler) {
@@ -359,8 +398,27 @@ public final class ProfilingSystem {
    *
    * @param snapshot whether to take a last snapshot before stopping
    */
-  public synchronized void stop(boolean snapshot) {
-    stop(snapshot, true);
+  public void stop(boolean snapshot) {
+    countedStop(snapshot, true);
+  }
+
+  /**
+   * Stops under {@link #lock}, counted in {@link #pendingStops} before taking it, so that a
+   * shutdown without snapshot that finds the lock taken knows that it is a stop, see {@link
+   * #shutdown}.
+   */
+  private void countedStop(boolean snapshot, boolean restartable) {
+    pendingStops.incrementAndGet();
+    try {
+      lock.lock();
+      try {
+        stop(snapshot, restartable);
+      } finally {
+        lock.unlock();
+      }
+    } finally {
+      pendingStops.decrementAndGet();
+    }
   }
 
   /**
@@ -379,12 +437,25 @@ public final class ProfilingSystem {
   public void shutdown(boolean snapshot) {
     // set before taking the lock, so that a start racing with the in-progress stop is refused
     closed = true;
-    if (stopping && !snapshot) {
-      log.debug("Profiling system is already stopping, not waiting for it to shut down");
+    if (snapshot) {
+      // waits for a stop in progress, and is waited for by a shutdown without snapshot
+      countedStop(true, false);
       return;
     }
-    synchronized (this) {
-      stop(snapshot, false);
+    if (!lock.tryLock()) {
+      // a stop is counted before it takes the lock, so this can't miss one that holds it
+      if (pendingStops.get() > 0) {
+        log.debug("Profiling system is already stopping, not waiting for it to shut down");
+        return;
+      }
+      // held for something short, e.g. checking whether it is running: the recording still has
+      // to be closed
+      lock.lock();
+    }
+    try {
+      stop(false, false);
+    } finally {
+      lock.unlock();
     }
   }
 
@@ -394,49 +465,77 @@ public final class ProfilingSystem {
     if (scheduler == null) {
       return;
     }
-    stopping = true;
-    try {
-      this.scheduler = null;
-      scheduler.shutdown(terminationTimeoutMillis, TimeUnit.MILLISECONDS);
+    this.scheduler = null;
+    scheduler.shutdown(terminationTimeoutMillis, TimeUnit.MILLISECONDS);
 
-      // the scheduler is shut down, so after this the scheduler thread can't publish a recording,
-      // even if it didn't terminate in time
-      final SnapshotRecording snapshotRecording;
-      final CountDownLatch creation;
-      synchronized (recordingLock) {
-        snapshotRecording = this.snapshotRecording;
-        this.snapshotRecording = null;
-        creation = recordingCreation;
-        recordingCreation = null;
-      }
-      // a recording that the scheduler thread was still creating is stopped by that thread, once
-      // created; wait for it, without holding the lock, so that a restart can start a new one
-      awaitRecordingCreation(creation);
-      if (snapshot && snapshotRecording != null && !scheduler.isTerminated()) {
-        // the scheduler thread is still taking a periodic snapshot, e.g. a slow upload: taking
-        // another one at the same time would upload the same data twice
-        log.debug("Profiling scheduler did not terminate in time, skipping the final snapshot");
-      } else if (snapshot && snapshotRecording != null) {
-        // reads this.recording, so it is cleared only after the snapshot. It is uploaded
-        // synchronously either way, but only tagged as a shutdown one when the JVM is going away,
-        // not for a restart
-        snapshotRecording.snapshot(
-            restartable ? ProfilingSnapshot.Kind.PERIODIC : ProfilingSnapshot.Kind.ON_SHUTDOWN,
-            true);
-      }
+    // the scheduler is shut down, so after this the scheduler thread can't publish a recording,
+    // even if it didn't terminate in time
+    final SnapshotRecording snapshotRecording;
+    final CountDownLatch creation;
+    synchronized (recordingLock) {
+      snapshotRecording = this.snapshotRecording;
+      this.snapshotRecording = null;
+      creation = recordingCreation;
+      recordingCreation = null;
+    }
+    // a recording that the scheduler thread was still creating is stopped by that thread, once
+    // created; wait for it, without holding the lock, so that a restart can start a new one
+    awaitRecordingCreation(creation);
+    if (snapshot && snapshotRecording != null && !scheduler.isTerminated()) {
+      // the scheduler thread is still taking a periodic snapshot, e.g. a slow upload: taking
+      // another one at the same time would upload the same data twice
+      log.debug("Profiling scheduler did not terminate in time, skipping the final snapshot");
+    } else if (snapshot && snapshotRecording != null) {
+      // reads this.recording, so it is cleared only after the snapshot. It is uploaded
+      // synchronously either way, but only tagged as a shutdown one when the JVM is going away,
+      // not for a restart
+      snapshotRecording.snapshot(
+          restartable ? ProfilingSnapshot.Kind.PERIODIC : ProfilingSnapshot.Kind.ON_SHUTDOWN, true);
+    }
 
-      final OngoingRecording recording = this.recording;
+    final OngoingRecording recording = this.recording;
+    started = false;
+    if (recording == null) {
+      return;
+    }
+    if (snapshotLock.tryLock()) {
+      try {
+        // later snapshots skip it
+        this.recording = null;
+      } finally {
+        snapshotLock.unlock();
+      }
+      if (restartable) {
+        stopRecording(recording);
+      } else {
+        recording.close();
+      }
+    } else {
+      // a scheduler thread that didn't terminate in time is snapshotting it: it must not be
+      // stopped meanwhile, nor waited for without bound, so the thread that gets the lock next,
+      // possibly this one, stops it
       this.recording = null;
-      started = false;
-      if (recording != null) {
-        if (restartable) {
+      log.debug("Profiling recording is being snapshot, stopping it once the snapshot is done");
+      abandonedRecording.set(recording);
+      stopAbandonedRecording();
+    }
+  }
+
+  /**
+   * Stops the abandoned recording, if any, unless a snapshot is in progress, which then does it
+   * once it's done: every holder of {@link #snapshotLock} calls this after releasing it, so the
+   * last one to release it after a recording is abandoned stops it.
+   */
+  private void stopAbandonedRecording() {
+    if (abandonedRecording.get() != null && snapshotLock.tryLock()) {
+      try {
+        final OngoingRecording recording = abandonedRecording.getAndSet(null);
+        if (recording != null) {
           stopRecording(recording);
-        } else {
-          recording.close();
         }
+      } finally {
+        snapshotLock.unlock();
       }
-    } finally {
-      stopping = false;
     }
   }
 
@@ -483,26 +582,35 @@ public final class ProfilingSystem {
    * @throws UnsupportedEnvironmentException if no profiler is supported in this environment
    * @throws IllegalStateException if the system is running
    */
-  public synchronized void reconfigure(
-      ConfigProvider configProvider, Map<ProfilingMode, Boolean> modeOverrides)
+  public void reconfigure(ConfigProvider configProvider, Map<ProfilingMode, Boolean> modeOverrides)
       throws UnsupportedEnvironmentException {
-    if (scheduler != null) {
-      throw new IllegalStateException("Profiling system can't be reconfigured while running");
+    lock.lock();
+    try {
+      if (scheduler != null) {
+        throw new IllegalStateException("Profiling system can't be reconfigured while running");
+      }
+      init();
+      controller.reconfigure(configProvider, modeOverrides);
+      // refresh the context, e.g. so JFR knows which events the Datadog profiler now takes over
+      final ControllerContext controllerContext = new ControllerContext();
+      controllerContext.setDatadogProfilerUnavailableReason(
+          context.getDatadogProfilerUnavailableReason());
+      controller.configure(controllerContext);
+      context = controllerContext.snapshot();
+      log.debug("Profiling system reconfigured");
+    } finally {
+      lock.unlock();
     }
-    init();
-    controller.reconfigure(configProvider, modeOverrides);
-    // refresh the context, e.g. so JFR knows which events the Datadog profiler now takes over
-    final ControllerContext controllerContext = new ControllerContext();
-    controllerContext.setDatadogProfilerUnavailableReason(
-        context.getDatadogProfilerUnavailableReason());
-    controller.configure(controllerContext);
-    context = controllerContext.snapshot();
-    log.debug("Profiling system reconfigured");
   }
 
   /** Whether the system was started and not stopped since, even if not recording yet. */
-  public synchronized boolean isRunning() {
-    return scheduler != null;
+  public boolean isRunning() {
+    lock.lock();
+    try {
+      return scheduler != null;
+    } finally {
+      lock.unlock();
+    }
   }
 
   /** Whether the startup delay, counted from the creation of the system, is over. */
@@ -560,15 +668,24 @@ public final class ProfilingSystem {
      */
     public void snapshot(ProfilingSnapshot.Kind kind, boolean sync) {
       final RecordingType recordingType = RecordingType.CONTINUOUS;
-      // cleared by stop(), which a scheduler thread that didn't terminate in time can outlive,
-      // and replaced by a restart after it
-      if (ProfilingSystem.this.recording != recording) {
-        log.debug("Profiling recording is stopped, skipping the snapshot");
-        return;
-      }
       try {
-        log.debug("Creating profiler snapshot");
-        final RecordingData recordingData = recording.snapshot(lastSnapshot, kind);
+        final RecordingData recordingData;
+        // a stop doesn't stop the recording while this holds the lock
+        snapshotLock.lock();
+        try {
+          // cleared by stop(), which a scheduler thread that didn't terminate in time can outlive,
+          // and replaced by a restart after it
+          if (ProfilingSystem.this.recording != recording) {
+            log.debug("Profiling recording is stopped, skipping the snapshot");
+            return;
+          }
+          log.debug("Creating profiler snapshot");
+          recordingData = recording.snapshot(lastSnapshot, kind);
+        } finally {
+          snapshotLock.unlock();
+          // a stop may have abandoned the recording while it was being snapshot
+          stopAbandonedRecording();
+        }
         log.debug("Snapshot created: {}", recordingData);
         if (recordingData != null) {
           // To make sure that we don't get data twice, we say that the next start should be

@@ -35,6 +35,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -66,11 +67,13 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.internal.verification.VerificationModeFactory;
@@ -1282,11 +1285,11 @@ public class ProfilingSystemTest {
     try {
       shutdown.start();
 
-      // the shutdown waits for the stop in progress, which holds the monitor of the system while it
+      // the shutdown waits for the stop in progress, which holds the lock of the system while it
       // uploads: observed, rather than assumed from the shutdown not being done yet
       await()
           .atMost(REASONABLE_TIMEOUT, MILLISECONDS)
-          .until(() -> isBlockedOnTheMonitorOf(shutdown, system));
+          .until(() -> system.lock.hasQueuedThread(shutdown));
       assertTrue(shutdown.isAlive(), "waits for the upload of the stop in progress");
       proceed.countDown();
       shutdown.join(REASONABLE_TIMEOUT);
@@ -1312,12 +1315,129 @@ public class ProfilingSystemTest {
     }
   }
 
+  /** Like a stop, a shutdown with snapshot that is uploading doesn't hold up a shutdown hook. */
+  @Test
+  public void testShutdownWithoutSnapshotDoesNotWaitForAShutdownWithSnapshot() throws Exception {
+    CountDownLatch uploading = new CountDownLatch(1);
+    CountDownLatch proceed = new CountDownLatch(1);
+    try {
+      ProfilingSystem system =
+          systemStoppingInTheBackground(uploading, proceed, system1 -> system1.shutdown(true));
+
+      assertTimeoutPreemptively(Duration.ofSeconds(1), () -> system.shutdown(false));
+    } finally {
+      proceed.countDown();
+    }
+  }
+
+  /**
+   * A shutdown without snapshot only skips its stop for a stop in progress: when the lock is held
+   * for something else, it waits for it, and still closes the recording.
+   */
+  @Test
+  public void testShutdownWithoutSnapshotWaitsForAnotherHolderOfTheLock() throws Exception {
+    final ProfilingSystem system =
+        new ProfilingSystem(
+            configProvider,
+            controllerFactory,
+            listener,
+            Duration.ZERO,
+            Duration.ZERO,
+            Duration.ofHours(1),
+            true,
+            () -> scheduler,
+            threadLocalRandom);
+    startProfilingSystem(system);
+    final Thread shutdown = new Thread(() -> system.shutdown(false), "test-shutdown");
+    shutdown.setDaemon(true);
+
+    // as if it were checking whether the system is running
+    system.lock.lock();
+    try {
+      shutdown.start();
+      await()
+          .atMost(REASONABLE_TIMEOUT, MILLISECONDS)
+          .until(() -> system.lock.hasQueuedThread(shutdown));
+      verify(recording, never()).close();
+    } finally {
+      system.lock.unlock();
+    }
+    shutdown.join(REASONABLE_TIMEOUT);
+
+    assertFalse(shutdown.isAlive());
+    verify(recording).close();
+  }
+
+  /**
+   * A stop doesn't stop a recording while a snapshot of it is in progress, e.g. on a scheduler
+   * thread that didn't terminate in time, nor waits for it: the snapshotting thread stops it once
+   * the snapshot is done.
+   */
+  @Test
+  public void testRecordingBeingSnapshotIsStoppedAfterTheSnapshotWithoutWaiting() throws Exception {
+    final CountDownLatch snapshotting = new CountDownLatch(1);
+    final CountDownLatch snapshotDone = new CountDownLatch(1);
+    when(recording.snapshot(any(), any()))
+        .thenAnswer(invocation -> {
+          snapshotting.countDown();
+          awaitUninterruptibly(snapshotDone);
+          return recordingData;
+        });
+    final List<Runnable> snapshotCallbacks = new ArrayList<>();
+    final ProfilingSystem system = systemWithCapturedSnapshotCallbacks(snapshotCallbacks);
+    system.start();
+    final Thread snapshot = new Thread(snapshotCallbacks.get(0), "test-snapshot");
+    snapshot.setDaemon(true);
+    try {
+      snapshot.start();
+      assertTrue(snapshotting.await(REASONABLE_TIMEOUT, MILLISECONDS), "snapshot in progress");
+
+      // returns while the snapshot is still in progress
+      assertTimeoutPreemptively(Duration.ofSeconds(5), () -> system.stop(false));
+      assertFalse(system.isStarted());
+      verify(recording, never()).stop();
+      verify(recording, never()).close();
+    } finally {
+      snapshotDone.countDown();
+    }
+    snapshot.join(REASONABLE_TIMEOUT);
+
+    assertFalse(snapshot.isAlive());
+    InOrder inOrder = inOrder(recording);
+    inOrder.verify(recording).snapshot(any(), any());
+    inOrder.verify(recording).stop();
+    inOrder.verify(recording).close();
+  }
+
+  /** A recording that isn't being snapshot is stopped by the stop itself. */
+  @Test
+  public void testStopStopsARecordingThatIsNotBeingSnapshot() throws Exception {
+    final List<Runnable> snapshotCallbacks = new ArrayList<>();
+    final ProfilingSystem system = systemWithCapturedSnapshotCallbacks(snapshotCallbacks);
+    system.start();
+    snapshotCallbacks.get(0).run();
+
+    system.stop(false);
+
+    InOrder inOrder = inOrder(recording);
+    inOrder.verify(recording).snapshot(any(), any());
+    inOrder.verify(recording).stop();
+    inOrder.verify(recording).close();
+  }
+
   /**
    * Starts a system, and stops it on another thread, which is uploading its last snapshot, until
    * {@code proceed} is counted down, once this returns.
    */
   private ProfilingSystem systemStoppingInTheBackground(
       CountDownLatch uploading, CountDownLatch proceed) throws Exception {
+    return systemStoppingInTheBackground(uploading, proceed, system -> system.stop(true));
+  }
+
+  /** Like the other, with the given stop, e.g. a shutdown with snapshot. */
+  private ProfilingSystem systemStoppingInTheBackground(
+      CountDownLatch uploading, CountDownLatch proceed, Consumer<ProfilingSystem> stopping)
+      throws Exception {
     when(recording.snapshot(any(), any())).thenReturn(recordingData);
     doAnswer(
             invocation -> {
@@ -1339,9 +1459,9 @@ public class ProfilingSystemTest {
             () -> scheduler,
             threadLocalRandom);
     startProfilingSystem(system);
-    Thread stopping = new Thread(() -> system.stop(true), "test-stop");
-    stopping.setDaemon(true);
-    stopping.start();
+    Thread stoppingThread = new Thread(() -> stopping.accept(system), "test-stop");
+    stoppingThread.setDaemon(true);
+    stoppingThread.start();
     assertTrue(uploading.await(REASONABLE_TIMEOUT, MILLISECONDS), "the stop is uploading");
     return system;
   }
