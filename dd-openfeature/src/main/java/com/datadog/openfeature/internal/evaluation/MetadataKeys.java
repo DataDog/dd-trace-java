@@ -53,5 +53,11 @@ public final class MetadataKeys {
    */
   public static final String EVALUATION_FEATURES_HANDLE = "__dd_evaluation_features_handle";
 
+  /**
+   * The {@link EvaluationFeatureHandles} handle of the split's prepared exposure features, so the
+   * exposure hook can take the prepared map instead of rebuilding it from the entries.
+   */
+  public static final String EXPOSURE_FEATURES_HANDLE = "__dd_exposure_features_handle";
+
   private MetadataKeys() {}
 }

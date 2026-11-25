@@ -2,6 +2,7 @@ package com.datadog.openfeature.internal.evaluation;
 
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURES_HANDLE;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURES_HANDLE;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.HAS_EVALUATION_FEATURES;
@@ -51,6 +52,7 @@ class SplitFeaturesTest {
     expected.put(HAS_EVALUATION_FEATURES, true);
     final SplitFeatures prepared = split.preparedFeatures(SplitFeatures::prepare);
     expected.put(EVALUATION_FEATURES_HANDLE, prepared.evaluationFeaturesHandle());
+    expected.put(EXPOSURE_FEATURES_HANDLE, prepared.exposureFeaturesHandle());
     assertSame(prepared, split.preparedFeatures(SplitFeatures::prepare));
     assertEquals(4, prepared.size());
     assertEquals(expected, metadata(prepared));
@@ -58,6 +60,13 @@ class SplitFeaturesTest {
         singletonMap("holdout.weight", 0.5),
         EvaluationFeatureHandles.lookup(prepared.evaluationFeaturesHandle()),
         "the handle resolves to the evaluation features, without their prefix");
+    final Map<String, Object> exposure = new HashMap<>();
+    exposure.put("holdout.key", "q4-global");
+    exposure.put("holdout.enabled", true);
+    assertEquals(
+        exposure,
+        EvaluationFeatureHandles.lookup(prepared.exposureFeaturesHandle()),
+        "the exposure handle resolves to the exposure features, without their prefix");
   }
 
   @Test
@@ -66,6 +75,7 @@ class SplitFeaturesTest {
         SplitFeatures.prepare(singletonList(new Feature("k", "v", singletonList("HOOK"))));
 
     assertEquals(0L, features.evaluationFeaturesHandle());
+    assertEquals(0L, features.exposureFeaturesHandle());
     assertEquals(singletonMap(FEATURE_PREFIX + "k", "v"), metadata(features));
   }
 
