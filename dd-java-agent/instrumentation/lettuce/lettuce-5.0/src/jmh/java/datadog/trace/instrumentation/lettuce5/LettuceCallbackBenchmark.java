@@ -102,7 +102,6 @@ public class LettuceCallbackBenchmark {
     OrdinaryCallback callback = new OrdinaryCallback();
     CompletableFuture<String> dependent;
     try (ContextScope ignored = activateSpan(span)) {
-      AgentTracer.setAsyncPropagationEnabled(true);
       dependent = source.whenComplete(callback);
     }
     try {
@@ -135,7 +134,6 @@ public class LettuceCallbackBenchmark {
     AgentSpan span = startSpan("benchmark", "lettuce.callback");
     CompletableFuture<String> dependent;
     try (ContextScope ignored = activateSpan(span)) {
-      AgentTracer.setAsyncPropagationEnabled(true);
       dependent = source.whenComplete(new LettuceAsyncBiConsumer<>(span));
     }
     if (!completed) {

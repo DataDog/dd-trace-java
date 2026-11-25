@@ -89,7 +89,6 @@ public class ScalaPromiseCallbackBenchmark {
     OrdinaryCallback ordinary = new OrdinaryCallback();
     Promise<Object> promise = Promise$.MODULE$.apply();
     try (ContextScope ignored = activateSpan(span)) {
-      AgentTracer.setAsyncPropagationEnabled(true);
       promise.future().onComplete(ordinary, executor);
     }
     promise.complete(result);
@@ -128,7 +127,6 @@ public class ScalaPromiseCallbackBenchmark {
     FinishingCallback callback =
         exclude ? new SkippingFinishingCallback(span) : new FinishingCallback(span);
     try (ContextScope ignored = activateSpan(span)) {
-      AgentTracer.setAsyncPropagationEnabled(true);
       promise.future().onComplete(callback, executor);
     }
     if (!completed) {
