@@ -92,10 +92,10 @@ public final class ProfilingConfigPoller {
               : ProfilingConfigTargets.rank(payload, problems);
       if (priority == ProfilingConfigTargets.DROPPED) {
         // may have been a usable config before, in which case it no longer applies
-        stack.remove(configId);
+        stack.remove(configKey);
         log.debug("Ignoring APM_PROFILING config {}: {}", configId, problems);
       } else {
-        stack.push(configId, priority, configuration);
+        stack.push(configKey, priority, configuration);
         log.debug(
             "Stored APM_PROFILING config {} in the priority stack with priority {}: {}",
             configId,
@@ -118,7 +118,9 @@ public final class ProfilingConfigPoller {
 
     @Override
     public void remove(ConfigKey configKey, PollingRateHinter hinter) {
-      stack.remove(configKey.getConfigId());
+      // by its key, not its config id: a target replaced by another one with the same config id
+      // is removed after the new one was accepted
+      stack.remove(configKey);
       log.debug("Removed APM_PROFILING config {} from the priority stack", configKey.getConfigId());
     }
 

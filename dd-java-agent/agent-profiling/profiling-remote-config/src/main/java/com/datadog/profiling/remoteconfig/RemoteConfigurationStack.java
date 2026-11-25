@@ -1,5 +1,6 @@
 package com.datadog.profiling.remoteconfig;
 
+import datadog.remoteconfig.state.ConfigKey;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -18,6 +19,11 @@ import org.slf4j.LoggerFactory;
  * replaces the others entirely, even for the features it doesn't set. A configuration that is
  * pushed again, i.e. that was updated, becomes the latest. The others are kept, so that they count
  * again if the latest is removed.
+ *
+ * <p>The configurations are keyed by the {@link ConfigKey} of the remote config target file they
+ * come from, which identifies the file by its path, not by its config id alone: a target can be
+ * replaced by another one with the same config id, e.g. one for another org, and remote config
+ * applies the new target before it removes the old one.
  *
  * <p>Not thread safe.
  */
@@ -63,36 +69,37 @@ public final class RemoteConfigurationStack {
   private static final Comparator<Entry> LOWEST_PRIORITY_FIRST =
       Comparator.comparingInt(Entry::priority).thenComparingLong(entry -> entry.sequence);
 
-  private final Map<String, Entry> entries;
+  private final Map<ConfigKey, Entry> entries;
   private long nextSequence;
 
   public RemoteConfigurationStack() {
     this(new HashMap<>(), 0);
   }
 
-  private RemoteConfigurationStack(Map<String, Entry> entries, long nextSequence) {
+  private RemoteConfigurationStack(Map<ConfigKey, Entry> entries, long nextSequence) {
     this.entries = entries;
     this.nextSequence = nextSequence;
   }
 
   /**
-   * Stores a configuration as the latest one, replacing the one with the same config id, if any.
+   * Stores a configuration as the latest one, replacing the one with the same key, if any.
    *
-   * @param configId the id of the remote config
+   * @param key the remote config target file it comes from
    * @param priority the higher, the more it overrides the other configurations
    * @param configuration what it sets
    */
-  public void push(String configId, int priority, RemoteConfiguration configuration) {
-    entries.put(configId, new Entry(configId, priority, nextSequence++, configuration));
+  public void push(ConfigKey key, int priority, RemoteConfiguration configuration) {
+    entries.put(key, new Entry(key.getConfigId(), priority, nextSequence++, configuration));
   }
 
-  /** Removes the configuration with the config id, if any. */
-  public void remove(String configId) {
-    entries.remove(configId);
+  /** Removes the configuration of the remote config target file, if any. */
+  public void remove(ConfigKey key) {
+    entries.remove(key);
   }
 
-  public boolean contains(String configId) {
-    return entries.containsKey(configId);
+  /** Whether there is a configuration of the remote config target file. */
+  public boolean contains(ConfigKey key) {
+    return entries.containsKey(key);
   }
 
   public boolean isEmpty() {
@@ -103,7 +110,11 @@ public final class RemoteConfigurationStack {
    * @return the config ids, in order
    */
   public Set<String> configIds() {
-    return new TreeSet<>(entries.keySet());
+    Set<String> configIds = new TreeSet<>();
+    for (Entry entry : entries.values()) {
+      configIds.add(entry.configId);
+    }
+    return configIds;
   }
 
   /**

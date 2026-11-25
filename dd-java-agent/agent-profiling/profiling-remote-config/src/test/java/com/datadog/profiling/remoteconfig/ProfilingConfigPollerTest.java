@@ -2,6 +2,7 @@ package com.datadog.profiling.remoteconfig;
 
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.CPU_TIME;
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.WALL_TIME;
+import static com.datadog.profiling.remoteconfig.TestConfigKey.configKey;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -12,8 +13,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -217,6 +218,31 @@ class ProfilingConfigPollerTest {
     assertEquals(false, stack.merged().get(CPU_TIME));
   }
 
+  /**
+   * Remote config applies a target that replaces another one with the same config id before it
+   * removes the replaced one, which must not remove the new config.
+   */
+  @Test
+  void replacedTargetWithSameConfigIdIsKeptWhenTheOldOneIsRemovedAfter() throws Exception {
+    ProductListener listener = startAndCaptureListener();
+    ConfigKey original = configKey("datadog", 2, "a");
+    ConfigKey replacement = configKey("employee", null, "a");
+
+    listener.accept(original, targeted("\"cpuTime\":true"), hinter);
+    listener.commit(hinter);
+    clearInvocations(handler);
+    // the next poll, in the order the poller calls back
+    listener.accept(replacement, targeted("\"cpuTime\":false"), hinter);
+    listener.remove(original, hinter);
+    listener.commit(hinter);
+
+    RemoteConfigurationStack stack = committedStack();
+    assertEquals(asList("a"), new ArrayList<>(stack.configIds()));
+    assertTrue(stack.contains(replacement));
+    assertFalse(stack.contains(original));
+    assertEquals(false, stack.merged().get(CPU_TIME));
+  }
+
   @Test
   void configWithoutTargetsIsStoredWithTheLowestPriority() throws Exception {
     ProductListener listener = startAndCaptureListener();
@@ -293,7 +319,7 @@ class ProfilingConfigPollerTest {
         hinter);
     listener.commit(hinter);
 
-    assertTrue(committedStack().contains("a"));
+    assertTrue(committedStack().contains(configKey("a")));
   }
 
   @Test
@@ -324,7 +350,7 @@ class ProfilingConfigPollerTest {
 
     RemoteConfigurationStack stack = committedStack();
     assertEquals(asList("b"), new ArrayList<>(stack.configIds()));
-    assertFalse(stack.contains("a"));
+    assertFalse(stack.contains(configKey("a")));
   }
 
   @Test
@@ -382,12 +408,6 @@ class ProfilingConfigPollerTest {
   private RemoteConfigurationStack committedStack() {
     verify(handler).onConfigsChanged(stackCaptor.capture());
     return stackCaptor.getValue();
-  }
-
-  private static ConfigKey configKey(String configId) {
-    ConfigKey key = mock(ConfigKey.class);
-    when(key.getConfigId()).thenReturn(configId);
-    return key;
   }
 
   /** A payload targeting this application that sets the given profilers. */

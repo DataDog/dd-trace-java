@@ -34,6 +34,7 @@ dependencies {
 
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
+  testImplementation(testFixtures(project(':dd-java-agent:agent-profiling:profiling-remote-config')))
 }
 
 configurations {

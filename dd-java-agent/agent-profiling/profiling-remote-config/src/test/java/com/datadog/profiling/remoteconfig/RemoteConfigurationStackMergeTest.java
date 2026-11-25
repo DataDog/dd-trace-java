@@ -4,6 +4,7 @@ import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.ALL
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.CPU_TIME;
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.HEAP_OBJECTS;
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.WALL_TIME;
+import static com.datadog.profiling.remoteconfig.TestConfigKey.configKey;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -20,7 +21,7 @@ class RemoteConfigurationStackMergeTest {
 
   @Test
   void singleConfigurationIsUnchanged() {
-    stack.push("a", 0, config("\"cpuTime\":true,\"wallTime\":false"));
+    stack.push(configKey("a"), 0, config("\"cpuTime\":true,\"wallTime\":false"));
 
     RemoteConfiguration merged = stack.merged();
 
@@ -32,20 +33,20 @@ class RemoteConfigurationStackMergeTest {
   @Test
   void highestPriorityValueWinsWhateverTheOrderItWasPushedIn() {
     // by push order, the lower priority one would overwrite the other in the first stack
-    stack.push("a", 3001, config("\"cpuTime\":true"));
-    stack.push("z", 0, config("\"cpuTime\":false"));
+    stack.push(configKey("a"), 3001, config("\"cpuTime\":true"));
+    stack.push(configKey("z"), 0, config("\"cpuTime\":false"));
     assertEquals(true, stack.merged().get(CPU_TIME));
 
     RemoteConfigurationStack reversed = new RemoteConfigurationStack();
-    reversed.push("a", 0, config("\"cpuTime\":false"));
-    reversed.push("z", 3001, config("\"cpuTime\":true"));
+    reversed.push(configKey("a"), 0, config("\"cpuTime\":false"));
+    reversed.push(configKey("z"), 3001, config("\"cpuTime\":true"));
     assertEquals(true, reversed.merged().get(CPU_TIME));
   }
 
   @Test
   void disablingWithAHigherPriorityOverridesEnabling() {
-    stack.push("general", 0, config("\"cpuTime\":true,\"wallTime\":true"));
-    stack.push("specific", 3001, config("\"cpuTime\":false"));
+    stack.push(configKey("general"), 0, config("\"cpuTime\":true,\"wallTime\":true"));
+    stack.push(configKey("specific"), 3001, config("\"cpuTime\":false"));
 
     RemoteConfiguration merged = stack.merged();
 
@@ -55,26 +56,26 @@ class RemoteConfigurationStackMergeTest {
 
   @Test
   void equalPriorityGivesTheValueOfTheLatestPushed() {
-    stack.push("c", 2001, config("\"cpuTime\":true"));
-    stack.push("a", 2001, config("\"cpuTime\":true"));
-    stack.push("b", 2001, config("\"cpuTime\":false"));
+    stack.push(configKey("c"), 2001, config("\"cpuTime\":true"));
+    stack.push(configKey("a"), 2001, config("\"cpuTime\":true"));
+    stack.push(configKey("b"), 2001, config("\"cpuTime\":false"));
 
     assertEquals(false, stack.merged().get(CPU_TIME), "b is the latest");
   }
 
   @Test
   void updatedConfigurationBecomesTheLatestOfItsPriority() {
-    stack.push("a", 2001, config("\"cpuTime\":true"));
-    stack.push("b", 2001, config("\"cpuTime\":false"));
-    stack.push("a", 2001, config("\"cpuTime\":true"));
+    stack.push(configKey("a"), 2001, config("\"cpuTime\":true"));
+    stack.push(configKey("b"), 2001, config("\"cpuTime\":false"));
+    stack.push(configKey("a"), 2001, config("\"cpuTime\":true"));
 
     assertEquals(true, stack.merged().get(CPU_TIME), "a was updated after b");
   }
 
   @Test
   void latestOfAPriorityReplacesTheEarlierOnesEntirely() {
-    stack.push("a", 2001, config("\"cpuTime\":true,\"wallTime\":true"));
-    stack.push("b", 2001, config("\"cpuTime\":false"));
+    stack.push(configKey("a"), 2001, config("\"cpuTime\":true,\"wallTime\":true"));
+    stack.push(configKey("b"), 2001, config("\"cpuTime\":false"));
 
     RemoteConfiguration merged = stack.merged();
 
@@ -84,9 +85,9 @@ class RemoteConfigurationStackMergeTest {
 
   @Test
   void earlierConfigurationCountsAgainWhenTheLatestOfItsPriorityIsRemoved() {
-    stack.push("a", 2001, config("\"cpuTime\":true,\"wallTime\":true"));
-    stack.push("b", 2001, config("\"cpuTime\":false"));
-    stack.remove("b");
+    stack.push(configKey("a"), 2001, config("\"cpuTime\":true,\"wallTime\":true"));
+    stack.push(configKey("b"), 2001, config("\"cpuTime\":false"));
+    stack.remove(configKey("b"));
 
     RemoteConfiguration merged = stack.merged();
 
@@ -96,9 +97,9 @@ class RemoteConfigurationStackMergeTest {
 
   @Test
   void lowerPriorityStillCountsForTheFeaturesTheLatestDoesNotSet() {
-    stack.push("general", 0, config("\"wallTime\":false"));
-    stack.push("a", 2001, config("\"cpuTime\":true"));
-    stack.push("b", 2001, config("\"allocations\":true"));
+    stack.push(configKey("general"), 0, config("\"wallTime\":false"));
+    stack.push(configKey("a"), 2001, config("\"cpuTime\":true"));
+    stack.push(configKey("b"), 2001, config("\"allocations\":true"));
 
     RemoteConfiguration merged = stack.merged();
 
@@ -109,8 +110,11 @@ class RemoteConfigurationStackMergeTest {
 
   @Test
   void configurationsAreMergedFeatureByFeature() {
-    stack.push("general", 0, config("\"cpuTime\":true,\"wallTime\":false,\"heapObjects\":true"));
-    stack.push("specific", 2001, config("\"wallTime\":true,\"allocations\":true"));
+    stack.push(
+        configKey("general"),
+        0,
+        config("\"cpuTime\":true,\"wallTime\":false,\"heapObjects\":true"));
+    stack.push(configKey("specific"), 2001, config("\"wallTime\":true,\"allocations\":true"));
 
     RemoteConfiguration merged = stack.merged();
 
@@ -122,25 +126,25 @@ class RemoteConfigurationStackMergeTest {
 
   @Test
   void featureThatTheHigherPriorityDoesNotSetKeepsTheLowerPriorityValue() {
-    stack.push("general", 0, config("\"wallTime\":false"));
-    stack.push("specific", 3001, config("\"cpuTime\":true"));
+    stack.push(configKey("general"), 0, config("\"wallTime\":false"));
+    stack.push(configKey("specific"), 3001, config("\"cpuTime\":true"));
 
     assertEquals(false, stack.merged().get(WALL_TIME));
   }
 
   @Test
   void configurationWithoutFeaturesChangesNothing() {
-    stack.push("general", 0, config("\"cpuTime\":true"));
-    stack.push("specific", 7001, RemoteConfiguration.EMPTY);
+    stack.push(configKey("general"), 0, config("\"cpuTime\":true"));
+    stack.push(configKey("specific"), 7001, RemoteConfiguration.EMPTY);
 
     assertEquals(true, stack.merged().get(CPU_TIME));
   }
 
   @Test
   void replacedConfigurationNoLongerCounts() {
-    stack.push("a", 3001, config("\"cpuTime\":false"));
-    stack.push("b", 0, config("\"cpuTime\":true"));
-    stack.push("a", 3001, config("\"wallTime\":true"));
+    stack.push(configKey("a"), 3001, config("\"cpuTime\":false"));
+    stack.push(configKey("b"), 0, config("\"cpuTime\":true"));
+    stack.push(configKey("a"), 3001, config("\"wallTime\":true"));
 
     RemoteConfiguration merged = stack.merged();
 
@@ -150,9 +154,9 @@ class RemoteConfigurationStackMergeTest {
 
   @Test
   void removedConfigurationNoLongerCounts() {
-    stack.push("general", 0, config("\"cpuTime\":true"));
-    stack.push("specific", 3001, config("\"cpuTime\":false"));
-    stack.remove("specific");
+    stack.push(configKey("general"), 0, config("\"cpuTime\":true"));
+    stack.push(configKey("specific"), 3001, config("\"cpuTime\":false"));
+    stack.remove(configKey("specific"));
 
     assertEquals(true, stack.merged().get(CPU_TIME));
   }

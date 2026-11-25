@@ -1,5 +1,6 @@
 package com.datadog.profiling.remoteconfig;
 
+import static com.datadog.profiling.remoteconfig.TestConfigKey.configKey;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -28,40 +29,40 @@ class RemoteConfigurationStackTest {
 
   @Test
   void entriesAreOrderedByPriority() {
-    stack.push("a", 3001, CPU);
-    stack.push("b", 0, WALL);
-    stack.push("c", 2001, CPU);
+    stack.push(configKey("a"), 3001, CPU);
+    stack.push(configKey("b"), 0, WALL);
+    stack.push(configKey("c"), 2001, CPU);
 
     assertEquals(asList("b", "c", "a"), configIds(stack.lowestToHighestPriority()));
   }
 
   @Test
   void entriesWithTheSamePriorityAreOrderedByTheOrderTheyWerePushedIn() {
-    stack.push("c", 5, CPU);
-    stack.push("a", 5, CPU);
-    stack.push("b", 5, CPU);
+    stack.push(configKey("c"), 5, CPU);
+    stack.push(configKey("a"), 5, CPU);
+    stack.push(configKey("b"), 5, CPU);
 
     assertEquals(asList("c", "a", "b"), configIds(stack.lowestToHighestPriority()));
   }
 
   @Test
   void pushingAgainMakesTheEntryTheLatestOfItsPriority() {
-    stack.push("a", 5, CPU);
-    stack.push("b", 5, CPU);
-    stack.push("c", 5, CPU);
-    stack.push("a", 5, WALL);
+    stack.push(configKey("a"), 5, CPU);
+    stack.push(configKey("b"), 5, CPU);
+    stack.push(configKey("c"), 5, CPU);
+    stack.push(configKey("a"), 5, WALL);
 
     assertEquals(asList("b", "c", "a"), configIds(stack.lowestToHighestPriority()));
   }
 
   @Test
   void snapshotKeepsTheOrderAndLaterPushesStayLatest() {
-    stack.push("b", 5, CPU);
-    stack.push("a", 5, CPU);
+    stack.push(configKey("b"), 5, CPU);
+    stack.push(configKey("a"), 5, CPU);
 
     RemoteConfigurationStack snapshot = stack.snapshot();
-    snapshot.push("c", 5, CPU);
-    stack.push("d", 5, CPU);
+    snapshot.push(configKey("c"), 5, CPU);
+    stack.push(configKey("d"), 5, CPU);
 
     assertEquals(asList("b", "a", "c"), configIds(snapshot.lowestToHighestPriority()));
     assertEquals(asList("b", "a", "d"), configIds(stack.lowestToHighestPriority()));
@@ -69,8 +70,8 @@ class RemoteConfigurationStackTest {
 
   @Test
   void pushingTheSameConfigIdReplacesTheEntry() {
-    stack.push("a", 1, CPU);
-    stack.push("a", 5, WALL);
+    stack.push(configKey("a"), 1, CPU);
+    stack.push(configKey("a"), 5, WALL);
 
     List<Entry> entries = stack.lowestToHighestPriority();
     assertEquals(1, entries.size());
@@ -80,35 +81,35 @@ class RemoteConfigurationStackTest {
 
   @Test
   void removeAndContains() {
-    stack.push("a", 1, CPU);
-    stack.push("b", 2, WALL);
+    stack.push(configKey("a"), 1, CPU);
+    stack.push(configKey("b"), 2, WALL);
 
-    assertTrue(stack.contains("a"));
-    stack.remove("a");
-    stack.remove("unknown");
+    assertTrue(stack.contains(configKey("a")));
+    stack.remove(configKey("a"));
+    stack.remove(configKey("unknown"));
 
-    assertFalse(stack.contains("a"));
-    assertTrue(stack.contains("b"));
+    assertFalse(stack.contains(configKey("a")));
+    assertTrue(stack.contains(configKey("b")));
     assertFalse(stack.isEmpty());
-    stack.remove("b");
+    stack.remove(configKey("b"));
     assertTrue(stack.isEmpty());
   }
 
   @Test
   void configIdsAreSorted() {
-    stack.push("b", 1, CPU);
-    stack.push("a", 2, CPU);
+    stack.push(configKey("b"), 1, CPU);
+    stack.push(configKey("a"), 2, CPU);
 
     assertEquals(asList("a", "b"), new ArrayList<>(stack.configIds()));
   }
 
   @Test
   void snapshotIsNotAffectedByLaterChanges() {
-    stack.push("a", 1, CPU);
+    stack.push(configKey("a"), 1, CPU);
 
     RemoteConfigurationStack snapshot = stack.snapshot();
-    stack.push("b", 2, WALL);
-    stack.remove("a");
+    stack.push(configKey("b"), 2, WALL);
+    stack.remove(configKey("a"));
 
     assertEquals(asList("a"), configIds(snapshot.lowestToHighestPriority()));
     assertEquals(asList("b"), configIds(stack.lowestToHighestPriority()));
@@ -116,11 +117,11 @@ class RemoteConfigurationStackTest {
 
   @Test
   void changesToASnapshotDoNotAffectTheStack() {
-    stack.push("a", 1, CPU);
+    stack.push(configKey("a"), 1, CPU);
 
-    stack.snapshot().push("b", 2, WALL);
+    stack.snapshot().push(configKey("b"), 2, WALL);
 
-    assertFalse(stack.contains("b"));
+    assertFalse(stack.contains(configKey("b")));
   }
 
   private static List<String> configIds(List<Entry> entries) {

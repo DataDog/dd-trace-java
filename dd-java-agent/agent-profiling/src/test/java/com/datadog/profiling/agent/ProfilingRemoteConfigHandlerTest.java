@@ -1,6 +1,7 @@
 package com.datadog.profiling.agent;
 
 import static com.datadog.profiling.controller.ProfilingSupport.isAllocationSamplerSafe;
+import static com.datadog.profiling.remoteconfig.TestConfigKey.configKey;
 import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
 import static com.datadog.profiling.utils.ProfilingMode.CPU;
 import static com.datadog.profiling.utils.ProfilingMode.LIVEHEAP_SIZE;
@@ -176,8 +177,8 @@ class ProfilingRemoteConfigHandlerTest {
 
     // the merged configuration has the only feature that was enabled disabled
     RemoteConfigurationStack stack = new RemoteConfigurationStack();
-    stack.push("general", 0, config("\"cpuTime\":true"));
-    stack.push("specific", 3001, config("\"cpuTime\":false"));
+    stack.push(configKey("general"), 0, config("\"cpuTime\":true"));
+    stack.push(configKey("specific"), 3001, config("\"cpuTime\":false"));
     handler.onConfigsChanged(stack);
 
     assertFalse(profilingSystem.isRunning());
@@ -189,8 +190,8 @@ class ProfilingRemoteConfigHandlerTest {
   void highestPriorityConfigDecidesWhateverTheConfigId() throws Exception {
     // by config id, "z" would overwrite "a": it has the lower priority, so it must not
     RemoteConfigurationStack stack = new RemoteConfigurationStack();
-    stack.push("a", 3001, config("\"cpuTime\":true"));
-    stack.push("z", 0, config("\"cpuTime\":false"));
+    stack.push(configKey("a"), 3001, config("\"cpuTime\":true"));
+    stack.push(configKey("z"), 0, config("\"cpuTime\":false"));
 
     handler().onConfigsChanged(stack);
 
@@ -201,8 +202,8 @@ class ProfilingRemoteConfigHandlerTest {
   @Test
   void configurationsAreMergedFeatureByFeature() throws Exception {
     RemoteConfigurationStack stack = new RemoteConfigurationStack();
-    stack.push("general", 0, config("\"cpuTime\":true,\"wallTime\":false"));
-    stack.push("specific", 2001, config("\"wallTime\":true"));
+    stack.push(configKey("general"), 0, config("\"cpuTime\":true,\"wallTime\":false"));
+    stack.push(configKey("specific"), 2001, config("\"wallTime\":true"));
 
     handler().onConfigsChanged(stack);
 
@@ -260,9 +261,11 @@ class ProfilingRemoteConfigHandlerTest {
     ProfilingRemoteConfigHandler handler = handlerWhereTheLocalConfigEnablesProfiling();
     handler.onConfigsChanged(enabledConfig());
     RemoteConfigurationStack stack = new RemoteConfigurationStack();
-    stack.push("config-1", 1, config("\"cpuTime\":false,\"wallTime\":false"));
+    stack.push(configKey("config-1"), 1, config("\"cpuTime\":false,\"wallTime\":false"));
     stack.push(
-        "config-2", 0, config("\"heapObjects\":false,\"heapSize\":false,\"allocations\":false"));
+        configKey("config-2"),
+        0,
+        config("\"heapObjects\":false,\"heapSize\":false,\"allocations\":false"));
 
     handler.onConfigsChanged(stack);
 
@@ -402,8 +405,8 @@ class ProfilingRemoteConfigHandlerTest {
   @Test
   void higherPriorityConfigEnablingAFeatureStartsTheProfilerAgain() throws Exception {
     RemoteConfigurationStack stack = new RemoteConfigurationStack();
-    stack.push("general", 0, config(ALL_FEATURES_DISABLED));
-    stack.push("specific", 3001, config("\"wallTime\":true"));
+    stack.push(configKey("general"), 0, config(ALL_FEATURES_DISABLED));
+    stack.push(configKey("specific"), 3001, config("\"wallTime\":true"));
 
     handlerWithRealFeatureCheck().onConfigsChanged(stack);
 
@@ -453,11 +456,11 @@ class ProfilingRemoteConfigHandlerTest {
   void changeOfPriorityThatKeepsTheMergedConfigurationIsIgnored() throws Exception {
     ProfilingRemoteConfigHandler handler = handler();
     RemoteConfigurationStack first = new RemoteConfigurationStack();
-    first.push("a", 0, config("\"cpuTime\":true"));
+    first.push(configKey("a"), 0, config("\"cpuTime\":true"));
     handler.onConfigsChanged(first);
 
     RemoteConfigurationStack second = new RemoteConfigurationStack();
-    second.push("a", 3001, config("\"cpuTime\":true"));
+    second.push(configKey("a"), 3001, config("\"cpuTime\":true"));
     handler.onConfigsChanged(second);
 
     assertEquals(1, appliedOverrides.size());
@@ -801,14 +804,14 @@ class ProfilingRemoteConfigHandlerTest {
 
   private static RemoteConfigurationStack stackOf(String profilers) {
     RemoteConfigurationStack stack = new RemoteConfigurationStack();
-    stack.push("config-1", 0, config(profilers));
+    stack.push(configKey("config-1"), 0, config(profilers));
     return stack;
   }
 
   /** Configs that are profiling configs, but set no feature, e.g. {@code {"profilers":{}}}. */
   private static RemoteConfigurationStack stackOfConfigsThatSetNoFeature() {
     RemoteConfigurationStack stack = new RemoteConfigurationStack();
-    stack.push("config-1", 0, RemoteConfiguration.EMPTY);
+    stack.push(configKey("config-1"), 0, RemoteConfiguration.EMPTY);
     return stack;
   }
 
