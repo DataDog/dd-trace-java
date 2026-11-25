@@ -1,66 +1,64 @@
 package datadog.trace.instrumentation.java.concurrent.structuredconcurrency25;
 
-import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.InstrumentationContext.get;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
-import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.TaskScopeStateRegistry.STRUCTURED_TASK_SCOPE_CLASS_NAME;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.TaskScopeStateRegistry.TASK_SCOPE_STATE_REGISTRY_CLASS_NAME;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.TaskScopeStateRegistry;
 import net.bytebuddy.asm.Advice.OnMethodExit;
 import net.bytebuddy.asm.Advice.This;
-
-// WARNING:
-// This instrumentation is tested using smoke tests as instrumented tests cannot run using Java 25.
-// Instrumented tests rely on Spock / Groovy which cannot run using Java 25 due to byte-code
-// compatibility. Check
-// dd-java-agent/instrumentation/java/java-concurrent/java-concurrent-25.0 for this
-// instrumentation test suite.
+import net.bytebuddy.asm.Advice.Thrown;
 
 /**
- * This instrumentation captures the active span scope at StructuredTaskScope task creation
- * (SubtaskImpl). The scope is then activate and close through the {@link Runnable} instrumentation
- * (SubtaskImpl implementing {@link Runnable}).
+ * This instrumentation releases the continuations captured by {@link
+ * StructuredTaskScope25TaskInstrumentation} for subtasks whose thread never starts (e.g. a subtask
+ * forked into an already-canceled scope, or {@code fork()} throwing).
  */
 @SuppressWarnings("unused")
-@AutoService(InstrumenterModule.class)
-public class StructuredTaskScope25Instrumentation extends InstrumenterModule.ContextTracking
+public class StructuredTaskScope25Instrumentation
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  public StructuredTaskScope25Instrumentation() {
-    super("java_concurrent", "structured-task-scope", "structured-task-scope-25");
-  }
 
   @Override
   public String instrumentedType() {
-    return "java.util.concurrent.StructuredTaskScopeImpl$SubtaskImpl";
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return isJavaVersionAtLeast(25) && super.isEnabled();
+    return STRUCTURED_TASK_SCOPE_CLASS_NAME;
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$ConstructorAdvice");
+    transformer.applyAdvice(
+        named("close").and(takesArguments(0)), getClass().getName() + "$CloseAdvice");
   }
 
-  public static final class ConstructorAdvice {
+  public static final class CloseAdvice {
     /**
-     * Captures task scope to be restored at the start of VirtualThread.run() method by {@link
-     * Runnable} instrumentation.
+     * Releases the continuation of every subtask whose thread never ran, once the scope is closed.
      *
-     * @param subTaskImpl The StructuredTaskScopeImpl.SubtaskImpl object (the advice are compile
-     *     against Java 8 so the type from JDK25 can't be referred, using {@link Object} instead
+     * <p>{@code close()} joins all started subtasks, so only never-started subtasks still hold an
+     * unconsumed continuation; releasing an already-consumed one is a no-op. The registry is swept
+     * even when {@code close()} throws after closing the scope (e.g. {@link IllegalStateException}
+     * when the owner did not join), but not on {@code WrongThreadException}: a non-owner call fails
+     * before closing the scope, while subtasks may still run.
+     *
+     * @param scope The StructuredTaskScopeImpl object (using {@link Object} as the advice is
+     *     compiled against Java 8, meaning the type from JDK 25 can't be referred directly).
+     * @param thrown The exception thrown by {@code close()}, {@code null} if it returned normally.
      */
-    @OnMethodExit(suppress = Throwable.class)
-    public static void captureScope(@This Object subTaskImpl) {
-      ContextStore<Runnable, State> contextStore = get(Runnable.class, State.class);
-      capture(contextStore, (Runnable) subTaskImpl);
+    @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void afterClose(@This Object scope, @Thrown Throwable thrown) {
+      // Matched by name as WrongThreadException (JDK 19+) can't be referred from Java 8 advice
+      if (thrown != null && "java.lang.WrongThreadException".equals(thrown.getClass().getName())) {
+        return;
+      }
+      ContextStore<Object, TaskScopeStateRegistry> registryStore =
+          get(STRUCTURED_TASK_SCOPE_CLASS_NAME, TASK_SCOPE_STATE_REGISTRY_CLASS_NAME);
+      TaskScopeStateRegistry registry = registryStore.remove(scope);
+      if (registry != null) {
+        registry.cancelAll();
+      }
     }
   }
 }

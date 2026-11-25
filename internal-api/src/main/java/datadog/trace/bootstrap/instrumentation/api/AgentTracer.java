@@ -362,6 +362,11 @@ public class AgentTracer {
 
     CallbackProvider getUniversalCallbackProvider();
 
+    /** Whether the native Lambda lifecycle is enabled in this build. */
+    default boolean isNativeLambdaTracingEnabled() {
+      return false;
+    }
+
     AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId);
 
     void notifyExtensionEnd(AgentSpan span, Object result, boolean isError, String lambdaRequestId);

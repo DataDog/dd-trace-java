@@ -12,6 +12,7 @@ import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.SkipScalaPromiseContextCapture;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.instrumentation.scala.PromiseHelper;
 import net.bytebuddy.asm.Advice;
@@ -39,9 +40,14 @@ public final class PromiseTransformationInstrumentation
   public static final class Construct {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static <F, T> void onConstruct(
-        @Advice.This Transformation<F, T> task, @Advice.Argument(3) int xform) {
+        @Advice.This Transformation<F, T> task,
+        @Advice.Argument(3) int xform,
+        @Advice.FieldValue("_fun") Object callback) {
       // Do not trace the Noop Transformation
       if (xform == 0) {
+        return;
+      }
+      if (callback instanceof SkipScalaPromiseContextCapture) {
         return;
       }
       capture(InstrumentationContext.get(Transformation.class, State.class), task);
@@ -74,7 +80,12 @@ public final class PromiseTransformationInstrumentation
   public static final class SubmitWithValue {
     @Advice.OnMethodEnter
     public static <F, T> void beforeExecute(
-        @Advice.This Transformation<F, T> task, @Advice.Argument(value = 0) Try<T> resolved) {
+        @Advice.This Transformation<F, T> task,
+        @Advice.Argument(value = 0) Try<T> resolved,
+        @Advice.FieldValue("_fun") Object callback) {
+      if (callback instanceof SkipScalaPromiseContextCapture) {
+        return;
+      }
       // About to enter an ExecutionContext so capture the Scope if necessary
       ContextStore<Transformation, State> contextStore =
           InstrumentationContext.get(Transformation.class, State.class);
