@@ -22,6 +22,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
@@ -51,6 +52,8 @@ import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingDataListener;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.AgentTaskScheduler;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -62,6 +65,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -1247,17 +1251,33 @@ public class ProfilingSystemTest {
     CountDownLatch uploading = new CountDownLatch(1);
     CountDownLatch proceed = new CountDownLatch(1);
     ProfilingSystem system = systemStoppingInTheBackground(uploading, proceed);
-    ExecutorService executor = Executors.newSingleThreadExecutor();
+    final AtomicReference<Throwable> shutdownFailure = new AtomicReference<>();
+    final Thread shutdown =
+        new Thread(
+            () -> {
+              try {
+                system.shutdown(true);
+              } catch (Throwable t) {
+                shutdownFailure.set(t);
+              }
+            },
+            "test-shutdown");
+    shutdown.setDaemon(true);
     try {
-      Future<?> shutdown = executor.submit(() -> system.shutdown(true));
+      shutdown.start();
 
-      Thread.sleep(200);
-      assertFalse(shutdown.isDone(), "waits for the upload of the stop in progress");
+      // the shutdown waits for the stop in progress, which holds the monitor of the system while it
+      // uploads: observed, rather than assumed from the shutdown not being done yet
+      await()
+          .atMost(REASONABLE_TIMEOUT, MILLISECONDS)
+          .until(() -> isBlockedOnTheMonitorOf(shutdown, system));
+      assertTrue(shutdown.isAlive(), "waits for the upload of the stop in progress");
       proceed.countDown();
-      shutdown.get(REASONABLE_TIMEOUT, MILLISECONDS);
+      shutdown.join(REASONABLE_TIMEOUT);
+      assertFalse(shutdown.isAlive(), "done once the upload is");
+      assertNull(shutdownFailure.get());
     } finally {
       proceed.countDown();
-      executor.shutdownNow();
     }
     // the stop in progress took the only snapshot
     verify(recording, times(1)).snapshot(any(), any());
@@ -1308,6 +1328,15 @@ public class ProfilingSystemTest {
     stopping.start();
     assertTrue(uploading.await(REASONABLE_TIMEOUT, MILLISECONDS), "the stop is uploading");
     return system;
+  }
+
+  /** Whether the thread is blocked on entering a {@code synchronized} block on the object. */
+  private static boolean isBlockedOnTheMonitorOf(final Thread thread, final Object object) {
+    final ThreadInfo info = ManagementFactory.getThreadMXBean().getThreadInfo(thread.getId());
+    return info != null
+        && info.getThreadState() == Thread.State.BLOCKED
+        && info.getLockInfo() != null
+        && info.getLockInfo().getIdentityHashCode() == System.identityHashCode(object);
   }
 
   private void startProfilingSystem(final ProfilingSystem system) throws Exception {
