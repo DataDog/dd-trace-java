@@ -59,6 +59,35 @@ class ProbeAccuracyTest {
         "no okio line was covered: " + lines.keySet());
   }
 
+  /**
+   * The reference instruments the classes before the probes, as an agent that comes first on the
+   * command line does, and both record the same run.
+   */
+  @ParameterizedTest
+  @MethodSource("fixtureScenarios")
+  void probesReportTheReferenceLinesOfJavaCodeAnotherAgentInstrumented(int scenario)
+      throws Exception {
+    assertSameLinesUnderAnotherAgent(CoverageFixture.class, scenario, FIXTURES);
+  }
+
+  @ParameterizedTest
+  @MethodSource("kotlinScenarios")
+  void probesReportTheReferenceLinesOfKotlinCodeAnotherAgentInstrumented(int scenario)
+      throws Exception {
+    assertSameLinesUnderAnotherAgent(KotlinCoverageFixture.class, scenario, FIXTURES);
+  }
+
+  private static void assertSameLinesUnderAnotherAgent(
+      Class<?> workload, int scenario, String... instrumented) throws Exception {
+    ReferenceLines.drain();
+    FixtureLoader loader = new FixtureLoader(ReferenceLines::instrument, true, instrumented);
+    run(loader, workload, scenario);
+    Map<String, BitSet> referenceLines = ReferenceLines.drain();
+
+    assertFalse(referenceLines.isEmpty(), "the reference recorded no lines");
+    assertEquals(referenceLines, probeLines(loader));
+  }
+
   private static Map<String, BitSet> assertSameLines(
       Class<?> workload, int scenario, String... instrumented) throws Exception {
     ReferenceLines.drain();

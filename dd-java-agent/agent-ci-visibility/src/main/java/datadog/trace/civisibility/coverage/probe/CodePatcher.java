@@ -1036,16 +1036,35 @@ final class CodePatcher {
 
   /** See {@code MethodProbeInserter.recordingPosition}. */
   private int recordingPosition(int entry) {
-    for (int i = entry; i <= blockLast[blockOf[entry]]; i++) {
+    int block = blockOf[entry];
+    for (int i = entry; i <= blockLast[block]; i++) {
       int depth = depthAt(i);
       if (throwAllowedAt(i, depth)) {
         return i;
       }
-      if (depth < 0 || canTrap(i, depth)) {
+      if (depth < 0 || (canTrap(i, depth) && !reentersBlock(i, block, depth))) {
         return -1;
       }
     }
     return -1;
+  }
+
+  /** See {@code MethodProbeInserter.reentersBlock}. */
+  private boolean reentersBlock(int i, int block, int depth) {
+    if (depth != 0) {
+      return false;
+    }
+    for (int h = 0; h < code.handlerCount; h++) {
+      if (covers(h, i)) {
+        if (blockOf[code.handlerEntry[h]] != block || handlerDepth(h) != 0) {
+          return false;
+        }
+        if (catchesAll(h)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   /**

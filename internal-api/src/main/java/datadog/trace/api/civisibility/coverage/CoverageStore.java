@@ -16,6 +16,14 @@ public interface CoverageStore extends TestReportHolder {
   /** Called instead of {@link #report} for a test whose coverage is not reported. */
   default void discard() {}
 
+  /**
+   * Whether {@link #report} is also called for a skipped test, so that a test that skipped itself
+   * after it started reports the lines it ran.
+   */
+  default boolean reportsSkippedTests() {
+    return false;
+  }
+
   interface Factory extends Registry {
     CoverageStore create(@Nullable TestIdentifier testIdentifier);
   }

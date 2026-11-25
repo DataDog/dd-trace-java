@@ -8,11 +8,22 @@ import java.util.function.Function;
 /** Defines classes of the given packages, instrumented by probes or by the given instrumenter. */
 final class FixtureLoader extends ClassLoader {
   private final Function<byte[], byte[]> instrumenter;
+  private final boolean probesAfterInstrumenter;
   private final String[] packages;
 
   FixtureLoader(Function<byte[], byte[]> instrumenter, String... packages) {
+    this(instrumenter, false, packages);
+  }
+
+  /**
+   * With {@code probesAfterInstrumenter}, the probes instrument what the instrumenter returns, as
+   * when another agent transforms a class before the tracer does.
+   */
+  FixtureLoader(
+      Function<byte[], byte[]> instrumenter, boolean probesAfterInstrumenter, String... packages) {
     super(FixtureLoader.class.getClassLoader());
     this.instrumenter = instrumenter;
+    this.probesAfterInstrumenter = probesAfterInstrumenter;
     this.packages = packages;
   }
 
@@ -35,13 +46,14 @@ final class FixtureLoader extends ClassLoader {
       if (loaded != null) {
         return loaded;
       }
-      byte[] original = read(name);
-      byte[] bytes =
-          instrumenter != null
-              ? instrumenter.apply(original)
-              : ProbeClassTransformer.instrument(original, this, true);
-      if (bytes == null) {
-        bytes = original;
+      byte[] bytes = read(name);
+      if (instrumenter != null) {
+        byte[] instrumented = instrumenter.apply(bytes);
+        bytes = instrumented != null ? instrumented : bytes;
+      }
+      if (instrumenter == null || probesAfterInstrumenter) {
+        byte[] probed = ProbeClassTransformer.instrument(bytes, this, true);
+        bytes = probed != null ? probed : bytes;
       }
       return defineClass(name, bytes, 0, bytes.length);
     }
