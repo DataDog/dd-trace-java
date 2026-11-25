@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
@@ -231,6 +232,107 @@ class DerivedTagsForkedTest extends DDCoreJavaSpecification {
     assertEquals(Tags.DB_INSTANCE, get(span, DD_PEER_SERVICE_SOURCE));
     assertTrue(span.spanContext().isDerivedTag(PEER_SERVICE));
     span.finish();
+  }
+
+  // --- deferred tags ---
+
+  @Test
+  void deferredTagIsExtractedWhenReadAndOnlyOnce() {
+    AtomicInteger calls = new AtomicInteger();
+    DDSpan span = (DDSpan) derivedTracer().buildSpan("test", "op").start();
+    span.spanContext()
+        .setDeferredTag(
+            KnownTags.ERROR_STACK,
+            "source",
+            s -> {
+              calls.incrementAndGet();
+              return "extracted:" + s;
+            });
+    span.toString(); // diagnostics must not extract
+    assertEquals(0, calls.get());
+    assertEquals("extracted:source", get(span, KnownTags.ERROR_STACK));
+    assertEquals("extracted:source", get(span, KnownTags.ERROR_STACK));
+    assertEquals(1, calls.get());
+    span.finish();
+  }
+
+  @Test
+  void deferredTagIsExtractedBySerialization() {
+    AtomicInteger calls = new AtomicInteger();
+    DDSpan span = (DDSpan) derivedTracer().buildSpan("test", "op").start();
+    span.spanContext()
+        .setDeferredTag(
+            KnownTags.ERROR_STACK,
+            "source",
+            s -> {
+              calls.incrementAndGet();
+              return "extracted";
+            });
+    assertEquals(0, calls.get(), "nothing on the application thread reads it");
+    // ListWriter does the serializer's tag processing inside write(), so finishing extracts here.
+    span.finish();
+    assertEquals(1, calls.get());
+    assertEquals(
+        "extracted", serializedTags(span).getString(KnownTagCodec.nameOf(KnownTags.ERROR_STACK)));
+    assertEquals(1, calls.get(), "extracted once, then stored");
+  }
+
+  @Test
+  void explicitWriteOrRemovalReplacesAPendingValue() {
+    AtomicInteger calls = new AtomicInteger();
+    DDSpan written = (DDSpan) derivedTracer().buildSpan("test", "op").start();
+    written
+        .spanContext()
+        .setDeferredTag(KnownTags.ERROR_STACK, "source", s -> calls.incrementAndGet());
+    written.setTag(KnownTags.ERROR_STACK, "explicit");
+    assertEquals("explicit", get(written, KnownTags.ERROR_STACK));
+    written.finish();
+
+    DDSpan removed = (DDSpan) derivedTracer().buildSpan("test", "op").start();
+    removed
+        .spanContext()
+        .setDeferredTag(KnownTags.ERROR_STACK, "source", s -> calls.incrementAndGet());
+    removed.spanContext().removeTag(KnownTags.ERROR_STACK);
+    assertNull(get(removed, KnownTags.ERROR_STACK));
+    removed.finish();
+    assertEquals(0, calls.get());
+  }
+
+  @Test
+  void failingExtractorLeavesTheTagAbsent() {
+    DDSpan span = (DDSpan) derivedTracer().buildSpan("test", "op").start();
+    span.spanContext()
+        .setDeferredTag(
+            KnownTags.ERROR_STACK,
+            "source",
+            s -> {
+              throw new IllegalStateException("boom");
+            });
+    span.finish();
+    assertNull(serializedTags(span).getString(KnownTagCodec.nameOf(KnownTags.ERROR_STACK)));
+  }
+
+  @Test
+  void deferredErrorStackMatchesTheEagerOne() {
+    Throwable error = new IllegalStateException("db down", new RuntimeException("cause"));
+    String expected = errorTags(tracer(false), error);
+    String actual = errorTags(derivedTracer(), error);
+    assertTrue(expected.contains("IllegalStateException"), expected);
+    assertEquals(expected, actual);
+  }
+
+  private String errorTags(CoreTracer tracer, Throwable error) {
+    DDSpan span = (DDSpan) tracer.buildSpan("test", "op").start();
+    span.addThrowable(error);
+    span.finish();
+    TagMap tags = serializedTags(span);
+    return tags.getString(DDTags.ERROR_TYPE)
+        + "|"
+        + tags.getString(DDTags.ERROR_MSG)
+        + "|"
+        + tags.getString(KnownTagCodec.nameOf(KnownTags.ERROR_STACK))
+        + "|"
+        + span.isError();
   }
 
   // --- differential check: formulas vs the post-processors they replace ---
