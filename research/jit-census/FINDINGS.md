@@ -777,3 +777,39 @@ In priority order:
   - Metaspace −1.0 MiB at 5 CPUs but +1.8 MiB at 1 CPU: every 1-CPU OFF run had 798 classes unloaded at the snapshot, every ON run 0, so it's likely a collection-timing artifact (Serial GC on 1 CPU), but not isolated. The exact 798 in every run looks deterministic, which is worth understanding (which classes get unloaded with the flag off?).
   - Debug ON: `Installed 335 instrumenter(s), deferred 278`; 25 lazily loaded, 4 skipped, identical to local. All 60 runs reached 200, no unexpected errors. `jcmd` snapshots lag the first 200 by ~0.25–0.8 s.
   - This host is ~2.4x slower than local in absolute terms and noisier (5-CPU interval ±650 ms), so ~100 ms effects need many more runs or a quieter metric (classes, compilations). PR description updated with these numbers; local table kept as secondary.
+- **Second rule set: per-site format tiers, fused windows, lookups (`dougqh/string-callsite-rewrites` af6cc80a91, 2026-11-24).** Goal (Doug): build a *body* of low-risk rules to test on something real.
+  - **Mechanisms:**
+    - *Slotted calls:* per-site trampolines in 64-slot chunk classes; new chunks are stamped (same-length rename of the class file) and defined into the bootstrap on a background thread, and a transform never waits.
+    - *Windows:* straight-line sequences replaced in place by one `invokestatic` plus NOPs. Rejected if a branch target, exception boundary, stack-map frame or debug-table entry falls strictly inside; `max_stack` never rises.
+    - *Back-edge* "in a loop" counts.
+  - **Rules:**
+    - `String.format` / `format(Locale)` / `formatted`: compiled per site after 16 calls (`%s %d %n %%`), back off for good on an unsupported format or more than 4 format changes.
+    - `Pattern.compile(r).matcher(s).matches()/find()/lookingAt()` and `.split(s)`.
+    - `t.format(ofPattern(p))` and `ofPattern(p).format(t)`.
+    - `new DecimalFormat(p)` (JDK 8 only).
+    - `URLEncoder.encode` / `URLDecoder.decode` (same instance when nothing changes).
+    - `String.replace(CharSequence, CharSequence)` (JDK 8 only).
+  - **JMH, helper vs original, warm:**
+
+    | Rule | JDK 17 | JDK 8 |
+    |---|---|---|
+    | format | 2.2–8x | 8–13x |
+    | compileMatches/find/lookingAt | 2.3–4x | 2.3–2.9x |
+    | compileSplit | 1.0x time (allocation −52%) | 1.2x |
+    | DateTimeFormatter | 1.3–1.6x | 1.6x |
+    | URL encode/decode, unchanged | 4–5x, 0 B | 2.7–7x |
+    | changed inputs | 1.0x | 1.0x |
+    | replace | n/a | 2.6x |
+    | DecimalFormat copy | n/a | 5.8x |
+
+    Allocation is down 3–8x on the fast paths. Unsupported format: neutral on 17, **+5% (20 ns) on JDK 8** (likely the extra frame against JDK 8's `MaxInlineLevel=9`; not verified). Doug accepts a slight cost on fallback paths; better still is skipping sites whose format constant is known to be unsupported, decided per JVM at load time.
+  - **Bugs and corrections found:**
+    - **Correction:** `String.replace(CharSequence, CharSequence)` is regex-based only on **JDK 8**, not "before JDK 13" (the earlier entries are wrong; JDK 9 already doesn't use regex).
+    - **Real bug fixed:** literal-regex fast paths treated surrogate chars as plain chars; `java.util.regex` won't match a lone surrogate in the middle of a pair (`"𐀀".replaceAll("\uDC00","x")` is unchanged, `indexOf` finds it).
+    - **`DecimalFormat` copy is only equivalent on JDK 8:** 9+ fills currency strings lazily from a soft-referenced shared cache, so a copy serializes differently (1686 vs 1694 bytes). The constructor also reads `Currency.getInstance(locale)` (time-dependent cut-overs), so the cache key includes the current currency.
+    - **Version differences:** `%d` digits per locale differ by JDK (8: `hi-IN` Devanagari; 11–21: `ar` native; 25: `ar` Latin again), handled by asking `DecimalFormatSymbols`. URL encode/decode check order differs between 8 and 11+. A fixture's multi-line chain was silently joined by google-java-format, so line-number tests need comments to keep the breaks.
+  - **MessageDigest getInstance vs clone:** JDK 17/21 save only ~13–15 ns, with no allocation saving; JDK 8 saves ~45–80 ns (noisy). Not worth a provider-configuration guard except perhaps on JDK 8.
+  - **springboot-jpa:** 525 sites in 257 classes (452 format sites, 8 chunks), 44 in loops, transform 62 ms (12 ms before; "format" is a broad name check). No verify or linkage errors.
+  - **PetClinic (Spring Boot 3, JDK 17):** 1,309 sites in 546 classes, 948 slotted format sites (all 16 chunks, the cap), 85 in loops, no windows. **Only 28 format sites ever ran; 4 reached the compile threshold, all startup configuration. No format site runs per request.** Framework request paths don't call these methods; the benefit (if any) is in customer business code. Next rules should come from a request-path profile, not from guesses.
+  - **Line numbers today (checked on `HikariDataSource.getConnection`, ByteBuddy dump):** original code keeps all its line entries; inlined advice gets none (entry advice has no line, exit advice reports the method's last line). So the agent already misreports lines only for **added** code. Fusing at the end of a multi-line window would misreport lines of **original** code, which is new; stay within one line for now, and count debug-info-only rejections separately (done). Line numbers also matter to Live Debugger line probes and possibly error grouping.
+  - **Ideas noted:** `ByteBuffer.allocate(n).putInt(x).array()` / `wrap(b).getInt()` windows (JMH first; C2 escape analysis may already remove the buffer on 17); concat chains for Java-8-target bytecode, including the builder-in-a-local form `OptimizeStringConcat` misses (Doug's JMH experiments, from talks, not on this machine), which need a `max_stack` bump and run-finding shared with the span fusion. Low-risk lookups next: charset-name overloads (`getBytes(String)`, `new String(bytes, String)`), `Charset.forName` for standard names, `ZoneId.of(const)` (value-based). Not low risk (Doug): `StringBuilder`/`HashMap` presizing (capacity changes iteration order, `capacity()` is observable).
