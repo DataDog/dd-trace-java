@@ -523,7 +523,12 @@ class AppSecConfigServiceImplTest extends DDJavaSpecification {
 
   @Test
   void testAppSecConfigChangesListenerListener() throws Exception {
-    ProductListener listener = appSecConfigService.new AppSecConfigChangesListener();
+    // setup: capture the listener registered for the ASM product
+    AppSecSystem.setActive(true);
+    when(config.getAppSecActivation()).thenReturn(ProductActivation.FULLY_ENABLED);
+    appSecConfigService.init();
+    appSecConfigService.maybeSubscribeConfigPolling();
+    ProductListener listener = verifyProductListenerAdded(Product.ASM);
     ConfigKey configKey = ParsedConfigKey.parse("datadog/2/ASM/my_config/config");
 
     // when / then: removing an unexisting config is tolerated
@@ -543,10 +548,10 @@ class AppSecConfigServiceImplTest extends DDJavaSpecification {
     // setup
     // Mock WafMetricCollector
     WafMetricCollector wafMetricCollector = mock(WafMetricCollector.class);
-    WafMetricCollector.INSTANCE = wafMetricCollector;
 
-    // Create a temporary file with invalid WAF configuration
+    // Create a temporary file with invalid WAF configuration, before replacing the global collector
     Path path = Files.createTempFile("appsec", ".json");
+    WafMetricCollector.INSTANCE = wafMetricCollector;
     try {
       String invalidConfig = readResource("config_service/invalid_waf_config.json");
       Files.write(path, invalidConfig.getBytes(UTF_8));
@@ -823,25 +828,24 @@ class AppSecConfigServiceImplTest extends DDJavaSpecification {
     return captor.getValue();
   }
 
-  /** Verifies the exact number of listeners added on the poller, for every overload. */
+  /**
+   * Verifies the exact number of listeners added on the poller, for every overload. Typed {@code
+   * any()} matchers are used so that calls with {@code null} arguments are counted too.
+   */
+  @SuppressWarnings({"unchecked", "rawtypes"})
   private void verifyAddListenerCalls(int productListeners, int typedListeners) {
-    verify(poller, times(productListeners))
-        .addListener(any(Product.class), any(ProductListener.class));
+    verify(poller, times(productListeners)).addListener(any(), (ProductListener) any());
     verify(poller, times(typedListeners))
         .addListener(
-            any(Product.class),
-            any(ConfigurationDeserializer.class),
-            any(ConfigurationChangesTypedListener.class));
-    verify(poller, never())
-        .addListener(any(Product.class), any(ConfigurationChangesListener.class));
-    verify(poller, never())
-        .addListener(any(Product.class), anyString(), any(ProductListener.class));
+            any(), (ConfigurationDeserializer) any(), (ConfigurationChangesTypedListener) any());
+    verify(poller, never()).addListener(any(), (ConfigurationChangesListener) any());
+    verify(poller, never()).addListener(any(), (String) any(), (ProductListener) any());
     verify(poller, never())
         .addListener(
-            any(Product.class),
-            anyString(),
-            any(ConfigurationDeserializer.class),
-            any(ConfigurationChangesTypedListener.class));
+            any(),
+            (String) any(),
+            (ConfigurationDeserializer) any(),
+            (ConfigurationChangesTypedListener) any());
   }
 
   private Path resourcePath(String resource) throws Exception {
