@@ -841,10 +841,9 @@ muzzle-dep-report:
     - gitlab_section_start "collect-reports" "Collecting reports"
     - .gitlab/collect_reports.sh
     - if [ "$PROFILE_TESTS" == "true" ]; then .gitlab/collect_profiles.sh; fi
-    - .gitlab/collect_results.sh
+    - .gitlab/count_tests.sh --collect "$GRADLE_TARGET" "$testJvm" "./results" "./test_counts_${CI_JOB_ID}.json"
     - .gitlab/upload_ciapp.sh $CACHE_TYPE $testJvm
     - gitlab_section_end "collect-reports"
-    - .gitlab/count_tests.sh "$GRADLE_TARGET" "$testJvm" "./results" "./test_counts_${CI_JOB_ID}.json"
     - export TEST_COUNTS_S3_PREFIX="test-counts/${CI_PIPELINE_ID}"
     - export TEST_COUNTS_FILE="./test_counts_${CI_JOB_ID}.json"
     # Use logical job identity in S3 so retried jobs overwrite stale attempts.

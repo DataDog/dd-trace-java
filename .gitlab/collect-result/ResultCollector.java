@@ -4,6 +4,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -25,30 +26,42 @@ final class ResultCollector {
     this.sourceFileResolver = new SourceFileResolver(workspaceDir);
   }
 
-  void collect() throws Exception {
+  void collect(boolean countTests) throws Exception {
     Files.createDirectories(resultsDir);
     Files.createDirectories(workspaceDir);
 
     var testResultDirs = findTestResultDirs();
     if (testResultDirs.isEmpty()) {
-      System.out.println("No test results found");
-      return;
+      System.err.println("No test results found");
     }
-
     if (continueOnFailure) {
-      System.out.println("CONTINUE_ON_FAILURE=true: reporting all tests as skip");
+      System.err.println("CONTINUE_ON_FAILURE=true: reporting all tests as skip");
     }
 
-    System.out.println("Saving test results:");
+    var countsByTarget = new HashMap<Path, JUnitReport.Counts>();
+    System.err.println("Saving test results:");
     for (var sourceXml : findXmlFiles(testResultDirs)) {
-      collect(sourceXml);
+      var targetXml = resultsDir.resolve(aggregatedFileName(sourceXml));
+      var report = collect(sourceXml, targetXml);
+      if (countTests) {
+        // Two modules can produce the same target. Only the last writer's report survives.
+        countsByTarget.put(targetXml, report.counts());
+      }
+    }
+    if (countTests) {
+      var total = new JUnitReport.Counts(0, 0, 0, 0);
+      for (var path : findXmlFiles(List.of(resultsDir))) {
+        var counts = countsByTarget.get(path);
+        // Include any XML already in results/ when the collector started.
+        total = total.plus(counts != null ? counts : JUnitReport.parse(path).counts());
+      }
+      System.out.printf(
+          "%d %d %d %d%n", total.tests(), total.failures(), total.errors(), total.skipped());
     }
   }
 
-  private void collect(Path sourceXml) throws Exception {
-    var aggregatedName = aggregatedFileName(sourceXml);
-    var targetXml = resultsDir.resolve(aggregatedName);
-    System.out.print("- " + toUnixString(sourceXml) + " as " + aggregatedName);
+  private JUnitReport collect(Path sourceXml, Path targetXml) throws Exception {
+    System.err.print("- " + toUnixString(sourceXml) + " as " + targetXml.getFileName());
 
     var report = JUnitReport.parse(sourceXml);
     var reportChangedBeforeFinalStatus = false;
@@ -71,9 +84,10 @@ final class ResultCollector {
     report.write(targetXml);
 
     if (reportChangedBeforeFinalStatus) {
-      System.out.print(" (non-stable test names detected)");
+      System.err.print(" (non-stable test names detected)");
     }
-    System.out.println();
+    System.err.println();
+    return report;
   }
 
   private List<Path> findTestResultDirs() throws IOException {

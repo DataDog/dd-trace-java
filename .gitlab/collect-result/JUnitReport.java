@@ -179,6 +179,35 @@ final class JUnitReport {
     }
   }
 
+  record Counts(long tests, long failures, long errors, long skipped) {
+    Counts plus(Counts other) {
+      return new Counts(
+          tests + other.tests,
+          failures + other.failures,
+          errors + other.errors,
+          skipped + other.skipped);
+    }
+  }
+
+  Counts counts() {
+    long tests = 0;
+    long failures = 0;
+    long errors = 0;
+    long skipped = 0;
+    var elements = document.getElementsByTagName("*");
+    for (int i = 0, length = elements.getLength(); i < length; i++) {
+      var name = elements.item(i).getNodeName();
+      switch (name.substring(name.indexOf(':') + 1)) {
+        case "testcase" -> tests++;
+        case "failure" -> failures++;
+        case "error" -> errors++;
+        case "skipped" -> skipped++;
+        default -> {}
+      }
+    }
+    return new Counts(tests, failures, errors, skipped);
+  }
+
   void write(Path xmlFile) throws Exception {
     Files.createDirectories(xmlFile.getParent());
     var tmpFile = Files.createTempFile(xmlFile.getParent(), "collect-results-", ".xml");
