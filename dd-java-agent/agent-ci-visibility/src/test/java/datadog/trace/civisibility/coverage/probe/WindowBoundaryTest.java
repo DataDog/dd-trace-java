@@ -150,7 +150,7 @@ class WindowBoundaryTest {
 
     FixtureLoader loader = new FixtureLoader(null, FIXTURES);
     TestPreparationWindow.enable();
-    TestPreparationWindow.open();
+    TestPreparationWindow.open(null);
     AtomicReference<TestWindow> test = new AtomicReference<>();
     around(loader, () -> test.set(new TestWindow(TestPreparationWindow.detach())));
     Map<String, BitSet> testLines = test.get().closeAndCollect();

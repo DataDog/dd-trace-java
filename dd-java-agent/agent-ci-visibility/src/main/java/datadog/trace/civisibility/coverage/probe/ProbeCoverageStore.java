@@ -7,6 +7,7 @@ import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.coverage.CoverageWindow;
 import datadog.trace.api.civisibility.coverage.NoOpProbes;
 import datadog.trace.api.civisibility.coverage.ProbeRecorder;
+import datadog.trace.api.civisibility.coverage.SuiteSetupWindow;
 import datadog.trace.api.civisibility.coverage.TestPreparationWindow;
 import datadog.trace.api.civisibility.coverage.TestReport;
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
@@ -26,13 +27,15 @@ import javax.annotation.Nullable;
 /**
  * Line coverage of one test, collected by the probes that {@link ProbeClassTransformer} inserts.
  * The window opens when the store is created, taking over the window of the test's preparation (see
- * {@link TestPreparationWindow}), and closes when the test reports. The report is built later, on
- * the thread that serializes it.
+ * {@link TestPreparationWindow}), and closes when the test reports. The report adds the setup of
+ * the suites the test runs in (see {@link SuiteSetupWindow}). It is built later, on the thread that
+ * serializes it.
  */
 public final class ProbeCoverageStore extends CoverageWindow implements CoverageStore {
 
   private final CiVisibilityMetricCollector metrics;
   private final SourceFiles sourceFiles;
+  @Nullable private final SuiteSetupWindow.Hits suiteSetupHits;
 
   // guards the fields below, which the test thread sets and the serializing thread reads
   private final Object reportLock = new Object();
@@ -45,10 +48,11 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
   private ProbeCoverageStore(
       CiVisibilityMetricCollector metrics,
       SourceFiles sourceFiles,
-      @Nullable CoverageWindow preparation) {
+      @Nullable TestPreparationWindow preparation) {
     super(preparation);
     this.metrics = metrics;
     this.sourceFiles = sourceFiles;
+    this.suiteSetupHits = preparation != null ? preparation.suiteSetupHits() : null;
   }
 
   @Override
@@ -67,8 +71,14 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
         this.testSuiteId = testSuiteId;
         this.testSpanId = testSpanId;
       }
-      return !hits.isEmpty();
+      return hasLines();
     }
+  }
+
+  /** Holds {@link #reportLock}. */
+  private boolean hasLines() {
+    // setup hits are linked only when they are not empty
+    return !hits.isEmpty() || suiteSetupHits != null;
   }
 
   /**
@@ -95,7 +105,7 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
   @Override
   public TestReport getReport() {
     synchronized (reportLock) {
-      if (report == null && testSessionId != null && !hits.isEmpty()) {
+      if (report == null && testSessionId != null && hasLines()) {
         report = buildReport();
       }
       return report;
@@ -105,19 +115,12 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
   private TestReport buildReport() {
     Map<String, BitSet> linesBySourcePath = new HashMap<>();
     // a class can have several entries
-    BitSet classesNotInRepository = null;
-    for (ClassHits classHits : hits) {
-      // a test that runs code of a class is credited with the lines of its initializer
-      boolean[] initProbes = ProbeRecorder.PROBES[classHits.classId];
-      if (!sourceFiles.addLines(
-          classHits.instrumentedClass, classHits.probes, initProbes, linesBySourcePath)) {
-        if (classesNotInRepository == null) {
-          classesNotInRepository = new BitSet();
-        }
-        classesNotInRepository.set(classHits.classId);
-      }
+    BitSet classesNotInRepository = new BitSet();
+    addLines(hits, linesBySourcePath, classesNotInRepository);
+    for (SuiteSetupWindow.Hits setup = suiteSetupHits; setup != null; setup = setup.outer) {
+      addLines(setup.hits, linesBySourcePath, classesNotInRepository);
     }
-    if (classesNotInRepository != null) {
+    if (!classesNotInRepository.isEmpty()) {
       metrics.add(
           CiVisibilityCountMetric.CODE_COVERAGE_ERRORS,
           classesNotInRepository.cardinality(),
@@ -130,6 +133,20 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
     }
     metrics.add(CiVisibilityDistributionMetric.CODE_COVERAGE_FILES, entries.size());
     return new TestReport(testSessionId, testSuiteId, testSpanId, entries);
+  }
+
+  private void addLines(
+      List<ClassHits> classHitsList,
+      Map<String, BitSet> linesBySourcePath,
+      BitSet classesNotInRepository) {
+    for (ClassHits classHits : classHitsList) {
+      // a test that runs code of a class is credited with the lines of its initializer
+      boolean[] initProbes = ProbeRecorder.PROBES[classHits.classId];
+      if (!sourceFiles.addLines(
+          classHits.instrumentedClass, classHits.probes, initProbes, linesBySourcePath)) {
+        classesNotInRepository.set(classHits.classId);
+      }
+    }
   }
 
   /** Creates one store per test. */

@@ -123,7 +123,7 @@ class ProbeConcurrencyTest {
   void codeRunWhileATestIsPreparedGoesToTheTestWhenItStarts() throws Exception {
     FixtureLoader loader = new FixtureLoader(null, FIXTURES);
     TestPreparationWindow.enable();
-    TestPreparationWindow.open();
+    TestPreparationWindow.open(null);
     run(loader, 0);
     TestWindow test = new TestWindow(TestPreparationWindow.detach());
     Map<String, BitSet> testLines;
@@ -142,10 +142,10 @@ class ProbeConcurrencyTest {
   void codeRunWhileATestIsPreparedGoesToSharedWhenTheTestDoesNotStart() throws Exception {
     FixtureLoader loader = new FixtureLoader(null, FIXTURES);
     TestPreparationWindow.enable();
-    TestPreparationWindow.open();
+    TestPreparationWindow.open(null);
     run(loader, 0);
     // the next test's preparation gives the window of a test that never started to Shared
-    TestPreparationWindow.open();
+    TestPreparationWindow.open(null);
     run(loader, 1);
     // and so does a test skipped before it starts
     TestPreparationWindow.discard();

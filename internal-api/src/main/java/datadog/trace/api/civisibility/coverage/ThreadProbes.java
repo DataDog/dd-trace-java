@@ -115,6 +115,11 @@ final class ThreadProbes {
     return primary;
   }
 
+  /** Whether a window is open on the thread. Called by the thread. */
+  boolean hasOpenWindow() {
+    return innermost != null;
+  }
+
   private synchronized void followContext(@Nullable CoverageWindow window) {
     if (innermost != null || window == owner) {
       return;

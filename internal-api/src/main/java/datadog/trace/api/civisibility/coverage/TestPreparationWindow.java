@@ -8,6 +8,9 @@ import javax.annotation.Nullable;
  * starts preparing a test, on the thread that then runs the test, and the test's window takes it
  * over when the test starts. Probes that no test takes, as when the test is skipped before it
  * starts, go to Shared.
+ *
+ * <p>The window also carries the setup hits of the suites the test runs in (see {@link
+ * SuiteSetupWindow}), so that a test skipped before it starts is not credited with them either.
  */
 public final class TestPreparationWindow extends CoverageWindow {
 
@@ -15,20 +18,33 @@ public final class TestPreparationWindow extends CoverageWindow {
 
   private static volatile boolean enabled;
 
-  private TestPreparationWindow() {}
+  @Nullable private final SuiteSetupWindow.Hits suiteSetupHits;
 
-  /** Called once line probes are inserted; until then {@link #open} does nothing. */
-  public static void enable() {
-    enabled = true;
+  private TestPreparationWindow(@Nullable SuiteSetupWindow.Hits suiteSetupHits) {
+    this.suiteSetupHits = suiteSetupHits;
   }
 
-  /** Opens a window on this thread, first giving any window still open on it to Shared. */
-  public static void open() {
+  /**
+   * Called once line probes are inserted; until then {@link #open} and {@link
+   * SuiteSetupWindow#open} do nothing.
+   */
+  public static void enable() {
+    enabled = true;
+    SuiteSetupWindow.enabled = true;
+  }
+
+  /**
+   * Opens a window on this thread, first giving any window still open on it to Shared.
+   *
+   * @param suite the framework's object for the suite the test runs in, as passed to {@link
+   *     SuiteSetupWindow#open}, or null
+   */
+  public static void open(@Nullable Object suite) {
     if (!enabled) {
       return;
     }
     discard();
-    OPEN.set(new TestPreparationWindow());
+    OPEN.set(new TestPreparationWindow(SuiteSetupWindow.hitsOf(suite)));
   }
 
   /**
@@ -36,7 +52,7 @@ public final class TestPreparationWindow extends CoverageWindow {
    * take it over.
    */
   @Nullable
-  public static CoverageWindow detach() {
+  public static TestPreparationWindow detach() {
     TestPreparationWindow window = OPEN.get();
     if (window != null) {
       OPEN.remove();
@@ -50,5 +66,11 @@ public final class TestPreparationWindow extends CoverageWindow {
     if (window != null) {
       ProbeRecorder.addSharedHits(window.close());
     }
+  }
+
+  /** The setup hits of the suites the test runs in, or null if there are none. */
+  @Nullable
+  public SuiteSetupWindow.Hits suiteSetupHits() {
+    return suiteSetupHits;
   }
 }
