@@ -9,6 +9,7 @@ import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
+import datadog.trace.api.civisibility.coverage.TestPreparationWindow;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -103,6 +104,7 @@ public class CiVisibilitySystem {
           Predicate<String> instrumentationFilter =
               createCoverageInstrumentationFilter(services, repoServices);
           inst.addTransformer(new ProbeClassTransformer(instrumentationFilter));
+          TestPreparationWindow.enable();
         } else if (!config.isCiVisibilityCoverageLinesEnabled()) {
           // lines coverage is built on top of Jacoco,
           // so if lines are explicitly enabled,

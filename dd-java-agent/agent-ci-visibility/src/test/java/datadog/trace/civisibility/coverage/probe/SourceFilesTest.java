@@ -27,7 +27,7 @@ class SourceFilesTest {
   private static final String FIXTURE_DIRECTORY = FIXTURES.replace('.', '/');
   private static final String KOTLIN_FILE =
       "src/test/kotlin/" + FIXTURE_DIRECTORY + "KotlinCoverageFixture.kt";
-  private static final int KOTLIN_FILE_LINES = 291;
+  private static final int KOTLIN_FILE_LINES = 397;
   private static final String TRANSFORMER_FILE =
       "src/test/kotlin/" + FIXTURE_DIRECTORY + "IntTransformer.kt";
 
@@ -54,7 +54,7 @@ class SourceFilesTest {
   void creditsInlinedLinesToTheInlineFunction() throws Exception {
     BitSet lines = kotlinLines(39); // timed { classify(7) }
 
-    for (int line = 225; line <= 228; line++) {
+    for (int line = 234; line <= 237; line++) {
       assertTrue(lines.get(line), "line " + line + " of the inline function timed");
     }
     assertTrue(lines.get(64), "the call site");

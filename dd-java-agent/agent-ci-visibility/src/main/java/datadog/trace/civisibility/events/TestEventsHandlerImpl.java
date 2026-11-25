@@ -10,6 +10,7 @@ import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
+import datadog.trace.api.civisibility.coverage.TestPreparationWindow;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.execution.ExecutionAggregation;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
@@ -339,6 +340,8 @@ public class TestEventsHandlerImpl<SuiteKey, TestKey>
       @Nonnull TestSourceData testSourceData,
       final @Nullable String reason,
       @Nullable TestExecutionTracker testExecutionTracker) {
+    // a test skipped before it starts is credited with no lines, not even those of its preparation
+    TestPreparationWindow.discard();
     onTestStart(
         suiteDescriptor,
         testDescriptor,

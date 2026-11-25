@@ -280,9 +280,9 @@ public class TestImpl implements DDTest {
 
     CoveragePerTestBridge.removeThreadLocalCoverageProbes();
 
-    // do not process coverage reports for skipped tests
+    // coverage reports of skipped tests are processed only by stores that ask for them
     CoverageStore coverageStore = context.getCoverageStore();
-    if (span.getTag(Tags.TEST_STATUS) != TestStatus.skip) {
+    if (span.getTag(Tags.TEST_STATUS) != TestStatus.skip || coverageStore.reportsSkippedTests()) {
       boolean coveragesGathered = coverageStore.report(sessionId, suiteId, span.getSpanId());
       if (!coveragesGathered && !TestStatus.skip.equals(span.getTag(Tags.TEST_STATUS))) {
         // test is not skipped, but no coverages were gathered

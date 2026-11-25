@@ -7,6 +7,7 @@ import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.coverage.CoverageWindow;
 import datadog.trace.api.civisibility.coverage.NoOpProbes;
 import datadog.trace.api.civisibility.coverage.ProbeRecorder;
+import datadog.trace.api.civisibility.coverage.TestPreparationWindow;
 import datadog.trace.api.civisibility.coverage.TestReport;
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
@@ -24,13 +25,15 @@ import javax.annotation.Nullable;
 
 /**
  * Line coverage of one test, collected by the probes that {@link ProbeClassTransformer} inserts.
- * The window opens when the store is created and closes when the test reports; the report is built
- * later, on the thread that serializes it.
+ * The window opens when the store is created and closes when the test reports; it also gets the
+ * lines that ran while the framework prepared the test (see {@link TestPreparationWindow}). The
+ * report is built later, on the thread that serializes it.
  */
 public final class ProbeCoverageStore extends CoverageWindow implements CoverageStore {
 
   private final CiVisibilityMetricCollector metrics;
   private final SourceFiles sourceFiles;
+  private final List<ClassHits> preparationHits;
 
   // guards the fields below, which the test thread sets and the serializing thread reads
   private final Object reportLock = new Object();
@@ -40,9 +43,13 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
   private long testSpanId;
   private TestReport report;
 
-  private ProbeCoverageStore(CiVisibilityMetricCollector metrics, SourceFiles sourceFiles) {
+  private ProbeCoverageStore(
+      CiVisibilityMetricCollector metrics,
+      SourceFiles sourceFiles,
+      List<ClassHits> preparationHits) {
     this.metrics = metrics;
     this.sourceFiles = sourceFiles;
+    this.preparationHits = preparationHits;
   }
 
   @Override
@@ -56,7 +63,7 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
     List<ClassHits> closedHits = isClosed() ? Collections.emptyList() : close();
     synchronized (reportLock) {
       if (hits == null) {
-        hits = closedHits;
+        hits = withPreparationHits(closedHits);
         this.testSessionId = testSessionId;
         this.testSuiteId = testSuiteId;
         this.testSpanId = testSpanId;
@@ -65,14 +72,35 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
     }
   }
 
+  private List<ClassHits> withPreparationHits(List<ClassHits> closedHits) {
+    if (preparationHits.isEmpty()) {
+      return closedHits;
+    }
+    if (closedHits.isEmpty()) {
+      return preparationHits;
+    }
+    List<ClassHits> all = new ArrayList<>(preparationHits.size() + closedHits.size());
+    all.addAll(preparationHits);
+    all.addAll(closedHits);
+    return all;
+  }
+
+  /**
+   * A test that skipped itself ran code first; a test skipped before it started has an empty
+   * window.
+   */
+  @Override
+  public boolean reportsSkippedTests() {
+    return true;
+  }
+
   @Override
   public void discard() {
-    if (!isClosed()) {
-      close();
-    }
+    List<ClassHits> closedHits = isClosed() ? Collections.emptyList() : close();
     synchronized (reportLock) {
       if (hits == null) {
         hits = Collections.emptyList();
+        ProbeRecorder.addSharedHits(withPreparationHits(closedHits));
       }
     }
   }
@@ -120,7 +148,8 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
 
     @Override
     public CoverageStore create(@Nullable TestIdentifier testIdentifier) {
-      return new ProbeCoverageStore(metrics, sourceFiles);
+      // the preparation window closes before the test's window opens
+      return new ProbeCoverageStore(metrics, sourceFiles, TestPreparationWindow.take());
     }
 
     @Override

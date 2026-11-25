@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.trace.api.civisibility.coverage.CoverageWindow;
 import datadog.trace.api.civisibility.coverage.InstrumentedClass;
 import datadog.trace.api.civisibility.coverage.ProbeRecorder;
+import datadog.trace.api.civisibility.coverage.TestPreparationWindow;
 import datadog.trace.civisibility.coverage.probe.fixtures.ConcurrentWorkload;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -121,6 +122,42 @@ class ProbeConcurrencyTest {
     assertTrue(sharedLines(loader).isEmpty());
   }
 
+  @Test
+  void codeRunWhileATestIsPreparedGoesToTheTestWhenItStarts() throws Exception {
+    FixtureLoader loader = new FixtureLoader(null, FIXTURES);
+    TestPreparationWindow.enable();
+    TestPreparationWindow.open();
+    run(loader, 0);
+    List<CoverageWindow.ClassHits> preparation = TestPreparationWindow.take();
+    TestWindow test = new TestWindow();
+    Map<String, BitSet> testLines;
+    try {
+      run(loader, 1);
+    } finally {
+      testLines = test.closeAndCollect();
+    }
+
+    assertEquals(WORKER_LINES.get(0), lines(preparation));
+    assertEquals(WORKER_LINES.get(1), testLines);
+    assertTrue(TestPreparationWindow.take().isEmpty());
+    assertTrue(sharedLines(loader).isEmpty());
+  }
+
+  @Test
+  void codeRunWhileATestIsPreparedGoesToSharedWhenTheTestDoesNotStart() throws Exception {
+    FixtureLoader loader = new FixtureLoader(null, FIXTURES);
+    TestPreparationWindow.enable();
+    TestPreparationWindow.open();
+    run(loader, 0);
+    // the next test's preparation gives the window of a test that never started to Shared
+    TestPreparationWindow.open();
+    run(loader, 1);
+    // and so does a test skipped before it starts
+    TestPreparationWindow.discard();
+
+    assertEquals(union(WORKER_LINES.get(0), WORKER_LINES.get(1)), sharedLines(loader));
+  }
+
   private static Map<String, BitSet> runInWindow(
       ClassLoader loader,
       int worker,
@@ -193,17 +230,21 @@ class ProbeConcurrencyTest {
     return ReferenceLines.sourcePath(instrumentedClass.name(), instrumentedClass.sourceFile());
   }
 
+  private static Map<String, BitSet> lines(List<CoverageWindow.ClassHits> classHits) {
+    Map<String, BitSet> lines = new HashMap<>();
+    for (CoverageWindow.ClassHits hits : classHits) {
+      BitSet classLines = new BitSet();
+      hits.instrumentedClass.addLines(hits.probes, classLines);
+      lines
+          .computeIfAbsent(sourcePath(hits.instrumentedClass), path -> new BitSet())
+          .or(classLines);
+    }
+    return lines;
+  }
+
   private static final class TestWindow extends CoverageWindow {
     Map<String, BitSet> closeAndCollect() {
-      Map<String, BitSet> lines = new HashMap<>();
-      for (ClassHits hits : close()) {
-        BitSet classLines = new BitSet();
-        hits.instrumentedClass.addLines(hits.probes, classLines);
-        lines
-            .computeIfAbsent(sourcePath(hits.instrumentedClass), path -> new BitSet())
-            .or(classLines);
-      }
-      return lines;
+      return lines(close());
     }
   }
 }

@@ -13,7 +13,7 @@ import kotlin.coroutines.suspendCoroutine
  */
 object KotlinCoverageFixture {
 
-  const val SCENARIOS = 45
+  const val SCENARIOS = 54
 
   private val lazyValue: String by lazy {
     val base = "computed"
@@ -67,6 +67,15 @@ object KotlinCoverageFixture {
     42 -> grade(85)
     43 -> grade(30)
     44 -> transformer { it * 2 }.transform(3)
+    45 -> intercept(0)
+    46 -> intercept(1)
+    47 -> intercept(2)
+    48 -> execute(false)
+    49 -> execute(true)
+    50 -> proceedOrClose(true, Closeable { Registry.count++ })
+    51 -> proceedOrClose(false, null)
+    52 -> responseChain(true)
+    53 -> responseChain(false)
     else -> throw IllegalArgumentException("no scenario $scenario")
   }
 
@@ -244,6 +253,103 @@ object KotlinCoverageFixture {
       val missing = 80 - score
       "F by $missing"
     }
+  }
+
+  /** A catch that rethrows through a finally block: an exception leaves the method from both. */
+  private fun intercept(failure: Int) {
+    var failed = false
+    try {
+      proceed(failure)
+    } catch (e: UnsupportedOperationException) {
+      throw e
+    } catch (e: Throwable) {
+      failed = true
+      rethrowIfUnexpected(e)
+    } finally {
+      Registry.count++
+    }
+    if (!failed) {
+      Registry.count--
+    }
+  }
+
+  private fun proceed(failure: Int) {
+    if (failure == 1) {
+      throw IllegalStateException("unexpected")
+    } else if (failure == 2) {
+      throw UnsupportedOperationException("aborted")
+    }
+  }
+
+  private fun rethrowIfUnexpected(e: Throwable) {
+    if (e.message != "expected") {
+      throw e
+    }
+  }
+
+  private fun execute(throwing: Boolean): Int {
+    check(Registry.count > -100) { "Already executed" }
+
+    Registry.count++
+    try {
+      Registry.count++
+      return respond(throwing)
+    } finally {
+      Registry.count--
+    }
+  }
+
+  private fun respond(throwing: Boolean): Int {
+    if (throwing) {
+      throw java.io.IOException("no response")
+    }
+    return 1
+  }
+
+  /** A value assigned in a try block that its finally block reads. */
+  private fun proceedOrClose(throwing: Boolean, candidate: Closeable?): Int {
+    if (candidate != null) {
+      Registry.count++
+    } else if (throwing) {
+      Registry.count--
+    }
+
+    var response: Int? = null
+    try {
+      response = respond(throwing)
+    } finally {
+      if (response == null && candidate != null) {
+        candidate.close()
+      }
+    }
+    return response ?: -1
+  }
+
+  /** A catch block that throws, so that its exception reaches the finally block's handler. */
+  private fun responseChain(throwing: Boolean): Int {
+    val values = mutableListOf<Int>()
+    values += 1
+
+    var calledNoMoreExchanges = false
+    try {
+      val response = respond(throwing)
+      if (response < 0) {
+        throw java.io.IOException("Canceled")
+      }
+      return response + values.size
+    } catch (e: java.io.IOException) {
+      calledNoMoreExchanges = true
+      throw noMoreExchanges(e) as Throwable
+    } finally {
+      if (!calledNoMoreExchanges) {
+        noMoreExchanges(null)
+      }
+    }
+  }
+
+  private fun noMoreExchanges(e: java.io.IOException?): java.io.IOException? {
+    Registry.count++
+    return e
   }
 
   data class Point(val x: Int, val y: Int)

@@ -4,6 +4,7 @@ import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.api.civisibility.domain.TestContext;
 import java.util.ArrayDeque;
 import java.util.BitSet;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 
@@ -162,6 +163,20 @@ public final class ProbeRecorder {
   public static void recordInitThrown(int classId, int probeId) {
     if (probeId != 0) {
       recordInit(classId, probeId);
+    }
+  }
+
+  /** Gives to Shared the probes that a closed window hit and that no test is credited with. */
+  public static void addSharedHits(List<CoverageWindow.ClassHits> hits) {
+    for (CoverageWindow.ClassHits classHits : hits) {
+      boolean[] probes = sharedProbes(classHits.classId);
+      long[] bits = classHits.probes;
+      for (int word = 0; word < bits.length; word++) {
+        for (long remaining = bits[word]; remaining != 0; remaining &= remaining - 1) {
+          probes[(word << 6) + Long.numberOfTrailingZeros(remaining)] = true;
+        }
+      }
+      probes[0] = true;
     }
   }
 

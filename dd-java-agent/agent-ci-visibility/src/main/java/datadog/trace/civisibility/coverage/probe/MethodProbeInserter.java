@@ -1291,11 +1291,13 @@ final class MethodProbeInserter {
 
   /**
    * Where a handler records the stored probe: its first instruction, or else the first one after it
-   * where inserted code may throw, if none before that one can throw; -1 if there is none. The
-   * first block of a handler entered with a monitor held releases it before code may throw there.
+   * where inserted code may throw, if none before that one can throw other than back into the
+   * block; -1 if there is none. The first block of a handler entered with a monitor held releases
+   * it before code may throw there.
    */
   private int recordingPosition(int entry) {
-    for (int i = entry; i <= blockLast[blockOf[entry]]; i++) {
+    int block = blockOf[entry];
+    for (int i = entry; i <= blockLast[block]; i++) {
       if (insns[i].getOpcode() < 0) {
         continue;
       }
@@ -1303,11 +1305,35 @@ final class MethodProbeInserter {
       if (throwAllowedAt(i, depth)) {
         return i;
       }
-      if (depth < 0 || canTrap(insns[i], depth)) {
+      if (depth < 0 || (canTrap(insns[i], depth) && !reentersBlock(i, block, depth))) {
         return -1;
       }
     }
     return -1;
+  }
+
+  /**
+   * Whether an exception that instruction {@code i} throws with no monitor held can only enter a
+   * handler that starts {@code block}, which runs the block again from its start. A handler that
+   * covers its own first instructions does that when another agent put a call before the store of
+   * the exception, as the Kotlin compiler's handler of a {@code finally} covers that store.
+   */
+  private boolean reentersBlock(int i, int block, int depth) {
+    if (depth != 0) {
+      return false;
+    }
+    for (int h = 0; h < handlerEntry.length; h++) {
+      if (handlerStart[h] < i && i < handlerEnd[h]) {
+        int entry = handlerEntry[h];
+        if (entry >= insns.length || blockOf[entry] != block || handlerDepth(h) != 0) {
+          return false;
+        }
+        if (handlerCatchesAll[h]) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   /**
