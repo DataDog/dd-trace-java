@@ -268,6 +268,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_EXCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_INCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_REPORT_UPLOAD_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ROOT_PACKAGES_LIMIT;
@@ -1206,6 +1207,7 @@ public class Config {
   private final boolean ciVisibilityGradleDependencyVerificationEnabled;
   private final boolean ciVisibilityCodeCoverageEnabled;
   private final Boolean ciVisibilityCoverageLinesEnabled;
+  private final boolean ciVisibilityCoverageLineProbesEnabled;
   private final String ciVisibilityCodeCoverageReportDumpDir;
   private final List<String> codeCoverageFlags;
   private final String ciVisibilityCompilerPluginVersion;
@@ -2880,6 +2882,8 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_ENABLED, true);
     ciVisibilityCoverageLinesEnabled =
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED);
+    ciVisibilityCoverageLineProbesEnabled =
+        configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_ENABLED, false);
     ciVisibilityCodeCoverageReportDumpDir =
         configProvider.getString(CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR);
     codeCoverageFlags = parseCodeCoverageFlags(configProvider.getList(CODE_COVERAGE_FLAGS));
@@ -4737,6 +4741,13 @@ public class Config {
    */
   public boolean isCiVisibilityCoverageLinesEnabled() {
     return ciVisibilityCoverageLinesEnabled != null && ciVisibilityCoverageLinesEnabled;
+  }
+
+  /**
+   * @return {@code true} if per-test line coverage is collected by line probes instead of Jacoco
+   */
+  public boolean isCiVisibilityCoverageLineProbesEnabled() {
+    return ciVisibilityCoverageLineProbesEnabled;
   }
 
   /**

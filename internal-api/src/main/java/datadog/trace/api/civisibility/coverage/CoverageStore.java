@@ -13,6 +13,9 @@ public interface CoverageStore extends TestReportHolder {
    */
   boolean report(DDTraceId testSessionId, Long testSuiteId, long testSpanId);
 
+  /** Called instead of {@link #report} for a test whose coverage is not reported. */
+  default void discard() {}
+
   interface Factory extends Registry {
     CoverageStore create(@Nullable TestIdentifier testIdentifier);
   }
