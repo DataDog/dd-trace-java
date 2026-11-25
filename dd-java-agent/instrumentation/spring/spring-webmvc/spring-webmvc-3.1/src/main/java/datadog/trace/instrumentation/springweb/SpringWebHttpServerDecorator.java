@@ -53,6 +53,21 @@ public class SpringWebHttpServerDecorator
   private static final String URL_PATH_HELPER_PATH_ATTRIBUTE =
       "org.springframework.web.util.UrlPathHelper.PATH";
 
+  /**
+   * Spring 5.3+ {@code ServletRequestPathUtils.PATH_ATTRIBUTE}: request path parsed for
+   * PathPatternParser mode, read by name.
+   */
+  private static final String SERVLET_REQUEST_PATH_ATTRIBUTE =
+      "org.springframework.web.util.ServletRequestPathUtils.PATH";
+
+  /** {@code RequestDispatcher.INCLUDE_*} attributes, read by name (the mapping is Servlet 4+). */
+  private static final String INCLUDE_REQUEST_URI = "javax.servlet.include.request_uri";
+
+  private static final String INCLUDE_CONTEXT_PATH = "javax.servlet.include.context_path";
+  private static final String INCLUDE_SERVLET_PATH = "javax.servlet.include.servlet_path";
+  private static final String INCLUDE_PATH_INFO = "javax.servlet.include.path_info";
+  private static final String INCLUDE_MAPPING = "javax.servlet.include.mapping";
+
   private static final Logger log = LoggerFactory.getLogger(SpringWebHttpServerDecorator.class);
 
   private static final ClassValue<Pair<String, String>> HANDLER_SPAN_KEYS =
@@ -152,24 +167,55 @@ public class SpringWebHttpServerDecorator
 
   /**
    * Sets {@code _dd.appsec.normalized_route} from the matched pattern, under the mount prefix
-   * served before Spring's lookup path (see {@link #mountPrefix}).
+   * served before Spring's lookup path (see {@link ServletMountPrefix}). During an include the
+   * request values come from the {@code javax.servlet.include.*} attributes, as Spring's {@code
+   * UrlPathHelper} reads them.
    */
-  private static void tagNormalizedRoute(
+  static void tagNormalizedRoute(
       final AgentSpan span, final HttpServletRequest request, final String pattern) {
     try {
       final RouteTemplate template = SpringRouteParser.cached(pattern);
       if (!template.isExpressible()) {
         return;
       }
+      final boolean include = request.getAttribute(INCLUDE_REQUEST_URI) != null;
+      final String requestUri =
+          include ? (String) request.getAttribute(INCLUDE_REQUEST_URI) : request.getRequestURI();
+      final String contextPath =
+          include
+              ? includeOr(request, INCLUDE_CONTEXT_PATH, request.getContextPath())
+              : request.getContextPath();
+      final String servletPath =
+          include
+              ? includeOr(request, INCLUDE_SERVLET_PATH, request.getServletPath())
+              : request.getServletPath();
+      final String pathInfo =
+          include ? (String) request.getAttribute(INCLUDE_PATH_INFO) : request.getPathInfo();
       final String cachedLookupPath = cachedLookupPath(request);
-      final String prefix = mountPrefix(request, cachedLookupPath);
+      String prefix =
+          ServletMountPrefix.inferred(
+              requestUri,
+              contextPath,
+              servletPath,
+              cachedLookupPath,
+              request.getCharacterEncoding());
+      boolean pathMapping = false;
+      if (prefix == null) {
+        pathMapping = pathInfo != null || isPathMapping(request, include);
+        prefix = ServletMountPrefix.fallback(contextPath, servletPath, pathMapping);
+      }
       if (template.staticRoute() != null) {
         // nothing depends on the request: no presence to resolve
         NormalizedRouteHelper.tag(span, template, prefix, null);
         return;
       }
-      final String lookupPath =
-          cachedLookupPath != null ? cachedLookupPath : fallbackLookupPath(request);
+      String lookupPath = cachedLookupPath;
+      if (lookupPath == null) {
+        lookupPath = parsedLookupPath(request);
+      }
+      if (lookupPath == null) {
+        lookupPath = fallbackLookupPath(servletPath, pathInfo, pathMapping);
+      }
       NormalizedRouteHelper.tag(
           span,
           template,
@@ -185,19 +231,45 @@ public class SpringWebHttpServerDecorator
     }
   }
 
-  /**
-   * Lookup path cached by Spring 5.3+ {@code UrlPathHelper}, or null (before 5.3,
-   * PathPatternParser).
-   */
+  private static String includeOr(
+      final HttpServletRequest request, final String attribute, final String value) {
+    final Object included = request.getAttribute(attribute);
+    return included instanceof String ? (String) included : value;
+  }
+
+  /** Lookup path cached by Spring's {@code UrlPathHelper}, or null (PathPatternParser mode). */
   private static String cachedLookupPath(final HttpServletRequest request) {
     final Object lookupPath = request.getAttribute(URL_PATH_HELPER_PATH_ATTRIBUTE);
     return lookupPath instanceof String ? (String) lookupPath : null;
   }
 
-  /** Lookup path of Spring's default {@code UrlPathHelper} when it is not cached. */
-  private static String fallbackLookupPath(final HttpServletRequest request) {
-    final String pathInfo = request.getPathInfo();
-    return pathInfo != null ? pathInfo : request.getServletPath();
+  /**
+   * Path within the application parsed by Spring 5.3+ for PathPatternParser mode (raw, after the
+   * context path and the servlet mount), or null when not parsed. Read by reflection: {@code
+   * RequestPath} does not exist before 5.3.
+   */
+  private static String parsedLookupPath(final HttpServletRequest request) {
+    final Object requestPath = request.getAttribute(SERVLET_REQUEST_PATH_ATTRIBUTE);
+    return requestPath == null ? null : RequestPathHolder.pathWithinApplication(requestPath);
+  }
+
+  /**
+   * Whether the DispatcherServlet has a path mapping ({@code /api/*}), from the Servlet 4+ {@code
+   * HttpServletMapping} read by reflection; false when unknown (Servlet 3).
+   */
+  private static boolean isPathMapping(final HttpServletRequest request, final boolean include) {
+    final Object included = include ? request.getAttribute(INCLUDE_MAPPING) : null;
+    return ServletMappingHolder.isPathMapping(request, included);
+  }
+
+  /** Path the pattern matched when Spring did not cache nor parse it (servlet-mapping relative). */
+  private static String fallbackLookupPath(
+      final String servletPath, final String pathInfo, final boolean pathMapping) {
+    if (pathInfo != null) {
+      return pathInfo;
+    }
+    // exact mount URL of a path mapping: nothing after the servlet path
+    return pathMapping ? "" : servletPath;
   }
 
   /** Part matched by a trailing {@code **}, computed by Spring's own matcher; null if not used. */
@@ -209,28 +281,104 @@ public class SpringWebHttpServerDecorator
     return PathMatcherHolder.PATH_MATCHER.extractPathWithinPattern(pattern, lookupPath);
   }
 
-  /**
-   * Decoded path served before the pattern (see {@link ServletMountPrefix}). Spring's cached lookup
-   * path is absent before 5.3 and in 5.3+ PathPatternParser mode; without it the prefix is the
-   * context path, plus the servlet path when the DispatcherServlet has a path mapping ({@code
-   * /api/*}). With it ({@code alwaysUseFullPath=true} included) the prefix is exact. Limitation,
-   * only when it is absent and before 5.3: with {@code alwaysUseFullPath=true} a path-mapped
-   * servlet gets its servlet path twice (PathPatternParser mode ignores {@code alwaysUseFullPath}).
-   */
-  private static String mountPrefix(
-      final HttpServletRequest request, final String cachedLookupPath) {
-    return ServletMountPrefix.of(
-        request.getRequestURI(),
-        request.getContextPath(),
-        request.getServletPath(),
-        request.getPathInfo(),
-        cachedLookupPath,
-        request.getCharacterEncoding());
-  }
-
   /** Defers loading {@link AntPathMatcher} until a trailing {@code **} needs it. */
   private static final class PathMatcherHolder {
     static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
+  }
+
+  /**
+   * Spring 5.3+ {@code RequestPath} accessors, resolved once when the attribute is first seen; null
+   * methods when absent.
+   */
+  private static final class RequestPathHolder {
+    private static final Class<?> REQUEST_PATH;
+    private static final Method PATH_WITHIN_APPLICATION;
+    private static final Method VALUE;
+
+    static {
+      Class<?> requestPath = null;
+      Method pathWithinApplication = null;
+      Method value = null;
+      try {
+        final ClassLoader loader = HandlerMapping.class.getClassLoader();
+        requestPath = Class.forName("org.springframework.http.server.RequestPath", false, loader);
+        pathWithinApplication = requestPath.getMethod("pathWithinApplication");
+        value =
+            Class.forName("org.springframework.http.server.PathContainer", false, loader)
+                .getMethod("value");
+      } catch (final Throwable t) {
+        requestPath = null;
+        pathWithinApplication = null;
+        value = null;
+      }
+      REQUEST_PATH = requestPath;
+      PATH_WITHIN_APPLICATION = pathWithinApplication;
+      VALUE = value;
+    }
+
+    static String pathWithinApplication(final Object requestPath) {
+      if (REQUEST_PATH == null || !REQUEST_PATH.isInstance(requestPath)) {
+        return null;
+      }
+      try {
+        final Object path = PATH_WITHIN_APPLICATION.invoke(requestPath, (Object[]) null);
+        final Object value = path == null ? null : VALUE.invoke(path, (Object[]) null);
+        return value instanceof String ? (String) value : null;
+      } catch (final Throwable t) {
+        return null;
+      }
+    }
+  }
+
+  /**
+   * Servlet 4+ {@code HttpServletRequest.getHttpServletMapping().getMappingMatch()}, resolved once;
+   * null methods on Servlet 3.
+   */
+  private static final class ServletMappingHolder {
+    private static final Class<?> HTTP_SERVLET_MAPPING;
+    private static final Method GET_HTTP_SERVLET_MAPPING;
+    private static final Method GET_MAPPING_MATCH;
+
+    static {
+      Class<?> mapping = null;
+      Method getHttpServletMapping = null;
+      Method getMappingMatch = null;
+      try {
+        getHttpServletMapping = HttpServletRequest.class.getMethod("getHttpServletMapping");
+        mapping =
+            Class.forName(
+                "javax.servlet.http.HttpServletMapping",
+                false,
+                HttpServletRequest.class.getClassLoader());
+        getMappingMatch = mapping.getMethod("getMappingMatch");
+      } catch (final Throwable t) {
+        mapping = null;
+        getHttpServletMapping = null;
+        getMappingMatch = null;
+      }
+      HTTP_SERVLET_MAPPING = mapping;
+      GET_HTTP_SERVLET_MAPPING = getHttpServletMapping;
+      GET_MAPPING_MATCH = getMappingMatch;
+    }
+
+    static boolean isPathMapping(final HttpServletRequest request, final Object included) {
+      if (GET_MAPPING_MATCH == null) {
+        return false;
+      }
+      try {
+        final Object mapping =
+            HTTP_SERVLET_MAPPING.isInstance(included)
+                ? included
+                : GET_HTTP_SERVLET_MAPPING.invoke(request, (Object[]) null);
+        if (mapping == null) {
+          return false;
+        }
+        final Object match = GET_MAPPING_MATCH.invoke(mapping, (Object[]) null);
+        return match instanceof Enum && "PATH".equals(((Enum<?>) match).name());
+      } catch (final Throwable t) {
+        return false;
+      }
+    }
   }
 
   public void onHandle(final AgentSpan span, final Object handler) {

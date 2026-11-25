@@ -10,13 +10,15 @@ import java.nio.charset.StandardCharsets;
  * servlet API version.
  *
  * <p>When the framework cached its lookup path (Spring 5.3+ {@code UrlPathHelper.PATH} attribute)
- * and the request path within the context, decoded with the request encoding as Spring does, ends
- * with it, the prefix is the context path plus the raw part before the lookup path. This also
- * covers {@code alwaysUseFullPath=true}, where the lookup path includes the servlet path. Otherwise
- * it is the context path, plus the servlet path when the servlet has a path mapping ({@code
- * /api/*}, pathInfo non-null). The request encoding is only used to match the lookup path: raw
- * parts of the returned prefix are decoded as UTF-8, the encoding of RFC-1125 literals, so the
- * renderer encodes them back to the bytes of the request URI.
+ * and the request path within the context, decoded with the request encoding as Spring does (or
+ * left undecoded, for {@code urlDecode=false}), ends with it, the part before the lookup path is
+ * the servlet mount: it must be empty ({@code alwaysUseFullPath=true}, default mapping) or the
+ * servlet path, else the lookup path did not come from the request path (e.g. the container removed
+ * dot segments) and it is ignored. Otherwise the prefix is the context path, plus the servlet path
+ * when the servlet has a path mapping ({@code /api/*}). The request encoding is only used to match
+ * the lookup path: raw parts of the returned prefix are decoded as UTF-8, the encoding of RFC-1125
+ * literals, so the renderer encodes them back to the bytes of the request URI. The emitted context
+ * path never carries {@code ;} parameters (e.g. {@code ;jsessionid=}).
  */
 public final class ServletMountPrefix {
 
@@ -33,7 +35,8 @@ public final class ServletMountPrefix {
    * @param requestUri raw request URI path, without query ({@code getRequestURI()})
    * @param contextPath raw context path ({@code getContextPath()})
    * @param servletPath decoded servlet path ({@code getServletPath()})
-   * @param pathInfo decoded path info ({@code getPathInfo()}), null for a default mapping
+   * @param pathMapping whether the servlet has a path mapping ({@code /api/*}): pathInfo non-null,
+   *     or Servlet 4+ {@code MappingMatch.PATH}
    * @param cachedLookupPath path the route was matched against, as cached by the framework, or null
    * @param characterEncoding request character encoding name the framework decoded the lookup path
    *     with; ISO-8859-1 when null, empty or unsupported
@@ -42,20 +45,56 @@ public final class ServletMountPrefix {
       String requestUri,
       String contextPath,
       String servletPath,
-      String pathInfo,
+      boolean pathMapping,
       String cachedLookupPath,
       String characterEncoding) {
+    String inferred =
+        inferred(requestUri, contextPath, servletPath, cachedLookupPath, characterEncoding);
+    return inferred != null ? inferred : fallback(contextPath, servletPath, pathMapping);
+  }
+
+  /**
+   * Prefix inferred from the cached lookup path (see {@link #of}); null when there is no cached
+   * lookup path or it cannot be located in the request path, then use {@link #fallback}.
+   */
+  public static String inferred(
+      String requestUri,
+      String contextPath,
+      String servletPath,
+      String cachedLookupPath,
+      String characterEncoding) {
+    if (cachedLookupPath == null) {
+      return null;
+    }
     String rawContextPath = contextPath == null ? "" : contextPath;
-    String decodedContextPath = RouteEncoding.decodePath(rawContextPath);
     String rawBeforeLookupPath =
         rawBeforeLookupPath(requestUri, rawContextPath, cachedLookupPath, characterEncoding);
-    if (rawBeforeLookupPath != null) {
-      return decodedContextPath + collapseSlashes(RouteEncoding.decodePath(rawBeforeLookupPath));
+    if (rawBeforeLookupPath == null) {
+      return null;
     }
-    if (pathInfo != null && servletPath != null) {
-      return decodedContextPath + servletPath;
+    String decodedContextPath = decodedContextPath(rawContextPath);
+    if (rawBeforeLookupPath.isEmpty()) {
+      return decodedContextPath;
     }
-    return decodedContextPath;
+    String mount = collapseSlashes(RouteEncoding.decodePath(rawBeforeLookupPath));
+    // anything else than the servlet mount is request-specific text, not a prefix
+    return mount.equals(servletPath) ? decodedContextPath + mount : null;
+  }
+
+  /**
+   * Prefix without a usable lookup path: the context path, plus the servlet path when the servlet
+   * has a path mapping.
+   */
+  public static String fallback(String contextPath, String servletPath, boolean pathMapping) {
+    String decodedContextPath = decodedContextPath(contextPath == null ? "" : contextPath);
+    return pathMapping && servletPath != null
+        ? decodedContextPath + servletPath
+        : decodedContextPath;
+  }
+
+  /** Context path as emitted: without {@code ;} parameters, decoded. */
+  private static String decodedContextPath(String rawContextPath) {
+    return RouteEncoding.decodePath(removeSemicolonContent(rawContextPath));
   }
 
   /**
@@ -87,9 +126,33 @@ public final class ServletMountPrefix {
    * Decodes the raw path with the request encoding and collapses {@code /} runs, as Spring does for
    * its lookup path; when the result ends with the lookup path, returns the raw index where the
    * lookup path starts, else -1 (also when that position falls inside a decoded escape sequence).
-   * Invalid or truncated escapes are kept as is and {@code +} is not a space.
+   * Invalid or truncated escapes are kept as is and {@code +} is not a space. When the decoded path
+   * does not match, an undecoded lookup path ({@code urlDecode=false}) is also recognized.
    */
   static int rawEndBeforeLookupPath(String rawPath, String lookupPath, String characterEncoding) {
+    boolean escaped = rawPath.indexOf('%') >= 0;
+    if (!escaped && rawPath.indexOf("//") < 0) {
+      // nothing to decode or collapse: same result as the decoding path, without allocating
+      return rawSuffixStart(rawPath, lookupPath);
+    }
+    int end = decodedEndBeforeLookupPath(rawPath, lookupPath, characterEncoding);
+    if (end >= 0 || !escaped) {
+      return end;
+    }
+    // urlDecode=false: Spring kept the escapes in its lookup path
+    if (rawPath.indexOf("//") < 0) {
+      return rawSuffixStart(rawPath, lookupPath);
+    }
+    return collapseSlashes(rawPath).equals(lookupPath) ? 0 : -1;
+  }
+
+  private static int rawSuffixStart(String rawPath, String lookupPath) {
+    return rawPath.endsWith(lookupPath) ? rawPath.length() - lookupPath.length() : -1;
+  }
+
+  /** Decoding path of {@link #rawEndBeforeLookupPath}, without the shortcuts. */
+  static int decodedEndBeforeLookupPath(
+      String rawPath, String lookupPath, String characterEncoding) {
     int len = rawPath.length();
     StringBuilder decoded = new StringBuilder(len);
     // decoded index -> raw index; -1 inside the chars decoded from one escape sequence
