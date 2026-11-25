@@ -292,6 +292,46 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
     assertNotEquals(firstPathwayHash, secondPathwayHash);
   }
 
+  @Test
+  void plainSqsMessageAfterEventBridgeMessageUsesItsOwnContext() throws Exception {
+    assumeTrue(isDataStreamsEnabled());
+
+    writer.clear();
+    Message plainSqsMessage =
+        Message.builder()
+            .body("plain")
+            .messageAttributes(
+                Collections.singletonMap(
+                    "_datadog",
+                    MessageAttributeValue.builder()
+                        .dataType("String")
+                        .stringValue(
+                            "{\"x-datadog-trace-id\":\"1111222233334444\","
+                                + "\"x-datadog-parent-id\":\"5555666677778888\","
+                                + "\"dd-pathway-ctx-base64\":\"IiIiIiIiIiICAg==\"}")
+                        .build()))
+            .build();
+    List<Message> messages =
+        new TracingList(
+            Arrays.asList(
+                eventBridgeEnvelope(4948377316357291421L, 6746998015037429512L, "ERERERERERECAg=="),
+                plainSqsMessage),
+            expectedQueueUrl("somequeue"),
+            requestId());
+
+    messages.forEach(ignored -> {});
+
+    writer.waitForTraces(2);
+    Map<Long, DDSpan> spansByTraceId = new HashMap<>();
+    for (List<DDSpan> trace : writer) {
+      assertEquals(1, trace.size(), () -> "Unexpected trace: " + trace);
+      spansByTraceId.put(trace.get(0).getTraceId().toLong(), trace.get(0));
+    }
+    DDSpan plain = spansByTraceId.get(1111222233334444L);
+    assertNotNull(plain, () -> "Plain SQS message inherited the EventBridge context");
+    assertEquals(5555666677778888L, plain.getParentId());
+  }
+
   private static Message eventBridgeEnvelope(
       long traceId, long parentId, String pathwayContextBase64) {
     return Message.builder()

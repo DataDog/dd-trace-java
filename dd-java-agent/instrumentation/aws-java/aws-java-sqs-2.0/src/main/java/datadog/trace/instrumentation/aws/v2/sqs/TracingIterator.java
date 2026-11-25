@@ -39,6 +39,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
   private final String queueName;
   private final String requestId;
   private AgentSpanContext batchContext;
+  private boolean batchContextFromEventBridge;
 
   public TracingIterator(L delegate, String queueUrl, String requestId) {
     this.delegate = delegate;
@@ -91,7 +92,9 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
         }
         AgentSpanContext spanContext = batchContext;
         boolean firstInBatch = spanContext == null;
-        if (firstInBatch || (eventBridgeMessage != null && sqsPropagationEnabled)) {
+        boolean needsOwnContext =
+            eventBridgeMessage != null || (dataStreamsEnabled && batchContextFromEventBridge);
+        if (firstInBatch || (needsOwnContext && sqsPropagationEnabled)) {
           spanContext =
               sqsPropagationEnabled ? extractMessageContext(message, eventBridgeMessage) : null;
           queueSpan = startTimeInQueueSpan(message, spanContext);
@@ -100,6 +103,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
           }
           if (firstInBatch) {
             batchContext = spanContext;
+            batchContextFromEventBridge = eventBridgeMessage != null;
           }
         }
         AgentSpan span = startSpan(COMPONENT_NAME.toString(), SQS_INBOUND_OPERATION, spanContext);

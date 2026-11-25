@@ -73,7 +73,7 @@ final class EventBridgeMessage {
       Object resourceName = ((Map<?, ?>) datadog).get(RESOURCE_NAME_KEY);
       String eventBusName = resourceName instanceof String ? (String) resourceName : null;
       return new EventBridgeMessage((Map<String, ?>) datadog, eventBusName, (String) detailType);
-    } catch (Exception e) {
+    } catch (Exception | StackOverflowError e) {
       log.debug("Unable to parse EventBridge envelope from SQS message body", e);
       return null;
     }
