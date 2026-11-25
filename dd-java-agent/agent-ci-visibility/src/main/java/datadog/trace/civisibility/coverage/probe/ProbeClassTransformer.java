@@ -21,12 +21,19 @@ import org.slf4j.LoggerFactory;
  * Inserts line probes into the classes selected by the coverage filter. The probes report to {@link
  * ProbeRecorder}; nothing is added to the class itself, so its shape, reflection results and
  * serialization are unchanged.
+ *
+ * <p>Class files with stack map frames are patched in place by {@link ClassFilePatcher}, which
+ * leaves the classes it does not handle to the ASM transformer here. Both insert the same probes.
  */
 public final class ProbeClassTransformer implements ClassFileTransformer {
 
   private static final Logger log = LoggerFactory.getLogger(ProbeClassTransformer.class);
 
   private static final ClassLoader AGENT_CLASSLOADER = ProbeClassTransformer.class.getClassLoader();
+
+  /** Sends every class through ASM, to compare it with the class file patcher. */
+  private static final boolean ASM_ONLY =
+      Boolean.getBoolean("dd.civisibility.experiment.asm.transformer");
 
   private final Predicate<String> instrumentationFilter;
 
@@ -63,25 +70,114 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
   }
 
   /**
+   * Instruments a class and registers its probes.
+   *
    * @param frames whether the class file carries stack map frames
    * @return the instrumented class file, or {@code null} if the class has no lines to cover
    */
   @Nullable
   static byte[] instrument(byte[] source, ClassLoader loader, boolean frames) {
-    ClassReader reader = new ClassReader(source);
-    if ((reader.getAccess() & Opcodes.ACC_MODULE) != 0) {
+    Instrumented instrumented = instrument(source, frames);
+    if (instrumented == null) {
+      return null;
+    }
+    SourceMap sourceMap =
+        SmapParser.parse(
+            instrumented.sourceDebug, SmapParser.packageDirectory(instrumented.className));
+    ProbeRecorder.register(
+        instrumented.classId,
+        instrumented.probes.build(
+            instrumented.className, loader, instrumented.sourceFile, sourceMap));
+    return instrumented.bytes;
+  }
+
+  /**
+   * Instruments a class without registering its probes.
+   *
+   * @return the instrumented class, or {@code null} if the class has no lines to cover
+   */
+  @Nullable
+  static Instrumented instrument(byte[] source, boolean frames) {
+    if (!frames || ASM_ONLY) {
+      PatcherStats.count(frames ? "asm: switch" : "asm: class file before Java 6");
+      return instrumentWithAsm(source, frames, -1);
+    }
+    ClassFile classFile;
+    try {
+      classFile = new ClassFile(source);
+    } catch (RuntimeException e) {
+      PatcherStats.count("asm: class file not read");
+      return instrumentWithAsm(source, true, -1);
+    }
+    if ((classFile.access & Opcodes.ACC_MODULE) != 0) {
       return null;
     }
     int classId = ProbeRecorder.reserveClassId();
     if (classId < 0) {
       return null;
     }
+    try {
+      Instrumented instrumented = ClassFilePatcher.instrument(classFile, classId);
+      PatcherStats.count(instrumented != null ? "patched" : "no lines");
+      return instrumented;
+    } catch (UnsupportedClassException e) {
+      PatcherStats.count("asm: " + e.reason);
+    } catch (RuntimeException e) {
+      PatcherStats.count("asm: patcher failed with " + e.getClass().getName());
+      log.debug("Class file patcher failed on {}", classFile.className(classFile.thisClass), e);
+    }
+    return instrumentWithAsm(source, true, classId);
+  }
+
+  /** A class with probes inserted, and what is needed to register them. */
+  static final class Instrumented {
+    final int classId;
+    final byte[] bytes;
+    final String className;
+    final String sourceFile;
+    @Nullable final String sourceDebug;
+    final ClassProbesBuilder probes;
+
+    Instrumented(
+        int classId,
+        byte[] bytes,
+        String className,
+        String sourceFile,
+        @Nullable String sourceDebug,
+        ClassProbesBuilder probes) {
+      this.classId = classId;
+      this.bytes = bytes;
+      this.className = className;
+      this.sourceFile = sourceFile;
+      this.sourceDebug = sourceDebug;
+      this.probes = probes;
+    }
+  }
+
+  /**
+   * Instruments a class with ASM.
+   *
+   * @param classId the id reserved for the class, or -1 to reserve one
+   * @return the instrumented class, or {@code null} if the class has no lines to cover
+   */
+  @Nullable
+  static Instrumented instrumentWithAsm(byte[] source, boolean frames, int classId) {
+    ClassReader reader = new ClassReader(source);
+    if ((reader.getAccess() & Opcodes.ACC_MODULE) != 0) {
+      return null;
+    }
+    if (classId < 0) {
+      classId = ProbeRecorder.reserveClassId();
+      if (classId < 0) {
+        return null;
+      }
+    }
     // methods that outgrow the size limit lose their exception probes, then all their probes;
     // methods with no place for a probe that the JIT compilers accept lose all their probes
     Map<String, Integer> reductions = new HashMap<>();
     while (true) {
       try {
-        return instrument(reader, loader, frames, classId, reductions);
+        return instrument(reader, frames, classId, reductions);
       } catch (MethodTooLargeException e) {
         String method = e.getMethodName() + e.getDescriptor();
         if (reductions.merge(method, 1, Integer::sum) > SKIP_METHOD) {
@@ -100,12 +196,8 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
   private static final int SKIP_METHOD = 2;
 
   @Nullable
-  private static byte[] instrument(
-      ClassReader reader,
-      ClassLoader loader,
-      boolean frames,
-      int classId,
-      Map<String, Integer> reductions) {
+  private static Instrumented instrument(
+      ClassReader reader, boolean frames, int classId, Map<String, Integer> reductions) {
     ClassNode classNode = new ClassNode();
     // frames stay compressed; the inserter expands those of the methods it changes
     reader.accept(classNode, 0);
@@ -134,12 +226,13 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
 
     ClassWriter writer = new ClassWriter(reader, 0);
     classNode.accept(writer);
-    byte[] result = writer.toByteArray();
-    SourceMap sourceMap =
-        SmapParser.parse(classNode.sourceDebug, SmapParser.packageDirectory(classNode.name));
-    ProbeRecorder.register(
-        classId, probes.build(classNode.name, loader, classNode.sourceFile, sourceMap));
-    return result;
+    return new Instrumented(
+        classId,
+        writer.toByteArray(),
+        classNode.name,
+        classNode.sourceFile,
+        classNode.sourceDebug,
+        probes);
   }
 
   private static boolean instrument(

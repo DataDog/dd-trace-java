@@ -891,51 +891,18 @@ final class MethodProbeInserter {
     final String descriptor;
 
     ProbePlacementException(MethodNode method) {
-      super("No place for a probe in " + method.name + method.desc, null, false, false);
-      this.methodName = method.name;
-      this.descriptor = method.desc;
+      this(method.name, method.desc);
+    }
+
+    ProbePlacementException(String methodName, String descriptor) {
+      super("No place for a probe in " + methodName + descriptor, null, false, false);
+      this.methodName = methodName;
+      this.descriptor = descriptor;
     }
   }
 
   private boolean startsNewLine(int i, LineList lines) {
     return lineOf[i] >= 0 && !lines.contains(lineOf[i]);
-  }
-
-  /** Line numbers in the order they were added, without duplicates. */
-  private static final class LineList {
-    private int[] lines = new int[8];
-    private int count;
-
-    void add(int line) {
-      if (line < 0 || contains(line)) {
-        return;
-      }
-      if (count == lines.length) {
-        lines = Arrays.copyOf(lines, count * 2);
-      }
-      lines[count++] = line;
-    }
-
-    boolean contains(int line) {
-      for (int k = 0; k < count; k++) {
-        if (lines[k] == line) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    int size() {
-      return count;
-    }
-
-    int[] toArray() {
-      return Arrays.copyOf(lines, count);
-    }
-
-    void clear() {
-      count = 0;
-    }
   }
 
   /**
