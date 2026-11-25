@@ -21,6 +21,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
+import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.naming.PeerServiceFormulas;
@@ -30,6 +31,7 @@ import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.common.writer.ListWriter;
+import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,6 +51,8 @@ import org.junit.jupiter.api.Test;
     key = TracerConfig.TRACE_PEER_SERVICE_COMPONENT_OVERRIDES,
     value = "rmi-client:rmi-override")
 @WithConfig(key = TraceInstrumentationConfig.TRACE_RESOURCE_RENAMING_ENABLED, value = "true")
+@WithConfig(key = GeneralConfig.SERVICE_NAME, value = "checkout")
+@WithConfig(key = GeneralConfig.VERSION, value = "1.2.3")
 class DerivedTagsForkedTest extends DDCoreJavaSpecification {
   private static final long CUSTOM_A = KnownTags.DB_USER;
   private static final long CUSTOM_B = KnownTags.DB_OPERATION;
@@ -483,6 +487,43 @@ class DerivedTagsForkedTest extends DDCoreJavaSpecification {
           + " prototype="
           + viaPrototype;
     }
+  }
+
+  // --- differential check: internal tags vs InternalTagsAdder ---
+
+  @Test
+  void internalTagFormulasMatchTheProcessor() {
+    TagsPostProcessorFactory.withAddInternalTags(true);
+    try {
+      CoreTracer legacy = tracer(false);
+      CoreTracer derived = tracer(true);
+      String ddService = Config.get().getServiceName();
+      for (String service : new String[] {ddService, ddService.toUpperCase(), "orders-db", null}) {
+        for (String explicitVersion : new String[] {null, "9.9"}) {
+          String expected = internalTagsOf(legacy, service, explicitVersion);
+          String actual = internalTagsOf(derived, service, explicitVersion);
+          assertEquals(expected, actual, "service=" + service + " version=" + explicitVersion);
+        }
+      }
+    } finally {
+      TagsPostProcessorFactory.withAddInternalTags(false);
+    }
+  }
+
+  private String internalTagsOf(CoreTracer tracer, String service, String explicitVersion) {
+    DDSpan span = (DDSpan) tracer.buildSpan("test", "op").start();
+    if (service != null) {
+      span.setServiceName(service);
+    }
+    if (explicitVersion != null) {
+      span.setTag(KnownTags.VERSION, explicitVersion);
+    }
+    span.finish();
+    TagMap tags = serializedTags(span);
+    return "base="
+        + tags.getString(KnownTagCodec.nameOf(KnownTags.DD_BASE_SERVICE))
+        + " version="
+        + tags.getString(KnownTagCodec.nameOf(KnownTags.VERSION));
   }
 
   // --- differential check: http.endpoint vs HttpEndpointPostProcessor ---
