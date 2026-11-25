@@ -2,8 +2,10 @@ package com.datadog.openfeature;
 
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.ALLOCATION_KEY;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.DO_LOG;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURES_HANDLE;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_CACHE_HIT;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURES_HANDLE;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.FEATURE_PREFIX;
 import static java.util.Arrays.asList;
@@ -220,13 +222,15 @@ class ExposureHookTest {
     exposureFeatures.put("bandit.policy_id", "p2");
     assertEquals(
         exposureFeatures,
-        SplitFeatureMetadata.featuresWithPrefix(metadata, EXPOSURE_FEATURE_PREFIX));
+        SplitFeatureMetadata.preparedOrWithPrefix(
+            metadata, handle(metadata, EXPOSURE_FEATURES_HANDLE), EXPOSURE_FEATURE_PREFIX));
     final Map<String, Object> evaluationFeatures = new HashMap<>();
     evaluationFeatures.put("experiment.tag", "pricing");
     evaluationFeatures.put("bandit.policy_id", "p2");
     assertEquals(
         evaluationFeatures,
-        SplitFeatureMetadata.featuresWithPrefix(metadata, EVALUATION_FEATURE_PREFIX));
+        SplitFeatureMetadata.preparedOrWithPrefix(
+            metadata, handle(metadata, EVALUATION_FEATURES_HANDLE), EVALUATION_FEATURE_PREFIX));
     assertEquals(singletonMap("holdout.key", "q4-global"), this.evaluations.get(0).getFeatures());
     assertEquals(exposureFeatures, this.evaluator.sentToDatadog.get(0).features);
   }
@@ -245,7 +249,10 @@ class ExposureHookTest {
 
     assertEquals(singletonMap("holdout.key", "q4-global"), this.evaluations.get(0).getFeatures());
     assertTrue(
-        SplitFeatureMetadata.featuresWithPrefix(details.getFlagMetadata(), EXPOSURE_FEATURE_PREFIX)
+        SplitFeatureMetadata.preparedOrWithPrefix(
+                details.getFlagMetadata(),
+                handle(details.getFlagMetadata(), EXPOSURE_FEATURES_HANDLE),
+                EXPOSURE_FEATURE_PREFIX)
             .isEmpty(),
         "the repeated feature's EXPOSURE destination is ignored with it");
     assertNull(this.evaluator.sentToDatadog.get(0).features);
@@ -458,5 +465,11 @@ class ExposureHookTest {
   private static FlagEvaluationWriter capturingWriter(
       final AtomicReference<RecordedEvaluation> ref) {
     return new RecordedEvaluation.Recorder(ref::set);
+  }
+
+  /** The metadata value of a features handle, or {@code null} without metadata. */
+  private static Object handle(
+      final dev.openfeature.sdk.ImmutableMetadata metadata, final String key) {
+    return metadata == null ? null : metadata.asUnmodifiableMap().get(key);
   }
 }

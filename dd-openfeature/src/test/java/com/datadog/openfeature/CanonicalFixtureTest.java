@@ -1,6 +1,8 @@
 package com.datadog.openfeature;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURES_HANDLE;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURES_HANDLE;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.FEATURE_PREFIX;
 import static java.util.Collections.emptyMap;
@@ -176,13 +178,17 @@ class CanonicalFixtureTest {
           "HOOK features for " + testCase);
       assertEquals(
           testCase.resultFeatures.get("EXPOSURE"),
-          SplitFeatureMetadata.featuresWithPrefix(
-              details.getFlagMetadata(), EXPOSURE_FEATURE_PREFIX),
+          SplitFeatureMetadata.preparedOrWithPrefix(
+              details.getFlagMetadata(),
+              handle(details.getFlagMetadata(), EXPOSURE_FEATURES_HANDLE),
+              EXPOSURE_FEATURE_PREFIX),
           "EXPOSURE features for " + testCase);
       assertEquals(
           testCase.resultFeatures.get("EVALUATION"),
-          SplitFeatureMetadata.featuresWithPrefix(
-              details.getFlagMetadata(), EVALUATION_FEATURE_PREFIX),
+          SplitFeatureMetadata.preparedOrWithPrefix(
+              details.getFlagMetadata(),
+              handle(details.getFlagMetadata(), EVALUATION_FEATURES_HANDLE),
+              EVALUATION_FEATURE_PREFIX),
           "EVALUATION features for " + testCase);
     }
   }
@@ -429,5 +435,11 @@ class CanonicalFixtureTest {
     public String toString() {
       return this.fileName + "[" + this.index + "] flag=" + this.flag;
     }
+  }
+
+  /** The metadata value of a features handle, or {@code null} without metadata. */
+  private static Object handle(
+      final dev.openfeature.sdk.ImmutableMetadata metadata, final String key) {
+    return metadata == null ? null : metadata.asUnmodifiableMap().get(key);
   }
 }

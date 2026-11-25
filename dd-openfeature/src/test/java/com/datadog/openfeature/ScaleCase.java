@@ -1,7 +1,9 @@
 package com.datadog.openfeature;
 
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.DO_LOG;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURES_HANDLE;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURES_HANDLE;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.SPLIT_SERIAL_ID;
@@ -145,12 +147,16 @@ final class ScaleCase {
           SplitFeatureMetadata.featuresWithPrefix(details.getFlagMetadata(), FEATURE_PREFIX));
       features.put(
           "EXPOSURE",
-          SplitFeatureMetadata.featuresWithPrefix(
-              details.getFlagMetadata(), EXPOSURE_FEATURE_PREFIX));
+          SplitFeatureMetadata.preparedOrWithPrefix(
+              details.getFlagMetadata(),
+              handle(details.getFlagMetadata(), EXPOSURE_FEATURES_HANDLE),
+              EXPOSURE_FEATURE_PREFIX));
       features.put(
           "EVALUATION",
-          SplitFeatureMetadata.featuresWithPrefix(
-              details.getFlagMetadata(), EVALUATION_FEATURE_PREFIX));
+          SplitFeatureMetadata.preparedOrWithPrefix(
+              details.getFlagMetadata(),
+              handle(details.getFlagMetadata(), EVALUATION_FEATURES_HANDLE),
+              EVALUATION_FEATURE_PREFIX));
       if (!sameValue(expectedFeatures, features)) {
         throw unexpectedMetadata("features", expectedFeatures, features);
       }
@@ -254,5 +260,11 @@ final class ScaleCase {
   private static String abbreviate(final Object value) {
     final String text = String.valueOf(value);
     return text.length() <= 200 ? text : text.substring(0, 200) + "... (" + text.length() + ")";
+  }
+
+  /** The metadata value of a features handle, or {@code null} without metadata. */
+  private static Object handle(
+      final dev.openfeature.sdk.ImmutableMetadata metadata, final String key) {
+    return metadata == null ? null : metadata.asUnmodifiableMap().get(key);
   }
 }

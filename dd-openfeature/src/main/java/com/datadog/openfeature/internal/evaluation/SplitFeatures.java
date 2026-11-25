@@ -115,12 +115,25 @@ final class SplitFeatures {
       return NONE;
     }
     // Each matches what its hook would read back from the metadata entries.
+    final long evaluationHandle = register(evaluation);
+    final long exposureHandle = register(exposure);
+    // PROTOTYPE (measurement only): when a destination's features are registered, its hook takes
+    // them by handle, so the internal-only entries for that destination are not written. A stale
+    // handle then yields no features; a mergeable version must keep handles resolvable.
+    for (int i = keys.size() - 1; i >= 0; i--) {
+      final String key = keys.get(i);
+      if ((evaluationHandle != 0L && key.startsWith(EVALUATION_FEATURE_PREFIX))
+          || (exposureHandle != 0L && key.startsWith(EXPOSURE_FEATURE_PREFIX))) {
+        keys.remove(i);
+        values.remove(i);
+      }
+    }
     return new SplitFeatures(
         keys.toArray(new String[0]),
         values.toArray(new Object[0]),
         evaluationFeatures,
-        register(evaluation),
-        register(exposure));
+        evaluationHandle,
+        exposureHandle);
   }
 
   private static long register(final Map<String, Object> features) {
