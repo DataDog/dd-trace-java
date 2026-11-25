@@ -11,6 +11,7 @@ BOOTSTRAP="${KAFKA_BOOTSTRAP:-localhost:9092}"
 TRACE_AGENT_PORT="${TRACE_AGENT_PORT:-8126}"
 CONSUME_TOPIC="${CONSUME_TOPIC:-bench-consume}"
 PRODUCE_TOPIC="${PRODUCE_TOPIC:-bench-produce}"
+ENRICH_TOPIC="${ENRICH_TOPIC:-bench-enriched}"
 
 # One JDK for the broker and every variant (17+); BENCH_JAVA_HOME wins, then JAVA_17_HOME, then JAVA_HOME.
 bench_java_home="${BENCH_JAVA_HOME:-${JAVA_17_HOME:-${JAVA_HOME:-}}}"
