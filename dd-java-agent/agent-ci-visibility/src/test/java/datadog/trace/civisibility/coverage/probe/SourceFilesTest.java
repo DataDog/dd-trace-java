@@ -2,6 +2,7 @@ package datadog.trace.civisibility.coverage.probe;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.civisibility.coverage.InstrumentedClass;
@@ -10,10 +11,12 @@ import datadog.trace.civisibility.coverage.probe.fixtures.CoverageFixture;
 import datadog.trace.civisibility.coverage.probe.fixtures.KotlinCoverageFixture;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
@@ -109,6 +112,100 @@ class SourceFilesTest {
         fileLines.get(133) && fileLines.get(134) && fileLines.get(140), fileLines.toString());
   }
 
+  @Test
+  void reportsAClassWhoseFileNameIsDuplicatedInTheFileItWasCompiledFrom() throws Exception {
+    String file = FIXTURE_DIRECTORY + "CoverageFixture.java";
+    // the fixture is compiled into the build directory of this module
+    String compiled = "dd-java-agent/agent-ci-visibility/src/test/java/" + file;
+    SourcePathResolver duplicates =
+        new SourcePathResolver() {
+          @Override
+          public Collection<String> getSourcePaths(@Nonnull Class<?> c) {
+            return Collections.emptyList();
+          }
+
+          @Override
+          public Collection<String> getResourcePaths(@Nullable String relativePath) {
+            return file.equals(relativePath)
+                ? Arrays.asList(
+                    "dd-java-agent/agent-ci-visibility-copy/src/test/java/" + file, compiled)
+                : Collections.emptyList();
+          }
+        };
+
+    Map<String, BitSet> lines =
+        coveredLines(
+            CoverageFixture.class,
+            0,
+            name -> name.startsWith(FIXTURE_DIRECTORY + "CoverageFixture"),
+            duplicates);
+
+    assertEquals(Collections.singleton(compiled), lines.keySet());
+  }
+
+  @Test
+  void picksTheFileOfTheModuleAClassWasBuiltIn() {
+    List<String> sourcePaths =
+        Arrays.asList(
+            "lib-a/src/main/java/com/example/Util.java",
+            "lib-b/src/main/java/com/example/Util.java");
+
+    assertEquals(
+        "lib-b/src/main/java/com/example/Util.java",
+        SourceFiles.pickCompiledSourcePath(
+            sourcePaths, "file:/repo/lib-b/build/classes/java/main/"));
+    assertEquals(
+        "lib-a/src/main/java/com/example/Util.java",
+        SourceFiles.pickCompiledSourcePath(
+            sourcePaths, "jar:file:/repo/lib-a/target/lib-a-1.0.jar!/"));
+  }
+
+  @Test
+  void picksTheFileOfTheInnermostModule() {
+    List<String> sourcePaths =
+        Arrays.asList(
+            "src/main/java/com/example/Util.java", "samples/src/main/java/com/example/Util.java");
+
+    assertEquals(
+        "samples/src/main/java/com/example/Util.java",
+        SourceFiles.pickCompiledSourcePath(
+            sourcePaths, "file:/repo/samples/build/classes/java/main/"));
+    assertEquals(
+        "src/main/java/com/example/Util.java",
+        SourceFiles.pickCompiledSourcePath(sourcePaths, "file:/repo/build/classes/java/main/"));
+  }
+
+  @Test
+  void picksTheActualFileOfTheTargetAClassWasBuiltFor() {
+    String file = "okhttp3/internal/platform/PlatformRegistry.kt";
+    String jvm = "okhttp/src/jvmMain/kotlin/" + file;
+    List<String> sourcePaths =
+        Arrays.asList(
+            "okhttp/src/androidMain/kotlin/" + file,
+            jvm,
+            "okhttp/src/commonJvmAndroid/kotlin/" + file);
+
+    assertEquals(
+        jvm,
+        SourceFiles.pickCompiledSourcePath(
+            sourcePaths, "file:/repo/okhttp/build/classes/kotlin/jvm/main/"));
+    assertEquals(
+        jvm,
+        SourceFiles.pickCompiledSourcePath(
+            sourcePaths, "jar:file:/repo/okhttp/build/libs/okhttp-jvm-5.3.0.jar!/"));
+  }
+
+  @Test
+  void picksNoFileWhenSeveralFitOrNoneDoes() {
+    List<String> sourcePaths =
+        Arrays.asList(
+            "lib/src/main/java/com/example/Util.java", "lib/src/extra/java/com/example/Util.java");
+
+    assertNull(
+        SourceFiles.pickCompiledSourcePath(sourcePaths, "file:/repo/lib/build/classes/java/main/"));
+    assertNull(SourceFiles.pickCompiledSourcePath(sourcePaths, "file:/elsewhere/classes/"));
+  }
+
   private static BitSet kotlinLines(int scenario) throws Exception {
     BitSet lines = coveredLines(KotlinCoverageFixture.class, scenario).get(KOTLIN_FILE);
     assertNotNull(lines, "scenario " + scenario + " covered no line of " + KOTLIN_FILE);
@@ -124,6 +221,15 @@ class SourceFilesTest {
   /** Maps the lines that the classes accepted by {@code classNames} covered in a scenario. */
   private static Map<String, BitSet> coveredLines(
       Class<?> workload, int scenario, Predicate<String> classNames) throws Exception {
+    return coveredLines(workload, scenario, classNames, FIXTURE_FILES);
+  }
+
+  private static Map<String, BitSet> coveredLines(
+      Class<?> workload,
+      int scenario,
+      Predicate<String> classNames,
+      SourcePathResolver sourcePathResolver)
+      throws Exception {
     FixtureLoader loader = new FixtureLoader(null, FIXTURES);
     Class<?> fixture = Class.forName(workload.getName(), true, loader);
     try {
@@ -131,7 +237,7 @@ class SourceFilesTest {
     } catch (InvocationTargetException e) {
       // some scenarios throw on purpose
     }
-    SourceFiles sourceFiles = new SourceFiles(FIXTURE_FILES);
+    SourceFiles sourceFiles = new SourceFiles(sourcePathResolver);
     Map<String, BitSet> linesBySourcePath = new HashMap<>();
     ProbeRecorder.flushShared();
     for (int classId = 0; classId < ProbeRecorder.getClassCount(); classId++) {
