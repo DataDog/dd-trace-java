@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -107,6 +108,49 @@ public class CompositeControllerTest {
 
     verify(other).close();
     assertArrayEquals(new Throwable[] {otherFailure}, failure.getSuppressed());
+  }
+
+  @Test
+  public void createRecordingClosesTheStartedRecordingsWhenALaterControllerFails()
+      throws Exception {
+    OngoingRecording jfr = mock(OngoingRecording.class);
+    Controller jfrController = mock(Controller.class);
+    when(jfrController.createRecording(any(), any())).thenReturn(jfr);
+    Controller ddprofController = mock(Controller.class);
+    IllegalStateException failure = new IllegalStateException("ddprof failed to start");
+    when(ddprofController.createRecording(any(), any())).thenThrow(failure);
+    Controller notReached = mock(Controller.class);
+    CompositeController controller =
+        new CompositeController(Arrays.asList(jfrController, ddprofController, notReached));
+
+    // the caller gets no recording to stop, so the started JFR recording must not be left running
+    assertSame(
+        failure,
+        assertThrows(IllegalStateException.class, () -> controller.createRecording("test", null)));
+
+    verify(jfr).close();
+    verify(notReached, never()).createRecording(any(), any());
+  }
+
+  @Test
+  public void createRecordingKeepsTheFailureWhenClosingAStartedRecordingFails() throws Exception {
+    OngoingRecording started = mock(OngoingRecording.class);
+    IllegalStateException closeFailure = new IllegalStateException("close failed");
+    doThrow(closeFailure).when(started).close();
+    Controller startedController = mock(Controller.class);
+    when(startedController.createRecording(any(), any())).thenReturn(started);
+    Controller failingController = mock(Controller.class);
+    UnsupportedEnvironmentException failure = new UnsupportedEnvironmentException("unsupported");
+    when(failingController.createRecording(any(), any())).thenThrow(failure);
+    CompositeController controller =
+        new CompositeController(Arrays.asList(startedController, failingController));
+
+    assertSame(
+        failure,
+        assertThrows(
+            UnsupportedEnvironmentException.class, () -> controller.createRecording("test", null)));
+
+    assertArrayEquals(new Throwable[] {closeFailure}, failure.getSuppressed());
   }
 
   private static OngoingRecording composite(OngoingRecording... recordings) throws Exception {

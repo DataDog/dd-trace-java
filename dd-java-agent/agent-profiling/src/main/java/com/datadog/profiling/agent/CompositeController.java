@@ -58,14 +58,30 @@ public class CompositeController implements Controller {
     return Collections.unmodifiableList(controllers);
   }
 
+  /**
+   * Starts a recording with each controller. If one of them fails to, the recordings that the
+   * previous ones already started are closed before the failure is thrown: the caller gets no
+   * recording to stop, so they would otherwise keep running, e.g. a JFR recording when the Datadog
+   * profiler fails to start, and a retry would start another one.
+   */
   @Nonnull
   @Override
   public OngoingRecording createRecording(
       @Nonnull String recordingName, ControllerContext.Snapshot context)
       throws UnsupportedEnvironmentException {
     List<OngoingRecording> recordings = new ArrayList<>(controllers.size());
-    for (Controller controller : controllers) {
-      recordings.add(controller.createRecording(recordingName, context));
+    try {
+      for (Controller controller : controllers) {
+        recordings.add(controller.createRecording(recordingName, context));
+      }
+    } catch (Throwable failure) {
+      try {
+        // closes every started recording, even when closing one of them fails
+        new CompositeOngoingRecording(recordings).close();
+      } catch (RuntimeException closeFailure) {
+        failure.addSuppressed(closeFailure);
+      }
+      throw failure;
     }
     return new CompositeOngoingRecording(recordings);
   }
