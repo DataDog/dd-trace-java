@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.aws.v1.lambda;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -78,5 +79,10 @@ public class StripInjectedContextBenchmark {
   @Benchmark
   public void stripInternal(Blackhole blackhole) {
     blackhole.consume(StripInjectedContext.stripInternal(payload));
+  }
+
+  @Benchmark
+  public void replaceInputStream(Blackhole blackhole) {
+    blackhole.consume(StripInjectedContext.replaceInputStream(new ByteArrayInputStream(payload)));
   }
 }

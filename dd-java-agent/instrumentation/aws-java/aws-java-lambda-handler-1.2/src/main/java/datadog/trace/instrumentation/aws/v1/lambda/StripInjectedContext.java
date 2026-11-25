@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.aws.v1.lambda;
 
 import datadog.json.JsonMapper;
 import datadog.json.JsonReader;
-import datadog.trace.api.Config;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,9 +43,10 @@ public final class StripInjectedContext {
   private StripInjectedContext() {}
 
   /**
-   * Returns a stream over the stripped payload, or {@code null} to keep {@code in}. Like the other
-   * Lambda event consumers, only {@link ByteArrayInputStream} is supported, because it can be read
-   * with mark/reset without consuming the customer's input.
+   * Returns a stream over the stripped payload, or {@code null} to keep {@code in} when nothing was
+   * stripped or the strip failed. Like the other Lambda event consumers, only {@link
+   * ByteArrayInputStream} is supported, because it can be read with mark/reset without consuming
+   * the customer's input.
    */
   public static ByteArrayInputStream replaceInputStream(InputStream in) {
     if (!(in instanceof ByteArrayInputStream)) {
@@ -55,24 +55,17 @@ public final class StripInjectedContext {
           in == null ? null : in.getClass().getName());
       return null;
     }
-    byte[] original = readAllBytes((ByteArrayInputStream) in);
     try {
-      return new ByteArrayInputStream(strip(original));
+      byte[] original = readAllBytes((ByteArrayInputStream) in);
+      byte[] stripped = stripInternal(original);
+      return stripped == original ? null : new ByteArrayInputStream(stripped);
     } catch (RuntimeException e) {
       log.debug("Unable to strip _datadog from Lambda payload", e);
-      return new ByteArrayInputStream(original);
+      return null;
     }
   }
 
-  /** Strips "_datadog" from {@code payload} when the config is enabled. */
-  public static byte[] strip(byte[] payload) {
-    if (!Config.get().isLambdaStripInjectedContextEnabled()) {
-      return payload;
-    }
-    return stripInternal(payload);
-  }
-
-  /** Unconditional strip logic, package-private so tests can call it directly. */
+  /** Strip logic; the caller decides whether the feature is enabled. */
   static byte[] stripInternal(byte[] payload) {
     if (payload == null || !containsCarrierKey(payload)) {
       return payload;

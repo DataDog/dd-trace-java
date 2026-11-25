@@ -9,8 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.json.JsonMapper;
-import datadog.trace.api.config.GeneralConfig;
-import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -189,30 +187,6 @@ class StripInjectedContextTest extends DDJavaSpecification {
   }
 
   // ============================================================================
-  // strip(): the public entry point that is gated by config
-  // ============================================================================
-
-  @Test
-  void stripReturnsOriginalPayloadWhenConfigIsDisabledByDefault() {
-    byte[] input = bytes("{\"detail\":{\"_datadog\":{\"trace\":\"1\"}}}");
-
-    byte[] result = StripInjectedContext.strip(input);
-
-    assertArrayEquals(input, result);
-  }
-
-  @Test
-  @WithConfig(key = GeneralConfig.TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED, value = "true")
-  void stripRemovesDatadogKeyWhenConfigIsEnabled() {
-    byte[] input = bytes("{\"detail\":{\"orderId\":1,\"_datadog\":{\"trace\":\"1\"}}}");
-
-    byte[] result = StripInjectedContext.strip(input);
-    String json = toUtf8(result);
-
-    assertTrue(!json.contains("_datadog"));
-  }
-
-  // ============================================================================
   // Non-EventBridge payloads: direct top-level _datadog key (SQS, Kinesis, etc.)
   // ============================================================================
 
@@ -385,7 +359,6 @@ class StripInjectedContextTest extends DDJavaSpecification {
   }
 
   @Test
-  @WithConfig(key = GeneralConfig.TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED, value = "true")
   void replaceInputStreamStripsAndDoesNotConsumeTheOriginalStream() {
     String eventJson = "{\"detail\":{\"orderId\":1,\"_datadog\":{\"trace\":\"1\"}}}";
     ByteArrayInputStream original =
@@ -403,7 +376,6 @@ class StripInjectedContextTest extends DDJavaSpecification {
   }
 
   @Test
-  @WithConfig(key = GeneralConfig.TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED, value = "true")
   void replaceInputStreamDoesNotReadUnsupportedStreams() {
     byte[] payload = bytes("{\"a\":1,\"_datadog\":{\"t\":\"1\"}}");
     AtomicInteger reads = new AtomicInteger();
@@ -423,6 +395,13 @@ class StripInjectedContextTest extends DDJavaSpecification {
 
     assertNull(StripInjectedContext.replaceInputStream(failsAfterPrefix));
     assertEquals(0, reads.get(), "an unsupported stream must be passed through unread");
+  }
+
+  @Test
+  void replaceInputStreamKeepsTheOriginalStreamWhenThereIsNoCarrier() {
+    ByteArrayInputStream original = new ByteArrayInputStream(bytes("{\"detail\":{\"orderId\":1}}"));
+
+    assertNull(StripInjectedContext.replaceInputStream(original));
   }
 
   @Test
