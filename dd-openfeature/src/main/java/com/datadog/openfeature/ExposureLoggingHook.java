@@ -2,6 +2,7 @@ package com.datadog.openfeature;
 
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.DO_LOG;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_CACHE_HIT;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURES_HANDLE;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.SPLIT_SERIAL_ID;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.allocationKey;
@@ -97,7 +98,8 @@ class ExposureLoggingHook<T> implements Hook<T> {
                 variantKey,
                 context,
                 serialId,
-                SplitFeatureMetadata.featuresWithPrefix(metadata, EXPOSURE_FEATURE_PREFIX)));
+                SplitFeatureMetadata.preparedOrWithPrefix(
+                    metadata, values.get(EXPOSURE_FEATURES_HANDLE), EXPOSURE_FEATURE_PREFIX)));
       }
     } catch (final RuntimeException | LinkageError e) {
       // Never let exposure reporting break flag evaluation.

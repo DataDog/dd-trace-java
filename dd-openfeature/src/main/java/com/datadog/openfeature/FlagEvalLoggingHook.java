@@ -7,7 +7,6 @@ import static com.datadog.openfeature.internal.evaluation.MetadataKeys.HAS_EVALU
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.OBSERVE_FULL_EVALUATION_DATA;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.allocationKey;
 
-import com.datadog.openfeature.internal.evaluation.EvaluationFeatureHandles;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
@@ -132,7 +131,8 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       // whatever the consent.
       final Map<String, Object> features =
           Boolean.TRUE.equals(values.get(HAS_EVALUATION_FEATURES))
-              ? evaluationFeatures(metadata, values.get(EVALUATION_FEATURES_HANDLE))
+              ? SplitFeatureMetadata.preparedOrWithPrefix(
+                  metadata, values.get(EVALUATION_FEATURES_HANDLE), EVALUATION_FEATURE_PREFIX)
               : Collections.<String, Object>emptyMap();
       w.record(
           flagKey,
@@ -147,21 +147,5 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
     } catch (LinkageError e) {
       // Never let EVP recording break flag evaluation
     }
-  }
-
-  /**
-   * The split's prepared evaluation features when the handle still resolves, so every evaluation of
-   * the split passes the same map; otherwise, as after a configuration change, they are rebuilt
-   * from the metadata entries.
-   */
-  private static Map<String, Object> evaluationFeatures(
-      final ImmutableMetadata metadata, final Object handle) {
-    if (handle instanceof Long) {
-      final Map<String, Object> prepared = EvaluationFeatureHandles.lookup((Long) handle);
-      if (prepared != null) {
-        return prepared;
-      }
-    }
-    return SplitFeatureMetadata.featuresWithPrefix(metadata, EVALUATION_FEATURE_PREFIX);
   }
 }

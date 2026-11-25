@@ -3,19 +3,25 @@ package com.datadog.openfeature;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.ALLOCATION_KEY;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.DO_LOG;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_CACHE_HIT;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURES_HANDLE;
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.SPLIT_SERIAL_ID;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.openfeature.Provider.Options;
 import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.TestSettings;
+import com.datadog.openfeature.internal.evaluation.EvaluationFeatureHandles;
+import com.datadog.openfeature.internal.evaluation.EvaluationFeatureHandlesForTest;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
 import com.datadog.openfeature.internal.ufc.Allocation;
 import com.datadog.openfeature.internal.ufc.Flag;
@@ -228,6 +234,50 @@ class ExposureLoggingHookTest {
 
     assertEquals(Integer.valueOf(42), target.sentToDatadog.get(0).serial_id);
     assertTrue(target.cache.contains("flag", "user-1", "a", "on", 42));
+  }
+
+  @Test
+  void sendsThePreparedExposureFeaturesWhenTheHandleResolves() {
+    final ExposureTestEvaluator target =
+        new ExposureTestEvaluator(configuration("on", Boolean.TRUE), true);
+    final ExposureLoggingHook<Object> hook = new ExposureLoggingHook<>(() -> target);
+    final Map<String, Object> features = new HashMap<>();
+    features.put("holdout.key", "q4-global");
+    final long handle = EvaluationFeatureHandlesForTest.register(features);
+    final Map<String, Object> prepared = EvaluationFeatureHandles.lookup(handle);
+    // The entries disagree with the prepared map, so the test shows which one the hook read.
+    final ImmutableMetadata metadata =
+        exposureMetadataBuilder()
+            .addString(EXPOSURE_FEATURE_PREFIX + "holdout.key", "from-entries")
+            .addLong(EXPOSURE_FEATURES_HANDLE, handle)
+            .build();
+
+    hook.finallyAfter(hookContext(), details("on", metadata), emptyMap());
+
+    assertSame(prepared, target.sentToDatadog.get(0).features);
+  }
+
+  @Test
+  void rebuildsTheExposureFeaturesFromTheEntriesWhenTheHandleIsStale() {
+    final ExposureTestEvaluator target =
+        new ExposureTestEvaluator(configuration("on", Boolean.TRUE), true);
+    final ExposureLoggingHook<Object> hook = new ExposureLoggingHook<>(() -> target);
+    final ImmutableMetadata metadata =
+        exposureMetadataBuilder()
+            .addString(EXPOSURE_FEATURE_PREFIX + "holdout.key", "q4-global")
+            .addLong(EXPOSURE_FEATURES_HANDLE, 0L)
+            .build();
+
+    hook.finallyAfter(hookContext(), details("on", metadata), emptyMap());
+
+    assertEquals(singletonMap("holdout.key", "q4-global"), target.sentToDatadog.get(0).features);
+  }
+
+  private static ImmutableMetadata.ImmutableMetadataBuilder exposureMetadataBuilder() {
+    return ImmutableMetadata.builder()
+        .addBoolean(DO_LOG, true)
+        .addBoolean(EXPOSURE_CACHE_HIT, false)
+        .addString(ALLOCATION_KEY, "a");
   }
 
   @Test
