@@ -10,7 +10,11 @@ import static org.objectweb.asm.Opcodes.BALOAD;
 import static org.objectweb.asm.Opcodes.BIPUSH;
 import static org.objectweb.asm.Opcodes.DRETURN;
 import static org.objectweb.asm.Opcodes.FRETURN;
+import static org.objectweb.asm.Opcodes.F_APPEND;
+import static org.objectweb.asm.Opcodes.F_CHOP;
+import static org.objectweb.asm.Opcodes.F_FULL;
 import static org.objectweb.asm.Opcodes.F_NEW;
+import static org.objectweb.asm.Opcodes.F_SAME;
 import static org.objectweb.asm.Opcodes.GETSTATIC;
 import static org.objectweb.asm.Opcodes.GOTO;
 import static org.objectweb.asm.Opcodes.ICONST_0;
@@ -197,6 +201,9 @@ final class MethodProbeInserter {
     if (!readLines() || !buildBlocks()) {
       return false;
     }
+    if (frames) {
+      expandFrames();
+    }
     computeDominators();
     computeBlockLines();
     analyzeHandlers();
@@ -335,8 +342,7 @@ final class MethodProbeInserter {
     for (AbstractInsnNode insn : insns) {
       if (insn instanceof FrameNode) {
         FrameNode frame = (FrameNode) insn;
-        List<Object> locals =
-            frame.local != null ? new ArrayList<>(frame.local) : new ArrayList<>();
+        List<Object> locals = frame.local; // a full frame's own list, see expandFrames
         int slots = 0;
         for (Object type : locals) {
           slots += type == Opcodes.LONG || type == Opcodes.DOUBLE ? 2 : 1;
@@ -346,10 +352,51 @@ final class MethodProbeInserter {
           slots++;
         }
         locals.add(frameType);
-        frame.local = locals;
       }
     }
     return local;
+  }
+
+  /**
+   * Turns the method's stack map frames, read as written in the class file, into full frames, each
+   * with its own lists of locals and stack. Full frames stay valid whatever code is inserted
+   * between them, and the class writer copies them without recomputing a compressed form.
+   */
+  private void expandFrames() {
+    List<Object> locals = entryLocals();
+    for (AbstractInsnNode insn : insns) {
+      if (!(insn instanceof FrameNode)) {
+        continue;
+      }
+      FrameNode frame = (FrameNode) insn;
+      List<Object> stack;
+      switch (frame.type) {
+        case F_NEW:
+        case F_FULL:
+          locals = new ArrayList<>(frame.local);
+          stack = new ArrayList<>(frame.stack);
+          break;
+        case F_APPEND:
+          locals = new ArrayList<>(locals);
+          locals.addAll(frame.local);
+          stack = new ArrayList<>(0);
+          break;
+        case F_CHOP:
+          locals = new ArrayList<>(locals.subList(0, locals.size() - frame.local.size()));
+          stack = new ArrayList<>(0);
+          break;
+        case F_SAME:
+          locals = new ArrayList<>(locals);
+          stack = new ArrayList<>(0);
+          break;
+        default: // F_SAME1
+          locals = new ArrayList<>(locals);
+          stack = new ArrayList<>(frame.stack);
+      }
+      frame.type = F_FULL;
+      frame.local = locals;
+      frame.stack = stack;
+    }
   }
 
   /**
@@ -1400,7 +1447,7 @@ final class MethodProbeInserter {
       locals.add(Opcodes.INTEGER);
       code.add(
           new FrameNode(
-              F_NEW, locals.size(), locals.toArray(), 1, new Object[] {"java/lang/Throwable"}));
+              F_FULL, locals.size(), locals.toArray(), 1, new Object[] {"java/lang/Throwable"}));
     }
     code.add(recordProgress());
     code.add(new InsnNode(ATHROW));
@@ -1594,10 +1641,16 @@ final class MethodProbeInserter {
   private static FrameNode copyFrame(FrameNode frame) {
     Object[] locals = frame.local != null ? frame.local.toArray() : new Object[0];
     Object[] stack = frame.stack != null ? frame.stack.toArray() : new Object[0];
-    return new FrameNode(F_NEW, locals.length, locals, stack.length, stack);
+    return new FrameNode(F_FULL, locals.length, locals, stack.length, stack);
   }
 
   private FrameNode entryFrame() {
+    List<Object> locals = entryLocals();
+    return new FrameNode(F_FULL, locals.size(), locals.toArray(), 0, new Object[0]);
+  }
+
+  /** The locals of the frame at the method's entry: {@code this}, then the arguments. */
+  private List<Object> entryLocals() {
     List<Object> locals = new ArrayList<>();
     if ((method.access & ACC_STATIC) == 0) {
       locals.add("<init>".equals(method.name) ? UNINITIALIZED_THIS : owner);
@@ -1605,7 +1658,7 @@ final class MethodProbeInserter {
     for (Type argument : Type.getArgumentTypes(method.desc)) {
       locals.add(frameType(argument));
     }
-    return new FrameNode(F_NEW, locals.size(), locals.toArray(), 0, new Object[0]);
+    return locals;
   }
 
   private FrameNode returnFrame(int opcode) {
@@ -1629,7 +1682,7 @@ final class MethodProbeInserter {
       default:
         stack = new Object[0];
     }
-    return new FrameNode(F_NEW, 0, new Object[0], stack.length, stack);
+    return new FrameNode(F_FULL, 0, new Object[0], stack.length, stack);
   }
 
   private static Object frameType(Type type) {
