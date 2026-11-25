@@ -16,8 +16,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * A suite's setup is credited to every test in the suite, nested suites included, and to Shared;
- * what the suite runs after its first child started is not.
+ * A suite's setup, up to the start of its first child, is credited to every test in the suite,
+ * nested suites included, and to Shared; what the suite runs after its first child started is not.
  */
 class SuiteSetupWindowTest {
 
@@ -44,13 +44,14 @@ class SuiteSetupWindowTest {
     Object nested = new Object();
     SuiteSetupWindow.open(suite, null, true);
     run(loader, 0);
+    SuiteSetupWindow.handOver(suite);
     SuiteSetupWindow.childStarts(suite);
     SuiteSetupWindow.open(nested, suite, false);
-    SuiteSetupWindow.childStarts(nested);
+    SuiteSetupWindow.handOver(nested);
 
     List<Map<String, BitSet>> testLines = new ArrayList<>();
     for (int test = 0; test < 2; test++) {
-      testLines.add(runTest(loader, nested, 1));
+      testLines.add(runTest(loader, nested, -1, 1));
     }
     SuiteSetupWindow.finish(nested);
     run(loader, 2);
@@ -69,12 +70,13 @@ class SuiteSetupWindowTest {
     Object nested = new Object();
     SuiteSetupWindow.open(suite, null, true);
     run(loader, 0);
+    SuiteSetupWindow.handOver(suite);
     SuiteSetupWindow.childStarts(suite);
     SuiteSetupWindow.open(nested, suite, true);
     run(loader, 1);
-    SuiteSetupWindow.childStarts(nested);
+    SuiteSetupWindow.handOver(nested);
 
-    Map<String, BitSet> testLines = runTest(loader, nested, 2);
+    Map<String, BitSet> testLines = runTest(loader, nested, -1, 2);
     SuiteSetupWindow.finish(nested);
     SuiteSetupWindow.finish(suite);
 
@@ -97,14 +99,68 @@ class SuiteSetupWindowTest {
     assertEquals(WORKER_LINES.get(0), sharedLines(loader));
   }
 
-  /** Runs a test of {@code suite}: its own lines and the setup lines it is credited with. */
-  private static Map<String, BitSet> runTest(ClassLoader loader, Object suite, int worker) {
-    TestPreparationWindow.open(suite);
+  @Test
+  void theFirstTestsPreparationIsSetupOfEveryTest() {
+    FixtureLoader loader = new FixtureLoader(null, FIXTURES);
+    Object suite = new Object();
+    SuiteSetupWindow.open(suite, null, true);
+    run(loader, 0);
+    SuiteSetupWindow.handOver(suite);
+
+    // the first test instance builds a fixture that later instances reuse
+    Map<String, BitSet> firstTestLines = runTest(loader, suite, 1, -1);
+    Map<String, BitSet> secondTestLines = runTest(loader, suite, -1, 2);
+    SuiteSetupWindow.finish(suite);
+
+    assertEquals(union(WORKER_LINES.get(0), WORKER_LINES.get(1)), firstTestLines);
+    assertEquals(
+        union(WORKER_LINES.get(0), WORKER_LINES.get(1), WORKER_LINES.get(2)), secondTestLines);
+    assertEquals(union(WORKER_LINES.get(0), WORKER_LINES.get(1)), sharedLines(loader));
+  }
+
+  @Test
+  void aTestOfAnotherSuiteThatRunsFirstEndsTheSetup() {
+    FixtureLoader loader = new FixtureLoader(null, FIXTURES);
+    Object suite = new Object();
+    Object otherSuite = new Object();
+    SuiteSetupWindow.open(suite, null, true);
+    run(loader, 0);
+    SuiteSetupWindow.handOver(suite);
+
+    // with parallel execution, the thread can run another suite's test before a child of its own
+    Map<String, BitSet> otherTestLines = runTest(loader, otherSuite, 1, -1);
+    Map<String, BitSet> testLines = runTest(loader, suite, -1, 2);
+    SuiteSetupWindow.finish(suite);
+
+    assertEquals(WORKER_LINES.get(1), otherTestLines);
+    assertEquals(union(WORKER_LINES.get(0), WORKER_LINES.get(2)), testLines);
+    assertEquals(WORKER_LINES.get(0), sharedLines(loader));
+  }
+
+  /**
+   * Runs a test of {@code suite} the way the JUnit 5 integration sees it: the test is prepared,
+   * running {@code preparationWorker}, then starts and runs {@code worker} (-1 runs nothing).
+   *
+   * @return its own lines and the setup lines it is credited with
+   */
+  private static Map<String, BitSet> runTest(
+      ClassLoader loader, Object suite, int preparationWorker, int worker) {
+    if (!SuiteSetupWindow.coversPreparation(suite)) {
+      TestPreparationWindow.open(suite);
+    }
+    if (preparationWorker >= 0) {
+      run(loader, preparationWorker);
+    }
+    if (SuiteSetupWindow.childStarts(suite)) {
+      TestPreparationWindow.open(suite);
+    }
     TestPreparationWindow preparation = TestPreparationWindow.detach();
     TestWindow test = new TestWindow(preparation);
     Map<String, BitSet> ownLines;
     try {
-      run(loader, worker);
+      if (worker >= 0) {
+        run(loader, worker);
+      }
     } finally {
       ownLines = test.closeAndCollect();
     }

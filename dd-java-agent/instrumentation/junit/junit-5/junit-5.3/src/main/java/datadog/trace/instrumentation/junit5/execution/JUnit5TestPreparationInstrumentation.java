@@ -22,7 +22,8 @@ import org.junit.platform.engine.support.descriptor.MethodSource;
  * Opens the coverage windows of the work that JUnit Platform engines built on its hierarchical
  * engine (Jupiter, Spock 2) do outside a test's own run: a test's preparation, where Jupiter builds
  * the test instance before it reports the test started, and a suite's setup, where a class runs its
- * {@code @BeforeAll} methods and a test template computes its first arguments.
+ * {@code @BeforeAll} methods and a test template computes its first arguments, up to the start of
+ * its first child.
  */
 @AutoService(InstrumenterModule.class)
 public class JUnit5TestPreparationInstrumentation extends InstrumenterModule.CiVisibility
@@ -70,7 +71,7 @@ public class JUnit5TestPreparationInstrumentation extends InstrumenterModule.CiV
         JUnit5TestPreparationInstrumentation.class.getName() + "$ExecuteAdvice");
     transformer.applyAdvice(
         named("setParentContext").and(takesArguments(1)),
-        JUnit5TestPreparationInstrumentation.class.getName() + "$ChildStartsAdvice");
+        JUnit5TestPreparationInstrumentation.class.getName() + "$HandOverAdvice");
   }
 
   public static class PrepareAdvice {
@@ -79,26 +80,39 @@ public class JUnit5TestPreparationInstrumentation extends InstrumenterModule.CiV
         @Advice.FieldValue("testDescriptor") TestDescriptor testDescriptor) {
       if (testDescriptor.isTest()) {
         Optional<TestDescriptor> parent = testDescriptor.getParent();
-        TestPreparationWindow.open(parent.isPresent() ? parent.get() : null);
+        TestDescriptor suite = parent.isPresent() ? parent.get() : null;
+        // the first test of a suite is prepared within the suite's setup
+        if (!SuiteSetupWindow.coversPreparation(suite)) {
+          TestPreparationWindow.open(suite);
+        }
       }
     }
   }
 
-  /** A node runs: a container's setup starts, and ends at the latest when the container ends. */
+  /**
+   * A node runs: the setup of its parent ends if it is the first child, and a container's own setup
+   * starts, to end at the latest when the container ends.
+   */
   public static class ExecuteAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void openSuiteSetupWindow(
         @Advice.FieldValue("testDescriptor") TestDescriptor testDescriptor) {
+      Optional<TestDescriptor> parent = testDescriptor.getParent();
+      TestDescriptor parentSuite = parent.isPresent() ? parent.get() : null;
+      boolean preparedInSetup = SuiteSetupWindow.childStarts(parentSuite);
       if (testDescriptor.isTest()) {
+        if (preparedInSetup) {
+          // the test's window takes this one over, with the suite's setup
+          TestPreparationWindow.open(parentSuite);
+        }
         return;
       }
-      Optional<TestDescriptor> parent = testDescriptor.getParent();
       Optional<TestSource> source = testDescriptor.getSource();
       // classes and test templates run setup for their tests; engines and other containers do not
       boolean hasSetup =
           source.isPresent()
               && (source.get() instanceof ClassSource || source.get() instanceof MethodSource);
-      SuiteSetupWindow.open(testDescriptor, parent.isPresent() ? parent.get() : null, hasSetup);
+      SuiteSetupWindow.open(testDescriptor, parentSuite, hasSetup);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -111,17 +125,17 @@ public class JUnit5TestPreparationInstrumentation extends InstrumenterModule.CiV
   }
 
   /**
-   * A container hands its context to a child just before the child runs, on the container's thread,
-   * after its own setup: static children once {@code before} and {@code execute} returned, dynamic
-   * children (test template invocations, dynamic tests) from within {@code execute}.
+   * A container hands its context to a child before the child is prepared, on the container's
+   * thread, after its own setup: static children once {@code before} and {@code execute} returned,
+   * dynamic children (test template invocations, dynamic tests) from within {@code execute}.
    */
-  public static class ChildStartsAdvice {
+  public static class HandOverAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void endSuiteSetup(
+    public static void handOver(
         @Advice.FieldValue("testDescriptor") TestDescriptor testDescriptor) {
       Optional<TestDescriptor> parent = testDescriptor.getParent();
       if (parent.isPresent()) {
-        SuiteSetupWindow.childStarts(parent.get());
+        SuiteSetupWindow.handOver(parent.get());
       }
     }
   }
