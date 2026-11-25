@@ -156,6 +156,10 @@ function start_server {
     run_java_args=()
     if [ "$agent_jar" != "" -a -f "$agent_jar" ]; then
         run_java_args+=("-javaagent:$agent_jar" -Ddatadog.slf4j.simpleLogger.defaultLogLevel=off "-Ddd.writer.type=$writer_type" "-Ddd.trace.agent.port=$agent_port" -Ddd.service.name=perf-test-app)
+        if [ -n "${variant_extra:-}" ]; then
+            IFS=',' read -ra variant_extra_args <<< "$variant_extra"
+            run_java_args+=("${variant_extra_args[@]}")
+        fi
     fi
 
     # Opt-in JFR (PERF_JFR=1): one recording per variant, named by label so runs don't collide.
@@ -355,8 +359,12 @@ header="$header,Server CPU Burn,Server Max RSS,Server Start RSS,Server Load Incr
 echo $header > $test_csv_file
 
 variant_index=0
-for agent_jar in "${agent_jars[@]}"; do
+for variant_spec in "${agent_jars[@]}"; do
     variant_index=$((variant_index + 1))
+    # A variant may carry extra JVM options after '#', comma-separated: agent.jar#-Dfoo=1,-Dbar=2
+    agent_jar="${variant_spec%%#*}"
+    variant_extra=""
+    [[ "$variant_spec" == *"#"* ]] && variant_extra="${variant_spec#*#}"
     # Quiet cooldown between variants (skip before the first). Off unless the settings set it.
     if [ "${_did_first_variant:-}" = "1" ] && [ "${test_cooldown_seconds:-0}" -gt 0 ] 2>/dev/null; then
         echo "cooldown ${test_cooldown_seconds}s before next variant..."
@@ -375,11 +383,12 @@ for agent_jar in "${agent_jars[@]}"; do
         start_server "" "$variant_label"
     else
         agent_version=$(java -jar "$agent_jar" 2>/dev/null)
-        result_row="$agent_version"
+        result_row="$agent_version${variant_extra:+ ${variant_extra//,/;}}"
         # sanitize the version into a filesystem-safe JFR label; fall back to the jar basename. The
         # variant's position keeps two builds reporting the same version from sharing artifacts.
         variant_label=$(echo "$agent_version" | tr -c 'A-Za-z0-9._-' '_' | sed 's/_*$//')
         [ -z "$variant_label" ] && variant_label=$(basename "$agent_jar" .jar)
+        [ -n "$variant_extra" ] && variant_label="${variant_label}_opts"
         variant_label="${variant_label}_v${variant_index}"
         start_server "$agent_jar" "$variant_label"
     fi

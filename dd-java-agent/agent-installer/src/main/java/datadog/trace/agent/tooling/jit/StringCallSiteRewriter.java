@@ -8,93 +8,370 @@ import java.nio.charset.StandardCharsets;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * PROTOTYPE: rewrites calls to regex-based {@link String} methods (and {@code Pattern.matches})
- * into calls to {@code datadog.trace.bootstrap.jit.StringRewrites}, at class-load time.
+ * PROTOTYPE: rewrites calls to selected JDK methods (and a few short call sequences) into calls to
+ * helpers in {@code datadog.trace.bootstrap.jit}, at class-load time.
  *
- * <p>Each rewrite is stack-neutral: the helper takes the call's operands (receiver first) and
- * returns the same type, so the call instruction is replaced in place ({@code invokevirtual} and
- * {@code invokestatic} are both 3 bytes). The helper's constant-pool entries are appended to the
- * pool and the rest of the class file is copied unchanged, so offsets, stack-map frames and {@code
- * max_stack} don't change. Nothing is parsed beyond the constant pool unless it refers to one of
- * the target methods. Any unexpected input leaves the class untouched.
+ * <p>Three kinds of rewrite, all in place (no instruction moves to a different offset, so branch
+ * offsets, exception tables, stack-map frames and debug tables stay valid):
+ *
+ * <ul>
+ *   <li><b>Single call:</b> one {@code invoke*} (3 bytes) becomes an {@code invokestatic} of a
+ *       helper that takes the same operands (receiver first).
+ *   <li><b>Slotted call:</b> the same, but the helper is a per-site trampoline in a chunk class
+ *       ({@link JitSiteChunks}), so the helper can keep per-site state (counters, tiers).
+ *   <li><b>Window:</b> a short straight-line sequence (e.g. {@code Pattern.compile(r)}, load {@code
+ *       s}, {@code .matcher(s)}, {@code .matches()}) becomes an optional single local/constant load
+ *       followed by one {@code invokestatic}, padded with {@code nop}s to the original length. A
+ *       window is only rewritten if nothing can observe the offsets inside it: no branch target,
+ *       exception range boundary or handler, stack-map frame, line number or local variable range
+ *       starts strictly inside it, and the method has no type annotations on code. Intermediate
+ *       values (the Pattern, the Matcher, the formatter) never escape the window, and the stack
+ *       never gets higher than in the original, so {@code max_stack} stays valid.
+ * </ul>
+ *
+ * <p>The helpers' constant-pool entries are appended to the pool. Nothing is parsed beyond the
+ * constant pool unless it mentions one of the target names. Any unexpected input leaves the class
+ * untouched.
  */
 public final class StringCallSiteRewriter implements ClassFileTransformer {
-  private static final String HELPER = "datadog/trace/bootstrap/jit/StringRewrites";
+  private static final String JIT = "datadog/trace/bootstrap/jit/";
+  private static final String STRINGS = JIT + "StringRewrites";
+  private static final String FUSED = JIT + "FusedRewrites";
+  private static final String FORMATS = JIT + "FormatRewrites";
 
-  /** A call to rewrite: target owner, name and descriptor, and the helper method to call. */
-  static final class Rule {
+  private static final int NOP = 0x00;
+  private static final int LDC = 0x12;
+  private static final int LDC_W = 0x13;
+  private static final int ALOAD = 0x19;
+  private static final int DUP = 0x59;
+  private static final int INVOKEVIRTUAL = 0xB6;
+  private static final int INVOKESPECIAL = 0xB7;
+  private static final int INVOKESTATIC = 0xB8;
+  private static final int NEW = 0xBB;
+
+  static final int SINGLE = 0;
+  static final int SLOTTED = 1;
+  static final int PART = 2;
+
+  // roles of window parts
+  static final int COMPILE = 1;
+  static final int MATCHER = 2;
+  static final int MATCHER_MATCHES = 3;
+  static final int MATCHER_FIND = 4;
+  static final int MATCHER_LOOKING_AT = 5;
+  static final int PATTERN_SPLIT = 6;
+  static final int OF_PATTERN = 7;
+  static final int TEMPORAL_FORMAT = 8;
+  static final int FORMATTER_FORMAT = 9;
+  static final int DECIMAL_FORMAT_INIT = 10;
+
+  /** A call target: a Methodref and what to do with calls to it. */
+  static final class Target {
+    final int opcode;
     final String owner;
     final String name;
     final String descriptor;
-    final boolean isStatic;
-    final String helperName;
-    final String helperDescriptor;
+    final int kind;
+    final int role;
 
-    Rule(String owner, String name, String descriptor, boolean isStatic, String helperName) {
+    /** SINGLE: the helper; SLOTTED: the unslotted helper used when no slot is available. */
+    final Helper helper;
+
+    /** SLOTTED: trampoline name prefix and descriptor. */
+    final String slotPrefix;
+
+    final String slotDescriptor;
+
+    private Target(
+        int opcode,
+        String owner,
+        String name,
+        String descriptor,
+        int kind,
+        int role,
+        Helper helper,
+        String slotPrefix,
+        String slotDescriptor) {
+      this.opcode = opcode;
       this.owner = owner;
       this.name = name;
       this.descriptor = descriptor;
-      this.isStatic = isStatic;
-      this.helperName = helperName;
-      // instance methods take the receiver as the helper's first parameter
-      this.helperDescriptor = isStatic ? descriptor : "(L" + owner + ";" + descriptor.substring(1);
+      this.kind = kind;
+      this.role = role;
+      this.helper = helper;
+      this.slotPrefix = slotPrefix;
+      this.slotDescriptor = slotDescriptor;
+    }
+
+    /** The call's operands as a static descriptor: receiver first for instance methods. */
+    static String operands(int opcode, String owner, String descriptor) {
+      return opcode == INVOKESTATIC ? descriptor : "(L" + owner + ";" + descriptor.substring(1);
+    }
+
+    static Target single(
+        int opcode, String owner, String name, String desc, String helperOwner, String helperName) {
+      Helper helper = new Helper(helperOwner, helperName, operands(opcode, owner, desc));
+      return new Target(opcode, owner, name, desc, SINGLE, 0, helper, null, null);
+    }
+
+    static Target slotted(
+        int opcode, String owner, String name, String desc, String helperName, String slotPrefix) {
+      String operands = operands(opcode, owner, desc);
+      return new Target(
+          opcode,
+          owner,
+          name,
+          desc,
+          SLOTTED,
+          0,
+          new Helper(FORMATS, helperName, operands),
+          slotPrefix,
+          operands);
+    }
+
+    static Target part(int opcode, String owner, String name, String desc, int role) {
+      return new Target(opcode, owner, name, desc, PART, role, null, null, null);
     }
   }
 
-  static final Rule[] RULES = {
-    new Rule(
-        "java/lang/String",
-        "replaceAll",
-        "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
-        false,
-        "replaceAll"),
-    new Rule(
-        "java/lang/String",
-        "replaceFirst",
-        "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
-        false,
-        "replaceFirst"),
-    new Rule(
-        "java/lang/String", "split", "(Ljava/lang/String;)[Ljava/lang/String;", false, "split"),
-    new Rule(
-        "java/lang/String", "split", "(Ljava/lang/String;I)[Ljava/lang/String;", false, "split"),
-    new Rule("java/lang/String", "matches", "(Ljava/lang/String;)Z", false, "matches"),
-    new Rule(
-        "java/util/regex/Pattern",
-        "matches",
-        "(Ljava/lang/String;Ljava/lang/CharSequence;)Z",
-        true,
-        "patternMatches"),
+  /** A helper method: owner, name, descriptor. */
+  static final class Helper {
+    final String owner;
+    final String name;
+    final String descriptor;
+
+    Helper(String owner, String name, String descriptor) {
+      this.owner = owner;
+      this.name = name;
+      this.descriptor = descriptor;
+    }
+
+    String key() {
+      return owner + '.' + name + descriptor;
+    }
+  }
+
+  private static final String STRING = "java/lang/String";
+  private static final String S = "Ljava/lang/String;";
+  private static final String CHARS = "Ljava/lang/CharSequence;";
+  private static final String PATTERN = "java/util/regex/Pattern";
+  private static final String MATCHER_CLASS = "java/util/regex/Matcher";
+  private static final String DTF = "java/time/format/DateTimeFormatter";
+  private static final String DECIMAL_FORMAT = "java/text/DecimalFormat";
+  static final String[] TEMPORALS = {
+    "java/time/LocalDate",
+    "java/time/LocalDateTime",
+    "java/time/LocalTime",
+    "java/time/ZonedDateTime",
+    "java/time/OffsetDateTime",
+    "java/time/OffsetTime"
   };
 
-  /** Method names to look for in the constant pool before doing any more work. */
-  private static final byte[][] NAME_NEEDLES = {
-    ascii("replaceAll"), ascii("replaceFirst"), ascii("split"), ascii("matches")
+  /** On JDK 8, {@code String.replace(CharSequence, CharSequence)} uses a literal Pattern. */
+  static final boolean JDK_REPLACE_IS_REGEX = specificationVersion() < 9;
+
+  /**
+   * Copying a {@code DecimalFormat} prototype is only equivalent to constructing one on JDK 8 (9+
+   * fills currency data lazily, which shows in serialized form), so the rewrite only pays there.
+   */
+  static final boolean DECIMAL_FORMAT_WINDOW = specificationVersion() < 9;
+
+  static final Target[] TARGETS = buildTargets(JDK_REPLACE_IS_REGEX);
+
+  static Target[] buildTargets(boolean includeReplace) {
+    List<Target> t = new ArrayList<>();
+    t.add(
+        Target.single(
+            INVOKEVIRTUAL, STRING, "replaceAll", "(" + S + S + ")" + S, STRINGS, "replaceAll"));
+    t.add(
+        Target.single(
+            INVOKEVIRTUAL, STRING, "replaceFirst", "(" + S + S + ")" + S, STRINGS, "replaceFirst"));
+    t.add(Target.single(INVOKEVIRTUAL, STRING, "split", "(" + S + ")[" + S, STRINGS, "split"));
+    t.add(Target.single(INVOKEVIRTUAL, STRING, "split", "(" + S + "I)[" + S, STRINGS, "split"));
+    t.add(Target.single(INVOKEVIRTUAL, STRING, "matches", "(" + S + ")Z", STRINGS, "matches"));
+    t.add(
+        Target.single(
+            INVOKESTATIC, PATTERN, "matches", "(" + S + CHARS + ")Z", STRINGS, "patternMatches"));
+    if (includeReplace) {
+      t.add(
+          Target.single(
+              INVOKEVIRTUAL, STRING, "replace", "(" + CHARS + CHARS + ")" + S, STRINGS, "replace"));
+    }
+    t.add(
+        Target.single(
+            INVOKESTATIC,
+            "java/net/URLEncoder",
+            "encode",
+            "(" + S + S + ")" + S,
+            FUSED,
+            "urlEncode"));
+    t.add(
+        Target.single(
+            INVOKESTATIC,
+            "java/net/URLDecoder",
+            "decode",
+            "(" + S + S + ")" + S,
+            FUSED,
+            "urlDecode"));
+    t.add(
+        Target.slotted(
+            INVOKESTATIC,
+            STRING,
+            "format",
+            "(" + S + "[Ljava/lang/Object;)" + S,
+            "format",
+            "format$"));
+    t.add(
+        Target.slotted(
+            INVOKESTATIC,
+            STRING,
+            "format",
+            "(Ljava/util/Locale;" + S + "[Ljava/lang/Object;)" + S,
+            "format",
+            "formatLocale$"));
+    t.add(
+        Target.slotted(
+            INVOKEVIRTUAL,
+            STRING,
+            "formatted",
+            "([Ljava/lang/Object;)" + S,
+            "formatted",
+            "format$"));
+    t.add(Target.part(INVOKESTATIC, PATTERN, "compile", "(" + S + ")L" + PATTERN + ";", COMPILE));
+    t.add(
+        Target.part(
+            INVOKEVIRTUAL, PATTERN, "matcher", "(" + CHARS + ")L" + MATCHER_CLASS + ";", MATCHER));
+    t.add(Target.part(INVOKEVIRTUAL, MATCHER_CLASS, "matches", "()Z", MATCHER_MATCHES));
+    t.add(Target.part(INVOKEVIRTUAL, MATCHER_CLASS, "find", "()Z", MATCHER_FIND));
+    t.add(Target.part(INVOKEVIRTUAL, MATCHER_CLASS, "lookingAt", "()Z", MATCHER_LOOKING_AT));
+    t.add(Target.part(INVOKEVIRTUAL, PATTERN, "split", "(" + CHARS + ")[" + S, PATTERN_SPLIT));
+    t.add(Target.part(INVOKESTATIC, DTF, "ofPattern", "(" + S + ")L" + DTF + ";", OF_PATTERN));
+    for (String temporal : TEMPORALS) {
+      t.add(Target.part(INVOKEVIRTUAL, temporal, "format", "(L" + DTF + ";)" + S, TEMPORAL_FORMAT));
+    }
+    t.add(
+        Target.part(
+            INVOKEVIRTUAL,
+            DTF,
+            "format",
+            "(Ljava/time/temporal/TemporalAccessor;)" + S,
+            FORMATTER_FORMAT));
+    t.add(
+        Target.part(INVOKESPECIAL, DECIMAL_FORMAT, "<init>", "(" + S + ")V", DECIMAL_FORMAT_INIT));
+    return t.toArray(new Target[0]);
+  }
+
+  /** UTF-8 constants to look for in the constant pool before doing any more work. */
+  private static final byte[][] NEEDLES = {
+    ascii("replaceAll"),
+    ascii("replaceFirst"),
+    ascii("split"),
+    ascii("matches"),
+    ascii("replace"),
+    ascii("encode"),
+    ascii("decode"),
+    ascii("format"),
+    ascii("formatted"),
+    ascii("compile"),
+    ascii("ofPattern"),
+    ascii(DECIMAL_FORMAT)
   };
 
   private static final byte[] CODE = ascii("Code");
+  private static final byte[] STACK_MAP_TABLE = ascii("StackMapTable");
+  private static final byte[] LINE_NUMBER_TABLE = ascii("LineNumberTable");
+  private static final byte[] LOCAL_VARIABLE_TABLE = ascii("LocalVariableTable");
+  private static final byte[] LOCAL_VARIABLE_TYPE_TABLE = ascii("LocalVariableTypeTable");
+  private static final byte[] VISIBLE_TYPE_ANNOTATIONS = ascii("RuntimeVisibleTypeAnnotations");
+  private static final byte[] INVISIBLE_TYPE_ANNOTATIONS = ascii("RuntimeInvisibleTypeAnnotations");
 
   // PROTOTYPE diagnostics: reported at exit with -Ddd.prototype.string-rewrites.report=true
-  static final java.util.concurrent.atomic.AtomicLong scanned =
-      new java.util.concurrent.atomic.AtomicLong();
-  static final java.util.concurrent.atomic.AtomicLong candidates =
-      new java.util.concurrent.atomic.AtomicLong();
-  static final java.util.concurrent.atomic.AtomicLong rewritten =
-      new java.util.concurrent.atomic.AtomicLong();
-  static final java.util.concurrent.atomic.AtomicLong rewrittenSites =
-      new java.util.concurrent.atomic.AtomicLong();
-  static final java.util.concurrent.atomic.AtomicLong nanos =
-      new java.util.concurrent.atomic.AtomicLong();
-  static final java.util.concurrent.ConcurrentHashMap<
-          String, java.util.concurrent.atomic.AtomicLong>
-      sitesByRule = new java.util.concurrent.ConcurrentHashMap<>();
+  static final AtomicLong scanned = new AtomicLong();
+  static final AtomicLong candidates = new AtomicLong();
+  static final AtomicLong rewritten = new AtomicLong();
+  static final AtomicLong rewrittenSites = new AtomicLong();
+  static final AtomicLong inLoopSites = new AtomicLong();
+  static final AtomicLong nanos = new AtomicLong();
+  static final ConcurrentHashMap<String, AtomicLong> sitesByRule = new ConcurrentHashMap<>();
+  static final ConcurrentHashMap<String, AtomicLong> rejectedWindows = new ConcurrentHashMap<>();
 
   static final boolean REPORT = Boolean.getBoolean("dd.prototype.string-rewrites.report");
-  static final java.util.Queue<String> rewrittenNames =
-      new java.util.concurrent.ConcurrentLinkedQueue<>();
+  static final ConcurrentLinkedQueue<String> rewrittenNames = new ConcurrentLinkedQueue<>();
+  static final ThreadLocal<String> CURRENT_CLASS = new ThreadLocal<>();
+  static final ConcurrentHashMap<Integer, String> slotOwners = new ConcurrentHashMap<>();
+
+  /** PROTOTYPE report: what each format slot's site ended up doing, read reflectively at exit. */
+  static String slotReport() {
+    int compiled = 0;
+    int disabled = 0;
+    int warming = 0;
+    int unused = 0;
+    java.util.TreeMap<String, Integer> hot = new java.util.TreeMap<>();
+    try {
+      for (int chunk = 0; chunk < CHUNKS.definedChunks(); chunk++) {
+        Class<?> type = Class.forName(JitSiteChunks.nameOf(chunk).replace('/', '.'), false, null);
+        java.lang.reflect.Field field = type.getDeclaredField("SITES");
+        field.setAccessible(true);
+        Object[] sites = (Object[]) field.get(null);
+        for (int i = 0; i < sites.length; i++) {
+          Object site = sites[i];
+          if (null == site) {
+            unused++;
+            continue;
+          }
+          java.lang.reflect.Field c = site.getClass().getDeclaredField("compiled");
+          java.lang.reflect.Field d = site.getClass().getDeclaredField("disabled");
+          c.setAccessible(true);
+          d.setAccessible(true);
+          if (null != c.get(site)) {
+            compiled++;
+            String owner = slotOwners.get(chunk * JitSiteChunks.SLOTS + i);
+            hot.merge(String.valueOf(owner), 1, Integer::sum);
+          } else if ((Boolean) d.get(site)) {
+            disabled++;
+          } else {
+            warming++;
+          }
+        }
+      }
+    } catch (Throwable e) {
+      return "slot report failed: " + e;
+    }
+    return "compiled="
+        + compiled
+        + " disabled="
+        + disabled
+        + " warming="
+        + warming
+        + " neverCalled="
+        + unused
+        + " compiledByClass="
+        + hot;
+  }
+
+  static final boolean ANALYZE_ONLY =
+      Boolean.getBoolean("dd.prototype.string-rewrites.analyze-only");
+
+  /** PROTOTYPE: {@code false} sends every slotted call to the shared, unslotted helper. */
+  static final boolean SLOTS_ENABLED =
+      !"false".equals(System.getProperty("dd.prototype.string-rewrites.slots"));
+
+  static final JitSiteChunks CHUNKS =
+      new JitSiteChunks(
+          new JitSiteChunks.Definer() {
+            @Override
+            public void define(String binaryName, byte[] bytecode) {
+              datadog.instrument.classinject.ClassInjector.injectBootClass(binaryName, bytecode);
+            }
+          });
 
   static {
     if (REPORT) {
@@ -110,20 +387,22 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
                           + rewritten
                           + " sites="
                           + rewrittenSites
-                          + " byRule="
-                          + sitesByRule
+                          + " inLoops="
+                          + inLoopSites
+                          + " chunks="
+                          + CHUNKS.definedChunks()
                           + " transformMs="
                           + nanos.get() / 1_000_000
+                          + "\n[string-rewrites] byRule="
+                          + sitesByRule
+                          + "\n[string-rewrites] rejectedWindows="
+                          + rejectedWindows
+                          + "\n[string-rewrites] slots: "
+                          + slotReport()
                           + "\n[string-rewrites] classes="
                           + rewrittenNames)));
     }
   }
-
-  static final boolean ANALYZE_ONLY =
-      Boolean.getBoolean("dd.prototype.string-rewrites.analyze-only");
-
-  private static final int INVOKEVIRTUAL = 0xB6;
-  private static final int INVOKESTATIC = 0xB8;
 
   @Override
   public byte[] transform(
@@ -142,6 +421,9 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
     long start = System.nanoTime();
     try {
       scanned.incrementAndGet();
+      if (REPORT) {
+        CURRENT_CLASS.set(className);
+      }
       byte[] result = rewrite(bytecode);
       if (null != result && REPORT) {
         rewrittenNames.add(className);
@@ -172,14 +454,71 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
    * file can't be walked (e.g. it's truncated).
    */
   static byte[] rewrite(byte[] b) throws IOException {
+    return rewrite(b, TARGETS, CHUNKS);
+  }
+
+  static byte[] rewrite(byte[] b, Target[] targets, JitSiteChunks chunks) throws IOException {
     try {
-      return doRewrite(b);
+      return doRewrite(b, targets, chunks);
     } catch (IndexOutOfBoundsException e) {
       return null;
     }
   }
 
-  private static byte[] doRewrite(byte[] b) throws IOException {
+  /** One planned change: {@code length} bytes at offset {@code at} in the class file. */
+  private static final class Patch {
+    final int at;
+    final int length;
+    final int prefixFrom; // offset in the class file of a load instruction to keep first, or -1
+    final int prefixLength;
+    final Helper helper;
+    final boolean inLoop;
+
+    Patch(int at, int length, int prefixFrom, int prefixLength, Helper helper, boolean inLoop) {
+      this.at = at;
+      this.length = length;
+      this.prefixFrom = prefixFrom;
+      this.prefixLength = prefixLength;
+      this.helper = helper;
+      this.inLoop = inLoop;
+    }
+  }
+
+  /** What the walk of the constant pool found. */
+  private static final class Pool {
+    final byte[] b;
+    final int count;
+    final int[] offsets;
+    final int end;
+    final int[] targetForEntry; // Methodref index -> target index, or -1
+    int decimalFormatClass = -1;
+    int code = -1;
+    int stackMapTable = -1;
+    int lineNumberTable = -1;
+    int localVariableTable = -1;
+    int localVariableTypeTable = -1;
+    int visibleTypeAnnotations = -1;
+    int invisibleTypeAnnotations = -1;
+
+    Pool(byte[] b, int count, int[] offsets, int end, int[] targetForEntry) {
+      this.b = b;
+      this.count = count;
+      this.offsets = offsets;
+      this.end = end;
+      this.targetForEntry = targetForEntry;
+    }
+
+    int target(int index) {
+      return index > 0 && index < targetForEntry.length ? targetForEntry[index] : -1;
+    }
+
+    boolean isString(int index) {
+      return index > 0 && index < count && offsets[index] != 0 && b[offsets[index]] == 8;
+    }
+  }
+
+  private static byte[] doRewrite(byte[] b, Target[] targets, JitSiteChunks chunks)
+      throws IOException {
     if (b.length < 10 || readInt(b, 0) != 0xCAFEBABE) {
       return null;
     }
@@ -190,115 +529,111 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
     for (int i = 1; i < count; i++) {
       offsets[i] = offset;
       int tag = b[offset];
-      switch (tag) {
-        case 1:
-          int length = readU2(b, offset + 1);
-          if (!candidate) {
-            for (byte[] needle : NAME_NEEDLES) {
-              if (length == needle.length && regionEquals(b, offset + 3, needle)) {
-                candidate = true;
-                break;
-              }
+      if (tag == 1) {
+        int length = readU2(b, offset + 1);
+        if (!candidate) {
+          for (byte[] needle : NEEDLES) {
+            if (length == needle.length && regionEquals(b, offset + 3, needle)) {
+              candidate = true;
+              break;
             }
           }
-          offset += 3 + length;
-          break;
-        case 3:
-        case 4:
-        case 9:
-        case 10:
-        case 11:
-        case 12:
-        case 17:
-        case 18:
-          offset += 5;
-          break;
-        case 5:
-        case 6:
-          offset += 9;
-          i++;
-          break;
-        case 7:
-        case 8:
-        case 16:
-        case 19:
-        case 20:
-          offset += 3;
-          break;
-        case 15:
-          offset += 4;
-          break;
-        default:
+        }
+        offset += 3 + length;
+      } else {
+        int size = constantSize(tag);
+        if (size < 0) {
           return null; // unknown constant-pool tag
+        }
+        offset += size;
+        if (tag == 5 || tag == 6) {
+          i++;
+        }
       }
     }
     if (!candidate) {
       return null; // most classes stop here, after one walk of the constant pool
     }
     candidates.incrementAndGet();
-    int poolEnd = offset;
 
-    // which Methodref entries are calls we rewrite
-    int[] ruleForEntry = null;
+    boolean anyTarget = false;
+    int[] targetForEntry = new int[count];
+    Arrays.fill(targetForEntry, -1);
+    int decimalFormatClass = -1;
     for (int i = 1; i < count; i++) {
-      if (offsets[i] != 0 && b[offsets[i]] == 10) {
-        int rule = matchRule(b, offsets, offsets[i]);
-        if (rule >= 0) {
-          if (null == ruleForEntry) {
-            ruleForEntry = new int[count];
-            Arrays.fill(ruleForEntry, -1);
-          }
-          ruleForEntry[i] = rule;
+      int o = offsets[i];
+      if (o == 0) {
+        continue;
+      }
+      if (b[o] == 10) {
+        int t = matchTarget(b, offsets, o, targets);
+        if (t >= 0) {
+          targetForEntry[i] = t;
+          anyTarget = true;
         }
+      } else if (b[o] == 7 && utf8Equals(b, offsets[readU2(b, o + 1)], DECIMAL_FORMAT)) {
+        decimalFormatClass = i;
       }
     }
-    if (null == ruleForEntry) {
+    if (!anyTarget) {
       return null;
     }
+    Pool pool = new Pool(b, count, offsets, offset, targetForEntry);
+    pool.decimalFormatClass = decimalFormatClass;
+    pool.code = findUtf8(b, offsets, count, CODE);
+    if (pool.code < 0) {
+      return null;
+    }
+    pool.stackMapTable = findUtf8(b, offsets, count, STACK_MAP_TABLE);
+    pool.lineNumberTable = findUtf8(b, offsets, count, LINE_NUMBER_TABLE);
+    pool.localVariableTable = findUtf8(b, offsets, count, LOCAL_VARIABLE_TABLE);
+    pool.localVariableTypeTable = findUtf8(b, offsets, count, LOCAL_VARIABLE_TYPE_TABLE);
+    pool.visibleTypeAnnotations = findUtf8(b, offsets, count, VISIBLE_TYPE_ANNOTATIONS);
+    pool.invisibleTypeAnnotations = findUtf8(b, offsets, count, INVISIBLE_TYPE_ANNOTATIONS);
 
-    // find the call instructions that use those entries
-    List<int[]> sites = new ArrayList<>(); // {offset of opcode, rule}
-    int codeIndex = findUtf8(b, offsets, count, CODE);
-    if (codeIndex < 0) {
-      return null;
-    }
-    int p = poolEnd + 6; // access, this, super
+    List<Patch> patches = new ArrayList<>();
+    int p = pool.end + 6; // access, this, super
     int interfaces = readU2(b, p);
     p += 2 + 2 * interfaces;
-    p = skipMembers(b, p, -1, null, null); // fields
-    p = skipMembers(b, p, codeIndex, ruleForEntry, sites); // methods
-    if (p < 0 || sites.isEmpty()) {
+    p = skipMembers(b, p, null, null, null, null); // fields
+    p = skipMembers(b, p, pool, targets, chunks, patches); // methods
+    if (p < 0 || patches.isEmpty()) {
       return null;
     }
 
-    // append one Methodref per rule used, then copy the class with the calls patched
+    // append the helpers' constant-pool entries
     ByteArrayOutputStream appended = new ByteArrayOutputStream();
     DataOutputStream out = new DataOutputStream(appended);
-    int nextIndex = count;
-    int helperName = nextIndex++;
-    writeUtf8(out, HELPER);
-    int helperClass = nextIndex++;
-    out.writeByte(7);
-    out.writeShort(helperName);
-    int[] methodrefForRule = new int[RULES.length];
-    for (int[] site : sites) {
-      int rule = site[1];
-      if (methodrefForRule[rule] == 0) {
-        int name = nextIndex++;
-        writeUtf8(out, RULES[rule].helperName);
-        int descriptor = nextIndex++;
-        writeUtf8(out, RULES[rule].helperDescriptor);
-        int nameAndType = nextIndex++;
-        out.writeByte(12);
-        out.writeShort(name);
-        out.writeShort(descriptor);
-        methodrefForRule[rule] = nextIndex++;
-        out.writeByte(10);
-        out.writeShort(helperClass);
-        out.writeShort(nameAndType);
+    int[] next = {count};
+    Map<String, Integer> utf8s = new HashMap<>();
+    Map<String, Integer> classes = new HashMap<>();
+    Map<String, Integer> methodrefs = new HashMap<>();
+    for (Patch patch : patches) {
+      Helper helper = patch.helper;
+      if (methodrefs.containsKey(helper.key())) {
+        continue;
       }
+      Integer classIndex = classes.get(helper.owner);
+      if (null == classIndex) {
+        int name = utf8(out, utf8s, next, helper.owner);
+        classIndex = next[0]++;
+        out.writeByte(7);
+        out.writeShort(name);
+        classes.put(helper.owner, classIndex);
+      }
+      int name = utf8(out, utf8s, next, helper.name);
+      int descriptor = utf8(out, utf8s, next, helper.descriptor);
+      int nameAndType = next[0]++;
+      out.writeByte(12);
+      out.writeShort(name);
+      out.writeShort(descriptor);
+      int methodref = next[0]++;
+      out.writeByte(10);
+      out.writeShort(classIndex);
+      out.writeShort(nameAndType);
+      methodrefs.put(helper.key(), methodref);
     }
-    if (nextIndex > 0xFFFF) {
+    if (next[0] > 0xFFFF) {
       return null; // constant pool would overflow
     }
     out.flush();
@@ -308,29 +643,62 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
       return null; // PROTOTYPE: isolates the cost of running rewritten sites from scanning
     }
     byte[] result = new byte[b.length + extra.length];
-    System.arraycopy(b, 0, result, 0, poolEnd);
-    writeU2(result, 8, nextIndex);
-    System.arraycopy(extra, 0, result, poolEnd, extra.length);
-    System.arraycopy(b, poolEnd, result, poolEnd + extra.length, b.length - poolEnd);
-    rewritten.incrementAndGet();
-    rewrittenSites.addAndGet(sites.size());
-    for (int[] site : sites) {
-      sitesByRule
-          .computeIfAbsent(
-              RULES[site[1]].name + RULES[site[1]].descriptor,
-              k -> new java.util.concurrent.atomic.AtomicLong())
-          .incrementAndGet();
+    System.arraycopy(b, 0, result, 0, pool.end);
+    writeU2(result, 8, next[0]);
+    System.arraycopy(extra, 0, result, pool.end, extra.length);
+    System.arraycopy(b, pool.end, result, pool.end + extra.length, b.length - pool.end);
+    for (Patch patch : patches) {
+      int at = patch.at + extra.length;
+      Arrays.fill(result, at, at + patch.length, (byte) NOP);
+      int w = at;
+      if (patch.prefixFrom >= 0) {
+        System.arraycopy(b, patch.prefixFrom, result, w, patch.prefixLength);
+        w += patch.prefixLength;
+      }
+      result[w] = (byte) INVOKESTATIC;
+      writeU2(result, w + 1, methodrefs.get(patch.helper.key()));
     }
-    for (int[] site : sites) {
-      int at = site[0] + extra.length;
-      result[at] = (byte) INVOKESTATIC;
-      writeU2(result, at + 1, methodrefForRule[site[1]]);
+    rewritten.incrementAndGet();
+    rewrittenSites.addAndGet(patches.size());
+    for (Patch patch : patches) {
+      if (patch.inLoop) {
+        inLoopSites.incrementAndGet();
+      }
+      int dollar = patch.helper.name.indexOf('$');
+      count(
+          sitesByRule,
+          dollar > 0 ? "slotted:" + patch.helper.name.substring(0, dollar) : patch.helper.name);
     }
     return result;
   }
 
-  /** Which rule a Methodref entry matches, or -1. */
-  private static int matchRule(byte[] b, int[] offsets, int methodref) {
+  private static int utf8(
+      DataOutputStream out, Map<String, Integer> utf8s, int[] next, String value)
+      throws IOException {
+    Integer index = utf8s.get(value);
+    if (null == index) {
+      index = next[0]++;
+      out.writeByte(1);
+      out.writeUTF(value); // modified UTF-8 with a u2 length, as in class files
+      utf8s.put(value, index);
+    }
+    return index;
+  }
+
+  private static void count(ConcurrentHashMap<String, AtomicLong> map, String key) {
+    AtomicLong counter = map.get(key);
+    if (null == counter) {
+      AtomicLong created = new AtomicLong();
+      counter = map.putIfAbsent(key, created);
+      if (null == counter) {
+        counter = created;
+      }
+    }
+    counter.incrementAndGet();
+  }
+
+  /** Which target a Methodref entry matches, or -1. */
+  private static int matchTarget(byte[] b, int[] offsets, int methodref, Target[] targets) {
     int classOffset = offsets[readU2(b, methodref + 1)];
     int natOffset = offsets[readU2(b, methodref + 3)];
     if (b[classOffset] != 7 || b[natOffset] != 12) {
@@ -339,23 +707,23 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
     int owner = offsets[readU2(b, classOffset + 1)];
     int name = offsets[readU2(b, natOffset + 1)];
     int descriptor = offsets[readU2(b, natOffset + 3)];
-    for (int r = 0; r < RULES.length; r++) {
-      Rule rule = RULES[r];
-      if (utf8Equals(b, name, rule.name)
-          && utf8Equals(b, owner, rule.owner)
-          && utf8Equals(b, descriptor, rule.descriptor)) {
-        return r;
+    for (int i = 0; i < targets.length; i++) {
+      Target target = targets[i];
+      if (utf8Equals(b, name, target.name)
+          && utf8Equals(b, owner, target.owner)
+          && utf8Equals(b, descriptor, target.descriptor)) {
+        return i;
       }
     }
     return -1;
   }
 
   /**
-   * Skips a fields or methods table; for methods, scans each Code attribute for calls to rewrite.
-   * Returns the offset after the table, or -1 if the bytecode can't be walked.
+   * Skips a fields or methods table; for methods, scans each Code attribute. Returns the offset
+   * after the table, or -1 if the bytecode can't be walked.
    */
   private static int skipMembers(
-      byte[] b, int p, int codeIndex, int[] ruleForEntry, List<int[]> sites) {
+      byte[] b, int p, Pool pool, Target[] targets, JitSiteChunks chunks, List<Patch> patches) {
     int members = readU2(b, p);
     p += 2;
     for (int m = 0; m < members; m++) {
@@ -366,9 +734,8 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
         int attributeName = readU2(b, p);
         int length = readInt(b, p + 2);
         int start = p + 6;
-        if (null != sites && attributeName == codeIndex) {
-          int codeLength = readInt(b, start + 4);
-          if (!scanCode(b, start + 8, codeLength, ruleForEntry, sites)) {
+        if (null != pool && attributeName == pool.code) {
+          if (!scanCode(b, start, pool, targets, chunks, patches)) {
             return -1;
           }
         }
@@ -378,27 +745,468 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
     return p;
   }
 
-  /** Walks one method's bytecode, recording the call sites to rewrite. */
+  /** Scans one Code attribute (starting at max_stack), adding the patches for its call sites. */
   private static boolean scanCode(
-      byte[] b, int codeStart, int codeLength, int[] ruleForEntry, List<int[]> sites) {
+      byte[] b,
+      int attribute,
+      Pool pool,
+      Target[] targets,
+      JitSiteChunks chunks,
+      List<Patch> patches) {
+    int codeLength = readInt(b, attribute + 4);
+    int code = attribute + 8;
+
+    // instruction starts (with a sentinel at codeLength), and whether anything here is a target
+    int[] starts = new int[codeLength + 1];
+    int n = 0;
+    boolean anyTarget = false;
+    boolean anyWindow = false;
     int pc = 0;
     while (pc < codeLength) {
-      int at = codeStart + pc;
-      int opcode = b[at] & 0xFF;
-      if (opcode == INVOKEVIRTUAL || opcode == INVOKESTATIC) {
-        int index = readU2(b, at + 1);
-        int rule = index < ruleForEntry.length ? ruleForEntry[index] : -1;
-        if (rule >= 0 && RULES[rule].isStatic == (opcode == INVOKESTATIC)) {
-          sites.add(new int[] {at, rule});
+      int opcode = b[code + pc] & 0xFF;
+      starts[n++] = pc;
+      if (opcode == INVOKEVIRTUAL || opcode == INVOKESTATIC || opcode == INVOKESPECIAL) {
+        int t = pool.target(readU2(b, code + pc + 1));
+        if (t >= 0) {
+          anyTarget = true;
+          int role = targets[t].role;
+          anyWindow |= role == COMPILE || role == OF_PATTERN || role == DECIMAL_FORMAT_INIT;
         }
       }
-      int length = instructionLength(b, codeStart, pc, opcode);
+      int length = instructionLength(b, code, pc, opcode);
       if (length <= 0) {
         return false;
       }
       pc += length;
     }
-    return pc == codeLength;
+    if (pc != codeLength) {
+      return false;
+    }
+    starts[n] = codeLength;
+    if (!anyTarget) {
+      return true;
+    }
+
+    // back-edges (loops), and offsets a window must not contain
+    List<int[]> loops = new ArrayList<>();
+    byte[] boundary = anyWindow ? new byte[codeLength + 1] : null;
+    for (int k = 0; k < n; k++) {
+      int at = starts[k];
+      int opcode = b[code + at] & 0xFF;
+      if ((opcode >= 0x99 && opcode <= 0xA8) || opcode == 0xC6 || opcode == 0xC7) {
+        branch(at, at + (short) readU2(b, code + at + 1), loops, boundary);
+      } else if (opcode == 0xC8 || opcode == 0xC9) {
+        branch(at, at + readInt(b, code + at + 1), loops, boundary);
+      } else if (opcode == 0xAA || opcode == 0xAB) {
+        int q = (at + 4) & ~3;
+        branch(at, at + readInt(b, code + q), loops, boundary);
+        if (opcode == 0xAA) {
+          int low = readInt(b, code + q + 4);
+          int high = readInt(b, code + q + 8);
+          for (int i = 0; i <= high - low; i++) {
+            branch(at, at + readInt(b, code + q + 12 + 4 * i), loops, boundary);
+          }
+        } else {
+          int pairs = readInt(b, code + q + 4);
+          for (int i = 0; i < pairs; i++) {
+            branch(at, at + readInt(b, code + q + 12 + 8 * i), loops, boundary);
+          }
+        }
+      }
+    }
+    boolean windowsAllowed = anyWindow;
+    if (anyWindow) {
+      int table = code + codeLength;
+      int entries = readU2(b, table);
+      for (int i = 0; i < entries; i++) {
+        int e = table + 2 + 8 * i;
+        mark(boundary, readU2(b, e), CONTROL); // start_pc
+        mark(boundary, readU2(b, e + 2), CONTROL); // end_pc
+        mark(boundary, readU2(b, e + 4), CONTROL); // handler_pc
+      }
+      int ap = table + 2 + 8 * entries;
+      int attributes = readU2(b, ap);
+      ap += 2;
+      for (int a = 0; a < attributes; a++) {
+        int name = readU2(b, ap);
+        int length = readInt(b, ap + 2);
+        int start = ap + 6;
+        if (name == pool.stackMapTable) {
+          if (!markFrames(b, start, boundary)) {
+            return false;
+          }
+        } else if (name == pool.lineNumberTable) {
+          int lines = readU2(b, start);
+          for (int i = 0; i < lines; i++) {
+            mark(boundary, readU2(b, start + 2 + 4 * i), DEBUG);
+          }
+        } else if (name == pool.localVariableTable || name == pool.localVariableTypeTable) {
+          int locals = readU2(b, start);
+          for (int i = 0; i < locals; i++) {
+            int from = readU2(b, start + 2 + 10 * i);
+            mark(boundary, from, DEBUG);
+            mark(boundary, from + readU2(b, start + 4 + 10 * i), DEBUG);
+          }
+        } else if (name == pool.visibleTypeAnnotations || name == pool.invisibleTypeAnnotations) {
+          windowsAllowed = false; // their offsets would need checking too; rare, so skip
+        }
+        ap = start + length;
+      }
+    }
+
+    Method m = new Method(b, code, starts, n, pool, targets, boundary, windowsAllowed, patches);
+    for (int k = 0; k < n; k++) {
+      int at = starts[k];
+      int opcode = b[code + at] & 0xFF;
+      Target target = m.targetAt(k);
+      boolean inLoop = inLoop(loops, at);
+      if (null != target && target.kind == SINGLE) {
+        patches.add(new Patch(code + at, 3, -1, 0, target.helper, inLoop));
+      } else if (null != target && target.kind == SLOTTED) {
+        Helper helper = target.helper;
+        int slot = ANALYZE_ONLY || !SLOTS_ENABLED ? -1 : chunks.allocate();
+        if (slot >= 0 && REPORT) {
+          slotOwners.put(slot, String.valueOf(CURRENT_CLASS.get()));
+        }
+        if (slot >= 0) {
+          helper =
+              new Helper(
+                  JitSiteChunks.chunkName(slot),
+                  target.slotPrefix + (slot % JitSiteChunks.SLOTS),
+                  target.slotDescriptor);
+        }
+        patches.add(new Patch(code + at, 3, -1, 0, helper, inLoop));
+      } else {
+        int covered = m.matchWindow(k, opcode, target, inLoop);
+        if (covered > 0) {
+          k += covered - 1; // skip the window's other instructions
+        }
+      }
+    }
+    return true;
+  }
+
+  /** One method's decoded instructions, for matching windows. */
+  private static final class Method {
+    final byte[] b;
+    final int code;
+    final int[] starts;
+    final int n;
+    final Pool pool;
+    final Target[] targets;
+    final byte[] boundary;
+    final boolean windowsAllowed;
+    final List<Patch> patches;
+
+    Method(
+        byte[] b,
+        int code,
+        int[] starts,
+        int n,
+        Pool pool,
+        Target[] targets,
+        byte[] boundary,
+        boolean windowsAllowed,
+        List<Patch> patches) {
+      this.b = b;
+      this.code = code;
+      this.starts = starts;
+      this.n = n;
+      this.pool = pool;
+      this.targets = targets;
+      this.boundary = boundary;
+      this.windowsAllowed = windowsAllowed;
+      this.patches = patches;
+    }
+
+    /** The target called by instruction {@code k}, if it's an invoke with the expected opcode. */
+    Target targetAt(int k) {
+      if (k >= n) {
+        return null;
+      }
+      int opcode = b[code + starts[k]] & 0xFF;
+      if (opcode != INVOKEVIRTUAL && opcode != INVOKESTATIC && opcode != INVOKESPECIAL) {
+        return null;
+      }
+      int t = pool.target(readU2(b, code + starts[k] + 1));
+      return t >= 0 && targets[t].opcode == opcode ? targets[t] : null;
+    }
+
+    /** Length of an {@code aload} at instruction {@code k}, or 0. */
+    int loadLength(int k) {
+      if (k >= n) {
+        return 0;
+      }
+      int opcode = b[code + starts[k]] & 0xFF;
+      if (opcode >= 0x2A && opcode <= 0x2D) {
+        return 1; // aload_0 .. aload_3
+      }
+      return opcode == ALOAD ? 2 : 0;
+    }
+
+    /** Length of an {@code ldc}/{@code ldc_w} of a String constant at instruction {@code k}. */
+    int stringConstantLength(int k) {
+      if (k >= n) {
+        return 0;
+      }
+      int at = code + starts[k];
+      int opcode = b[at] & 0xFF;
+      if (opcode == LDC && pool.isString(b[at + 1] & 0xFF)) {
+        return 2;
+      }
+      if (opcode == LDC_W && pool.isString(readU2(b, at + 1))) {
+        return 3;
+      }
+      return 0;
+    }
+
+    /**
+     * Tries to rewrite the window starting at instruction {@code k}. Returns the number of
+     * instructions it covers, or 0.
+     */
+    int matchWindow(int k, int opcode, Target first, boolean inLoop) {
+      if (null != first && first.role == COMPILE) {
+        // Pattern.compile(r), load s, .matcher(s), .matches()/.find()/.lookingAt() | .split(s)
+        int load = loadLength(k + 1);
+        Target second = load > 0 ? targetAt(k + 2) : null;
+        if (null != second && second.role == MATCHER) {
+          Target third = targetAt(k + 3);
+          String helper = null;
+          if (null != third && third.role == MATCHER_MATCHES) {
+            helper = "compileMatches";
+          } else if (null != third && third.role == MATCHER_FIND) {
+            helper = "compileFind";
+          } else if (null != third && third.role == MATCHER_LOOKING_AT) {
+            helper = "compileLookingAt";
+          }
+          if (null != helper) {
+            return window(
+                k,
+                4,
+                k + 1,
+                load,
+                new Helper(FUSED, helper, "(" + S + CHARS + ")Z"),
+                inLoop,
+                "compileMatcher");
+          }
+        } else if (null != second && second.role == PATTERN_SPLIT) {
+          return window(
+              k,
+              3,
+              k + 1,
+              load,
+              new Helper(FUSED, "compileSplit", "(" + S + CHARS + ")[" + S),
+              inLoop,
+              "compileSplit");
+        }
+        return 0;
+      }
+      if (null != first && first.role == OF_PATTERN) {
+        Target second = targetAt(k + 1);
+        if (null != second && second.role == TEMPORAL_FORMAT) {
+          // t and the pattern are on the stack: ofPattern(pattern), then t.format(formatter)
+          return window(
+              k,
+              2,
+              -1,
+              0,
+              new Helper(FUSED, "temporalFormat", "(L" + second.owner + ";" + S + ")" + S),
+              inLoop,
+              "temporalFormat");
+        }
+        int load = loadLength(k + 1);
+        Target third = load > 0 ? targetAt(k + 2) : null;
+        if (null != third && third.role == FORMATTER_FORMAT) {
+          return window(
+              k,
+              3,
+              k + 1,
+              load,
+              new Helper(
+                  FUSED, "formatterFormat", "(" + S + "Ljava/time/temporal/TemporalAccessor;)" + S),
+              inLoop,
+              "formatterFormat");
+        }
+        return 0;
+      }
+      if (opcode == NEW
+          && DECIMAL_FORMAT_WINDOW
+          && pool.decimalFormatClass > 0
+          && readU2(b, code + starts[k] + 1) == pool.decimalFormatClass
+          && k + 3 < n
+          && (b[code + starts[k + 1]] & 0xFF) == DUP) {
+        // new DecimalFormat, dup, load or ldc the pattern, invokespecial <init>(String)
+        int arg = loadLength(k + 2);
+        if (arg == 0) {
+          arg = stringConstantLength(k + 2);
+        }
+        Target init = arg > 0 ? targetAt(k + 3) : null;
+        if (null != init && init.role == DECIMAL_FORMAT_INIT) {
+          return window(
+              k,
+              4,
+              k + 2,
+              arg,
+              new Helper(FUSED, "newDecimalFormat", "(" + S + ")L" + DECIMAL_FORMAT + ";"),
+              inLoop,
+              "newDecimalFormat");
+        }
+      }
+      return 0;
+    }
+
+    /**
+     * Adds a patch for {@code instructions} instructions from {@code k}, keeping instruction {@code
+     * prefix} (a load, {@code prefixLength} bytes) first, if no offset strictly inside the window
+     * is observable. Returns the number of instructions covered, or 0.
+     */
+    int window(
+        int k,
+        int instructions,
+        int prefix,
+        int prefixLength,
+        Helper helper,
+        boolean inLoop,
+        String kind) {
+      int start = starts[k];
+      int end = starts[k + instructions];
+      if (!windowsAllowed) {
+        count(rejectedWindows, kind + ":typeAnnotations");
+        return 0;
+      }
+      byte inside = 0;
+      for (int o = start + 1; o < end; o++) {
+        inside |= boundary[o];
+      }
+      if (inside != 0) {
+        // debug-only boundaries (line numbers, local ranges) are counted apart: they could be kept
+        // valid by putting the fused code at the end, if changing reported lines were acceptable
+        count(rejectedWindows, kind + ((inside & CONTROL) != 0 ? ":control" : ":debugInfo"));
+        return 0;
+      }
+      if (prefixLength + 3 > end - start) {
+        return 0; // never grow code (can't happen for the shapes above)
+      }
+      patches.add(
+          new Patch(
+              code + start,
+              end - start,
+              prefix >= 0 ? code + starts[prefix] : -1,
+              prefixLength,
+              helper,
+              inLoop));
+      return instructions;
+    }
+  }
+
+  private static void branch(int from, int to, List<int[]> loops, byte[] boundary) {
+    if (to <= from) {
+      loops.add(new int[] {to, from});
+    }
+    if (null != boundary) {
+      mark(boundary, to, CONTROL);
+    }
+  }
+
+  /** Something can jump to, or a frame describes, this offset. */
+  private static final byte CONTROL = 1;
+
+  /** Debug info (a line number or local variable range) starts at this offset. */
+  private static final byte DEBUG = 2;
+
+  private static void mark(byte[] boundary, int offset, byte kind) {
+    if (offset >= 0 && offset < boundary.length) {
+      boundary[offset] |= kind;
+    }
+  }
+
+  private static boolean inLoop(List<int[]> loops, int pc) {
+    for (int[] loop : loops) {
+      if (pc >= loop[0] && pc <= loop[1]) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Marks the offset of every stack-map frame. Returns false if the table can't be walked. */
+  private static boolean markFrames(byte[] b, int p, byte[] boundary) {
+    int frames = readU2(b, p);
+    p += 2;
+    int offset = -1;
+    for (int i = 0; i < frames; i++) {
+      int type = b[p++] & 0xFF;
+      int delta;
+      if (type <= 63) {
+        delta = type; // same_frame
+      } else if (type <= 127) {
+        delta = type - 64; // same_locals_1_stack_item
+        p = skipVerificationType(b, p);
+      } else if (type == 247) {
+        delta = readU2(b, p); // same_locals_1_stack_item_extended
+        p = skipVerificationType(b, p + 2);
+      } else if (type >= 248 && type <= 251) {
+        delta = readU2(b, p); // chop, same_frame_extended
+        p += 2;
+      } else if (type >= 252 && type <= 254) {
+        delta = readU2(b, p); // append
+        p += 2;
+        for (int j = 0; j < type - 251; j++) {
+          p = skipVerificationType(b, p);
+        }
+      } else if (type == 255) {
+        delta = readU2(b, p); // full_frame
+        p += 2;
+        int locals = readU2(b, p);
+        p += 2;
+        for (int j = 0; j < locals; j++) {
+          p = skipVerificationType(b, p);
+        }
+        int stack = readU2(b, p);
+        p += 2;
+        for (int j = 0; j < stack; j++) {
+          p = skipVerificationType(b, p);
+        }
+      } else {
+        return false; // reserved frame type
+      }
+      offset = offset < 0 ? delta : offset + delta + 1;
+      mark(boundary, offset, CONTROL);
+    }
+    return true;
+  }
+
+  private static int skipVerificationType(byte[] b, int p) {
+    int tag = b[p] & 0xFF;
+    return tag == 7 || tag == 8 ? p + 3 : p + 1; // Object and Uninitialized carry a u2
+  }
+
+  /** Size of a constant-pool entry other than UTF-8, or -1 for an unknown tag. */
+  static int constantSize(int tag) {
+    switch (tag) {
+      case 3:
+      case 4:
+      case 9:
+      case 10:
+      case 11:
+      case 12:
+      case 17:
+      case 18:
+        return 5;
+      case 5:
+      case 6:
+        return 9;
+      case 7:
+      case 8:
+      case 16:
+      case 19:
+      case 20:
+        return 3;
+      case 15:
+        return 4;
+      default:
+        return -1;
+    }
   }
 
   /** Length in bytes of the instruction at {@code pc}, or -1 for an unknown opcode. */
@@ -498,20 +1306,24 @@ public final class StringCallSiteRewriter implements ClassFileTransformer {
     return true;
   }
 
-  private static void writeUtf8(DataOutputStream out, String value) throws IOException {
-    out.writeByte(1);
-    out.writeUTF(value); // modified UTF-8 with a u2 length, as in class files
+  private static int specificationVersion() {
+    try {
+      String version = System.getProperty("java.specification.version", "");
+      return Integer.parseInt(version.startsWith("1.") ? version.substring(2) : version);
+    } catch (RuntimeException e) {
+      return 8; // assume the older behavior
+    }
   }
 
   private static byte[] ascii(String value) {
     return value.getBytes(StandardCharsets.US_ASCII);
   }
 
-  private static int readU2(byte[] b, int offset) {
+  static int readU2(byte[] b, int offset) {
     return ((b[offset] & 0xFF) << 8) | (b[offset + 1] & 0xFF);
   }
 
-  private static int readInt(byte[] b, int offset) {
+  static int readInt(byte[] b, int offset) {
     return ((b[offset] & 0xFF) << 24)
         | ((b[offset + 1] & 0xFF) << 16)
         | ((b[offset + 2] & 0xFF) << 8)

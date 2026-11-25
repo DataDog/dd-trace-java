@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.jit;
 
 import java.util.ArrayList;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -19,10 +20,10 @@ import java.util.regex.Pattern;
 public final class StringRewrites {
   private StringRewrites() {}
 
-  /** Before JDK 13, {@code String.replace(CharSequence, CharSequence)} used a literal Pattern. */
-  private static final boolean JDK_REPLACE_IS_REGEX = specificationVersion() < 13;
+  /** On JDK 8, {@code String.replace(CharSequence, CharSequence)} uses a literal Pattern. */
+  static final boolean JDK_REPLACE_IS_REGEX = specificationVersion() < 9;
 
-  private static int specificationVersion() {
+  static int specificationVersion() {
     try {
       String version = System.getProperty("java.specification.version", "");
       return Integer.parseInt(version.startsWith("1.") ? version.substring(2) : version);
@@ -53,6 +54,37 @@ public final class StringRewrites {
       index = s.indexOf(target, from);
     } while (index >= 0);
     return result.append(s, from, s.length()).toString();
+  }
+
+  /**
+   * {@link String#replace(CharSequence, CharSequence)}. Only JDK 8 needs a helper: there the method
+   * compiles a literal Pattern, which this replaces with a plain scan where that gives the same
+   * result. Later JDKs don't use regex, so the call is delegated.
+   */
+  public static String replace(String s, CharSequence target, CharSequence replacement) {
+    if (!JDK_REPLACE_IS_REGEX || null == s) {
+      return s.replace(target, replacement);
+    }
+    return replaceAsJdk8(s, target, replacement);
+  }
+
+  /**
+   * The JDK 8 {@code String.replace(CharSequence, CharSequence)}, calling {@code toString()} on
+   * each argument once and in the same order; package-private for tests on later JDKs.
+   */
+  static String replaceAsJdk8(String s, CharSequence target, CharSequence replacement) {
+    String targetString = target.toString();
+    if (null != targetString && !targetString.isEmpty() && !RegexShape.hasSurrogate(targetString)) {
+      String replacementString = replacement.toString();
+      if (null == replacementString) {
+        return Matcher.quoteReplacement(replacementString); // throws, as in the JDK 8 body
+      }
+      return replaceLiteralByScanning(s, targetString, replacementString);
+    }
+    // the JDK 8 body; a null target string throws here, before replacement.toString()
+    return Pattern.compile(targetString, Pattern.LITERAL)
+        .matcher(s)
+        .replaceAll(Matcher.quoteReplacement(replacement.toString()));
   }
 
   /** {@link String#replaceAll(String, String)}. */

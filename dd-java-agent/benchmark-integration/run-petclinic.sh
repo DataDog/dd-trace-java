@@ -64,6 +64,12 @@ resolve_variant() {
   if [ "$v" = "NoAgent" ]; then
     echo "NoAgent"; return
   fi
+  # jar-or-version#extra-jvm-options: resolve the jar part, keep the options
+  if [[ "$v" == *"#"* ]]; then
+    local base
+    base=$(resolve_variant "${v%%#*}") || exit 1
+    echo "$base#${v#*#}"; return
+  fi
   if [ -f "$v" ]; then
     # Absolute, since the benchmark runs from script_dir.
     echo "$(cd "$(dirname "$v")" && pwd)/$(basename "$v")"; return

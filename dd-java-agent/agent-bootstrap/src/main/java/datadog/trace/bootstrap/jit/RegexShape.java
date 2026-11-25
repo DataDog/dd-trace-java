@@ -56,6 +56,9 @@ enum RegexShape {
    * The literal text the regex matches, or {@code null} if it isn't a plain literal. A backslash is
    * only accepted before a non-alphanumeric ASCII character, which Java's regex syntax always
    * treats as that literal character.
+   *
+   * <p>A regex containing a surrogate char is not a plain literal: {@code java.util.regex} matches
+   * it by code point and never starts a match inside a surrogate pair, unlike {@code indexOf}.
    */
   static String literal(String regex) {
     StringBuilder text = null;
@@ -76,7 +79,7 @@ enum RegexShape {
         }
         text.append(escaped);
         i++;
-      } else if (METACHARACTERS.indexOf(c) >= 0) {
+      } else if (METACHARACTERS.indexOf(c) >= 0 || Character.isSurrogate(c)) {
         return null;
       } else if (null != text) {
         text.append(c);
@@ -92,6 +95,16 @@ enum RegexShape {
    */
   static boolean isLiteralReplacement(String replacement) {
     return replacement.indexOf('$') < 0 && replacement.indexOf('\\') < 0;
+  }
+
+  /** Whether the string contains a high or low surrogate char. */
+  static boolean hasSurrogate(String s) {
+    for (int i = 0, length = s.length(); i < length; i++) {
+      if (Character.isSurrogate(s.charAt(i))) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Whitespace as matched by {@code \s} without {@code UNICODE_CHARACTER_CLASS}. */
