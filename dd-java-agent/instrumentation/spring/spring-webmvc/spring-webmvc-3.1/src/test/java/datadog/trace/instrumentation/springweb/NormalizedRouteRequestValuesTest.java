@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -78,6 +79,61 @@ class NormalizedRouteRequestValuesTest {
   }
 
   @Test
+  void withoutParsedRequestPathTheServletMappingIsNotRead() {
+    // before Spring 5.3 the lookup path of the exact mount URL is the servlet path: '/api' matched
+    MockHttpServletRequest request = spy(request("/ctx/main", "/ctx", "/main", null));
+    request.setAttribute("javax.servlet.include.request_uri", "/ctx/api");
+    request.setAttribute("javax.servlet.include.context_path", "/ctx");
+    request.setAttribute("javax.servlet.include.servlet_path", "/api");
+    request.setAttribute("javax.servlet.include.mapping", "path mapping");
+
+    assertTag(request, "/api", "/ctx/api");
+    verify(request, never()).getAttribute("javax.servlet.include.mapping");
+  }
+
+  @Test
+  void withParsedRequestPathTheServletMappingIsRead() {
+    MockHttpServletRequest request = spy(request("/ctx/main", "/ctx", "/main", null));
+    request.setAttribute("javax.servlet.include.request_uri", "/ctx/api");
+    request.setAttribute("javax.servlet.include.context_path", "/ctx");
+    request.setAttribute("javax.servlet.include.servlet_path", "/api");
+    request.setAttribute("javax.servlet.include.mapping", "path mapping");
+    request.setAttribute("org.springframework.web.util.ServletRequestPathUtils.PATH", "parsed");
+
+    // Servlet 3: no HttpServletMapping to tell a path mapping
+    assertTag(request, "/api", "/ctx/api");
+    verify(request).getAttribute("javax.servlet.include.mapping");
+  }
+
+  @Test
+  void matrixParametersOfACachedLookupPathAreNotCatchAllContent() {
+    // removeSemicolonContent=false keeps the ';' parameters in the cached lookup path
+    assertTag(cachedLookupPath("/ctx/static/;v=1", "/static/;v=1"), "/static/**", "/ctx/static/");
+    assertTag(
+        cachedLookupPath("/ctx/static/a;v=1/b", "/static/a;v=1/b"),
+        "/static/**",
+        "/ctx/static/{param1}");
+    assertTag(
+        cachedLookupPath("/ctx/static/;v=1/x", "/static/;v=1/x"),
+        "/static/**",
+        "/ctx/static/{param1}");
+  }
+
+  @Test
+  void matrixParametersOfTheFallbackLookupPathAreNotCatchAllContent() {
+    assertTag(
+        request("/ctx/static/;v=1", "/ctx", "/static/;v=1", null), "/static/**", "/ctx/static/");
+    assertTag(
+        request("/ctx/static/a;v=1/b", "/ctx", "/static/a;v=1/b", null),
+        "/static/**",
+        "/ctx/static/{param1}");
+    assertTag(
+        request("/ctx/static/;v=1/x", "/ctx", "/static/;v=1/x", null),
+        "/static/**",
+        "/ctx/static/{param1}");
+  }
+
+  @Test
   void contextPathParametersAreNotEmitted() {
     MockHttpServletRequest request =
         request("/ctx;jsessionid=AB/api/a", "/ctx;jsessionid=AB", "/api", "/a");
@@ -107,6 +163,12 @@ class NormalizedRouteRequestValuesTest {
     request.setContextPath(contextPath);
     request.setServletPath(servletPath);
     request.setPathInfo(pathInfo);
+    return request;
+  }
+
+  private static MockHttpServletRequest cachedLookupPath(String requestUri, String lookupPath) {
+    MockHttpServletRequest request = request(requestUri, "/ctx", lookupPath, null);
+    request.setAttribute("org.springframework.web.util.UrlPathHelper.PATH", lookupPath);
     return request;
   }
 

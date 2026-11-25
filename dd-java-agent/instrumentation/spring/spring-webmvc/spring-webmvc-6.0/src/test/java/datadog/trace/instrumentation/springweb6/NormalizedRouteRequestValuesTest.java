@@ -67,6 +67,7 @@ class NormalizedRouteRequestValuesTest {
     request.setAttribute(
         "jakarta.servlet.include.mapping",
         new MockHttpServletMapping("api", "/api/*", "dispatcher", MappingMatch.PATH));
+    ServletRequestPathUtils.parseAndCache(request);
 
     assertTag(request, "/a", "/ctx/api/a");
   }
@@ -76,10 +77,42 @@ class NormalizedRouteRequestValuesTest {
     MockHttpServletRequest request = request("/ctx/api", "/ctx", "/api", null);
     request.setHttpServletMapping(
         new MockHttpServletMapping("", "/api/*", "dispatcher", MappingMatch.PATH));
+    ServletRequestPathUtils.parseAndCache(request);
     request.setAttribute(
         HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, Collections.singletonMap("rest", ""));
 
     assertTag(request, "/{*rest}", "/ctx/api");
+  }
+
+  @Test
+  void withoutParsedRequestPathTheExactMountUrlMatchedThePathWithinTheApplication() {
+    // UrlPathHelper returns the path within the application when nothing follows the servlet path
+    MockHttpServletRequest request = request("/ctx/api", "/ctx", "/api", null);
+    request.setHttpServletMapping(
+        new MockHttpServletMapping("", "/api/*", "dispatcher", MappingMatch.PATH));
+
+    assertTag(request, "/api", "/ctx/api");
+  }
+
+  @Test
+  void matrixParametersOfTheParsedRequestPathAreNotCatchAllContent() {
+    assertTag(parsedRequestPath("/ctx/static/;v=1"), "/static/**", "/ctx/static/");
+    assertTag(parsedRequestPath("/ctx/static/a;v=1/b"), "/static/**", "/ctx/static/{param1}");
+    assertTag(parsedRequestPath("/ctx/static/;v=1/x"), "/static/**", "/ctx/static/{param1}");
+  }
+
+  @Test
+  void matrixParametersOfACachedLookupPathAreNotCatchAllContent() {
+    // removeSemicolonContent=false keeps the ';' parameters in the cached lookup path
+    assertTag(cachedLookupPath("/ctx/static/;v=1", "/static/;v=1"), "/static/**", "/ctx/static/");
+    assertTag(
+        cachedLookupPath("/ctx/static/a;v=1/b", "/static/a;v=1/b"),
+        "/static/**",
+        "/ctx/static/{param1}");
+    assertTag(
+        cachedLookupPath("/ctx/static/;v=1/x", "/static/;v=1/x"),
+        "/static/**",
+        "/ctx/static/{param1}");
   }
 
   @Test
@@ -121,6 +154,20 @@ class NormalizedRouteRequestValuesTest {
     request.setContextPath(contextPath);
     request.setServletPath(servletPath);
     request.setPathInfo(pathInfo);
+    return request;
+  }
+
+  private static MockHttpServletRequest parsedRequestPath(String requestUri) {
+    MockHttpServletRequest request = request(requestUri, "/ctx", "", null);
+    request.setHttpServletMapping(
+        new MockHttpServletMapping("", "/", "dispatcher", MappingMatch.DEFAULT));
+    ServletRequestPathUtils.parseAndCache(request);
+    return request;
+  }
+
+  private static MockHttpServletRequest cachedLookupPath(String requestUri, String lookupPath) {
+    MockHttpServletRequest request = request(requestUri, "/ctx", lookupPath, null);
+    request.setAttribute("org.springframework.web.util.UrlPathHelper.PATH", lookupPath);
     return request;
   }
 

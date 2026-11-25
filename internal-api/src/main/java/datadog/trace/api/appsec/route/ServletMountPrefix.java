@@ -208,8 +208,11 @@ public final class ServletMountPrefix {
     return true;
   }
 
-  /** Removes every {@code ;} parameter of each segment. */
-  static String removeSemicolonContent(String path) {
+  /**
+   * Removes every {@code ;} parameter of each segment, as Spring does before matching; returns the
+   * same instance when there is none.
+   */
+  public static String removeSemicolonContent(String path) {
     int semicolon = path.indexOf(';');
     if (semicolon < 0) {
       return path;

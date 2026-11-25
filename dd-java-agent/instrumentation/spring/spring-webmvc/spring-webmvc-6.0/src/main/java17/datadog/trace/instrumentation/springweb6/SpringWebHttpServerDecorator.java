@@ -199,7 +199,14 @@ public class SpringWebHttpServerDecorator
               request.getCharacterEncoding());
       boolean pathMapping = false;
       if (prefix == null) {
-        pathMapping = pathInfo != null || isPathMapping(request, include);
+        // a lookup path from UrlPathHelper (cached, or legacy before Spring 5.3) is the path within
+        // the application on the exact mount URL of a path mapping: only a parsed request path
+        // starts after the servlet path then
+        pathMapping =
+            pathInfo != null
+                || (cachedLookupPath == null
+                    && request.getAttribute(ServletRequestPathUtils.PATH_ATTRIBUTE) != null
+                    && isPathMapping(request, include));
         prefix = ServletMountPrefix.fallback(contextPath, servletPath, pathMapping);
       }
       if (template.staticRoute() != null) {
@@ -213,6 +220,10 @@ public class SpringWebHttpServerDecorator
       }
       if (lookupPath == null) {
         lookupPath = fallbackLookupPath(servletPath, pathInfo, pathMapping);
+      }
+      if (lookupPath != null) {
+        // Spring matches the segments without their ';' parameters
+        lookupPath = ServletMountPrefix.removeSemicolonContent(lookupPath);
       }
       NormalizedRouteHelper.tag(
           span,
