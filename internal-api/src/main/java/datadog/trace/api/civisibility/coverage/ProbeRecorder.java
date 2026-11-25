@@ -149,6 +149,23 @@ public final class ProbeRecorder {
   }
 
   /**
+   * Called when an exception leaves or is caught in a method, with the probe of the last code the
+   * method started that could throw; 0 if it started none.
+   */
+  public static void recordThrown(int classId, int probeId) {
+    if (probeId != 0) {
+      record(classId, probeId);
+    }
+  }
+
+  /** {@link #recordThrown} for class initializers. */
+  public static void recordInitThrown(int classId, int probeId) {
+    if (probeId != 0) {
+      recordInit(classId, probeId);
+    }
+  }
+
+  /**
    * Adds to {@code lines} the lines of a class that ran while no open window owned them, other than
    * its initializer lines.
    *
