@@ -76,7 +76,8 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
     if (classId < 0) {
       return null;
     }
-    // methods that outgrow the size limit lose their exception probes, then all their probes
+    // methods that outgrow the size limit lose their exception probes, then all their probes;
+    // methods with no place for a probe that the JIT compilers accept lose all their probes
     Map<String, Integer> reductions = new HashMap<>();
     while (true) {
       try {
@@ -84,6 +85,11 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
       } catch (MethodTooLargeException e) {
         String method = e.getMethodName() + e.getDescriptor();
         if (reductions.merge(method, 1, Integer::sum) > SKIP_METHOD) {
+          throw e;
+        }
+      } catch (MethodProbeInserter.ProbePlacementException e) {
+        Integer previous = reductions.put(e.methodName + e.descriptor, SKIP_METHOD);
+        if (previous != null && previous == SKIP_METHOD) {
           throw e;
         }
       }
