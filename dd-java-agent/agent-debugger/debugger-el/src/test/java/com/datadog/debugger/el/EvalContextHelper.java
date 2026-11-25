@@ -5,6 +5,7 @@ import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import datadog.trace.bootstrap.debugger.util.WallTimeoutChecker;
 import java.time.Duration;
 import java.util.Map;
 
@@ -18,9 +19,10 @@ public class EvalContextHelper {
         createResolver(instance), TimeoutChecker.create(Config.get(), TEST_TIMEOUT));
   }
 
-  // specify lower timeout to test timeout checker
+  // specify lower timeout to test timeout checker: plain wall-clock checker, independent of the
+  // configured mode, so that pause compensation cannot prevent the expected timeout
   public static EvalContext createEvalContext(Object instance, Duration timeout) {
-    return new EvalContext(createResolver(instance), TimeoutChecker.create(Config.get(), timeout));
+    return new EvalContext(createResolver(instance), new WallTimeoutChecker(timeout));
   }
 
   public static ValueReferenceResolver createResolver(Object instance) {

@@ -8,6 +8,7 @@ import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.el.Values;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import datadog.trace.bootstrap.debugger.util.WallTimeoutChecker;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -49,8 +50,7 @@ public class ValueScriptTest {
             EvaluationException.class,
             () ->
                 valueScript.execute(
-                    createResolver(new Obj()),
-                    TimeoutChecker.create(Config.get(), Duration.ofMillis(1))));
+                    createResolver(new Obj()), new WallTimeoutChecker(Duration.ofMillis(1))));
     assertEquals("timeout (1ms)", evaluationException.getMessage());
     // test good execution
     assertEquals(

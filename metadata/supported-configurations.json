@@ -1296,7 +1296,7 @@
       {
         "version": "A",
         "type": "string",
-        "default": "WALL",
+        "default": "WALL-PAUSE-DETECTOR",
         "aliases": []
       }
     ],
