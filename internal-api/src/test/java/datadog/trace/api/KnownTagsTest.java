@@ -290,8 +290,11 @@ class KnownTagsTest {
 
   @Test
   void serialEncodingRoundTrips() {
-    long id = KnownTagCodec.makeTagId(263);
-    assertEquals(263, KnownTagCodec.serialNum(id));
+    // Serials follow tag names, so adding a tag renumbers others: take one from a span-level tag.
+    int serial = KnownTagCodec.serialNum(KnownTags.HTTP_ROUTE);
+    long id = KnownTagCodec.makeTagId(serial);
+    assertEquals(serial, KnownTagCodec.serialNum(id));
+    assertEquals(KnownTags.HTTP_ROUTE, id);
     assertFalse(KnownTagCodec.isTraceLevel(id));
   }
 

@@ -260,6 +260,11 @@ span_types:
       - { dd-name: bucket,                  type: string, required: optional }
       - { dd-name: couchbase.operation_id,  type: string, required: optional }
 
+  db.hazelcast:
+    extends: db.client
+    tags:
+      - { dd-name: hazelcast.instance, type: string, required: optional }
+
   db.redis:
     extends: db.client
     tags:
@@ -557,6 +562,7 @@ mixins:
     tags:
       - { dd-name: peer.hostname, type: string, required: recommended, otel-name: server.address }
       - { dd-name: peer.port,     type: int,    otel-name: server.port }
+      - { dd-name: net.peer.name, type: string, required: optional }
 
   # inbound_peer — the other end of an inbound connection: the client.
   inbound_peer:
