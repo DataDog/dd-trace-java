@@ -298,7 +298,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       if (streamTaskContext != null) {
         applicationId = streamTaskContext.getApplicationId();
       }
-      DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
+      DataStreamsTags tags = createWithGroup("kafka", INBOUND, record.topic(), applicationId);
 
       final long payloadSize =
           traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(record.value) : 0;
@@ -365,7 +365,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       if (streamTaskContext != null) {
         applicationId = streamTaskContext.getApplicationId();
       }
-      DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
+      DataStreamsTags tags = createWithGroup("kafka", INBOUND, record.topic(), applicationId);
 
       long payloadSize = 0;
       // we have to go through Object to get the RecordMetadata here because the class of `record`
