@@ -78,6 +78,7 @@ import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.bootstrap.instrumentation.api.TagDerivations;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTelemetryInterceptor;
@@ -371,6 +372,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     private boolean injectBaggageAsTags;
     private boolean injectLinksAsTags;
     private boolean flushOnClose;
+    private boolean derivedTags = Boolean.getBoolean("dd.trace.experimental.derived.tags.enabled");
 
     public CoreTracerBuilder serviceName(String serviceName) {
       this.serviceName = serviceName;
@@ -525,6 +527,15 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       return this;
     }
 
+    /**
+     * Experimental: spans compute the base prototype's derived tags (peer service, integration,
+     * service source) when read, instead of post-processors stamping them.
+     */
+    public CoreTracerBuilder derivedTags(boolean derivedTags) {
+      this.derivedTags = derivedTags;
+      return this;
+    }
+
     public CoreTracerBuilder() {
       // Apply the default values from config.
       config(Config.get());
@@ -561,36 +572,51 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
 
     public CoreTracer build() {
-      return new CoreTracer(
-          config,
-          serviceName,
-          sharedCommunicationObjects,
-          writer,
-          idGenerationStrategy,
-          sampler,
-          singleSpanSampler,
-          injector,
-          extractor,
-          localRootSpanTags,
-          defaultSpanTags,
-          serviceNameMappings,
-          taggedHeaders,
-          baggageMapping,
-          partialFlushMinSpans,
-          healthMetrics,
-          tagInterceptor,
-          strictTraceWrites,
-          instrumentationGateway,
-          serviceDiscoveryFactory,
-          timeSource,
-          dataStreamsMonitoring,
-          profilingContextIntegration,
-          reportInTracerFlare,
-          pollForTracingConfiguration,
-          injectBaggageAsTags,
-          injectLinksAsTags,
-          flushOnClose);
+      CoreTracer tracer =
+          new CoreTracer(
+              config,
+              serviceName,
+              sharedCommunicationObjects,
+              writer,
+              idGenerationStrategy,
+              sampler,
+              singleSpanSampler,
+              injector,
+              extractor,
+              localRootSpanTags,
+              defaultSpanTags,
+              serviceNameMappings,
+              taggedHeaders,
+              baggageMapping,
+              partialFlushMinSpans,
+              healthMetrics,
+              tagInterceptor,
+              strictTraceWrites,
+              instrumentationGateway,
+              serviceDiscoveryFactory,
+              timeSource,
+              dataStreamsMonitoring,
+              profilingContextIntegration,
+              reportInTracerFlare,
+              pollForTracingConfiguration,
+              injectBaggageAsTags,
+              injectLinksAsTags,
+              flushOnClose);
+      if (derivedTags) {
+        tracer.baseDerivations =
+            BaseTagDerivations.create(
+                SpanNaming.instance().namingSchema().peerService(),
+                tracer.initialConfig.getPeerServiceMapping());
+      }
+      return tracer;
     }
+  }
+
+  /** The base prototype's formulas, which every span starts with; empty unless enabled. */
+  private volatile TagDerivations baseDerivations = TagDerivations.EMPTY;
+
+  TagDerivations baseDerivations() {
+    return baseDerivations;
   }
 
   @Deprecated
