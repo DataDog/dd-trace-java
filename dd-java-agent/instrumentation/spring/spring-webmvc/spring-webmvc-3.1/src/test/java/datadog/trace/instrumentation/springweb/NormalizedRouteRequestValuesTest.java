@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.springweb;
 
-import static datadog.trace.api.appsec.route.NormalizedRouteHelper.NORMALIZED_ROUTE_TAG;
+import static datadog.trace.api.KnownTags.DD_APPSEC_NORMALIZED_ROUTE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
@@ -24,6 +24,11 @@ import org.springframework.web.servlet.HandlerMapping;
  */
 class NormalizedRouteRequestValuesTest {
 
+  private static final String INCLUDE_REQUEST_URI = "javax.servlet.include.request_uri";
+  private static final String INCLUDE_CONTEXT_PATH = "javax.servlet.include.context_path";
+  private static final String INCLUDE_SERVLET_PATH = "javax.servlet.include.servlet_path";
+  private static final String INCLUDE_PATH_INFO = "javax.servlet.include.path_info";
+
   private boolean appSecActive;
 
   @BeforeEach
@@ -39,22 +44,14 @@ class NormalizedRouteRequestValuesTest {
 
   @Test
   void includeAttributesDescribeTheIncludedRequest() {
-    MockHttpServletRequest request = request("/ctx/main", "/ctx", "/main", null);
-    request.setAttribute("javax.servlet.include.request_uri", "/ctx/api/static/a");
-    request.setAttribute("javax.servlet.include.context_path", "/ctx");
-    request.setAttribute("javax.servlet.include.servlet_path", "/api");
-    request.setAttribute("javax.servlet.include.path_info", "/static/a");
+    MockHttpServletRequest request = included("/ctx/api/static/a", "/api", "/static/a");
 
     assertTag(request, "/static/**", "/ctx/api/static/{param1}");
   }
 
   @Test
   void includeAttributesWithTheCachedLookupPath() {
-    MockHttpServletRequest request = request("/ctx/main", "/ctx", "/main", null);
-    request.setAttribute("javax.servlet.include.request_uri", "/ctx/api/a");
-    request.setAttribute("javax.servlet.include.context_path", "/ctx");
-    request.setAttribute("javax.servlet.include.servlet_path", "/api");
-    request.setAttribute("javax.servlet.include.path_info", "/a");
+    MockHttpServletRequest request = included("/ctx/api/a", "/api", "/a");
     request.setAttribute("org.springframework.web.util.UrlPathHelper.PATH", "/a");
 
     assertTag(request, "/a", "/ctx/api/a");
@@ -134,6 +131,19 @@ class NormalizedRouteRequestValuesTest {
     verify(span, never()).setTag(anyString(), anyString());
   }
 
+  /** Request including {@code requestUri} from {@code /ctx/main}, as the container describes it. */
+  private static MockHttpServletRequest included(
+      String requestUri, String servletPath, String pathInfo) {
+    MockHttpServletRequest request = request("/ctx/main", "/ctx", "/main", null);
+    request.setAttribute(INCLUDE_REQUEST_URI, requestUri);
+    request.setAttribute(INCLUDE_CONTEXT_PATH, "/ctx");
+    request.setAttribute(INCLUDE_SERVLET_PATH, servletPath);
+    if (pathInfo != null) {
+      request.setAttribute(INCLUDE_PATH_INFO, pathInfo);
+    }
+    return request;
+  }
+
   private static MockHttpServletRequest request(
       String requestUri, String contextPath, String servletPath, String pathInfo) {
     MockHttpServletRequest request = new MockHttpServletRequest("GET", requestUri);
@@ -160,6 +170,6 @@ class NormalizedRouteRequestValuesTest {
 
     SpringWebHttpServerDecorator.tagNormalizedRoute(span, request, pattern);
 
-    verify(span).setTag(NORMALIZED_ROUTE_TAG, expected);
+    verify(span).setTag(DD_APPSEC_NORMALIZED_ROUTE, expected);
   }
 }

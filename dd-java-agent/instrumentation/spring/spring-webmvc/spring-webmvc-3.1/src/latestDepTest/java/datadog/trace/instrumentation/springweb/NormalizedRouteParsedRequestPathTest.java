@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.springweb;
 
-import static datadog.trace.api.appsec.route.NormalizedRouteHelper.NORMALIZED_ROUTE_TAG;
+import static datadog.trace.api.KnownTags.DD_APPSEC_NORMALIZED_ROUTE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -102,6 +102,6 @@ class NormalizedRouteParsedRequestPathTest {
 
     SpringWebHttpServerDecorator.tagNormalizedRoute(span, request, pattern);
 
-    verify(span).setTag(NORMALIZED_ROUTE_TAG, expected);
+    verify(span).setTag(DD_APPSEC_NORMALIZED_ROUTE, expected);
   }
 }

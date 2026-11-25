@@ -1,6 +1,7 @@
 package datadog.trace.api.appsec.route;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -15,7 +16,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class NormalizedRouteHelper {
 
-  public static final String NORMALIZED_ROUTE_TAG = "_dd.appsec.normalized_route";
+  public static final String NORMALIZED_ROUTE_TAG = KnownTags.DD_APPSEC_NORMALIZED_ROUTE_NAME;
 
   private static final Logger log = LoggerFactory.getLogger(NormalizedRouteHelper.class);
 
@@ -65,7 +66,7 @@ public final class NormalizedRouteHelper {
       }
       String route = template.render(decodedPrefix, resolver);
       if (route != null && !route.isEmpty()) {
-        span.setTag(NORMALIZED_ROUTE_TAG, route);
+        span.setTag(KnownTags.DD_APPSEC_NORMALIZED_ROUTE, route);
       }
     } catch (Throwable t) {
       // never break the request: drop the tag
