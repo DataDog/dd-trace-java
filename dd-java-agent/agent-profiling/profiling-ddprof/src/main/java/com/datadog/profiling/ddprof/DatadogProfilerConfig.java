@@ -132,11 +132,20 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean isWallClockProfilerEnabled(ConfigProvider configProvider) {
+    return getBoolean(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_WALL_ENABLED,
+        isWallClockProfilerEnabledByDefault(configProvider));
+  }
+
+  /**
+   * @return whether wall clock profiling is enabled unless the configuration disables it: it is
+   *     disabled unless opted in on J9, in ultra minimal mode, and when tracing is disabled
+   */
+  public static boolean isWallClockProfilerEnabledByDefault(ConfigProvider configProvider) {
     boolean isUltraMinimal = getBoolean(configProvider, PROFILING_ULTRA_MINIMAL, false);
     boolean isTracingEnabled = configProvider.getBoolean(TRACE_ENABLED, true);
-    boolean disableUnlessOptedIn = isUltraMinimal || !isTracingEnabled || isJ9();
-    boolean enabledByDefault = !disableUnlessOptedIn;
-    return getBoolean(configProvider, PROFILING_DATADOG_PROFILER_WALL_ENABLED, enabledByDefault);
+    return !(isUltraMinimal || !isTracingEnabled || isJ9());
   }
 
   public static int getWallInterval(ConfigProvider configProvider) {

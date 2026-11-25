@@ -1,18 +1,25 @@
 package com.datadog.profiling.agent;
 
 import static com.datadog.profiling.controller.ProfilingSupport.isAllocationSamplerSafe;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeTrackingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
 import static com.datadog.profiling.remoteconfig.TestConfigKey.configKey;
 import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
 import static com.datadog.profiling.utils.ProfilingMode.CPU;
 import static com.datadog.profiling.utils.ProfilingMode.LIVEHEAP_SIZE;
 import static com.datadog.profiling.utils.ProfilingMode.MEMLEAK;
 import static com.datadog.profiling.utils.ProfilingMode.WALL;
+import static datadog.environment.JavaVirtualMachine.isJ9;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static java.lang.Boolean.TRUE;
 import static java.util.Collections.emptyMap;
@@ -47,6 +54,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -300,7 +308,8 @@ class ProfilingRemoteConfigHandlerTest {
   void featuresSwitchTheirModes() {
     Map<ProfilingMode, Boolean> overrides =
         ProfilingRemoteConfigHandler.modeOverrides(
-            config("\"cpuTime\":true,\"wallTime\":false,\"heapObjects\":false,\"heapSize\":false"));
+            config("\"cpuTime\":true,\"wallTime\":false,\"heapObjects\":false,\"heapSize\":false"),
+            localConfig());
 
     Map<ProfilingMode, Boolean> expected = new EnumMap<>(ProfilingMode.class);
     expected.put(CPU, true);
@@ -314,14 +323,15 @@ class ProfilingRemoteConfigHandlerTest {
   void featuresNotSetDoNotOverrideTheirModes() {
     assertEquals(
         singletonMap(CPU, true),
-        ProfilingRemoteConfigHandler.modeOverrides(config("\"cpuTime\":true")));
+        ProfilingRemoteConfigHandler.modeOverrides(config("\"cpuTime\":true"), localConfig()));
   }
 
   @Test
   void remoteEnablementIsOnlyKeptWhereItIsSafe() {
     Map<ProfilingMode, Boolean> overrides =
         ProfilingRemoteConfigHandler.modeOverrides(
-            config("\"cpuTime\":true,\"allocations\":true,\"heapObjects\":true,\"heapSize\":true"));
+            config("\"cpuTime\":true,\"allocations\":true,\"heapObjects\":true,\"heapSize\":true"),
+            localConfig());
 
     // the local configuration decides where it isn't safe
     assertEquals(isAllocationSamplerSafe(), overrides.containsKey(ALLOCATION));
@@ -334,11 +344,39 @@ class ProfilingRemoteConfigHandlerTest {
   void remoteDisablementIsAlwaysKept() {
     Map<ProfilingMode, Boolean> overrides =
         ProfilingRemoteConfigHandler.modeOverrides(
-            config("\"allocations\":false,\"heapObjects\":false,\"heapSize\":false"));
+            config("\"allocations\":false,\"heapObjects\":false,\"heapSize\":false"),
+            localConfig());
 
     assertEquals(false, overrides.get(ALLOCATION));
     assertEquals(false, overrides.get(MEMLEAK));
     assertEquals(false, overrides.get(LIVEHEAP_SIZE));
+  }
+
+  /**
+   * Like the local default, a remote enablement of wall clock profiling is ignored where it is
+   * disabled unless opted in, e.g. in ultra minimal mode or without tracing, and on J9.
+   */
+  @ParameterizedTest(name = "{0}")
+  @CsvSource({
+    "default,          false, true,  true",
+    "ultra minimal,    true,  true,  false",
+    "tracing disabled, false, false, false"
+  })
+  void remoteWallClockEnablementIsOnlyKeptWhereItIsEnabledByDefault(
+      String scenario, String ultraMinimal, String tracing, boolean kept) {
+    Properties properties = new Properties();
+    properties.put(PROFILING_ULTRA_MINIMAL, ultraMinimal);
+    properties.put(TRACE_ENABLED, tracing);
+    ConfigProvider local = ConfigProvider.withPropertiesOverride(properties);
+
+    Map<ProfilingMode, Boolean> enabled =
+        ProfilingRemoteConfigHandler.modeOverrides(config("\"wallTime\":true"), local);
+    Map<ProfilingMode, Boolean> disabled =
+        ProfilingRemoteConfigHandler.modeOverrides(config("\"wallTime\":false"), local);
+
+    // wall clock profiling is also only enabled by an opt-in on J9
+    assertEquals(kept && !isJ9(), enabled.containsKey(WALL), String.valueOf(enabled));
+    assertEquals(false, disabled.get(WALL), "disabling it is always allowed");
   }
 
   @Test
@@ -361,7 +399,77 @@ class ProfilingRemoteConfigHandlerTest {
     assertEquals(true, reported.get(PROFILING_DATADOG_PROFILER_CPU_ENABLED).value);
     assertEquals(false, reported.get(PROFILING_DATADOG_PROFILER_WALL_ENABLED).value);
     assertEquals(false, reported.get(PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE).value);
-    assertEquals(3, reported.size(), String.valueOf(reported));
+    // the settings it doesn't override are reported with their local value
+    assertEquals(
+        isAllocationProfilingEnabled(localConfig),
+        reported.get(PROFILING_ALLOCATION_ENABLED).value);
+    assertEquals(
+        isMemoryLeakProfilingEnabled(localConfig), reported.get(PROFILING_HEAP_ENABLED).value);
+    assertEquals(5, reported.size(), String.valueOf(reported));
+  }
+
+  /**
+   * Once remote config no longer overrides a setting, telemetry is told its local value back,
+   * instead of keeping the remote one.
+   */
+  @Test
+  void removedOverridesAreReportedToTelemetryWithTheLocalValue() throws Exception {
+    ProfilingRemoteConfigHandler handler = handler();
+    ConfigCollector.get().collect();
+    handler.onConfigsChanged(
+        stackOf("\"cpuTime\":true,\"wallTime\":" + !isWallClockProfilerEnabled(localConfig)));
+    ConfigCollector.get().collect();
+
+    // the wall clock override is removed
+    handler.onConfigsChanged(stackOf("\"cpuTime\":true"));
+
+    Map<String, ConfigSetting> reported = ConfigCollector.get().collect().get(ConfigOrigin.REMOTE);
+    assertEquals(true, reported.get(PROFILING_DATADOG_PROFILER_CPU_ENABLED).value);
+    assertEquals(
+        isWallClockProfilerEnabled(localConfig),
+        reported.get(PROFILING_DATADOG_PROFILER_WALL_ENABLED).value);
+  }
+
+  @Test
+  void removingEveryOverrideReportsTheLocalValuesToTelemetry() throws Exception {
+    ProfilingRemoteConfigHandler handler = handlerWhereTheLocalConfigEnablesProfiling();
+    ConfigCollector.get().collect();
+    handler.onConfigsChanged(stackOf(ALL_FEATURES_DISABLED));
+    ConfigCollector.get().collect();
+
+    handler.onConfigsChanged(stackOfConfigsThatSetNoFeature());
+
+    Map<String, ConfigSetting> reported = ConfigCollector.get().collect().get(ConfigOrigin.REMOTE);
+    assertEquals(
+        ProfilingRemoteConfigHandler.telemetryValues(emptyMap(), localConfig), valuesOf(reported));
+  }
+
+  @Test
+  void telemetryValuesTakeTheOverridesOverTheLocalValues() {
+    Map<ProfilingMode, Boolean> overrides = new EnumMap<>(ProfilingMode.class);
+    overrides.put(CPU, !isCpuProfilerEnabled(localConfig));
+
+    Map<String, Object> values =
+        ProfilingRemoteConfigHandler.telemetryValues(overrides, localConfig);
+
+    assertEquals(
+        !isCpuProfilerEnabled(localConfig), values.get(PROFILING_DATADOG_PROFILER_CPU_ENABLED));
+    assertEquals(
+        isWallClockProfilerEnabled(localConfig),
+        values.get(PROFILING_DATADOG_PROFILER_WALL_ENABLED));
+    assertEquals(
+        isAllocationProfilingEnabled(localConfig), values.get(PROFILING_ALLOCATION_ENABLED));
+    assertEquals(isMemoryLeakProfilingEnabled(localConfig), values.get(PROFILING_HEAP_ENABLED));
+    assertEquals(
+        isLiveHeapSizeTrackingEnabled(localConfig),
+        values.get(PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE));
+    assertEquals(5, values.size(), String.valueOf(values));
+  }
+
+  private static Map<String, Object> valuesOf(Map<String, ConfigSetting> settings) {
+    Map<String, Object> values = new HashMap<>();
+    settings.forEach((name, setting) -> values.put(name, setting.value));
+    return values;
   }
 
   @Test
@@ -809,31 +917,42 @@ class ProfilingRemoteConfigHandlerTest {
    * enabled locally. Without the filter, e.g. without tracing, it samples every thread.
    */
   @ParameterizedTest(
-      name = "{0}: local wall {1}, tracing {2}, context filter {3}, remote {4} -> {5}")
+      name =
+          "{0}: local wall {1}, tracing {2}, context filter {3}, ultra minimal {4}, remote {5} -> {6}")
   @CsvSource({
-    "filtered and disabled locally,  false, true,  true,  '\"wallTime\":true',  true",
-    "enabled locally,                true,  true,  true,  '\"wallTime\":true',  false",
-    "context filter disabled,        false, true,  false, '\"wallTime\":true',  false",
-    "tracing disabled,               false, false, true,  '\"wallTime\":true',  false",
-    "not enabled remotely,           false, true,  true,  '\"wallTime\":false', false",
-    "not set remotely,               false, true,  true,  '\"cpuTime\":true',   false"
+    "filtered and disabled locally,  false, true,  true,  false, '\"wallTime\":true',  true",
+    "enabled locally,                true,  true,  true,  false, '\"wallTime\":true',  false",
+    "context filter disabled,        false, true,  false, false, '\"wallTime\":true',  false",
+    "tracing disabled,               false, false, true,  false, '\"wallTime\":true',  false",
+    "ultra minimal,                  false, true,  true,  true,  '\"wallTime\":true',  false",
+    "not enabled remotely,           false, true,  true,  false, '\"wallTime\":false', false",
+    "not set remotely,               false, true,  true,  false, '\"cpuTime\":true',   false"
   })
   void wallClockCantSampleOnlyWithTheWallContextFilter(
       String scenario,
       String localWall,
       String tracing,
       String contextFilter,
+      String ultraMinimal,
       String remoteProfilers,
       boolean expected) {
     Properties properties = new Properties();
     properties.put(PROFILING_DATADOG_PROFILER_WALL_ENABLED, localWall);
     properties.put(TRACE_ENABLED, tracing);
     properties.put(PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER, contextFilter);
+    properties.put(PROFILING_ULTRA_MINIMAL, ultraMinimal);
 
+    // where wall clock profiling is disabled unless opted in, e.g. on J9, the remote enablement is
+    // ignored, so there is nothing to warn about
     assertEquals(
-        expected,
+        expected && !isJ9(),
         ProfilingRemoteConfigHandler.wallClockCantSample(
             config(remoteProfilers), ConfigProvider.withPropertiesOverride(properties)));
+  }
+
+  /** The default local configuration. */
+  private static ConfigProvider localConfig() {
+    return ConfigProvider.withPropertiesOverride(new Properties());
   }
 
   private static RemoteConfiguration config(String profilers) {

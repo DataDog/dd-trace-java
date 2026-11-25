@@ -2,7 +2,12 @@ package com.datadog.profiling.agent;
 
 import static com.datadog.profiling.controller.ProfilingSupport.isAllocationSamplerSafe;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallContextFilter;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeTrackingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabledByDefault;
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.ALLOCATIONS;
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.CPU_TIME;
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.HEAP_OBJECTS;
@@ -83,8 +88,9 @@ import org.slf4j.LoggerFactory;
  *       8, a configuration that only enables {@code allocations}, {@code heapObjects} and/or {@code
  *       heapSize} enables no Datadog profiler mode, so it doesn't start the profiler.
  *   <li>Remote config doesn't enable allocation or live heap profiling where they are not
- *       considered safe, see {@link #modeOverrides}: a remote {@code true} is ignored there, and
- *       the local configuration decides.
+ *       considered safe, nor wall clock profiling where it is disabled unless opted in, e.g. on J9,
+ *       see {@link #modeOverrides}: a remote {@code true} is ignored there, and the local
+ *       configuration decides.
  *   <li>The Datadog profiler only tracks the size of the live heap as part of live heap profiling.
  *       So {@code heapSize} enabled with {@code heapObjects} disabled still samples the live heap
  *       objects.
@@ -132,6 +138,12 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
    * lock across the profiler's start and stop.
    */
   private final AtomicBoolean applying = new AtomicBoolean();
+
+  /**
+   * Whether remote config overrides were reported to telemetry, so that it is told the local values
+   * back. Only accessed while applying, by one thread at a time.
+   */
+  private boolean reportedToTelemetry;
 
   // only used by the thread holding the applying flag
 
@@ -245,7 +257,7 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
       return;
     }
     final Map<ProfilingMode, Boolean> overrides =
-        remote == null ? emptyMap() : modeOverrides(remote);
+        remote == null ? emptyMap() : modeOverrides(remote, localConfig);
     final boolean enabled;
     if (remote == null) {
       log.debug("No APM_PROFILING remote config, the profiler is idle");
@@ -330,16 +342,28 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
 
   /**
    * The Datadog profiler modes that a remote configuration switches on or off, one per feature it
-   * sets. A remote {@code true} for allocation or live heap profiling is ignored on a JVM where the
-   * Datadog profiler's allocation sampler is not considered safe, e.g. because of jmethodID crash
-   * bugs, so that the local configuration decides there: an explicit local opt-in is still honored.
+   * sets. A remote {@code true} is ignored where the mode is not enabled without an explicit local
+   * opt-in, so that the local configuration decides there, and an opt-in is still honored:
+   *
+   * <ul>
+   *   <li>allocation and live heap profiling on a JVM where the Datadog profiler's allocation
+   *       sampler is not considered safe, e.g. because of jmethodID crash bugs;
+   *   <li>wall clock profiling where it is disabled unless opted in, i.e. on J9, in ultra minimal
+   *       mode, and when tracing is disabled.
+   * </ul>
+   *
    * Disabling them is always allowed.
+   *
+   * @param localConfig the local configuration, which tells where wall clock profiling is disabled
+   *     unless opted in
    */
-  static Map<ProfilingMode, Boolean> modeOverrides(RemoteConfiguration remote) {
+  static Map<ProfilingMode, Boolean> modeOverrides(
+      RemoteConfiguration remote, ConfigProvider localConfig) {
     Map<ProfilingMode, Boolean> overrides = new EnumMap<>(ProfilingMode.class);
     boolean samplerSafe = isAllocationSamplerSafe();
     override(overrides, CPU, remote.get(CPU_TIME), true);
-    override(overrides, WALL, remote.get(WALL_TIME), true);
+    override(
+        overrides, WALL, remote.get(WALL_TIME), isWallClockProfilerEnabledByDefault(localConfig));
     override(overrides, ALLOCATION, remote.get(ALLOCATIONS), samplerSafe);
     override(overrides, MEMLEAK, remote.get(HEAP_OBJECTS), samplerSafe);
     override(overrides, LIVEHEAP_SIZE, remote.get(HEAP_SIZE), samplerSafe);
@@ -355,23 +379,62 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
       return;
     }
     if (value && !enablementSafe) {
-      log.debug("Ignoring the remote enablement of {}, which is not safe on this JVM", mode);
+      log.debug(
+          "Ignoring the remote enablement of {}, which is only enabled here by a local opt-in",
+          mode);
       return;
     }
     overrides.put(mode, value);
   }
 
   /**
-   * Reports the mode overrides applied to config telemetry, with the remote config origin, under
-   * the names of the local settings they override.
+   * Reports the values of the overridden settings to config telemetry, with the remote config
+   * origin, under the names of the local settings, like the other remote configurable settings:
+   * once remote config has overridden one, each applied configuration reports them all, with the
+   * local value of those it doesn't override, e.g. after an override is removed, which would
+   * otherwise keep its remote value in telemetry. Nothing is reported while remote config has never
+   * overridden any.
    */
-  private static void reportToTelemetry(Map<ProfilingMode, Boolean> overrides) {
-    if (overrides.isEmpty()) {
+  private void reportToTelemetry(Map<ProfilingMode, Boolean> overrides) {
+    if (overrides.isEmpty() && !reportedToTelemetry) {
       return;
     }
+    ConfigCollector.get().putRemote(telemetryValues(overrides, localConfig));
+    reportedToTelemetry = true;
+  }
+
+  /**
+   * @return the value of each overridden setting: the override if there is one, the local value
+   *     otherwise, by the name of the setting
+   */
+  static Map<String, Object> telemetryValues(
+      Map<ProfilingMode, Boolean> overrides, ConfigProvider localConfig) {
     Map<String, Object> values = new HashMap<>();
-    overrides.forEach((mode, enabled) -> values.put(OVERRIDDEN_SETTINGS.get(mode), enabled));
-    ConfigCollector.get().putRemote(values);
+    for (Map.Entry<ProfilingMode, String> setting : OVERRIDDEN_SETTINGS.entrySet()) {
+      Boolean override = overrides.get(setting.getKey());
+      values.put(
+          setting.getValue(),
+          override != null ? override : localValue(setting.getKey(), localConfig));
+    }
+    return values;
+  }
+
+  /** The value of the local setting that the mode overrides. */
+  private static boolean localValue(ProfilingMode mode, ConfigProvider localConfig) {
+    switch (mode) {
+      case CPU:
+        return isCpuProfilerEnabled(localConfig);
+      case WALL:
+        return isWallClockProfilerEnabled(localConfig);
+      case ALLOCATION:
+        return isAllocationProfilingEnabled(localConfig);
+      case MEMLEAK:
+        return isMemoryLeakProfilingEnabled(localConfig);
+      case LIVEHEAP_SIZE:
+        return isLiveHeapSizeTrackingEnabled(localConfig);
+      default:
+        throw new IllegalArgumentException("Not an overridden mode: " + mode);
+    }
   }
 
   /**
@@ -395,6 +458,8 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
    */
   static boolean wallClockCantSample(RemoteConfiguration remote, ConfigProvider localConfig) {
     return Boolean.TRUE.equals(remote.get(WALL_TIME))
+        // where it is disabled unless opted in, the remote enablement is ignored, see modeOverrides
+        && isWallClockProfilerEnabledByDefault(localConfig)
         && !isWallClockProfilerEnabled(localConfig)
         && getWallContextFilter(localConfig);
   }
