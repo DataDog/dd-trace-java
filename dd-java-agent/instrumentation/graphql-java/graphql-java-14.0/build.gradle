@@ -15,7 +15,12 @@ muzzle {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
+sourceSets.matching { it.name == 'test' || it.name.endsWith('Test') }.configureEach {
+  java.srcDir project(':dd-java-agent:instrumentation:graphql-java:graphql-java-common').file('src/sharedTest/java')
+}
+
 dependencies {
+  testImplementation libs.bundles.mockito
   compileOnly group: 'com.graphql-java', name: 'graphql-java', version: '14.0'
   implementation project(':dd-java-agent:instrumentation:graphql-java:graphql-java-common')
 
