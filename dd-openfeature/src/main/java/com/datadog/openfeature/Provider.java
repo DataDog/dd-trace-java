@@ -118,28 +118,29 @@ public class Provider extends EventProvider implements Metadata {
 
     // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
     // allocates nothing, including when the gate is off.
-    final List<Hook> hooks = new ArrayList<>(5);
+    // The provider's hooks all run at the finally stage, so they run behind one composite hook: the
+    // SDK sets up a hook context per hook on every evaluation. Gated hooks honor the evaluation
+    // telemetry opt-out.
+    final List<Hook<?>> hooks = new ArrayList<>(5);
+    final List<Boolean> gated = new ArrayList<>(5);
     if (flagEvalMetricsHook != null) {
       hooks.add(flagEvalMetricsHook);
+      gated.add(true);
     }
-    // EVP flagevaluation hook: always registered; no-op when the pipeline is absent (killswitch
-    // off or provider not initialized). The pipeline is resolved lazily on each call.
     hooks.add(new FlagEvalLoggingHook<>(this::flagEvaluationPipeline));
+    gated.add(true);
     if (spanEnrichmentHook != null) {
       hooks.add(spanEnrichmentHook);
+      gated.add(true);
     }
-    if (options.isEvaluationTelemetryOptOutParameterEnabled(this.settings)) {
-      for (int i = 0; i < hooks.size(); i++) {
-        hooks.set(i, new EvaluationTelemetryOptOutHook(hooks.get(i)));
-      }
-    }
-    // Local debug diagnostics are not telemetry, so the opt-out does not apply to them.
+    final boolean optOutEnabled =
+        options.isEvaluationTelemetryOptOutParameterEnabled(this.settings);
     if (this.settings.isTraceDebug()) {
       if (DebugLoggingHook.isLoggerEnabled()) {
         hooks.add(new DebugLoggingHook<>());
+        gated.add(false);
         DebugLoggingHook.announce();
       } else {
-        // DD_TRACE_DEBUG cannot raise the application's logger levels, so name the second gate.
         log.warn(
             "DD_TRACE_DEBUG is enabled, but DEBUG is disabled for {} in the application's logging"
                 + " configuration; evaluation debug diagnostics are off. Enable DEBUG for that"
@@ -147,12 +148,10 @@ public class Provider extends EventProvider implements Metadata {
             DebugLoggingHook.class.getName());
       }
     }
-    // Exposure hook: always registered last, and independent of evaluation telemetry opt-out; no-op
-    // when the evaluator is not a Datadog one or is
-    // not initialized.
     hooks.add(new ExposureLoggingHook<>(this::datadogEvaluator));
+    gated.add(false);
     this.providerHooks =
-        hooks.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(hooks);
+        Collections.<Hook>singletonList(new CompositeProviderHook(hooks, gated, optOutEnabled));
 
     // Announce the span-enrichment state at startup (matches the reference implementation).
     // "enabled" only when the gate is on (the capture hook was constructed), otherwise "disabled".

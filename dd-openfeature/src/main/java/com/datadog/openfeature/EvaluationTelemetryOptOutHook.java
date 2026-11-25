@@ -48,7 +48,7 @@ final class EvaluationTelemetryOptOutHook implements Hook<Object> {
     delegate.finallyAfter(context, details, hints);
   }
 
-  private static boolean isOptedOut(final EvaluationContext context) {
+  static boolean isOptedOut(final EvaluationContext context) {
     final Value value = context == null ? null : context.getValue(PARAMETER);
     return value != null && value.isBoolean() && Boolean.TRUE.equals(value.asBoolean());
   }
