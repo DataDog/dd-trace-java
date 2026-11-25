@@ -234,7 +234,7 @@ default:
     GIT_SUBMODULE_DEPTH: 1
   cache:
     - &dependency_cache
-      key: dependency-$CACHE_TYPE # Dependencies cache
+      key: pr13694-dependency-$CACHE_TYPE
       paths:
         # Cached dependencies and wrappers for Gradle and Maven:
         - .gradle/wrapper
@@ -244,8 +244,8 @@ default:
       policy: $DEPENDENCY_CACHE_POLICY
       unprotect: true
       fallback_keys: # Use fallback keys because all cache types are not populated. See note under: populate_dep_cache
-        - 'dependency-base'
-        - 'dependency-lib'
+        - 'pr13694-dependency-base'
+        - 'pr13694-dependency-lib'
   before_script:
     - source .gitlab/gitlab-utils.sh
     - *container_info
@@ -416,7 +416,7 @@ populate_plugin_cache:
   extends: .gradle_build
   cache:
     - &plugin_cache
-      key: dependency-plugins-v1
+      key: pr13694-dependency-plugins-v1
       paths:
         - .gradle-plugin-cache/caches/modules-2
       policy: pull-push
