@@ -120,6 +120,7 @@ import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.traceinterceptor.LatencyTraceInterceptor;
 import datadog.trace.lambda.LambdaAppSecHandler;
 import datadog.trace.lambda.LambdaHandler;
+import datadog.trace.lambda.LambdaInvocation;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
@@ -148,6 +149,7 @@ import org.slf4j.LoggerFactory;
  * reporting, and propagating traces
  */
 public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
+
   private static final Logger log = LoggerFactory.getLogger(CoreTracer.class);
 
   /** Temporary development gate; remove together with the legacy Lambda path. */
@@ -1333,6 +1335,21 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     if (activeScope != null) {
       activeScope.close();
     }
+  }
+
+  @Override
+  public AgentTracer.LambdaInvocation startLambdaInvocation(
+      Object event,
+      String requestId,
+      String functionName,
+      String functionVersion,
+      String invokedArn) {
+    if (!isNativeLambdaTracingEnabled()) {
+      return null;
+    }
+    maybeResyncClockForLambdaInvocation();
+    return LambdaInvocation.start(
+        this, initialConfig, event, requestId, functionName, functionVersion, invokedArn);
   }
 
   @Override
