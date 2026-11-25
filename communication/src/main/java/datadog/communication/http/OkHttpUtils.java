@@ -362,11 +362,13 @@ public final class OkHttpUtils {
       return MSGPACK;
     }
 
+    /** Writes duplicates of the buffers, so that a retried request sends the whole body again. */
     @Override
     public void writeTo(BufferedSink sink) throws IOException {
       for (ByteBuffer buffer : buffers) {
-        while (buffer.hasRemaining()) {
-          sink.write(buffer);
+        ByteBuffer unread = buffer.duplicate();
+        while (unread.hasRemaining()) {
+          sink.write(unread);
         }
       }
     }

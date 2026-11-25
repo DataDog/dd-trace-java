@@ -1,11 +1,13 @@
 package datadog.trace.civisibility.writer.ddintake;
 
+import static datadog.communication.http.OkHttpUtils.sendWithRetries;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.serialization.ChunkedStreamingBuffer;
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.GrowableBuffer;
@@ -28,14 +30,26 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
+import okhttp3.mockwebserver.SocketPolicy;
+import okio.GzipSource;
+import okio.Okio;
 import org.junit.jupiter.api.Test;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
+import org.tabletest.junit.TableTest;
 
 @SuppressWarnings("unchecked")
 public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
@@ -280,6 +294,119 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
     assertEquals(2, sent.size());
     assertEquals(1, assertVersionAndGetCoverages(sent.get(0), 2).size());
     assertEquals(2, assertVersionAndGetCoverages(sent.get(1), 2).size());
+  }
+
+  /**
+   * The intake can get a request again after a failed attempt, sent by the retry policy or by the
+   * HTTP client itself; every attempt must carry the whole payload.
+   */
+  @TableTest({
+    "scenario                                       | failedAttempt            | compression",
+    "server error                                   | SERVER_ERROR             | false      ",
+    "compressed server error                        | SERVER_ERROR             | true       ",
+    "too many requests                              | TOO_MANY_REQUESTS        | false      ",
+    "compressed too many requests                   | TOO_MANY_REQUESTS        | true       ",
+    "connection closed after the request            | DISCONNECT_AFTER_REQUEST | false      ",
+    "compressed connection closed after the request | DISCONNECT_AFTER_REQUEST | true       ",
+    "no response before the read timeout            | NO_RESPONSE              | false      ",
+    "compressed no response before the read timeout | NO_RESPONSE              | true       "
+  })
+  void everyAttemptToSendAPayloadCarriesTheWholePayload(
+      FailedAttempt failedAttempt, boolean compression) throws Exception {
+    CiTestCovMapperV2 mapper = new CiTestCovMapperV2(compression);
+    GrowableBuffer buffer = new GrowableBuffer(1024);
+    mapper.map(
+        givenTrace(
+            report(3L, new TestReportFileEntry("sourceA", BitSet.valueOf(new long[] {3, 5, 8}))),
+            report(4L, new TestReportFileEntry("sourceB", BitSet.valueOf(new long[] {1, 255})))),
+        new MsgPackWriter(buffer));
+    // in several parts, as a chunked buffer hands the body over
+    Payload payload = mapper.newPayload().withBody(1, split(buffer.slice(), 3));
+    byte[] wholePayload = bytesOf(payload);
+
+    MockWebServer server = new MockWebServer();
+    server.enqueue(failedAttempt.response());
+    server.enqueue(new MockResponse().setResponseCode(200));
+    server.start();
+    OkHttpClient client = new OkHttpClient.Builder().readTimeout(1, TimeUnit.SECONDS).build();
+    try {
+      Request request =
+          new Request.Builder()
+              .url(server.url("/api/v2/citestcov"))
+              .post(payload.toRequest())
+              .build();
+      try (Response response =
+          sendWithRetries(client, new HttpRetryPolicy.Factory(1, 0, 1, true), request)) {
+        assertEquals(200, response.code());
+      }
+
+      assertEquals(2, server.getRequestCount());
+      for (int attempt = 1; attempt <= 2; attempt++) {
+        RecordedRequest recorded = server.takeRequest();
+        assertArrayEquals(wholePayload, coveragePart(recorded, compression), "attempt " + attempt);
+      }
+    } finally {
+      client.dispatcher().executorService().shutdownNow();
+      client.connectionPool().evictAll();
+      server.shutdown();
+    }
+  }
+
+  /** How the intake fails the first attempt to send a payload. */
+  enum FailedAttempt {
+    SERVER_ERROR,
+    TOO_MANY_REQUESTS,
+    /** The HTTP client sends the request again on a new connection. */
+    DISCONNECT_AFTER_REQUEST,
+    /** The read times out, and the retry policy sends the request again. */
+    NO_RESPONSE;
+
+    MockResponse response() {
+      switch (this) {
+        case SERVER_ERROR:
+          return new MockResponse().setResponseCode(503);
+        case TOO_MANY_REQUESTS:
+          return new MockResponse().setResponseCode(429);
+        case DISCONNECT_AFTER_REQUEST:
+          return new MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST);
+        default:
+          return new MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE);
+      }
+    }
+  }
+
+  /** Splits a buffer into {@code count} consecutive parts. */
+  private static List<ByteBuffer> split(ByteBuffer buffer, int count) {
+    List<ByteBuffer> parts = new ArrayList<>();
+    int partSize = (buffer.remaining() + count - 1) / count;
+    for (int start = buffer.position(); start < buffer.limit(); start += partSize) {
+      ByteBuffer part = buffer.duplicate();
+      part.position(start);
+      part.limit(Math.min(start + partSize, buffer.limit()));
+      parts.add(part.slice());
+    }
+    return parts;
+  }
+
+  /** The content of the coverage part of a recorded multipart request. */
+  private static byte[] coveragePart(RecordedRequest recorded, boolean compression)
+      throws IOException {
+    byte[] body =
+        compression
+            ? Okio.buffer(new GzipSource(recorded.getBody())).readByteArray()
+            : recorded.getBody().readByteArray();
+    String contentType = recorded.getHeader("Content-Type");
+    String delimiter =
+        "\r\n--" + contentType.substring(contentType.indexOf("boundary=") + "boundary=".length());
+    String text = new String(body, StandardCharsets.ISO_8859_1);
+    int start = text.indexOf("\r\n\r\n", text.indexOf("name=\"coverage1\"")) + 4;
+    return Arrays.copyOfRange(body, start, text.indexOf(delimiter, start));
+  }
+
+  private static byte[] bytesOf(Payload payload) throws IOException {
+    ByteArrayWritableByteChannel channel = new ByteArrayWritableByteChannel();
+    payload.writeTo(channel);
+    return channel.toByteArray();
   }
 
   private static int serializedSize(List<DDSpan> trace) {
