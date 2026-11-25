@@ -117,6 +117,7 @@ import spock.lang.Shared
 @TrackScopeContinuations
 abstract class InstrumentationSpecification extends DDSpecification implements AgentBuilder.Listener, ScopeDiagnosticsSpockSupport {
   private static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(20)
+  private LoggedStackOverflowCheck loggedStackOverflow
 
   protected static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation()
 
@@ -469,6 +470,8 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
     configureLoggingLevels()
 
+    loggedStackOverflow = new LoggedStackOverflowCheck()
+
     assertThreadsEachCleanup = false
 
     closePrevious(true) // in case the previous test left a lingering iteration span
@@ -553,6 +556,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
         // check for instrumentation issues while running each test
         assert InstrumentationErrors.noErrors(): InstrumentationErrors.describeErrors()
+        loggedStackOverflow?.check()
       } catch (Throwable cleanupFailure) {
         if (scopeDiagnosticsFailure != null) {
           cleanupFailure.addSuppressed(scopeDiagnosticsFailure)
@@ -563,6 +567,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
         throw scopeDiagnosticsFailure
       }
     } finally {
+      loggedStackOverflow?.close()
       if (scopeDiagnosticsSuiteEnabled()) {
         ScopeDiagnostics.startRecording()
       }

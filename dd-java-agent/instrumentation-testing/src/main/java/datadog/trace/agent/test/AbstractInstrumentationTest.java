@@ -73,6 +73,7 @@ public abstract class AbstractInstrumentationTest {
   protected static ListWriter writer;
   private static ClassFileTransformer activeTransformer;
   private static ClassFileTransformerListener transformerListener;
+  private LoggedStackOverflowCheck loggedStackOverflow;
 
   @BeforeAll
   static void initAll() {
@@ -116,6 +117,7 @@ public abstract class AbstractInstrumentationTest {
 
   @BeforeEach
   public void init() {
+    loggedStackOverflow = new LoggedStackOverflowCheck();
     InstrumentationErrors.resetErrors(); // reset for each test
     tracer.flush();
     writer.start();
@@ -123,10 +125,17 @@ public abstract class AbstractInstrumentationTest {
 
   @AfterEach
   public void tearDown() {
-    tracer.flush();
+    try {
+      tracer.flush();
 
-    // check for instrumentation issues while running each test
-    assertTrue(InstrumentationErrors.noErrors(), InstrumentationErrors::describeErrors);
+      // check for instrumentation issues while running each test
+      assertTrue(InstrumentationErrors.noErrors(), InstrumentationErrors::describeErrors);
+      loggedStackOverflow.check();
+    } finally {
+      if (loggedStackOverflow != null) {
+        loggedStackOverflow.close();
+      }
+    }
   }
 
   @AfterAll
