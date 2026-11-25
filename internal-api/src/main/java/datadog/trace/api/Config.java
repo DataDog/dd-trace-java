@@ -871,6 +871,7 @@ public class Config {
               Tags.RUNTIME_NAME,
               Tags.RUNTIME_VERSION,
               Tags.RUNTIME_VENDOR));
+  private static final int MAX_RUNTIME_TAGS_NESTING_DEPTH = 64;
   private static final int DYNAMIC_ATR_BUCKET_COUNT = 5;
   private static final int MAX_DYNAMIC_ATR_RETRIES_PER_BUCKET = 20;
 
@@ -6638,31 +6639,61 @@ public class Config {
       return Collections.emptyMap();
     }
 
-    Map<String, String> tags = new HashMap<>();
-    try (JsonReader reader = new JsonReader(configuredTags)) {
-      reader.beginObject();
-      String tag;
-      while ((tag = reader.nextName()) != null) {
-        if (reader.isNull()) {
-          reader.nextValue();
-          continue;
-        }
-        String value =
-            Strings.truncate(reader.nextString().trim(), CIConstants.MAX_META_STRING_VALUE_LENGTH)
-                .trim();
-        if (OVERRIDABLE_RUNTIME_TAGS.contains(tag) && !value.isEmpty()) {
-          tags.put(tag, value);
-        }
+    Object parsed = null;
+    if (!isNestedDeeperThan(configuredTags, MAX_RUNTIME_TAGS_NESTING_DEPTH)) {
+      try (JsonReader reader = new JsonReader(configuredTags)) {
+        parsed = reader.nextValue();
+      } catch (IOException | RuntimeException e) {
+        // reported below as an invalid value
       }
-      reader.endObject();
-    } catch (IOException | RuntimeException e) {
+    }
+    if (!(parsed instanceof Map)) {
       log.warn(
-          "Invalid {} value '{}'; expected a JSON object with string values",
+          "Invalid {} value '{}'; expected a JSON object",
           propertyNameToEnvironmentVariableName(TEST_OPTIMIZATION_RUNTIME_TAGS),
           configuredTags);
       return Collections.emptyMap();
     }
+
+    Map<String, String> tags = new HashMap<>();
+    for (Map.Entry<?, ?> parsedTag : ((Map<?, ?>) parsed).entrySet()) {
+      Object tag = parsedTag.getKey();
+      Object value = parsedTag.getValue();
+      if (OVERRIDABLE_RUNTIME_TAGS.contains(tag) && value instanceof String) {
+        String trimmedValue =
+            Strings.truncate(((String) value).trim(), CIConstants.MAX_META_STRING_VALUE_LENGTH)
+                .trim();
+        if (!trimmedValue.isEmpty()) {
+          tags.put((String) tag, trimmedValue);
+        }
+      }
+    }
     return Collections.unmodifiableMap(tags);
+  }
+
+  /** Lets the recursive {@link JsonReader#nextValue()} reject deeply nested input safely. */
+  private static boolean isNestedDeeperThan(String json, int maxDepth) {
+    int depth = 0;
+    boolean inString = false;
+    for (int i = 0; i < json.length(); i++) {
+      char c = json.charAt(i);
+      if (inString) {
+        if (c == '\\') {
+          i++;
+        } else if (c == '"') {
+          inString = false;
+        }
+      } else if (c == '"') {
+        inString = true;
+      } else if (c == '{' || c == '[') {
+        if (++depth > maxDepth) {
+          return true;
+        }
+      } else if (c == '}' || c == ']') {
+        depth--;
+      }
+    }
+    return false;
   }
 
   private static List<String> parseCodeCoverageFlags(List<String> configuredFlags) {

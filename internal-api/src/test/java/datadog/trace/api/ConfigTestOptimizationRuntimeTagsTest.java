@@ -63,8 +63,8 @@ class ConfigTestOptimizationRuntimeTagsTest {
     Config config =
         configWithRuntimeTags(
             "{\"os.version\":\" 6.12.0 \",\"runtime.version\":\"\",\"runtime.vendor\":\"  \","
-                + "\"runtime.name\":null,\"runtime.architecture\":\"x64\","
-                + "\"custom.tag\":\"value\"}");
+                + "\"runtime.name\":null,\"os.platform\":11,\"os.architecture\":[\"amd64\"],"
+                + "\"runtime.architecture\":\"x64\",\"custom.tag\":\"value\"}");
 
     Map<String, String> expected = new HashMap<>();
     expected.put("os.version", "6.12.0");
@@ -80,15 +80,7 @@ class ConfigTestOptimizationRuntimeTagsTest {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "{invalid json}",
-        "[\"os.version\"]",
-        "\"6.12.0\"",
-        "null",
-        "{\"os.version\":6}",
-        "{\"custom.tag\":[[[[\"nested\"]]]]}"
-      })
+  @ValueSource(strings = {"{invalid json}", "[\"os.version\"]", "\"6.12.0\"", "null"})
   void logsWarningAndReportsDetectedTagsForInvalidValue(String value) {
     Logger logger = (Logger) LoggerFactory.getLogger(Config.class);
     ListAppender<ILoggingEvent> appender = new ListAppender<>();
