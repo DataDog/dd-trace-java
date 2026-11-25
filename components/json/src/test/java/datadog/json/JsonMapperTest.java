@@ -2,6 +2,7 @@ package datadog.json;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -105,9 +106,29 @@ class JsonMapperTest {
   }
 
   @ParameterizedTest(name = "test mapping to Map from non-object JSON: {0}")
-  @ValueSource(strings = {"1", "[1, 2]"})
+  @ValueSource(strings = {"1", "[1, 2]", " null", "nope"})
   void testMappingToMapFromNonObjectJson(String json) {
     assertThrows(IOException.class, () -> JsonMapper.fromJsonToMap(json));
+  }
+
+  @ParameterizedTest(name = "test mapping to Map from an object followed by other content: {0}")
+  @ValueSource(
+      strings = {
+        "{\"a\":1} x",
+        "{\"a\":1}}",
+        "{\"a\":1}]",
+        "{\"a\":1},",
+        "{\"a\":1}{\"b\":2}",
+        "{\"a\":1} \u0000"
+      })
+  void testMappingToMapFromAnObjectFollowedByOtherContent(String json) {
+    assertThrows(IOException.class, () -> JsonMapper.fromJsonToMap(json));
+  }
+
+  @ParameterizedTest(name = "test mapping to Map from an object surrounded by whitespace: {0}")
+  @ValueSource(strings = {" {\"a\":1}", "{\"a\":1} ", "\n{\"a\":1}\r\n\t"})
+  void testMappingToMapFromAnObjectSurroundedByWhitespace(String json) throws IOException {
+    assertEquals(singletonMap("a", 1), JsonMapper.fromJsonToMap(json));
   }
 
   @TableTest({

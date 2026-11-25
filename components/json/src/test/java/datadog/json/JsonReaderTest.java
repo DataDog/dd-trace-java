@@ -48,6 +48,24 @@ class JsonReaderTest {
   }
 
   @Test
+  void testEndOfDocument() throws IOException {
+    try (JsonReader reader = new JsonReader("{\"a\":1} \n")) {
+      assertFalse(reader.isEndOfDocument());
+      reader.nextValue();
+      assertTrue(reader.isEndOfDocument(), "only whitespace is left");
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"{} x", "{}}", "{}{}", "{}\u0000"})
+  void testNotEndOfDocumentAfterOtherContent(String json) throws IOException {
+    try (JsonReader reader = new JsonReader(json)) {
+      reader.nextValue();
+      assertFalse(reader.isEndOfDocument());
+    }
+  }
+
+  @Test
   void testReadEmptyObject() {
     String json = "{}";
     try (JsonReader reader = new JsonReader(json)) {
@@ -97,7 +115,7 @@ class JsonReaderTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"{\"key\":value}"})
+  @ValueSource(strings = {"{\"key\":value}", "{\"key\":nope}", "{\"key\":nul}"})
   void testInvalidObjectValue(String json) {
     assertThrows(
         IOException.class,

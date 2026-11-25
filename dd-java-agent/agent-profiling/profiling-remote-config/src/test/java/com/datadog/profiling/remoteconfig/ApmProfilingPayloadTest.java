@@ -28,7 +28,16 @@ class ApmProfilingPayloadTest {
   // the JSON mapper takes null, empty and "null" for an empty object
   @ParameterizedTest
   @NullSource
-  @ValueSource(strings = {"", "null", "{\"profilers\":{", "not json"})
+  @ValueSource(
+      strings = {
+        "",
+        "null",
+        "{\"profilers\":{",
+        "not json",
+        // a profiling config followed by other content is not a single object
+        "{\"profilers\":{\"cpuTime\":true}} x",
+        "{\"profilers\":{\"cpuTime\":true}}{\"profilers\":{}}"
+      })
   void payloadThatIsNotAnObjectIsReported(String json) {
     List<String> problems = new ArrayList<>();
 
