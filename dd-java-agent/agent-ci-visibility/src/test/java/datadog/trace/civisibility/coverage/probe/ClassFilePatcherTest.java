@@ -14,10 +14,13 @@ import java.net.JarURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Enumeration;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -27,9 +30,16 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FrameNode;
+import org.objectweb.asm.tree.JumpInsnNode;
+import org.objectweb.asm.tree.LabelNode;
+import org.objectweb.asm.tree.LineNumberNode;
+import org.objectweb.asm.tree.LocalVariableAnnotationNode;
+import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.LookupSwitchInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TableSwitchInsnNode;
+import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.util.Textifier;
 import org.objectweb.asm.util.TraceMethodVisitor;
 
@@ -215,9 +225,74 @@ class ClassFilePatcherTest {
     new ClassReader(bytes).accept(classNode, ClassReader.EXPAND_FRAMES);
     Map<String, MethodNode> methods = new LinkedHashMap<>();
     for (MethodNode method : classNode.methods) {
+      removeUnreferencedLabels(method);
       methods.put(method.name + method.desc, method);
     }
     return methods;
+  }
+
+  /**
+   * Removes the labels that nothing refers to. ClassReader puts a label on a NEW instruction
+   * wherever the bytes of the stack map frames look like a reference to it, so such labels depend
+   * on constant pool indexes and code offsets, not on the code.
+   */
+  private static void removeUnreferencedLabels(MethodNode method) {
+    Set<Object> referenced = Collections.newSetFromMap(new IdentityHashMap<>());
+    for (AbstractInsnNode insn = method.instructions.getFirst();
+        insn != null;
+        insn = insn.getNext()) {
+      if (insn instanceof JumpInsnNode) {
+        referenced.add(((JumpInsnNode) insn).label);
+      } else if (insn instanceof TableSwitchInsnNode) {
+        referenced.add(((TableSwitchInsnNode) insn).dflt);
+        referenced.addAll(((TableSwitchInsnNode) insn).labels);
+      } else if (insn instanceof LookupSwitchInsnNode) {
+        referenced.add(((LookupSwitchInsnNode) insn).dflt);
+        referenced.addAll(((LookupSwitchInsnNode) insn).labels);
+      } else if (insn instanceof LineNumberNode) {
+        referenced.add(((LineNumberNode) insn).start);
+      } else if (insn instanceof FrameNode) {
+        FrameNode frame = (FrameNode) insn;
+        if (frame.local != null) {
+          referenced.addAll(frame.local);
+        }
+        if (frame.stack != null) {
+          referenced.addAll(frame.stack);
+        }
+      }
+    }
+    for (TryCatchBlockNode handler : method.tryCatchBlocks) {
+      referenced.add(handler.start);
+      referenced.add(handler.end);
+      referenced.add(handler.handler);
+    }
+    if (method.localVariables != null) {
+      for (LocalVariableNode local : method.localVariables) {
+        referenced.add(local.start);
+        referenced.add(local.end);
+      }
+    }
+    for (List<LocalVariableAnnotationNode> annotations :
+        Arrays.asList(
+            method.visibleLocalVariableAnnotations, method.invisibleLocalVariableAnnotations)) {
+      if (annotations != null) {
+        for (LocalVariableAnnotationNode annotation : annotations) {
+          referenced.addAll(annotation.start);
+          referenced.addAll(annotation.end);
+        }
+      }
+    }
+    List<AbstractInsnNode> unreferenced = new ArrayList<>();
+    for (AbstractInsnNode insn = method.instructions.getFirst();
+        insn != null;
+        insn = insn.getNext()) {
+      if (insn instanceof LabelNode && !referenced.contains(insn)) {
+        unreferenced.add(insn);
+      }
+    }
+    for (AbstractInsnNode label : unreferenced) {
+      method.instructions.remove(label);
+    }
   }
 
   private static String text(MethodNode method) {

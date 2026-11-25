@@ -9,40 +9,42 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 
 /**
- * Receives hits from the line probes that {@code ProbeClassTransformer} inserts into application
- * classes.
+ * Gives the line probes that {@code ProbeClassTransformer} inserts into application classes the
+ * arrays they store their hits in.
  *
  * <p>Hits are kept in probe tables, one per owner of the running code: an open {@link
  * CoverageWindow}, or Shared for code that no open window owns. A table holds one probe array per
  * instrumented class. An instrumented method takes the array of its owner once, at entry, from
- * {@link #probes}. A probe reads its slot and calls {@link #record} only when the slot is not set,
- * so after the first hit it costs one array read. {@link #record} sets the slot in the table of the
- * code's owner. Slot 0 of every array marks the class as touched.
+ * {@link #probes}, and each probe stores {@code true} in its slot of that array.
  *
  * <p>Code belongs to the window opened on the thread that runs it, else to the window of the test
  * whose context the thread carries, else to Shared. The first window to open while no other is
- * open, the primary window, uses the table {@link #PROBES}, and its thread takes arrays without
+ * open, the primary window, uses the table {@link #PRIMARY}, and its thread takes arrays without
  * looking up its owner. Windows that open while the primary window is open take pooled tables of
- * their own. Shared is never reset: it is reported once per process.
+ * their own. A window allocates the array of a class when code of the class first takes it, and
+ * drops its arrays when it closes, so a later window that uses the same table gets new ones. Shared
+ * is never reset: it is reported once per process.
  *
- * <p>A method that took the array of a window that has since closed reads slots that the window
- * reset, and that a later window may have set; it can skip such probes until it returns. Lines lost
- * this way were executed after their window closed, so they belong to Shared, not to a test.
+ * <p>A method that took the array of a window that has since closed stores into an array that no
+ * window reads: the lines it runs from then on are lost.
  *
- * <p>Class initializers read {@link #PROBES} directly: their slots are never reset and need no
- * owner.
+ * <p>Class initializers store into {@link #PROBES} directly: their slots are never reset and need
+ * no owner.
  */
 public final class ProbeRecorder {
 
   /** Upper bound on instrumented classes per process; classes beyond it are not instrumented. */
   public static final int MAX_CLASSES = 1 << 16;
 
-  /** Probe arrays of the primary window and of class initializers, indexed by class id. */
+  /** Probe arrays of class initializers, indexed by class id. */
   public static final boolean[][] PROBES = new boolean[MAX_CLASSES][];
 
   static final InstrumentedClass[] CLASSES = new InstrumentedClass[MAX_CLASSES];
 
   private static final AtomicInteger NEXT_CLASS_ID = new AtomicInteger();
+
+  /** Probe arrays of the primary window, indexed by class id. */
+  private static final boolean[][] PRIMARY = new boolean[MAX_CLASSES][];
 
   /** Probe arrays of code that no open window owned, allocated on first use. */
   private static final boolean[][] SHARED = new boolean[MAX_CLASSES][];
@@ -87,10 +89,16 @@ public final class ProbeRecorder {
     return Math.min(NEXT_CLASS_ID.get(), MAX_CLASSES);
   }
 
-  /** Called by instrumented code at method entry: the probe array of the code's owner. */
+  /**
+   * Called by instrumented code at method entry: the probe array of the code's owner. Slot 0 is
+   * stored into by exception handlers that ran before any probe and is never read.
+   */
   public static boolean[] probes(int classId) {
     if (Thread.currentThread() == primaryThread) {
-      return PROBES[classId];
+      boolean[] probes = PRIMARY[classId];
+      if (probes != null) {
+        return probes;
+      }
     }
     return ownerProbes(classId);
   }
@@ -106,63 +114,9 @@ public final class ProbeRecorder {
       }
       return sharedProbes(classId);
     } catch (Throwable e) {
-      // instrumented code must never see an exception from the recorder
+      // instrumented code must never see an exception from the recorder; nothing reads the method
+      // probes of this array
       return PROBES[classId];
-    }
-  }
-
-  /** Called by instrumented code on the first hit of a probe in the array it took at entry. */
-  public static void record(int classId, int probeId) {
-    try {
-      Thread current = Thread.currentThread();
-      CoverageWindow window = current == primaryThread ? primaryWindow : null;
-      if (window == null || window.thread() != current) {
-        window = ownerWindow();
-      }
-      if (window == null || !window.mark(classId, probeId)) {
-        boolean[] probes = sharedProbes(classId);
-        probes[probeId] = true;
-        probes[0] = true;
-      }
-    } catch (Throwable ignored) {
-      // instrumented code must never see an exception from the recorder
-    }
-  }
-
-  /** Called on every execution by probes that cannot branch; records only a first hit. */
-  public static void hit(boolean[] probes, int classId, int probeId) {
-    try {
-      if (!probes[probeId]) {
-        record(classId, probeId);
-      }
-    } catch (Throwable ignored) {
-      // instrumented code must never see an exception from the recorder
-    }
-  }
-
-  /** Called by probes in class initializers: their slots are never reset and need no owner. */
-  public static void recordInit(int classId, int probeId) {
-    try {
-      PROBES[classId][probeId] = true;
-    } catch (Throwable ignored) {
-      // instrumented code must never see an exception from the recorder
-    }
-  }
-
-  /**
-   * Called when an exception leaves or is caught in a method, with the probe of the last code the
-   * method started that could throw; 0 if it started none.
-   */
-  public static void recordThrown(int classId, int probeId) {
-    if (probeId != 0) {
-      record(classId, probeId);
-    }
-  }
-
-  /** {@link #recordThrown} for class initializers. */
-  public static void recordInitThrown(int classId, int probeId) {
-    if (probeId != 0) {
-      recordInit(classId, probeId);
     }
   }
 
@@ -176,7 +130,6 @@ public final class ProbeRecorder {
           probes[(word << 6) + Long.numberOfTrailingZeros(remaining)] = true;
         }
       }
-      probes[0] = true;
     }
   }
 
@@ -188,11 +141,7 @@ public final class ProbeRecorder {
    */
   public static boolean addSharedLines(int classId, BitSet lines) {
     boolean[] probes = SHARED[classId];
-    if (probes == null || !probes[0]) {
-      return false;
-    }
-    CLASSES[classId].addMethodLines(probes, lines);
-    return true;
+    return probes != null && CLASSES[classId].addMethodLines(probes, lines);
   }
 
   /**
@@ -217,19 +166,21 @@ public final class ProbeRecorder {
 
   private static boolean[] sharedProbes(int classId) {
     boolean[] probes = SHARED[classId];
-    return probes != null ? probes : allocate(SHARED, classId);
-  }
-
-  /** Allocates the probe array of a class in a table other than {@link #PROBES}. */
-  static boolean[] allocate(boolean[][] table, int classId) {
-    synchronized (table) {
-      boolean[] probes = table[classId];
+    if (probes != null) {
+      return probes;
+    }
+    synchronized (SHARED) {
+      probes = SHARED[classId];
       if (probes == null) {
-        probes = new boolean[CLASSES[classId].probeCount()];
-        table[classId] = probes;
+        probes = newProbes(classId);
+        SHARED[classId] = probes;
       }
       return probes;
     }
+  }
+
+  static boolean[] newProbes(int classId) {
+    return new boolean[CLASSES[classId].probeCount()];
   }
 
   /** The window opened on this thread, if any. */
@@ -245,7 +196,7 @@ public final class ProbeRecorder {
       if (primaryWindow == null) {
         primaryWindow = window;
         primaryThread = window.thread();
-        return PROBES;
+        return PRIMARY;
       }
       if (primaryWindow.thread() == window.thread()) {
         // the primary window's thread now runs code of this window
@@ -259,7 +210,7 @@ public final class ProbeRecorder {
   }
 
   /**
-   * Takes back the table of a closed window, after the window reset every slot it set.
+   * Takes back the table of a closed window, after the window dropped every array it allocated.
    *
    * @param outer the window that was open on the window's thread when it opened
    */

@@ -12,7 +12,7 @@ import javax.annotation.Nullable;
  * immediately dominates probe {@code p}, and {@code nodeParent[n]} continues the chain up to -1.
  *
  * <p>Probes of class initializers occupy the ids from {@link #initStart()} up to the probe count.
- * They are never reset: their lines are the class's init lines.
+ * They are never reset: their lines are the class's init lines. Id 0 is no probe.
  */
 public final class InstrumentedClass {
 
@@ -104,14 +104,39 @@ public final class InstrumentedClass {
     }
   }
 
-  /** Adds the lines of the probes set in {@code probes}, other than class initializer probes. */
-  public void addMethodLines(boolean[] probes, BitSet lines) {
+  /**
+   * Adds the lines of the probes set in {@code probes}, other than class initializer probes.
+   *
+   * @return {@code false} if no such probe is set
+   */
+  public boolean addMethodLines(boolean[] probes, BitSet lines) {
     boolean[] visitedNodes = null;
+    boolean set = false;
     for (int probe = 1; probe < initStart; probe++) {
       if (probes[probe]) {
         visitedNodes = addProbeLines(probe, lines, visitedNodes);
+        set = true;
       }
     }
+    return set;
+  }
+
+  /**
+   * @return the probes set in {@code probes}, other than class initializer probes, as a bit set;
+   *     {@code null} if none is set
+   */
+  @Nullable
+  public long[] methodHits(boolean[] probes) {
+    long[] bits = null;
+    for (int probe = 1; probe < initStart; probe++) {
+      if (probes[probe]) {
+        if (bits == null) {
+          bits = new long[(initStart + 63) >>> 6];
+        }
+        bits[probe >>> 6] |= 1L << probe;
+      }
+    }
+    return bits;
   }
 
   private boolean[] addProbeLines(int probe, BitSet lines, @Nullable boolean[] visitedNodes) {
