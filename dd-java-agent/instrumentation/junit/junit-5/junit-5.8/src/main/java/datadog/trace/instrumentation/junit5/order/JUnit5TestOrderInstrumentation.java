@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.junit5.order;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.instrumentation.junit5.JUnit5Instrumentation.JUNIT5_INST_PACKAGE;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -10,9 +11,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder;
-import datadog.trace.util.Strings;
 import java.util.Optional;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -24,9 +23,6 @@ import org.junit.jupiter.engine.config.JupiterConfiguration;
 @AutoService(InstrumenterModule.class)
 public class JUnit5TestOrderInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
-  private final String parentPackageName =
-      Strings.getPackageName(JUnitPlatformUtils.class.getName());
 
   public JUnit5TestOrderInstrumentation() {
     super("ci-visibility", "junit-5", "test-order");
@@ -50,9 +46,9 @@ public class JUnit5TestOrderInstrumentation extends InstrumenterModule.CiVisibil
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      parentPackageName + ".JUnitPlatformUtils",
-      parentPackageName + ".TestDataFactory",
-      parentPackageName + ".TestEventsHandlerHolder",
+      JUNIT5_INST_PACKAGE + ".JUnitPlatformUtils",
+      JUNIT5_INST_PACKAGE + ".TestDataFactory",
+      JUNIT5_INST_PACKAGE + ".TestEventsHandlerHolder",
       packageName + ".JUnit5OrderUtils",
       packageName + ".FailFastClassOrderer",
       packageName + ".FailFastMethodOrderer",

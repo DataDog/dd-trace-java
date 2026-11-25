@@ -6,8 +6,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
-import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
-import datadog.trace.util.Strings;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import org.junit.platform.engine.support.hierarchical.ThrowableCollector;
@@ -15,9 +13,6 @@ import org.junit.platform.engine.support.hierarchical.ThrowableCollector;
 @AutoService(InstrumenterModule.class)
 public class JUnit5NodeTestTaskContextInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  private final String parentPackageName =
-      Strings.getPackageName(JUnitPlatformUtils.class.getName());
 
   public JUnit5NodeTestTaskContextInstrumentation() {
     super("ci-visibility", "junit-5", "test-retry");

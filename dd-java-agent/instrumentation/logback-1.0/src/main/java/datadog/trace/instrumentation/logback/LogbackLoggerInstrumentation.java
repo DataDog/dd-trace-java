@@ -55,7 +55,7 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {LogsIntakeHelper.class.getName()};
+    return new String[] {packageName + ".LogsIntakeHelper"};
   }
 
   @Override

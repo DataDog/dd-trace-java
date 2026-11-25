@@ -52,7 +52,7 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
         "datadog.trace.instrumentation.kafka_common.MetadataState");
     contextStores.put(
         "org.apache.kafka.clients.consumer.internals.ConsumerCoordinator",
-        KafkaConsumerInfo.class.getName());
+        packageName + ".KafkaConsumerInfo");
     return contextStores;
   }
 

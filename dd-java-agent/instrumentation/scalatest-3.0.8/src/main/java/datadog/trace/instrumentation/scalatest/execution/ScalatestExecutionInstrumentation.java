@@ -12,8 +12,6 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.instrumentation.scalatest.RunContext;
-import datadog.trace.instrumentation.scalatest.ScalatestUtils;
-import datadog.trace.util.Strings;
 import java.lang.invoke.MethodHandle;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -27,8 +25,6 @@ import org.scalatest.SuperEngine;
 @AutoService(InstrumenterModule.class)
 public class ScalatestExecutionInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
-  private final String parentPackageName = Strings.getPackageName(ScalatestUtils.class.getName());
 
   public ScalatestExecutionInstrumentation() {
     super("ci-visibility", "scalatest", "test-retry");

@@ -45,15 +45,15 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         "org.apache.kafka.clients.Metadata",
         "datadog.trace.instrumentation.kafka_common.MetadataState");
     contextStores.put(
-        "org.apache.kafka.clients.consumer.ConsumerRecords", KafkaConsumerInfo.class.getName());
+        "org.apache.kafka.clients.consumer.ConsumerRecords", packageName + ".KafkaConsumerInfo");
     // new- here we are storing the callbackinvoker and consumerdelegate in the context store
     // as opposed to the old consumercoordinator and kafkaconsumer
     contextStores.put(
         "org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker",
-        KafkaConsumerInfo.class.getName());
+        packageName + ".KafkaConsumerInfo");
     contextStores.put(
         "org.apache.kafka.clients.consumer.internals.ConsumerDelegate",
-        KafkaConsumerInfo.class.getName());
+        packageName + ".KafkaConsumerInfo");
     return contextStores;
   }
 

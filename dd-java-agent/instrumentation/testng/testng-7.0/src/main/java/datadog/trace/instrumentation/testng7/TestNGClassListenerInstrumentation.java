@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.testng7;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.instrumentation.testng.TestNGInstrumentation.TESTNG_INST_PACKAGE;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -9,7 +10,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.instrumentation.testng.TestNGClassListener;
 import datadog.trace.instrumentation.testng.TestNGInstrumentation;
 import datadog.trace.instrumentation.testng.TestNGUtils;
-import datadog.trace.util.Strings;
 import net.bytebuddy.asm.Advice;
 import org.testng.IMethodInstance;
 import org.testng.ITestClass;
@@ -21,8 +21,6 @@ import org.testng.xml.XmlTest;
 @AutoService(InstrumenterModule.class)
 public class TestNGClassListenerInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
-  private final String commonPackageName = Strings.getPackageName(TestNGUtils.class.getName());
 
   public TestNGClassListenerInstrumentation() {
     super("ci-visibility", "testng", "testng-7");
@@ -54,7 +52,7 @@ public class TestNGClassListenerInstrumentation extends InstrumenterModule.CiVis
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      commonPackageName + ".TestNGUtils", commonPackageName + ".TestNGClassListener"
+      TESTNG_INST_PACKAGE + ".TestNGUtils", TESTNG_INST_PACKAGE + ".TestNGClassListener"
     };
   }
 

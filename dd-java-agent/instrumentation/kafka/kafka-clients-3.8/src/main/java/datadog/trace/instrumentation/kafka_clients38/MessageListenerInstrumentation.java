@@ -44,6 +44,6 @@ public class MessageListenerInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("onMessage")),
-        datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice.class.getName());
+        "datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice");
   }
 }

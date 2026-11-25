@@ -16,7 +16,6 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.junit4.JUnit4Utils;
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder;
-import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Method;
 import java.util.Collection;
@@ -34,8 +33,6 @@ import org.junit.runners.model.Statement;
 @AutoService(InstrumenterModule.class)
 public class JUnit4ExecutionInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
-  private final String parentPackageName = Strings.getPackageName(JUnit4Utils.class.getName());
 
   public JUnit4ExecutionInstrumentation() {
     super("ci-visibility", "junit-4", "test-retry");

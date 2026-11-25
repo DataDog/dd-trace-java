@@ -30,6 +30,9 @@ import org.junit.runner.notification.RunNotifier;
 public class JUnit4Instrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
+  /** Package containing shared instrumentation helpers. */
+  public static final String JUNIT4_INST_PACKAGE = "datadog.trace.instrumentation.junit4";
+
   static final int ORDER = 0;
 
   public JUnit4Instrumentation() {

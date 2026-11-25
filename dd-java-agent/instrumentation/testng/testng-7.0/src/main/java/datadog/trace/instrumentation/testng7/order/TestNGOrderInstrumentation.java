@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.testng7.order;
 
+import static datadog.trace.instrumentation.testng.TestNGInstrumentation.TESTNG_INST_PACKAGE;
+
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -7,8 +9,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.instrumentation.testng.TestEventsHandlerHolder;
 import datadog.trace.instrumentation.testng.TestNGInstrumentation;
-import datadog.trace.instrumentation.testng.TestNGUtils;
-import datadog.trace.util.Strings;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -18,8 +18,6 @@ import org.testng.annotations.CustomAttribute;
 @AutoService(InstrumenterModule.class)
 public class TestNGOrderInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  private final String parentPackageName = Strings.getPackageName(TestNGUtils.class.getName());
 
   public TestNGOrderInstrumentation() {
     super("ci-visibility", "testng", "test-order");
@@ -55,9 +53,9 @@ public class TestNGOrderInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      parentPackageName + ".TestNGClassListener",
-      parentPackageName + ".TestNGUtils",
-      parentPackageName + ".TestEventsHandlerHolder",
+      TESTNG_INST_PACKAGE + ".TestNGClassListener",
+      TESTNG_INST_PACKAGE + ".TestNGUtils",
+      TESTNG_INST_PACKAGE + ".TestEventsHandlerHolder",
       packageName + ".FailFastOrderInterceptor",
     };
   }

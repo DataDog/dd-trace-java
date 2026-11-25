@@ -37,14 +37,14 @@ public class CompletionServiceAsyncInstrumentation
         isMethod()
             .and(named("create"))
             .and(takesArgument(0, named("com.openai.models.completions.CompletionCreateParams")))
-            .and(returns(named(CompletableFuture.class.getName()))),
+            .and(returns(named("java.util.concurrent.CompletableFuture"))),
         getClass().getName() + "$CreateAdvice");
 
     transformer.applyAdvice(
         isMethod()
             .and(named("createStreaming"))
             .and(takesArgument(0, named("com.openai.models.completions.CompletionCreateParams")))
-            .and(returns(named(CompletableFuture.class.getName()))),
+            .and(returns(named("java.util.concurrent.CompletableFuture"))),
         getClass().getName() + "$CreateStreamingAdvice");
   }
 
