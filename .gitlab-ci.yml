@@ -814,7 +814,7 @@ muzzle-dep-report:
     CONTINUE_ON_FAILURE: "false"
     TEST_JVM_ARGS: ""
     TESTCONTAINERS_CHECKS_DISABLE: "true"
-    # Use Ryuk for cleanup so parallel test JVMs avoid competing Docker prune requests.
+    # Set the disable flag to false so Ryuk handles cleanup without competing Docker prune requests.
     TESTCONTAINERS_RYUK_DISABLED: "false"
     TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: "registry.ddbuild.io/images/mirror/"
     # CI pull policy: allow slow image fetching without overriding local file-based settings.

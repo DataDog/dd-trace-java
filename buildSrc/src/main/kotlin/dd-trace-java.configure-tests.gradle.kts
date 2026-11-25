@@ -42,9 +42,9 @@ val runFlakyTestsProvider = rootProject.providers.gradleProperty("runFlakyTests"
 val rerunAllTestsProvider = rootProject.providers.gradleProperty("rerun.tests")
 val rerunTestsProperty = "rerun.tests.${project.name}"
 val rerunTestsProvider = rootProject.providers.gradleProperty(rerunTestsProperty)
-val forkedTestMaxParallelForks = providers.gradleProperty("forkedTestMaxParallelForks")
+val forkedTestMaxParallelForks = providers.gradleProperty("forked.test.max.parallel.forks")
   .map(String::toInt)
-val testcontainersMaxParallelForks = providers.gradleProperty("testcontainersMaxParallelForks")
+val testcontainersMaxParallelForks = providers.gradleProperty("testcontainers.max.parallel.forks")
   .map(String::toInt)
 val isMasterBranch = providers.environmentVariable("CI_COMMIT_BRANCH")
   .map { it == "master" }

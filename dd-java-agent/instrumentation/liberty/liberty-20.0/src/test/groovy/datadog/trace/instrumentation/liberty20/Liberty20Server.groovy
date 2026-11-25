@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.liberty20
 
+import static org.apache.commons.io.FileUtils.copyDirectory
+
 import com.ibm.wsspi.kernel.embeddable.Server
 import com.ibm.wsspi.kernel.embeddable.ServerBuilder
 import datadog.trace.agent.test.base.HttpServer
@@ -8,7 +10,6 @@ import groovy.xml.XmlParser
 import groovy.xml.XmlUtil
 
 import java.nio.file.Files
-import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 
 /** Runs the test app in a private Liberty user directory seeded from the build's server template. */
@@ -32,7 +33,7 @@ class Liberty20Server implements HttpServer {
     userDir = Files.createTempDirectory('liberty-').toFile()
     File serverDir = new File(userDir, "servers/$SERVER_NAME")
     // Copy the shared template before rewriting server.xml so concurrent forks use their own ports.
-    copyDirectory(serverTemplateDir.toPath(), serverDir.toPath())
+    copyDirectory(serverTemplateDir, serverDir)
     changeServerXml(new File(serverDir, 'server.xml'))
     server = new ServerBuilder().setName(SERVER_NAME).setUserDir(userDir).build()
     // set bootdelegation to mimic how our -javaagent delegates requests for our shaded slf4j package
@@ -40,15 +41,6 @@ class Liberty20Server implements HttpServer {
     def result = server.start(["org.osgi.framework.bootdelegation":"org.slf4j"]).get(45, TimeUnit.SECONDS)
     if (!result.successful()) {
       throw new IllegalStateException("OpenLiberty startup has failed")
-    }
-  }
-
-  private static void copyDirectory(Path source, Path target) {
-    Files.createDirectories(target.parent)
-    Files.walk(source).withCloseable { paths ->
-      paths.forEach { Path path ->
-        Files.copy(path, target.resolve(source.relativize(path).toString()))
-      }
     }
   }
 
@@ -63,12 +55,14 @@ class Liberty20Server implements HttpServer {
   @Override
   void stop() {
     try {
-      def result = server.stop().get(30, TimeUnit.SECONDS)
-      if (!result.successful()) {
-        throw new IllegalStateException("OpenLiberty stop has failed")
+      if (server != null) {
+        def result = server.stop().get(30, TimeUnit.SECONDS)
+        if (!result.successful()) {
+          throw new IllegalStateException("OpenLiberty stop has failed")
+        }
       }
     } finally {
-      userDir.deleteDir()
+      userDir?.deleteDir()
     }
   }
 
