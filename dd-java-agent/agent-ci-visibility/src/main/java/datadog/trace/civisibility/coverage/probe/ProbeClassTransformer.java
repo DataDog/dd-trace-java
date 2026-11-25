@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.coverage.probe;
 
 import datadog.trace.api.civisibility.coverage.ProbeRecorder;
+import datadog.trace.api.civisibility.coverage.SourceMap;
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
 import java.util.HashMap;
@@ -127,7 +128,10 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
     ClassWriter writer = new ClassWriter(reader, 0);
     classNode.accept(writer);
     byte[] result = writer.toByteArray();
-    ProbeRecorder.register(classId, probes.build(classNode.name, loader, classNode.sourceFile));
+    SourceMap sourceMap =
+        SmapParser.parse(classNode.sourceDebug, SmapParser.packageDirectory(classNode.name));
+    ProbeRecorder.register(
+        classId, probes.build(classNode.name, loader, classNode.sourceFile, sourceMap));
     return result;
   }
 

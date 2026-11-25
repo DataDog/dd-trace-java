@@ -19,6 +19,7 @@ public final class InstrumentedClass {
   private final String name;
   private final WeakReference<ClassLoader> loader;
   @Nullable private final String sourceFile;
+  @Nullable private final SourceMap sourceMap;
   private final int initStart;
   private final int[][] probeLines;
   private final int[] probeParent;
@@ -32,6 +33,7 @@ public final class InstrumentedClass {
       String name,
       ClassLoader loader,
       @Nullable String sourceFile,
+      @Nullable SourceMap sourceMap,
       int initStart,
       int[][] probeLines,
       int[] probeParent,
@@ -40,6 +42,7 @@ public final class InstrumentedClass {
     this.name = name;
     this.loader = new WeakReference<>(loader);
     this.sourceFile = sourceFile;
+    this.sourceMap = sourceMap;
     this.initStart = initStart;
     this.probeLines = probeLines;
     this.probeParent = probeParent;
@@ -60,6 +63,15 @@ public final class InstrumentedClass {
   @Nullable
   public String sourceFile() {
     return sourceFile;
+  }
+
+  /**
+   * The source map of the class, if it has one. Line numbers in this class are the class's own;
+   * without a source map they are lines of {@link #sourceFile()}.
+   */
+  @Nullable
+  public SourceMap sourceMap() {
+    return sourceMap;
   }
 
   public int probeCount() {

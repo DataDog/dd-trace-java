@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.coverage.probe;
 
 import datadog.trace.api.civisibility.coverage.InstrumentedClass;
+import datadog.trace.api.civisibility.coverage.SourceMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -50,12 +51,17 @@ final class ClassProbesBuilder {
     initStart = probeLines.size();
   }
 
-  InstrumentedClass build(String className, ClassLoader loader, @Nullable String sourceFile) {
+  InstrumentedClass build(
+      String className,
+      ClassLoader loader,
+      @Nullable String sourceFile,
+      @Nullable SourceMap sourceMap) {
     int probeCount = probeLines.size();
     return new InstrumentedClass(
         className,
         loader,
         sourceFile,
+        sourceMap,
         initStart >= 0 ? initStart : probeCount,
         probeLines.toArray(new int[0][]),
         Arrays.copyOf(probeParent, probeCount),
