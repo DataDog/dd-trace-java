@@ -16,6 +16,8 @@ import java.util.concurrent.TimeUnit
 
 class RegistrationForkedTest extends InstrumentationSpecification {
 
+  private static final long TIMEOUT_SECONDS = 5
+
   @Override
   protected void configurePreAgent() {
     injectSysConfig("dd.profiling.enabled", "true")
@@ -24,27 +26,16 @@ class RegistrationForkedTest extends InstrumentationSpecification {
 
   def "test thread filter updates"() {
     setup:
-    NioEventLoopGroup nioEventLoopGroup = new NioEventLoopGroup(1)
     CyclicBarrier barrier = new CyclicBarrier(2)
     CountDownLatch latch = new CountDownLatch(2)
     ExecutorService executorService = Executors.newFixedThreadPool(2)
-
-    when: "run nio event loop"
-    TEST_PROFILING_CONTEXT_INTEGRATION.clear()
-    nioEventLoopGroup.submit({}).get(5, TimeUnit.SECONDS)
-    boolean shutdownGracefully = nioEventLoopGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).await(5, TimeUnit.SECONDS)
-
-    then:
-    shutdownGracefully
-    TEST_PROFILING_CONTEXT_INTEGRATION.attachments.get() == 1
-    TEST_PROFILING_CONTEXT_INTEGRATION.detachments.get() == 1
 
     when: "await cyclic barrier"
     TEST_PROFILING_CONTEXT_INTEGRATION.clear()
     def f1 = executorService.submit {barrier.await()}
     def f2 = executorService.submit {barrier.await()}
-    f1.get(5, TimeUnit.SECONDS)
-    f2.get(5, TimeUnit.SECONDS)
+    f1.get(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+    f2.get(TIMEOUT_SECONDS, TimeUnit.SECONDS)
 
     then:
     TEST_PROFILING_CONTEXT_INTEGRATION.attachments.get() == 2
@@ -56,15 +47,14 @@ class RegistrationForkedTest extends InstrumentationSpecification {
     def f4 = executorService.submit {latch.await()}
     latch.countDown()
     latch.countDown()
-    f3.get(5, TimeUnit.SECONDS)
-    f4.get(5, TimeUnit.SECONDS)
+    f3.get(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+    f4.get(TIMEOUT_SECONDS, TimeUnit.SECONDS)
 
     then:
     TEST_PROFILING_CONTEXT_INTEGRATION.attachments.get() == 2
     TEST_PROFILING_CONTEXT_INTEGRATION.detachments.get() == 2
 
     cleanup:
-    nioEventLoopGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS).await(5, TimeUnit.SECONDS)
     executorService.shutdownNow()
     TEST_PROFILING_CONTEXT_INTEGRATION.clear()
   }
@@ -77,8 +67,8 @@ class RegistrationForkedTest extends InstrumentationSpecification {
 
     when:
     TEST_PROFILING_CONTEXT_INTEGRATION.clear()
-    group.submit({}).get(5, TimeUnit.SECONDS)
-    boolean shutdownGracefully = group.shutdownGracefully(0, 5, TimeUnit.SECONDS).await(5, TimeUnit.SECONDS)
+    group.submit({}).get(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+    boolean shutdownGracefully = shutdownGroup(group)
 
     then:
     shutdownGracefully
@@ -86,11 +76,12 @@ class RegistrationForkedTest extends InstrumentationSpecification {
     TEST_PROFILING_CONTEXT_INTEGRATION.detachments.get() == 1
 
     cleanup:
-    group?.shutdownGracefully(0, 5, TimeUnit.SECONDS)?.await(5, TimeUnit.SECONDS)
+    shutdownGroup(group)
     TEST_PROFILING_CONTEXT_INTEGRATION.clear()
 
     where:
     transport                                         | isAvailable                                                       | createGroup
+    "nio"                                             | { true }                                                          | { new NioEventLoopGroup(1) }
     "epoll"                                           | { Epoll.isAvailable() }                                           | { new EpollEventLoopGroup(1) }
     "kqueue"                                          | { KQueue.isAvailable() }                                          | { new KQueueEventLoopGroup(1) }
     "grpc shaded nio"                                 | { true }                                                          | { new io.grpc.netty.shaded.io.netty.channel.nio.NioEventLoopGroup(1) }
@@ -98,6 +89,13 @@ class RegistrationForkedTest extends InstrumentationSpecification {
     "Netty 4.2 MultiThreadIoEventLoopGroup (NIO)"     | { true }                                                          | { newNetty42IoEventLoopGroup("io.netty.channel.nio.NioIoHandler") }
     "Netty 4.2 MultiThreadIoEventLoopGroup (Epoll)"   | { Epoll.isAvailable() }                                           | { newNetty42IoEventLoopGroup("io.netty.channel.epoll.EpollIoHandler") }
     "Netty 4.2 MultiThreadIoEventLoopGroup (KQueue)"  | { KQueue.isAvailable() }                                          | { newNetty42IoEventLoopGroup("io.netty.channel.kqueue.KQueueIoHandler") }
+  }
+
+  private static boolean shutdownGroup(def group) {
+    if (group == null) {
+      return true
+    }
+    return group.shutdownGracefully(0, TIMEOUT_SECONDS, TimeUnit.SECONDS).await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
   }
 
   private static EventLoopGroup newNetty42IoEventLoopGroup(String ioHandlerClassName) {
