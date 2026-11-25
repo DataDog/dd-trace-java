@@ -232,7 +232,10 @@ def select_maven_release(args: argparse.Namespace) -> int:
             continue
         pom_url = f"{args.repo_url}/{group_path}/{args.artifact_id}/{version}/{args.artifact_id}-{version}.pom"
         published_at = _head_pom_timestamp(pom_url)
-        if published_at is not None and published_at <= cutoff:
+        if published_at is None:
+            print(f"::error::Could not determine publish time for {label}:{version} from {pom_url}.")
+            return 1
+        if published_at <= cutoff:
             candidates.append(Candidate(version=version, published_at=published_at))
             break  # versions are sorted newest-first
 

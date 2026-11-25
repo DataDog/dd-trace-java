@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
@@ -260,6 +261,27 @@ class DependencyAgeScriptTest(unittest.TestCase):
         outputs = self.parse_outputs(result.stdout)
         self.assertEqual(outputs["version"], "3.6.0")
         self.assertEqual(outputs["published_at"], "2026-04-20")
+
+    def test_fails_when_publish_time_cannot_be_determined(self) -> None:
+        repo = self.maven_repo("org.apache.maven.plugins", "maven-surefire-plugin", "surefire-milestone-and-too-new.json")
+        pom = Path(urllib.parse.urlparse(repo).path) / "org/apache/maven/plugins/maven-surefire-plugin/3.6.1/maven-surefire-plugin-3.6.1.pom"
+        pom.unlink()
+        result = self.run_script(
+            "select-maven",
+            "--now",
+            NOW,
+            "--group-id",
+            "org.apache.maven.plugins",
+            "--artifact-id",
+            "maven-surefire-plugin",
+            "--repo-url",
+            repo,
+            "--current-version",
+            "3.5.6",
+        )
+
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("::error::Could not determine publish time for org.apache.maven.plugins:maven-surefire-plugin:3.6.1", result.stdout)
 
     def test_fails_when_maven_versions_cannot_be_listed(self) -> None:
         missing_repo = Path(tempfile.mkdtemp())
