@@ -42,9 +42,10 @@ val runFlakyTestsProvider = rootProject.providers.gradleProperty("runFlakyTests"
 val rerunAllTestsProvider = rootProject.providers.gradleProperty("rerun.tests")
 val rerunTestsProperty = "rerun.tests.${project.name}"
 val rerunTestsProvider = rootProject.providers.gradleProperty(rerunTestsProperty)
-val testcontainersMaxParallelForks = providers.gradleProperty("testcontainersMaxParallelForks")
+val forkedTestMaxParallelForks = providers.gradleProperty("forked.test.max.parallel.forks")
   .map(String::toInt)
-  .orElse(1)
+val testcontainersMaxParallelForks = providers.gradleProperty("testcontainers.max.parallel.forks")
+  .map(String::toInt)
 val isMasterBranch = providers.environmentVariable("CI_COMMIT_BRANCH")
   .map { it == "master" }
   .orElse(false)
@@ -87,8 +88,9 @@ tasks.withType<Test>().configureEach {
     exclude(GeneratedGroovyClosureSpec())
     setIncludes(listOf("**/*ForkedTest*"))
     forkEvery = 1
+    forkedTestMaxParallelForks.orNull?.let { maxParallelForks = it }
     pluginManager.withPlugin("dd-trace-java.testcontainers") {
-      maxParallelForks = testcontainersMaxParallelForks.get()
+      testcontainersMaxParallelForks.orNull?.let { maxParallelForks = it }
     }
     // Limit the number of concurrent forked tests
     usesService(forkedTestLimit)

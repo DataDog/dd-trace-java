@@ -19,8 +19,13 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import spock.lang.AutoCleanup
 import spock.lang.Shared
+import spock.lang.TempDir
 
 class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
+
+  @Shared
+  @TempDir
+  File muleHome
 
   @Override
   protected void configurePreAgent() {
@@ -57,9 +62,6 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
 
   @Override
   MuleTestContainer startServer(int port) {
-    File muleBase = new File(String.valueOf(buildProperties.get("mule.base")))
-    MuleTestContainer container = new MuleTestContainer(muleBase)
-    container.start()
     def appProperties = new Properties()
     def reqUri = requestServer.address
     ["test.server.port"     : "$port", "test.server.host": "localhost", "test.request.port": "${reqUri.port}",
@@ -68,17 +70,18 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
       // Force cast GStringImpl to String since Mule code does String casts of some properties
       appProperties.put((String) it.key, (String) it.value)
     }
-    def app = new URI("file:" + new File(String.valueOf(buildProperties.get(TEST_APPLICATION_JAR))).canonicalPath)
-    container.deploy(app, appProperties)
-    return container
+
+    return MuleTestContainer.start(
+      muleHome,
+      new File(buildProperties.getProperty("mule.base")),
+      new File(buildProperties.getProperty(TEST_APPLICATION_JAR)),
+      buildProperties.getProperty(TEST_APPLICATION_NAME),
+      appProperties)
   }
 
   @Override
   void stopServer(MuleTestContainer container) {
-    if (container != null) {
-      container.undeploy(String.valueOf(buildProperties.get(TEST_APPLICATION_NAME)))
-      container.stop()
-    }
+    container?.stop()
   }
 
   def "test mule client remote request"() {
