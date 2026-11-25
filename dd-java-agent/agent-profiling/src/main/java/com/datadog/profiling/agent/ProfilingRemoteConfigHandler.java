@@ -1,6 +1,7 @@
 package com.datadog.profiling.agent;
 
 import static com.datadog.profiling.controller.ProfilingSupport.isAllocationSamplerSafe;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallContextFilter;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.ALLOCATIONS;
 import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.CPU_TIME;
@@ -87,9 +88,10 @@ import org.slf4j.LoggerFactory;
  *   <li>The Datadog profiler only tracks the size of the live heap as part of live heap profiling.
  *       So {@code heapSize} enabled with {@code heapObjects} disabled still samples the live heap
  *       objects.
- *   <li>Wall clock profiling only samples the threads registered while tracing, which only happens
- *       when it was enabled locally at startup: enabling it remotely otherwise gives an empty wall
- *       clock profile, which is logged.
+ *   <li>With wall context filtering, the default when tracing is enabled, wall clock profiling only
+ *       samples the threads registered while tracing, which only happens when it was enabled
+ *       locally at startup: enabling it remotely otherwise gives an empty wall clock profile, which
+ *       is logged. Without the filter, e.g. when tracing is disabled, it samples every thread.
  * </ul>
  *
  * <p>Stopping a running profiler uploads what it recorded since its last snapshot first. That
@@ -374,16 +376,27 @@ final class ProfilingRemoteConfigHandler implements ProfilingConfigHandler {
 
   /**
    * Warns that the threads are only registered for wall clock profiling when it is enabled at
-   * startup.
+   * startup, see {@link #wallClockCantSample}.
    */
   private void warnIfWallClockCantSample(RemoteConfiguration remote) {
-    if (Boolean.TRUE.equals(remote.get(RemoteConfiguration.Feature.WALL_TIME))
-        && !isWallClockProfilerEnabled(localConfig)) {
+    if (wallClockCantSample(remote, localConfig)) {
       log.warn(
           "Remote config enables wall clock profiling, which was disabled at startup: no thread is"
               + " registered for it, so the wall clock profile will be empty until the application"
               + " is restarted with it enabled");
     }
+  }
+
+  /**
+   * Whether remote config enables wall clock profiling where it can't sample anything: with the
+   * wall context filter, it only samples the threads registered while tracing, which are only
+   * registered when it is enabled locally at startup. Without the filter, which the Datadog
+   * profiler turns off when tracing is disabled, it samples every thread.
+   */
+  static boolean wallClockCantSample(RemoteConfiguration remote, ConfigProvider localConfig) {
+    return Boolean.TRUE.equals(remote.get(WALL_TIME))
+        && !isWallClockProfilerEnabled(localConfig)
+        && getWallContextFilter(localConfig);
   }
 
   /**

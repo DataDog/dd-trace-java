@@ -10,8 +10,10 @@ import static com.datadog.profiling.utils.ProfilingMode.WALL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_TRACK_HEAPSIZE;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static java.lang.Boolean.TRUE;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
@@ -47,6 +49,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -56,6 +59,8 @@ import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class ProfilingRemoteConfigHandlerTest {
   private static final String ALL_FEATURES_DISABLED =
@@ -796,6 +801,39 @@ class ProfilingRemoteConfigHandlerTest {
       proceed.countDown();
       executor.shutdownNow();
     }
+  }
+
+  /**
+   * Wall clock profiling enabled remotely can only sample nothing with the wall context filter: it
+   * then only samples the threads registered while tracing, which are only registered when it was
+   * enabled locally. Without the filter, e.g. without tracing, it samples every thread.
+   */
+  @ParameterizedTest(
+      name = "{0}: local wall {1}, tracing {2}, context filter {3}, remote {4} -> {5}")
+  @CsvSource({
+    "filtered and disabled locally,  false, true,  true,  '\"wallTime\":true',  true",
+    "enabled locally,                true,  true,  true,  '\"wallTime\":true',  false",
+    "context filter disabled,        false, true,  false, '\"wallTime\":true',  false",
+    "tracing disabled,               false, false, true,  '\"wallTime\":true',  false",
+    "not enabled remotely,           false, true,  true,  '\"wallTime\":false', false",
+    "not set remotely,               false, true,  true,  '\"cpuTime\":true',   false"
+  })
+  void wallClockCantSampleOnlyWithTheWallContextFilter(
+      String scenario,
+      String localWall,
+      String tracing,
+      String contextFilter,
+      String remoteProfilers,
+      boolean expected) {
+    Properties properties = new Properties();
+    properties.put(PROFILING_DATADOG_PROFILER_WALL_ENABLED, localWall);
+    properties.put(TRACE_ENABLED, tracing);
+    properties.put(PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER, contextFilter);
+
+    assertEquals(
+        expected,
+        ProfilingRemoteConfigHandler.wallClockCantSample(
+            config(remoteProfilers), ConfigProvider.withPropertiesOverride(properties)));
   }
 
   private static RemoteConfiguration config(String profilers) {
