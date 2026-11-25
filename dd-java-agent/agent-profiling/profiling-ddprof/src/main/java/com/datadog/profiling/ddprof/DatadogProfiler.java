@@ -52,6 +52,7 @@ import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.TaskWrapper;
+import datadog.trace.util.Strings;
 import datadog.trace.util.TempLocationManager;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -686,7 +687,7 @@ public final class DatadogProfiler {
       if (liveHeap) {
         cmd.append(configuredProfilingModes.contains(LIVEHEAP_SIZE) ? 'L' : 'l');
         cmd.append(':')
-            .append(String.format("%.2f", getLiveHeapSamplePercent(configProvider) / 100.0d));
+            .append(Strings.format("%.2f", getLiveHeapSamplePercent(configProvider) / 100.0d));
       }
     }
     if (configuredProfilingModes.contains(NATIVEMEM)) {

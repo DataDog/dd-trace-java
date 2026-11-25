@@ -180,11 +180,14 @@ object KnownTagsEmitter {
           private static final long[] KEYOF_IDS;
 
           static {
-            StringIndex.Data data = StringIndex.EmbeddingSupport.create(KEYOF_NAMES);
+            // Read the arrays once: a static field read inside its own class's initializer is not
+            // cached by the interpreter, which on JDK 21 makes this loop cost tens of ms per JVM start.
+            String[] names = KEYOF_NAMES;
+            long[] values = KEYOF_VALUES;
+            StringIndex.Data data = StringIndex.EmbeddingSupport.create(names);
             long[] ids = new long[data.names.length];
-            for (int j = 0; j < KEYOF_NAMES.length; j++) {
-              ids[StringIndex.EmbeddingSupport.indexOf(data.hashes, data.names, KEYOF_NAMES[j])] =
-                  KEYOF_VALUES[j];
+            for (int j = 0; j < names.length; j++) {
+              ids[StringIndex.EmbeddingSupport.indexOf(data.hashes, data.names, names[j])] = values[j];
             }
             KEYOF_HASHES = data.hashes;
             KEYOF_KEYS = data.names;
@@ -207,6 +210,21 @@ object KnownTagsEmitter {
           };
 
           /**
+           * Each tag's id, indexed by serial; slot 0 (no tag) is 0. Lets a store that keeps only the
+           * 16-bit serial recover the full id, flag and slot bits included.
+           */
+          static final long[] IDS_BY_SERIAL = {
+            0L,
+        """.trimIndent()
+      )
+      for (t in reg.tags.sortedBy { it.serial }) {
+        appendLine("    ${idC(t.ddName)},")
+      }
+      appendLine(
+        """
+          };
+
+          /**
            * The registry's name&harr;id tables, as a {@link KnownTagCodec.Resolver}. {@code KnownTagCodec}
            * reads this field from its own holder, so the two classes complete each other: the codec owns
            * the bit layout and the naming policy, this class owns the data. Nothing has to be called first.
@@ -217,6 +235,11 @@ object KnownTagsEmitter {
                 public String nameOf(long tagId) {
                   int serial = KnownTagCodec.serialNum(tagId);
                   return serial < NAMES_BY_SERIAL.length ? NAMES_BY_SERIAL[serial] : null;
+                }
+
+                @Override
+                public long idOf(int serial) {
+                  return IDS_BY_SERIAL[serial];
                 }
         
                 // openTelemetryNameOf: id -> OTel-namespace name on spans of a direction, null when

@@ -2,6 +2,7 @@ package datadog.trace.api.profiling;
 
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +20,7 @@ public enum ProfilingEnablement {
 
   ProfilingEnablement(boolean active) {
     this.active = active;
-    this.alias = this.name().toLowerCase();
+    this.alias = this.name().toLowerCase(Locale.ROOT);
   }
 
   ProfilingEnablement(boolean active, String alias) {
@@ -52,7 +53,7 @@ public enum ProfilingEnablement {
     if (value == null) {
       return DISABLED;
     }
-    switch (value.toLowerCase()) {
+    switch (value.toLowerCase(Locale.ROOT)) {
       case "true":
       case "1":
         return ENABLED;
@@ -69,7 +70,7 @@ public enum ProfilingEnablement {
     if (value == null) {
       return;
     }
-    switch (value.toLowerCase()) {
+    switch (value.toLowerCase(Locale.ROOT)) {
       case "false":
       case "true":
       case "auto":

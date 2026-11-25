@@ -31,6 +31,13 @@ For each boundary-crossing type in the library, the instrumentation needs to ide
 - **The tracing wrapper** — a new class implementing the callback interface that reattaches the captured context before delegating (e.g. `TracingObserver` implements `Observer`).
 - **The wrapper's methods to guard** — the callback methods that must reattach context before running user code (e.g. `onNext`, `onError`, `onComplete` for RxJava observers).
 
+## Capture controls and context switches
+
+Follow the [capture controls and context switches](../../../../docs/how_instrumentations_work.md#capture-controls-and-context-switches)
+rules when passing context between execution units. For coroutine and fiber switches, use a checkpoint.
+Checkpoints do not keep a trace open. If the trace must remain open until asynchronous work completes,
+capture a continuation from the original context and associate it with the work.
+
 ## Tests for context-tracking instrumentations
 
 Context-tracking tests assert that **a span created by user code inside the wrapped callback becomes a child of the parent span active when the boundary was created**:
@@ -44,6 +51,17 @@ runUnderTrace("parent") {
 ```
 
 Do NOT assert span kinds, operation names, span tags, or span types on the *target* methods — there are no spans on those methods.
+
+Test the following behavior through the library's scheduling or callback APIs, where applicable:
+
+- Instrumentation that temporarily disables capture must restore the previous setting. Test normal
+  and exceptional exits, with capture initially enabled and disabled.
+- Coroutine and fiber instrumentations must use checkpoints to preserve capture settings when
+  switching between different `Context` objects, including when returning to the caller. Swapping to
+  the same `Context` preserves the current flags, including across suspension and resumption. Test
+  both same-context and different-context switches.
+- For instrumentation with custom capture logic, test that disabling capture prevents propagation to the callback.
+  Instrumentation using the shared capture mechanism can rely on its existing coverage.
 
 ## Choosing between method overloads
 

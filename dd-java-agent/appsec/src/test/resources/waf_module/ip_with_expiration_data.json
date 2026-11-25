@@ -1,0 +1,14 @@
+{
+  "rules_data": [
+    {
+      "id": "ip_data",
+      "type": "ip_with_expiration",
+      "data": [
+        {
+          "value": "1.2.3.4",
+          "expiration": "0"
+        }
+      ]
+    }
+  ]
+}

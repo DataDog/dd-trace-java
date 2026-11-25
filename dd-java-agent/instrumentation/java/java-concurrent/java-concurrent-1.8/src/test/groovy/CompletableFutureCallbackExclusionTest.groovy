@@ -15,15 +15,8 @@ import java.util.function.BiConsumer
 import static completablefuture.CallbackExclusionTestInstrumentation.register
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.COMPLETABLE_FUTURE_CALLBACK
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude
 
 class CompletableFutureCallbackExclusionTest extends InstrumentationSpecification {
-  def setup() {
-    assert exclude(COMPLETABLE_FUTURE_CALLBACK, Excluded.name): "Unary callback exclusion provider was not installed"
-    assert exclude(COMPLETABLE_FUTURE_CALLBACK, ExcludedBinary.name): "Binary callback exclusion provider was not installed"
-  }
-
   def "pending #operation captures exactly #expected for #kind"() {
     setup:
     def source = new CompletableFuture()
@@ -73,7 +66,7 @@ class CompletableFutureCallbackExclusionTest extends InstrumentationSpecificatio
       ? ["exceptionallyCompose", "exceptionallyComposeAsync"] : []),
       [Excluded, UnlistedSubclass, UnlistedSibling]
     ].combinations()
-    expected = kind == Excluded ? 0 : 1
+    expected = kind in [Excluded, UnlistedSubclass] ? 0 : 1
   }
 
   def "callbackless #relay captures exactly once"() {

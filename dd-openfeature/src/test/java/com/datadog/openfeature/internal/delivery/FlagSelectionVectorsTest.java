@@ -30,7 +30,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  */
 class FlagSelectionVectorsTest {
   private static final String VECTORS_PATH =
-      "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data/flag-selection/selection-vectors.json";
+      "dd-openfeature/src/test/fixtures/ffe-system-test-data/flag-selection/selection-vectors.json";
   private static final URI ENDPOINT =
       URI.create(
           "https://ufc-server.ff-cdn.datadoghq.com/api/v2/feature-flagging/config/rules-based/server?dd_env=prod");

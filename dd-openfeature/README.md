@@ -158,6 +158,53 @@ The provider then sends no exposures to Datadog. `ExposureHook` callbacks still 
 
 This setting stops exposures only. Flag evaluation events have their own setting, `DD_FLAGGING_EVALUATION_COUNTS_ENABLED`. The Java provider does not read dd-trace-py's `DD_FFE_INTAKE_ENABLED`.
 
+To make evaluations stop counting as exposures, rather than only stop sending them, see [Evaluation telemetry and exposures](#evaluation-telemetry-and-exposures).
+
+## Evaluation telemetry and exposures
+
+A provider has two independent options. Each is on by default and applies to that provider only:
+
+| Provider option | When off |
+|---|---|
+| `evaluationTelemetryEnabled(false)` | No flag evaluation events, no `feature_flag.evaluations` metric, and no span enrichment. |
+| `exposuresEnabled(false)` | Evaluations are not exposures: none is recorded, deduplicated, or sent to Datadog, and `ExposureHook` reports them with `isExposure()` and `shouldSend()` false. With span enrichment on, the span records the evaluation but not the subject. |
+
+Neither option changes flag results or assignment. The provider reads both at construction.
+
+Process-wide, `DD_FLAGGING_EVALUATION_COUNTS_ENABLED=false` stops flag evaluation events, and `DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false` stops sending exposures to Datadog. Neither setting stops the `feature_flag.evaluations` metric, which is recorded whenever OpenTelemetry supplies a working meter. To stop evaluation metrics across the process, set `evaluationTelemetryEnabled(false)` on every Datadog provider. Span enrichment is off by default.
+
+### Inspecting an assignment before the subject sees it
+
+Some applications decide something ahead of time, such as which version of a notification to send, and expose the subject only when they act on it, such as when they open the notification. Register a second provider for the inspection, under its own OpenFeature domain, with both options off:
+
+```java
+import com.datadog.openfeature.Provider;
+import dev.openfeature.sdk.Client;
+import dev.openfeature.sdk.MutableContext;
+import dev.openfeature.sdk.OpenFeatureAPI;
+
+OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+api.setProviderAndWait("live", new Provider());
+api.setProviderAndWait("peek", new Provider(new Provider.Options()
+    .evaluationTelemetryEnabled(false)
+    .exposuresEnabled(false)));
+
+Client live = api.getClient("live");
+Client peek = api.getClient("peek");
+
+MutableContext user = new MutableContext("user-123");
+
+// At send time: the variant the subject gets, with no exposure or evaluation telemetry.
+String planned = peek.getStringValue("digest-subject-line", "control", user);
+
+// When the subject opens the notification: the same variant, and the exposure.
+String seen = live.getStringValue("digest-subject-line", "control", user);
+```
+
+* Both providers share the process's flag configuration, so for the same flag, targeting key, attributes and configuration, and the same `experimentationOptOutMode`, they return the same variant.
+* An inspection does not mark the subject as exposed, so the later live evaluation still sends the exposure.
+* Evaluate inspections through the inspection domain's client only. Hooks that the application registers itself, at the API or client level, still run.
+
 ## Per-subject experimentation opt-out
 
 Set `DD_FEATURE_FLAGS_EXPERIMENTATION_OPT_OUT_MODE=immediate` before constructing the provider.

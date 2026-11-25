@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.karate2;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
+import io.karatelabs.core.FeatureRuntime;
 import io.karatelabs.core.RunEvent;
 import io.karatelabs.core.RunListener;
 import io.karatelabs.core.ScenarioResult;
@@ -48,7 +49,11 @@ public class KarateScenarioAdvice {
         // advance and loop
         return;
       }
-      KarateTracingListener.afterScenario(scenarioRuntime, result, context);
+      KarateTracingListener.afterScenario(
+          scenarioRuntime,
+          result,
+          context,
+          InstrumentationContext.get(FeatureRuntime.class, FeatureSuite.class));
 
       if (CallDepthThreadLocalMap.incrementCallDepth(ScenarioRuntime.class) > 0) {
         // retry invoked below

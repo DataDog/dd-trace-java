@@ -1,3 +1,5 @@
+import static java.nio.file.Files.createDirectories
+
 plugins {
   id 'dd-trace-java.module.instrumentation'
 }
@@ -11,6 +13,16 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
+
+tasks.withType(Test).configureEach {
+  // Synapse appends access logs under the working directory. Create the directory before
+  // starting the workers so parallel forks can share it without racing to create or remove it.
+  workingDir = temporaryDir
+  doFirst {
+    createDirectories(new File(workingDir, 'logs').toPath())
+  }
+}
+
 configurations.configureEach {
   // the version used by Synapse isn't available in a public repository - we don't need it, so exclude it
   exclude group: 'org.snmp4j', module: 'snmp4j'

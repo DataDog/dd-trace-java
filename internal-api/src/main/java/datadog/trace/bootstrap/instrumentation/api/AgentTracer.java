@@ -2,10 +2,10 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
+import datadog.context.ContextHandle;
 import datadog.context.ContextListener;
 import datadog.context.ContextManager;
 import datadog.context.ContextScope;
-import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointTracker;
@@ -156,29 +156,6 @@ public class AgentTracer {
   }
 
   /**
-   * Checks whether asynchronous propagation is enabled, meaning this context will propagate across
-   * asynchronous boundaries.
-   *
-   * @return {@code true} if asynchronous propagation is enabled, {@code false} otherwise.
-   */
-  public static boolean isAsyncPropagationEnabled() {
-    return get().isAsyncPropagationEnabled();
-  }
-
-  /**
-   * Enables or disables asynchronous propagation for the active span.
-   *
-   * <p>Asynchronous propagation is enabled by default from {@link
-   * ConfigDefaults#DEFAULT_ASYNC_PROPAGATING}.
-   *
-   * @param asyncPropagationEnabled {@code true} to enable asynchronous propagation, {@code false}
-   *     to disable it.
-   */
-  public static void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
-    get().setAsyncPropagationEnabled(asyncPropagationEnabled);
-  }
-
-  /**
    * Returns the noop span instance.
    *
    * <p>This instance will always be the same, and can be safely tested using object identity (ie
@@ -297,6 +274,16 @@ public class AgentTracer {
     void activateSpanWithoutScope(AgentSpan span);
 
     @Override
+    default boolean isAsyncPropagationEnabled() {
+      return isCaptureEnabled();
+    }
+
+    @Override
+    default void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
+      setCaptureEnabled(asyncPropagationEnabled);
+    }
+
+    @Override
     default TraceScope.Continuation captureActiveSpan() {
       Context current = currentContext();
       if (AgentSpan.fromContext(current) == null) {
@@ -375,6 +362,11 @@ public class AgentTracer {
 
     CallbackProvider getUniversalCallbackProvider();
 
+    /** Whether the native Lambda lifecycle is enabled in this build. */
+    default boolean isNativeLambdaTracingEnabled() {
+      return false;
+    }
+
     AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId);
 
     void notifyExtensionEnd(AgentSpan span, Object result, boolean isError, String lambdaRequestId);
@@ -410,10 +402,19 @@ public class AgentTracer {
     ContextScope attach(Context context);
 
     @Deprecated
-    Context swap(Context context);
+    ContextHandle checkpoint(Context context);
+
+    @Deprecated
+    ContextHandle swap(ContextHandle context);
 
     @Deprecated
     ContextContinuation capture(Context context);
+
+    @Deprecated
+    boolean isCaptureEnabled();
+
+    @Deprecated
+    void setCaptureEnabled(boolean enabled);
   }
 
   public interface SpanBuilder {
@@ -499,14 +500,6 @@ public class AgentTracer {
 
     @Override
     public void activateSpanWithoutScope(final AgentSpan span) {}
-
-    @Override
-    public boolean isAsyncPropagationEnabled() {
-      return false;
-    }
-
-    @Override
-    public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {}
 
     @Override
     public void checkpointActiveForRollback() {}
@@ -683,7 +676,12 @@ public class AgentTracer {
     }
 
     @Override
-    public Context swap(Context context) {
+    public ContextHandle checkpoint(Context context) {
+      return Context.root();
+    }
+
+    @Override
+    public ContextHandle swap(ContextHandle context) {
       return Context.root();
     }
 
@@ -691,6 +689,14 @@ public class AgentTracer {
     public ContextContinuation capture(Context context) {
       return NoopContinuation.INSTANCE;
     }
+
+    @Override
+    public boolean isCaptureEnabled() {
+      return false;
+    }
+
+    @Override
+    public void setCaptureEnabled(boolean enabled) {}
   }
 
   public static class NoopAgentTraceCollector implements AgentTraceCollector {
@@ -811,13 +817,28 @@ public class AgentTracer {
     }
 
     @Override
-    public Context swap(@Nonnull Context context) {
+    public ContextHandle checkpoint(@Nonnull Context context) {
+      return AgentTracer.get().checkpoint(context);
+    }
+
+    @Override
+    public ContextHandle swap(@Nonnull ContextHandle context) {
       return AgentTracer.get().swap(context);
     }
 
     @Override
     public ContextContinuation capture(@Nonnull Context context) {
       return AgentTracer.get().capture(context);
+    }
+
+    @Override
+    public boolean isCaptureEnabled() {
+      return AgentTracer.get().isCaptureEnabled();
+    }
+
+    @Override
+    public void setCaptureEnabled(boolean enabled) {
+      AgentTracer.get().setCaptureEnabled(enabled);
     }
 
     @Override

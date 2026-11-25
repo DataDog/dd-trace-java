@@ -59,6 +59,21 @@ This mechanism exists to make sure either java agent state or static data are re
 > Forked tests are not run as part of the gradle `test` task.
 > In order to run them, you need to use the `forkedTest` task instead.
 
+Gradle can run up to four test JVMs per forked task by default. Give each fork its own writable
+files and directories. For example, the Liberty tests copy the server template into a temporary
+directory before changing `server.xml` so concurrent forks cannot overwrite each other's settings.
+
+For a serial comparison when debugging, set `-Pforked.test.max.parallel.forks=1`. Modules that apply
+the Testcontainers convention use `-Ptestcontainers.max.parallel.forks=1` to override the general
+limit. Set both properties to run one JVM at a time within each forked task across both kinds of
+modules. Use `--rerun` to execute the selected task again even if its previous results are up to date
+or available from the build cache.
+
+```shell
+./gradlew :path:to:module:forkedTest --rerun \
+  -Pforked.test.max.parallel.forks=1 -Ptestcontainers.max.parallel.forks=1
+```
+
 ### Flaky Tests
 
 Mark unreliable test methods or classes with `@Flaky` in both JUnit and Spock.
@@ -361,6 +376,22 @@ texts in the commit message:
 * `[ci: ARM64, NON_DEFAULT_JVMS]` to run them on all eligible JVMs.
 * `[ci: ARM64, JAVA11]` to add Java 11 to the default arm64 JVMs.
 * `[ci: ARM64, NON_DEFAULT_JVMS, JAVA11]` to also include Java 11 vendor JVMs (Zulu and Semeru).
+
+### Rerunning Tests on CI
+
+On master, CI runs every selected test task even when its inputs match a previous run.
+Pull requests reuse up-to-date and cached test results instead. To give a pull request
+the master behavior, include the case-sensitive `[ci: RERUN_TESTS]` option in the commit
+message, or set the GitLab CI variable `RERUN_TESTS=true` when starting a pipeline.
+Combine it with other CI options as needed, for example `[ci: ARM64, RERUN_TESTS]`.
+
+Only test tasks run again. Compilation and other tasks still reuse the build cache, and
+successful test results are still stored in it. Use this to compare test durations or
+collect flaky-test signals. To also rebuild everything else, use
+[`SKIP_BUILD_CACHE`](how_to_work_with_gradle.md#forcing-fresh-ci-task-execution).
+
+The option sets the Gradle property `rerun.tests`. Locally, pass `-Prerun.tests` for all
+projects, or `-Prerun.tests.<project-name>` for one project.
 
 ### Running System Tests
 

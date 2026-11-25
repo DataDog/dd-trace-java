@@ -1,20 +1,14 @@
 package completablefuture;
 
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.COMPLETABLE_FUTURE_CALLBACK;
-import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
-import static java.util.Collections.singletonMap;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
-import java.util.Collection;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.SkipCompletableFutureContextCapture;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -22,8 +16,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 @AutoService(InstrumenterModule.class)
-public class CallbackExclusionTestInstrumentation extends InstrumenterModule.Tracing
-    implements ExcludeFilterProvider {
+public class CallbackExclusionTestInstrumentation extends InstrumenterModule.Tracing {
   public CallbackExclusionTestInstrumentation() {
     super("java_completablefuture");
   }
@@ -31,15 +24,6 @@ public class CallbackExclusionTestInstrumentation extends InstrumenterModule.Tra
   @Override
   public List<Instrumenter> typeInstrumentations() {
     return emptyList();
-  }
-
-  @Override
-  public Map<ExcludeType, ? extends Collection<String>> excludedClasses() {
-    return singletonMap(
-        COMPLETABLE_FUTURE_CALLBACK,
-        asList(
-            "completablefuture.CallbackExclusionTestInstrumentation$Excluded",
-            "completablefuture.CallbackExclusionTestInstrumentation$ExcludedBinary"));
   }
 
   public static class Callback implements Consumer<Object>, BiConsumer<Object, Object>, Runnable {
@@ -83,9 +67,10 @@ public class CallbackExclusionTestInstrumentation extends InstrumenterModule.Tra
     }
   }
 
-  public static class Excluded extends Unary {}
+  public static class Excluded extends Unary implements SkipCompletableFutureContextCapture {}
 
-  public static class ExcludedBinary extends Binary {}
+  public static class ExcludedBinary extends Binary
+      implements SkipCompletableFutureContextCapture {}
 
   public static class UnlistedBinarySubclass extends ExcludedBinary {}
 

@@ -1,8 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
-import static java.util.Collections.singleton;
-import static java.util.Collections.singletonMap;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -36,10 +33,10 @@ import org.openjdk.jmh.annotations.Warmup;
  * build with {@code :dd-java-agent:agent-bootstrap:jmhJar}, then select this benchmark with {@code
  * -prof gc -t 1 -f 3 -wi 3 -w 1s -i 5 -r 1s -tu ns -bm avgt} and {@code -jvmArgsAppend
  * "-javaagent:/path/to/agent.jar -Dbench.patched=true"}. Use {@code bench.patched=false} for an
- * original-hook comparison agent retaining the inert exclusion enum. This property checks expected
- * behavior; it does not enable the production fix. Keep JVM, heap, GC and agent configuration
- * identical across variants and disable external reporting. Compare ordinary-path overhead as well
- * as agent-callback savings.
+ * original-hook comparison agent that ignores the marker. This property checks expected behavior;
+ * it does not enable the production fix. Keep JVM, heap, GC and agent configuration identical
+ * across variants and disable external reporting. Compare ordinary-path overhead as well as
+ * agent-callback savings.
  */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -71,17 +68,11 @@ public class CompletableFutureCallbackBenchmark {
         "ordinary".equals(callbackKind) || "agentOwned".equals(callbackKind),
         "Invalid callbackKind");
     require("pending".equals(completion) || "completed".equals(completion), "Invalid completion");
-    ExcludeFilter.add(
-        singletonMap(
-            ExcludeFilter.ExcludeType.valueOf("COMPLETABLE_FUTURE_CALLBACK"),
-            singleton(Excluded.class.getName())));
-    // Register before either callback class can populate the filter's ClassValue.
     callback = "agentOwned".equals(callbackKind) ? new Excluded() : new Ordinary();
     boolean patched = Boolean.parseBoolean(patchedProperty);
     AgentSpan checkSpan = AgentTracer.startSpan("benchmark", "callback.preflight");
     require(checkSpan != AgentTracer.noopSpan(), "Tracer returned a noop span");
     try (ContextScope ignored = AgentTracer.activateSpan(checkSpan)) {
-      AgentTracer.setAsyncPropagationEnabled(true);
       verify(new Ordinary(), checkSpan, false, false);
       verify(new Excluded(), checkSpan, patched, false);
       verify(new Ordinary(), checkSpan, false, true);
@@ -121,7 +112,6 @@ public class CompletableFutureCallbackBenchmark {
   public void setupIteration() {
     span = AgentTracer.startSpan("benchmark", "callback.iteration");
     registrationScope = AgentTracer.activateSpan(span);
-    AgentTracer.setAsyncPropagationEnabled(true);
     operations = 0;
     callback.calls = 0;
     callback.total = 0;
@@ -189,7 +179,8 @@ public class CompletableFutureCallbackBenchmark {
     }
   }
 
-  public static final class Excluded extends Callback {
+  public static final class Excluded extends Callback
+      implements SkipCompletableFutureContextCapture {
     @Override
     public void accept(Integer value, Throwable failure) {
       record(value, failure);

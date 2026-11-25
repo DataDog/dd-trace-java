@@ -4,12 +4,7 @@ import akka.pattern.ask
 import akka.routing.RoundRobinPool
 import akka.util.Timeout
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
-  activateSpan,
-  setAsyncPropagationEnabled,
-  activeSpan,
-  startSpan
-}
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{activateSpan, activeSpan, startSpan}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -58,7 +53,6 @@ class AkkaActors extends AutoCloseable {
   @Trace
   def send(name: String, who: String): Unit = {
     val actor = actors(name)
-    setAsyncPropagationEnabled(true)
     activeSpan().setSpanName(name)
     actor ! WhoToGreet(who)
     if (name == "ask") {
@@ -70,7 +64,6 @@ class AkkaActors extends AutoCloseable {
 
   @Trace
   def leak(who: String, leak: String): Unit = {
-    setAsyncPropagationEnabled(true)
     activeSpan().setSpanName("leak all the things")
     tellGreeter ! WhoToGreet(who)
     tellGreeter ! Leak(leak)

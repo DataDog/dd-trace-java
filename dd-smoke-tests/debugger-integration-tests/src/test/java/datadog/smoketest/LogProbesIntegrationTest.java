@@ -45,10 +45,13 @@ import org.junit.jupiter.api.condition.DisabledIf;
 @NonRetryable
 public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
 
+  public static final String EVALUATION_TIMEOUT_PROPERTY =
+      "-Ddd.dynamic.instrumentation.evaluation.timeout.ms=1000";
+
   @BeforeEach
   public void beforeEach() {
     // increase template evaluation timeout to avoid flakiness
-    additionalJvmArgs.add("-Ddd.dynamic.instrumentation.evaluation.timeout.ms=200");
+    additionalJvmArgs.add(EVALUATION_TIMEOUT_PROPERTY);
   }
 
   @Test
@@ -567,6 +570,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   @Test
   @DisplayName("testConditionTimeout")
   void testConditionTimeout() throws Exception {
+    additionalJvmArgs.remove(EVALUATION_TIMEOUT_PROPERTY);
     final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 snapshot
     final String METHOD_NAME = "processLargeCollection";
     LogProbe probe =
@@ -586,7 +590,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     registerSnapshotListener(snapshot -> {
       if (snapshot.getProbe().getProbeId().equals(PROBE_ID)) {
         assertEquals(1, snapshot.getEvaluationErrors().size());
-        assertEquals("timeout (200ms)", snapshot.getEvaluationErrors().get(0).getMessage());
+        assertEquals("timeout (50ms)", snapshot.getEvaluationErrors().get(0).getMessage());
         snapshotReceived.set(true);
       }
     });
@@ -598,6 +602,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
   @Test
   @DisplayName("testTemplateTimeout")
   void testTemplateTimeout() throws Exception {
+    additionalJvmArgs.remove(EVALUATION_TIMEOUT_PROPERTY);
     final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 snapshot
     final String METHOD_NAME = "processLargeCollection";
     final String LARGE_COLLECTION_TEMPLATE = "{filter(largeList, {len(@it) > 0})}";
@@ -621,7 +626,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     registerSnapshotListener(snapshot -> {
       if (snapshot.getProbe().getProbeId().equals(PROBE_ID)) {
         assertEquals(1, snapshot.getEvaluationErrors().size());
-        assertEquals("timeout (200ms)", snapshot.getEvaluationErrors().get(0).getMessage());
+        assertEquals("timeout (50ms)", snapshot.getEvaluationErrors().get(0).getMessage());
         snapshotReceived.set(true);
       }
     });

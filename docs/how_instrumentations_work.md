@@ -883,6 +883,42 @@ in [`HttpClientRequestTracingHandler`](https://github.com/DataDog/dd-trace-java/
 how the Continuation is used to obtain the `parentScope` which is
 finally [closed](https://github.com/DataDog/dd-trace-java/blob/3fe1b2d6010e50f61518fa25af3bdeb03ae7712b/dd-java-agent/instrumentation/netty-4.1/src/main/java/datadog/trace/instrumentation/netty41/client/HttpClientRequestTracingHandler.java#L111).
 
+### Capture controls and context switches
+
+To propagate context to asynchronous work and keep its trace open, use `Context.capture()` to create a
+continuation. The continuation adds a pending reference to the trace, delaying normal completion until
+it is resolved. Resume it when the work runs and close the returned scope, or release it if the work
+never runs. If multiple tasks share a continuation, call `hold()` immediately after capture so the
+first task to finish does not release it before the others resume it. Release the hold explicitly
+once all tasks have resumed or completed.
+
+The capture flag belongs to the current execution unit and is enabled by default.
+Temporarily suppress capture when scheduling work that should not keep the caller's trace open,
+such as shared background tasks. Use `Context.isCaptureEnabled()` to read the current setting
+and `Context.setCaptureEnabled(boolean)` to disable or restore capture.
+When capture is disabled, `capture()` returns a no-op continuation.
+
+> In advice, use `isContextCaptureEnabled()` and `setContextCaptureEnabled(boolean)` from
+> [`Java8BytecodeBridge`](instrumentation_design_guidelines.md#3-static-interface-methods-in-advice).
+
+`attach()` and `swap()` still work when capture is disabled. Attaching a different context resets the
+execution unit's flags and enables capture. Closing its scope restores the previous flags. Attaching
+the current context leaves flags unchanged, and closing its scope does not restore them. To disable
+capture temporarily outside an attached scope, save the previous setting and restore it in `finally`.
+
+Use `swap()` to switch contexts. To preserve context and capture settings across coroutine or fiber
+suspension, get a checkpoint with `Context.current().checkpoint()`. This returns a handle for a later
+swap without changing the current context or flags. Swapping to a different context restores the
+handle's saved flags, or resets the flags if none were saved. Swapping to the same context preserves
+the current flags, even when the handle contains saved flags. Keep the handle returned by `swap()`
+and swap it back when returning to the caller.
+
+Attaching, swapping, and checkpointing do not keep a trace open. Capture a continuation from the
+original context when asynchronous work also needs to keep the trace open after the parent span
+has finished.
+
+See the [Context API](../components/context/src/main/java/datadog/context/Context.java) for details.
+
 ### Continuation effects
 
 An unresolved continuation keeps `PendingTrace`'s reference count positive and prevents its normal

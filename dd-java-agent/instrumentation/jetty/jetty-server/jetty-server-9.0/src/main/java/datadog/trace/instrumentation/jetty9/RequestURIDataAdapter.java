@@ -38,6 +38,12 @@ public final class RequestURIDataAdapter extends URIRawDataAdapter {
 
   @Override
   protected String innerRawQuery() {
-    return request.getQueryString();
+    try {
+      return request.getQueryString();
+    } catch (StringIndexOutOfBoundsException e) {
+      // Jetty 9's HttpURI can hold inconsistent offsets for a malformed request URI, so reading the
+      // query throws: treat it as absent rather than lose the rest of the URL
+      return null;
+    }
   }
 }

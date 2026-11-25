@@ -20,6 +20,7 @@ import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
 import spock.lang.Ignore
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 import java.util.concurrent.LinkedBlockingQueue
@@ -329,6 +330,36 @@ abstract class KafkaStreamsTestBase extends VersionedNamingTestBase {
     producerFactory?.stop()
     streams?.close()
     consumerContainer?.stop()
+  }
+
+  @IgnoreIf({ !instance.isDataStreamsEnabled() })
+  def "data streams consume checkpoint is tagged with the source topic and application id"() {
+    setup:
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def config = new Properties()
+    config.putAll(senderProps)
+    config.put(StreamsConfig.APPLICATION_ID_CONFIG, "test-application")
+    config.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName())
+    config.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName())
+    def builder = new KStreamBuilder()
+    builder.stream(STREAM_PENDING).to(Serdes.String(), Serdes.String(), STREAM_PROCESSED)
+    def streams = new KafkaStreams(builder, config)
+    streams.start()
+    def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
+
+    when:
+    new KafkaTemplate<String, String>(producerFactory).send(STREAM_PENDING, "hello")
+    // source produce, streams consume, streams produce
+    TEST_DATA_STREAMS_WRITER.waitForGroups(3, 10_000)
+    StatsGroup consume = TEST_DATA_STREAMS_WRITER.groups.find { it.tags.direction == "direction:in" }
+
+    then:
+    consume.tags.topic == "topic:$STREAM_PENDING"
+    consume.tags.group == "group:test-application"
+
+    cleanup:
+    producerFactory?.stop()
+    streams?.close()
   }
 }
 

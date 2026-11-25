@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.scalatest;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -14,7 +14,7 @@ import org.scalatest.Reporter;
 
 @AutoService(InstrumenterModule.class)
 public class ScalatestForkInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public ScalatestForkInstrumentation() {
     super("ci-visibility", "scalatest");
@@ -26,48 +26,38 @@ public class ScalatestForkInstrumentation extends InstrumenterModule.CiVisibilit
   }
 
   @Override
-  public String instrumentedType() {
-    return "org.scalatest.tools.Framework";
+  public String[] knownMatchingTypes() {
+    return new String[] {
+      "org.scalatest.tools.Framework$ScalaTestRunner$Skeleton$1",
+      "org.scalatest.tools.Framework$Skeleton$1",
+    };
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("runner").and(takesArgument(1, String[].class)),
-        ScalatestForkInstrumentation.class.getName() + "$RunnerAdvice");
+        named("run").and(takesArguments(0)),
+        ScalatestForkInstrumentation.class.getName() + "$SkeletonRunAdvice");
   }
 
   /**
-   * This instrumentation is needed to prevent double-reporting of Scalatest events when using SBT
-   * and Test/fork. Current version of the code cannot detect such cases automatically, so it has to
-   * be activated explicitly by setting {@link
-   * CiVisibilityConfig#CIVISIBILITY_SCALATEST_FORK_MONITOR_ENABLED}.
+   * Prevents double-reporting of Scalatest events when using SBT with Test/fork. Activated with
+   * {@link CiVisibilityConfig#CIVISIBILITY_SCALATEST_FORK_MONITOR_ENABLED}, since the parent JVM is
+   * the only one reporting when the agent is not attached to the forked JVM.
    *
-   * <p>When using SBT with test forking, Scalatest reporter is activated both in the parent and in
-   * the child process. We only want to instrument the child process (since it is actually executing
-   * the tests) and not the parent one. The way to distinguish between the two is by examining the
-   * "remoteArgs" passed to the runner method: the args are non-empty in the child process, and
-   * empty in the parent one.
-   *
-   * <p>The instrumentation works by increasing the Reporter.class counter in the call depth thread
-   * local map. The counter is decreased when the runner method exits.
-   *
-   * <p>Since the tracing instrumentation is checking the counter value to avoid nested calls,
-   * increasing it here results in effectively disabling the tracing.
+   * <p>The parent JVM receives the forked JVM's events in the {@code Skeleton} server thread, which
+   * only exists when SBT forks the tests. Increasing the Reporter.class call depth in this thread
+   * makes the tracing instrumentation ignore these events.
    */
-  public static class RunnerAdvice {
+  public static class SkeletonRunAdvice {
     @Advice.OnMethodEnter
-    public static void beforeRunnerStart(@Advice.Argument(value = 1) String[] remoteArgs) {
-      if (remoteArgs.length == 0) {
-        CallDepthThreadLocalMap.incrementCallDepth(Reporter.class);
-      }
+    public static void beforeRun() {
+      CallDepthThreadLocalMap.incrementCallDepth(Reporter.class);
     }
 
-    @Advice.OnMethodExit
-    public static void afterRunnerStart(@Advice.Argument(value = 1) String[] remoteArgs) {
-      if (remoteArgs.length == 0) {
-        CallDepthThreadLocalMap.decrementCallDepth(Reporter.class);
-      }
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    public static void afterRun() {
+      CallDepthThreadLocalMap.decrementCallDepth(Reporter.class);
     }
   }
 }
