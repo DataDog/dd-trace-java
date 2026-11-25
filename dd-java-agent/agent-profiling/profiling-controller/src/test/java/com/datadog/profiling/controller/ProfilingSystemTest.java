@@ -344,28 +344,25 @@ public class ProfilingSystemTest {
     }
   }
 
+  /**
+   * The snapshot callback of a stopped recording, run by a scheduler thread that outlived the stop.
+   */
   @Test
   public void testSnapshotOfAStoppedRecordingIsSkipped() throws Exception {
-    final ProfilingSystem system =
-        new ProfilingSystem(
-            configProvider,
-            controllerFactory,
-            listener,
-            Duration.ofMillis(10),
-            Duration.ZERO,
-            Duration.ofMillis(300),
-            true,
-            () -> scheduler,
-            threadLocalRandom);
+    final List<Runnable> snapshotCallbacks = new ArrayList<>();
+    final ProfilingSystem system = systemWithCapturedSnapshotCallbacks(snapshotCallbacks);
     system.start();
-    final ProfilingSystem.SnapshotRecording snapshotRecording =
-        system.createSnapshotRecording(recording, Instant.now());
+    assertEquals(1, snapshotCallbacks.size());
+    final Runnable callback = snapshotCallbacks.get(0);
+    // it snapshots its recording while it runs
+    callback.run();
+    verify(recording).snapshot(any(), any());
+
     system.stop(false);
-
     // as from a scheduler thread that outlived the stop
-    snapshotRecording.snapshot(ProfilingSnapshot.Kind.PERIODIC, false);
+    callback.run();
 
-    verify(recording, never()).snapshot(any(), any());
+    verify(recording, times(1)).snapshot(any(), any());
     verify(listener, never()).onNewData(any(), any(), anyBoolean());
   }
 
@@ -378,35 +375,54 @@ public class ProfilingSystemTest {
     final OngoingRecording restartedRecording = mock(OngoingRecording.class);
     when(controller.createRecording(eq(ProfilingSystem.RECORDING_NAME), any()))
         .thenReturn(recording, restartedRecording);
-    final ProfilingSystem system =
-        new ProfilingSystem(
-            configProvider,
-            controllerFactory,
-            listener,
-            Duration.ofMillis(10),
-            Duration.ZERO,
-            Duration.ofHours(1),
-            true,
-            () -> new AgentTaskScheduler(PROFILER_RECORDING_SCHEDULER),
-            threadLocalRandom);
+    final List<Runnable> snapshotCallbacks = new ArrayList<>();
+    final ProfilingSystem system = systemWithCapturedSnapshotCallbacks(snapshotCallbacks);
     try {
       system.start();
-      // the callback of the first recording, as its scheduler thread runs it
-      final ProfilingSystem.SnapshotRecording oldCallback =
-          system.createSnapshotRecording(recording, Instant.now());
       system.stop(false);
       system.start();
       assertTrue(system.isStarted());
+      assertEquals(2, snapshotCallbacks.size());
 
       // as from the first scheduler thread, resuming after the restart
-      oldCallback.snapshot(ProfilingSnapshot.Kind.PERIODIC, false);
+      snapshotCallbacks.get(0).run();
 
       verify(restartedRecording, never()).snapshot(any(), any());
       verify(recording, never()).snapshot(any(), any());
       verify(listener, never()).onNewData(any(), any(), anyBoolean());
+
+      // while the callback of the restart snapshots its recording
+      snapshotCallbacks.get(1).run();
+      verify(restartedRecording).snapshot(any(), any());
     } finally {
       system.shutdown(false);
     }
+  }
+
+  /**
+   * A system that starts its recordings right away, with schedulers that keep the periodic snapshot
+   * callbacks instead of running them, so that a test runs them when it wants to.
+   */
+  private ProfilingSystem systemWithCapturedSnapshotCallbacks(final List<Runnable> callbacks)
+      throws Exception {
+    return new ProfilingSystem(
+        configProvider,
+        controllerFactory,
+        listener,
+        Duration.ofMillis(10),
+        Duration.ZERO,
+        Duration.ofMillis(300),
+        true,
+        () ->
+            new AgentTaskScheduler(PROFILER_RECORDING_SCHEDULER) {
+              @Override
+              public <T> Scheduled<T> scheduleAtFixedRate(
+                  Task<T> task, T target, long initialDelay, long period, TimeUnit unit) {
+                callbacks.add(() -> task.run(target));
+                return null;
+              }
+            },
+        threadLocalRandom);
   }
 
   @Test
