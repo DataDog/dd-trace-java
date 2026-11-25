@@ -3,13 +3,10 @@ package datadog.trace.civisibility.coverage.probe;
 import static org.objectweb.asm.Opcodes.AALOAD;
 import static org.objectweb.asm.Opcodes.ACC_STATIC;
 import static org.objectweb.asm.Opcodes.ALOAD;
-import static org.objectweb.asm.Opcodes.ARETURN;
 import static org.objectweb.asm.Opcodes.ASTORE;
 import static org.objectweb.asm.Opcodes.ATHROW;
-import static org.objectweb.asm.Opcodes.BALOAD;
+import static org.objectweb.asm.Opcodes.BASTORE;
 import static org.objectweb.asm.Opcodes.BIPUSH;
-import static org.objectweb.asm.Opcodes.DRETURN;
-import static org.objectweb.asm.Opcodes.FRETURN;
 import static org.objectweb.asm.Opcodes.F_APPEND;
 import static org.objectweb.asm.Opcodes.F_CHOP;
 import static org.objectweb.asm.Opcodes.F_FULL;
@@ -18,8 +15,8 @@ import static org.objectweb.asm.Opcodes.F_SAME;
 import static org.objectweb.asm.Opcodes.GETSTATIC;
 import static org.objectweb.asm.Opcodes.GOTO;
 import static org.objectweb.asm.Opcodes.ICONST_0;
+import static org.objectweb.asm.Opcodes.ICONST_1;
 import static org.objectweb.asm.Opcodes.IFEQ;
-import static org.objectweb.asm.Opcodes.IFNE;
 import static org.objectweb.asm.Opcodes.IFNONNULL;
 import static org.objectweb.asm.Opcodes.IFNULL;
 import static org.objectweb.asm.Opcodes.ILOAD;
@@ -31,7 +28,6 @@ import static org.objectweb.asm.Opcodes.ISHL;
 import static org.objectweb.asm.Opcodes.ISTORE;
 import static org.objectweb.asm.Opcodes.JSR;
 import static org.objectweb.asm.Opcodes.LDC;
-import static org.objectweb.asm.Opcodes.LRETURN;
 import static org.objectweb.asm.Opcodes.MONITORENTER;
 import static org.objectweb.asm.Opcodes.MONITOREXIT;
 import static org.objectweb.asm.Opcodes.NEW;
@@ -77,17 +73,16 @@ import org.objectweb.asm.tree.VarInsnNode;
  *
  * <p>A method takes the probe array of its code's owner at entry, from {@code
  * ProbeRecorder.probes}, and keeps it in a local variable added after the method's own. A probe
- * reads its slot and calls {@code ProbeRecorder.record} only when the slot is not set. A method
- * with a single probe takes the array where it reads the probe, and a class initializer reads
- * {@code ProbeRecorder.PROBES}, so neither needs the local. Slow paths that need a stack map frame
- * which cannot be copied from the original code are placed after the method body, where a frame
- * with no locals is valid.
+ * stores {@code true} in its slot, without a branch or a call. A method with a single probe takes
+ * the array where it stores, and a class initializer stores into {@code ProbeRecorder.PROBES}, so
+ * neither needs the local. A probe on a jump edge is placed after the method body, where it jumps
+ * on to the edge's target.
  *
  * <p>Lines that run before an exception leaves a block midway are recorded through a second local
  * variable: each run of instructions that adds a line to a block and can throw first stores the
- * probe of the lines started so far. The method's own exception handlers record that probe on
- * entry, and one handler that covers the whole method where no monitor is held records it and
- * rethrows whatever no other handler catches.
+ * probe of the lines started so far. The method's own exception handlers store into that probe's
+ * slot on entry, and one handler that covers the whole method where no monitor is held does the
+ * same and rethrows whatever no other handler catches.
  *
  * <p>The JIT compilers refuse a method where a handler is reached by a jump, where code in a
  * handler's first block is covered by that handler, or where exceptions reach a handler with
@@ -116,7 +111,6 @@ final class MethodProbeInserter {
   private int[] lineOf;
   private Map<LabelNode, Integer> labelIndex;
   private Set<LabelNode> jumpTargets;
-  private int[] stackSizes;
 
   private int blockCount;
   private int root;
@@ -207,7 +201,6 @@ final class MethodProbeInserter {
     computeDominators();
     computeBlockLines();
     analyzeHandlers();
-    stackSizes = frames ? StackSizes.compute(insns) : null;
 
     int singleLine = singleLine();
     if (singleLine >= 0) {
@@ -927,29 +920,7 @@ final class MethodProbeInserter {
 
   private void insertEntryProbe(int line) {
     int probe = probes.newProbe(new int[] {line}, -1);
-    LabelNode start = null;
-    boolean hasFrame = false;
-    for (int i = 0; i < blockFirst[0]; i++) {
-      if (insns[i] instanceof LabelNode) {
-        start = (LabelNode) insns[i];
-      } else if (insns[i] instanceof FrameNode) {
-        hasFrame = true;
-      }
-    }
-    InsnList code = new InsnList();
-    if (hasFrame && start != null) {
-      code.add(readProbe(probe, IFNE, start));
-      code.add(callRecorder(probe));
-    } else {
-      start = new LabelNode();
-      code.add(readProbe(probe, IFNE, start));
-      code.add(callRecorder(probe));
-      code.add(start);
-      if (frames) {
-        code.add(entryFrame());
-      }
-    }
-    method.instructions.insert(code);
+    method.instructions.insert(storeProbe(probe));
   }
 
   private void insertBlockProbes(int block) {
@@ -964,9 +935,7 @@ final class MethodProbeInserter {
     } else if (opcode == GOTO) {
       if (idom[successors[block][0]] != block) {
         requireThrowAllowed(last, depthAt(last));
-        InsnList code = readProbe(blockProbe(block), IFNE, ((JumpInsnNode) end).label);
-        code.add(callRecorder(blockProbe(block)));
-        method.instructions.insertBefore(end, code);
+        method.instructions.insertBefore(end, storeProbe(blockProbe(block)));
       }
     } else if (end instanceof JumpInsnNode) {
       JumpInsnNode jump = (JumpInsnNode) end;
@@ -1015,7 +984,7 @@ final class MethodProbeInserter {
   }
 
   /**
-   * Probe on a jump edge, placed after the method body: records, then jumps to the target.
+   * Probe on a jump edge, placed after the method body: stores, then jumps to the target.
    *
    * @param jump the index of the jump
    */
@@ -1026,8 +995,7 @@ final class MethodProbeInserter {
     if (frames) {
       tail.add(copyFrame(frameAt(target)));
     }
-    tail.add(readProbe(probe, IFNE, target));
-    tail.add(callRecorder(probe));
+    tail.add(storeProbe(probe));
     tail.add(new JumpInsnNode(GOTO, target));
     tail.add(end);
     edgeProbes.add(new EdgeProbe(edge, end, jump, target));
@@ -1162,8 +1130,7 @@ final class MethodProbeInserter {
     LabelNode fallThrough = new LabelNode();
     jump.setOpcode(invert(jump.getOpcode()));
     jump.label = fallThrough;
-    InsnList code = readProbe(probe, IFNE, target);
-    code.add(callRecorder(probe));
+    InsnList code = storeProbe(probe);
     code.add(new JumpInsnNode(GOTO, target));
     code.add(fallThrough);
     method.instructions.insert(jump, code);
@@ -1181,43 +1148,11 @@ final class MethodProbeInserter {
 
   /** Probe at the end of a block that falls through into a block it does not dominate. */
   private void insertFallThroughProbe(int block, int probe) {
-    LabelNode target = null;
-    for (int i = blockLast[block] + 1; i < blockFirst[block + 1]; i++) {
-      if (insns[i] instanceof LabelNode && jumpTargets.contains(insns[i])) {
-        target = (LabelNode) insns[i];
-      }
-    }
-    if (target == null) {
-      if (frames) {
-        throw new IllegalStateException("No jump target before a merge block in " + method.name);
-      }
-      target = new LabelNode();
-      method.instructions.insertBefore(insns[blockFirst[block + 1]], target);
-    }
-    InsnList code = readProbe(probe, IFNE, target);
-    code.add(callRecorder(probe));
-    method.instructions.insert(insns[blockLast[block]], code);
+    method.instructions.insert(insns[blockLast[block]], storeProbe(probe));
   }
 
-  /**
-   * The slow path of a probe before a return is a copy of the return after the method body. Its
-   * frame holds only the return value, so where the stack holds more the probe calls the recorder
-   * unconditionally instead.
-   */
   private void insertReturnProbe(int returnIndex, int probe) {
-    AbstractInsnNode returnInsn = insns[returnIndex];
-    if (frames && stackSizes[returnIndex] != Type.getReturnType(method.desc).getSize()) {
-      method.instructions.insertBefore(returnInsn, callRecorder(probe, true));
-      return;
-    }
-    LabelNode slowPath = new LabelNode();
-    method.instructions.insertBefore(returnInsn, readProbe(probe, IFEQ, slowPath));
-    tail.add(slowPath);
-    if (frames) {
-      tail.add(returnFrame(returnInsn.getOpcode()));
-    }
-    tail.add(callRecorder(probe));
-    tail.add(new InsnNode(returnInsn.getOpcode()));
+    method.instructions.insertBefore(insns[returnIndex], storeProbe(probe));
   }
 
   /**
@@ -1450,17 +1385,12 @@ final class MethodProbeInserter {
     }
   }
 
+  /** Stores into the slot of the probe that the progress local holds. */
   private InsnList recordProgress() {
-    InsnList code = new InsnList();
-    code.add(push(classId));
+    InsnList code = pushProbes();
     code.add(new VarInsnNode(ILOAD, progressLocal));
-    code.add(
-        new MethodInsnNode(
-            INVOKESTATIC,
-            RECORDER,
-            initializer ? "recordInitThrown" : "recordThrown",
-            "(II)V",
-            false));
+    code.add(new InsnNode(ICONST_1));
+    code.add(new InsnNode(BASTORE));
     return code;
   }
 
@@ -1537,7 +1467,16 @@ final class MethodProbeInserter {
     return uninitialized;
   }
 
-  private InsnList readProbe(int probe, int jumpOpcode, LabelNode target) {
+  private InsnList storeProbe(int probe) {
+    InsnList code = pushProbes();
+    code.add(push(probe));
+    code.add(new InsnNode(ICONST_1));
+    code.add(new InsnNode(BASTORE));
+    return code;
+  }
+
+  /** Pushes the array the method's probes store into. */
+  private InsnList pushProbes() {
     InsnList code = new InsnList();
     if (probesLocal >= 0) {
       code.add(new VarInsnNode(ALOAD, probesLocal));
@@ -1548,9 +1487,6 @@ final class MethodProbeInserter {
     } else {
       code.add(takeProbes());
     }
-    code.add(push(probe));
-    code.add(new InsnNode(BALOAD));
-    code.add(new JumpInsnNode(jumpOpcode, target));
     return code;
   }
 
@@ -1559,34 +1495,6 @@ final class MethodProbeInserter {
     InsnList code = new InsnList();
     code.add(push(classId));
     code.add(new MethodInsnNode(INVOKESTATIC, RECORDER, "probes", "(I)" + PROBES_TYPE, false));
-    return code;
-  }
-
-  private InsnList callRecorder(int probe) {
-    return callRecorder(probe, false);
-  }
-
-  /**
-   * @param unconditional whether the call is made on every execution, so the recorder must check
-   *     the slot itself
-   */
-  private InsnList callRecorder(int probe, boolean unconditional) {
-    InsnList code = new InsnList();
-    if (initializer) {
-      code.add(push(classId));
-      code.add(push(probe));
-      code.add(new MethodInsnNode(INVOKESTATIC, RECORDER, "recordInit", "(II)V", false));
-    } else if (unconditional) {
-      code.add(new VarInsnNode(ALOAD, probesLocal));
-      code.add(push(classId));
-      code.add(push(probe));
-      code.add(
-          new MethodInsnNode(INVOKESTATIC, RECORDER, "hit", "(" + PROBES_TYPE + "II)V", false));
-    } else {
-      code.add(push(classId));
-      code.add(push(probe));
-      code.add(new MethodInsnNode(INVOKESTATIC, RECORDER, "record", "(II)V", false));
-    }
     return code;
   }
 
@@ -1637,11 +1545,6 @@ final class MethodProbeInserter {
     return new FrameNode(F_FULL, locals.length, locals, stack.length, stack);
   }
 
-  private FrameNode entryFrame() {
-    List<Object> locals = entryLocals();
-    return new FrameNode(F_FULL, locals.size(), locals.toArray(), 0, new Object[0]);
-  }
-
   /** The locals of the frame at the method's entry: {@code this}, then the arguments. */
   private List<Object> entryLocals() {
     List<Object> locals = new ArrayList<>();
@@ -1652,30 +1555,6 @@ final class MethodProbeInserter {
       locals.add(frameType(argument));
     }
     return locals;
-  }
-
-  private FrameNode returnFrame(int opcode) {
-    Object[] stack;
-    switch (opcode) {
-      case IRETURN:
-        stack = new Object[] {Opcodes.INTEGER};
-        break;
-      case LRETURN:
-        stack = new Object[] {Opcodes.LONG};
-        break;
-      case FRETURN:
-        stack = new Object[] {Opcodes.FLOAT};
-        break;
-      case DRETURN:
-        stack = new Object[] {Opcodes.DOUBLE};
-        break;
-      case ARETURN:
-        stack = new Object[] {frameType(Type.getReturnType(method.desc))};
-        break;
-      default:
-        stack = new Object[0];
-    }
-    return new FrameNode(F_FULL, 0, new Object[0], stack.length, stack);
   }
 
   private static Object frameType(Type type) {

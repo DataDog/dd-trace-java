@@ -19,7 +19,8 @@ final class ClassProbesBuilder {
   private int initStart = -1;
 
   ClassProbesBuilder() {
-    newProbe(NO_LINES, -1); // id 0 flags the class as touched by the open window
+    // id 0 is where exception handlers store when the method started no code that can throw
+    newProbe(NO_LINES, -1);
   }
 
   int newProbe(int[] lines, int parentNode) {

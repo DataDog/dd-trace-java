@@ -32,11 +32,6 @@ final class ClassFilePatcher {
   private final Set<String> skippedMethods = new HashSet<>();
 
   private int probesMethod;
-  private int recordMethod;
-  private int recordInitMethod;
-  private int hitMethod;
-  private int recordThrownMethod;
-  private int recordInitThrownMethod;
   private int probesField;
   private int probesType;
   private int throwableType;
@@ -206,41 +201,6 @@ final class ClassFilePatcher {
       probesMethod = constants.methodReference(RECORDER, "probes", "(I)" + PROBES_TYPE);
     }
     return probesMethod;
-  }
-
-  int recordMethod() {
-    if (recordMethod == 0) {
-      recordMethod = constants.methodReference(RECORDER, "record", "(II)V");
-    }
-    return recordMethod;
-  }
-
-  int recordInitMethod() {
-    if (recordInitMethod == 0) {
-      recordInitMethod = constants.methodReference(RECORDER, "recordInit", "(II)V");
-    }
-    return recordInitMethod;
-  }
-
-  int hitMethod() {
-    if (hitMethod == 0) {
-      hitMethod = constants.methodReference(RECORDER, "hit", "(" + PROBES_TYPE + "II)V");
-    }
-    return hitMethod;
-  }
-
-  int recordThrownMethod() {
-    if (recordThrownMethod == 0) {
-      recordThrownMethod = constants.methodReference(RECORDER, "recordThrown", "(II)V");
-    }
-    return recordThrownMethod;
-  }
-
-  int recordInitThrownMethod() {
-    if (recordInitThrownMethod == 0) {
-      recordInitThrownMethod = constants.methodReference(RECORDER, "recordInitThrown", "(II)V");
-    }
-    return recordInitThrownMethod;
   }
 
   int probesField() {

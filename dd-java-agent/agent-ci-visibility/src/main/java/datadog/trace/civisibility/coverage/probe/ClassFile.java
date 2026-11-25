@@ -169,15 +169,6 @@ final class ClassFile {
     return true;
   }
 
-  /** The offset of the first byte of the UTF8 constant at {@code index}. */
-  int utf8Start(int index) {
-    return constantOffset[index] + 3;
-  }
-
-  int utf8Length(int index) {
-    return readUnsignedShort(constantOffset[index] + 1);
-  }
-
   String utf8(int index) {
     int offset = constantOffset[index];
     return decodeUtf8(offset + 3, readUnsignedShort(offset + 1));
@@ -186,12 +177,6 @@ final class ClassFile {
   /** The name of the class constant at {@code index}, as an internal name or array descriptor. */
   String className(int index) {
     return utf8(readUnsignedShort(constantOffset[index] + 1));
-  }
-
-  /** The UTF8 index of the descriptor of a field, method or dynamic constant reference. */
-  int referenceDescriptor(int index) {
-    int nameAndType = readUnsignedShort(constantOffset[index] + 3);
-    return readUnsignedShort(constantOffset[nameAndType] + 3);
   }
 
   /** The UTF8 index of the name of a field or method reference. */

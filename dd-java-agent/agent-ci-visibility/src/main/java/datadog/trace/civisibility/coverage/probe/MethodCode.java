@@ -8,22 +8,12 @@ import static datadog.trace.civisibility.coverage.probe.UnsupportedClassExceptio
 import static datadog.trace.civisibility.coverage.probe.UnsupportedClassException.TYPE_ANNOTATIONS;
 import static org.objectweb.asm.Opcodes.ALOAD;
 import static org.objectweb.asm.Opcodes.ASTORE;
-import static org.objectweb.asm.Opcodes.GETFIELD;
-import static org.objectweb.asm.Opcodes.GETSTATIC;
 import static org.objectweb.asm.Opcodes.IINC;
 import static org.objectweb.asm.Opcodes.ILOAD;
-import static org.objectweb.asm.Opcodes.INVOKEDYNAMIC;
-import static org.objectweb.asm.Opcodes.INVOKEINTERFACE;
-import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
-import static org.objectweb.asm.Opcodes.INVOKESTATIC;
-import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
 import static org.objectweb.asm.Opcodes.ISTORE;
 import static org.objectweb.asm.Opcodes.JSR;
 import static org.objectweb.asm.Opcodes.LDC;
 import static org.objectweb.asm.Opcodes.LOOKUPSWITCH;
-import static org.objectweb.asm.Opcodes.MULTIANEWARRAY;
-import static org.objectweb.asm.Opcodes.PUTFIELD;
-import static org.objectweb.asm.Opcodes.PUTSTATIC;
 import static org.objectweb.asm.Opcodes.RET;
 import static org.objectweb.asm.Opcodes.TABLESWITCH;
 
@@ -381,85 +371,5 @@ final class MethodCode {
   /** Whether an INVOKESPECIAL instruction calls a constructor. */
   boolean callsConstructor(int i) {
     return classFile.utf8Equals(classFile.referenceName(constantOperand(i)), "<init>");
-  }
-
-  /** How many operand stack slots an instruction pushes, less those it pops. */
-  int stackDelta(int i) {
-    int op = opcode[i];
-    switch (op) {
-      case LDC:
-        int constant = ldcConstant(i);
-        int tag = classFile.tag(constant);
-        if (tag == ClassFile.CONSTANT_LONG || tag == ClassFile.CONSTANT_DOUBLE) {
-          return 2;
-        }
-        return tag == ClassFile.CONSTANT_DYNAMIC
-            ? valueSize(classFile.referenceDescriptor(constant))
-            : 1;
-      case GETSTATIC:
-        return valueSize(classFile.referenceDescriptor(constantOperand(i)));
-      case PUTSTATIC:
-        return -valueSize(classFile.referenceDescriptor(constantOperand(i)));
-      case GETFIELD:
-        return valueSize(classFile.referenceDescriptor(constantOperand(i))) - 1;
-      case PUTFIELD:
-        return -valueSize(classFile.referenceDescriptor(constantOperand(i))) - 1;
-      case INVOKEVIRTUAL:
-      case INVOKESPECIAL:
-      case INVOKEINTERFACE:
-        return invokeDelta(classFile.referenceDescriptor(constantOperand(i)), false);
-      case INVOKESTATIC:
-      case INVOKEDYNAMIC:
-        return invokeDelta(classFile.referenceDescriptor(constantOperand(i)), true);
-      case MULTIANEWARRAY:
-        return 1 - classFile.readByte(codeStart + offset[i] + 3);
-      default:
-        return InstructionSet.stackDelta(op);
-    }
-  }
-
-  /** The stack slots of a value with the field descriptor in a UTF8 constant. */
-  private int valueSize(int descriptor) {
-    int first = classFile.bytes[classFile.utf8Start(descriptor)];
-    return first == 'J' || first == 'D' ? 2 : 1;
-  }
-
-  private int invokeDelta(int descriptor, boolean noReceiver) {
-    int sizes = argumentsAndReturnSizes(descriptor);
-    return (sizes & 3) - (sizes >> 2) + (noReceiver ? 1 : 0);
-  }
-
-  /**
-   * The slots of a method's arguments, plus one for a receiver, shifted left by 2, plus the slots
-   * of its return value, as {@code Type.getArgumentsAndReturnSizes} computes them.
-   */
-  private int argumentsAndReturnSizes(int descriptor) {
-    byte[] bytes = classFile.bytes;
-    int at = classFile.utf8Start(descriptor) + 1;
-    int argumentsSize = 1;
-    int c = bytes[at];
-    while (c != ')') {
-      if (c == 'J' || c == 'D') {
-        at++;
-        argumentsSize += 2;
-      } else {
-        while (bytes[at] == '[') {
-          at++;
-        }
-        if (bytes[at++] == 'L') {
-          while (bytes[at] != ';') {
-            at++;
-          }
-          at++;
-        }
-        argumentsSize += 1;
-      }
-      c = bytes[at];
-    }
-    c = bytes[at + 1];
-    if (c == 'V') {
-      return argumentsSize << 2;
-    }
-    return argumentsSize << 2 | (c == 'J' || c == 'D' ? 2 : 1);
   }
 }

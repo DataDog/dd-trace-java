@@ -1,10 +1,6 @@
 package datadog.trace.civisibility.coverage.probe;
 
-import static datadog.trace.civisibility.coverage.probe.StackMapFrames.DOUBLE;
-import static datadog.trace.civisibility.coverage.probe.StackMapFrames.FLOAT;
 import static datadog.trace.civisibility.coverage.probe.StackMapFrames.INTEGER;
-import static datadog.trace.civisibility.coverage.probe.StackMapFrames.LONG;
-import static datadog.trace.civisibility.coverage.probe.StackMapFrames.NONE;
 import static datadog.trace.civisibility.coverage.probe.StackMapFrames.NULL;
 import static datadog.trace.civisibility.coverage.probe.StackMapFrames.OBJECT_TAG;
 import static datadog.trace.civisibility.coverage.probe.StackMapFrames.TOP;
@@ -15,20 +11,16 @@ import static datadog.trace.civisibility.coverage.probe.UnsupportedClassExceptio
 import static org.objectweb.asm.Opcodes.AALOAD;
 import static org.objectweb.asm.Opcodes.ACC_STATIC;
 import static org.objectweb.asm.Opcodes.ALOAD;
-import static org.objectweb.asm.Opcodes.ARETURN;
 import static org.objectweb.asm.Opcodes.ASTORE;
 import static org.objectweb.asm.Opcodes.ATHROW;
-import static org.objectweb.asm.Opcodes.BALOAD;
-import static org.objectweb.asm.Opcodes.DRETURN;
-import static org.objectweb.asm.Opcodes.FRETURN;
+import static org.objectweb.asm.Opcodes.BASTORE;
 import static org.objectweb.asm.Opcodes.GETSTATIC;
 import static org.objectweb.asm.Opcodes.GOTO;
 import static org.objectweb.asm.Opcodes.IALOAD;
 import static org.objectweb.asm.Opcodes.IASTORE;
 import static org.objectweb.asm.Opcodes.ICONST_0;
+import static org.objectweb.asm.Opcodes.ICONST_1;
 import static org.objectweb.asm.Opcodes.IDIV;
-import static org.objectweb.asm.Opcodes.IFEQ;
-import static org.objectweb.asm.Opcodes.IFNE;
 import static org.objectweb.asm.Opcodes.IFNONNULL;
 import static org.objectweb.asm.Opcodes.IFNULL;
 import static org.objectweb.asm.Opcodes.ILOAD;
@@ -43,7 +35,6 @@ import static org.objectweb.asm.Opcodes.LDC;
 import static org.objectweb.asm.Opcodes.LDIV;
 import static org.objectweb.asm.Opcodes.LOOKUPSWITCH;
 import static org.objectweb.asm.Opcodes.LREM;
-import static org.objectweb.asm.Opcodes.LRETURN;
 import static org.objectweb.asm.Opcodes.MONITORENTER;
 import static org.objectweb.asm.Opcodes.MONITOREXIT;
 import static org.objectweb.asm.Opcodes.NEW;
@@ -82,7 +73,6 @@ final class CodePatcher {
   private int maxLocals;
   private int[] lineOf;
   private boolean[] jumpTarget;
-  private int[] stackSizes;
 
   private int blockCount;
   private int root;
@@ -199,7 +189,6 @@ final class CodePatcher {
     computeDominators();
     computeBlockLines();
     analyzeHandlers();
-    computeStackSizes();
     initLabels();
 
     int singleLine = singleLine();
@@ -724,15 +713,7 @@ final class CodePatcher {
   private void insertEntryProbe(int line) {
     int probe = probes.newProbe(new int[] {line}, -1);
     prologue = new InsertedCode();
-    if (frameLocals[0] != null) {
-      readProbe(prologue, probe, IFNE, 0);
-      callRecorder(prologue, probe, false);
-    } else {
-      int start = newLabel(entryLocals(), NONE);
-      readProbe(prologue, probe, IFNE, start);
-      callRecorder(prologue, probe, false);
-      prologue.label(start);
-    }
+    storeProbe(prologue, probe);
   }
 
   private void insertBlockProbes(int block) {
@@ -746,10 +727,7 @@ final class CodePatcher {
     } else if (opcode == GOTO) {
       if (idom[successors[block][0]] != block) {
         requireThrowAllowed(last, depthAt(last));
-        int probe = blockProbe(block);
-        InsertedCode inserted = before(last);
-        readProbe(inserted, probe, IFNE, jumpLabel[last]);
-        callRecorder(inserted, probe, false);
+        storeProbe(before(last), blockProbe(block));
       }
     } else if (code.target[last] >= 0) {
       if (idom[block + 1] != block) {
@@ -790,7 +768,7 @@ final class CodePatcher {
   }
 
   /**
-   * Probe on a jump edge, placed after the method body: records, then jumps to the target.
+   * Probe on a jump edge, placed after the method body: stores, then jumps to the target.
    *
    * @param jump the index of the jump
    * @return the label of the probe
@@ -802,8 +780,7 @@ final class CodePatcher {
     int edge = newLabel(frameLocals[target], frameStack[target]);
     int end = newLabel(null, null);
     tail.label(edge);
-    readProbe(tail, probe, IFNE, target);
-    callRecorder(tail, probe, false);
+    storeProbe(tail, probe);
     tail.jump(GOTO, target);
     tail.label(end);
     if (edgeCount == edgeStart.length) {
@@ -948,31 +925,11 @@ final class CodePatcher {
 
   /** Probe at the end of a block that falls through into a block it does not dominate. */
   private void insertFallThroughProbe(int block, int probe) {
-    int next = blockFirst[block + 1];
-    if (!jumpTarget[next]) {
-      throw new IllegalStateException("No jump target before a merge block in " + code.name);
-    }
-    InsertedCode inserted = after(blockLast[block]);
-    readProbe(inserted, probe, IFNE, next);
-    callRecorder(inserted, probe, false);
+    storeProbe(after(blockLast[block]), probe);
   }
 
-  /**
-   * The slow path of a probe before a return is a copy of the return after the method body. Its
-   * frame holds only the return value, so where the stack holds more the probe calls the recorder
-   * unconditionally instead.
-   */
   private void insertReturnProbe(int returnIndex, int probe) {
-    int opcode = code.opcode[returnIndex];
-    if (stackSizes[returnIndex] != returnSize()) {
-      callRecorder(before(returnIndex), probe, true);
-      return;
-    }
-    int slowPath = newLabel(NONE, returnStack(opcode));
-    readProbe(before(returnIndex), probe, IFEQ, slowPath);
-    tail.label(slowPath);
-    callRecorder(tail, probe, false);
-    tail.opcode(opcode);
+    storeProbe(before(returnIndex), probe);
   }
 
   /** See {@code MethodProbeInserter.insertProgressStores}. */
@@ -1118,11 +1075,12 @@ final class CodePatcher {
     }
   }
 
+  /** Stores into the slot of the probe that the progress local holds. */
   private void recordProgress(InsertedCode inserted) {
-    push(inserted, classId);
+    pushProbes(inserted);
     inserted.variable(ILOAD, progressLocal);
-    inserted.member(
-        INVOKESTATIC, initializer ? patch.recordInitThrownMethod() : patch.recordThrownMethod());
+    inserted.opcode(ICONST_1);
+    inserted.opcode(BASTORE);
   }
 
   private int blockProbe(int block) {
@@ -1197,7 +1155,15 @@ final class CodePatcher {
     return uninitialized;
   }
 
-  private void readProbe(InsertedCode inserted, int probe, int jumpOpcode, int label) {
+  private void storeProbe(InsertedCode inserted, int probe) {
+    pushProbes(inserted);
+    push(inserted, probe);
+    inserted.opcode(ICONST_1);
+    inserted.opcode(BASTORE);
+  }
+
+  /** Pushes the array the method's probes store into. */
+  private void pushProbes(InsertedCode inserted) {
     if (probesLocal >= 0) {
       inserted.variable(ALOAD, probesLocal);
     } else if (initializer) {
@@ -1207,36 +1173,12 @@ final class CodePatcher {
     } else {
       takeProbes(inserted);
     }
-    push(inserted, probe);
-    inserted.opcode(BALOAD);
-    inserted.jump(jumpOpcode, label);
   }
 
   /** Pushes the probe array of the running code's owner. */
   private void takeProbes(InsertedCode inserted) {
     push(inserted, classId);
     inserted.member(INVOKESTATIC, patch.probesMethod());
-  }
-
-  /**
-   * @param unconditional whether the call is made on every execution, so the recorder must check
-   *     the slot itself
-   */
-  private void callRecorder(InsertedCode inserted, int probe, boolean unconditional) {
-    if (initializer) {
-      push(inserted, classId);
-      push(inserted, probe);
-      inserted.member(INVOKESTATIC, patch.recordInitMethod());
-    } else if (unconditional) {
-      inserted.variable(ALOAD, probesLocal);
-      push(inserted, classId);
-      push(inserted, probe);
-      inserted.member(INVOKESTATIC, patch.hitMethod());
-    } else {
-      push(inserted, classId);
-      push(inserted, probe);
-      inserted.member(INVOKESTATIC, patch.recordMethod());
-    }
   }
 
   /**
@@ -1298,58 +1240,6 @@ final class CodePatcher {
       entryLocals = Arrays.copyOf(locals, size);
     }
     return entryLocals;
-  }
-
-  /** The operand stack slots of the method's return value. */
-  private int returnSize() {
-    String descriptor = code.descriptor;
-    char type = descriptor.charAt(descriptor.indexOf(')') + 1);
-    return type == 'V' ? 0 : type == 'J' || type == 'D' ? 2 : 1;
-  }
-
-  private int[] returnStack(int opcode) {
-    switch (opcode) {
-      case IRETURN:
-        return new int[] {INTEGER};
-      case LRETURN:
-        return new int[] {LONG};
-      case FRETURN:
-        return new int[] {FLOAT};
-      case DRETURN:
-        return new int[] {DOUBLE};
-      case ARETURN:
-        String descriptor = code.descriptor;
-        int at = descriptor.indexOf(')') + 1;
-        return new int[] {
-          patch.frameType(descriptor, at, ClassFilePatcher.typeEnd(descriptor, at))
-        };
-      default:
-        return NONE;
-    }
-  }
-
-  private void computeStackSizes() {
-    stackSizes = new int[count];
-    int size = 0;
-    for (int i = 0; i < count; i++) {
-      if (frameLocals[i] != null) {
-        size = StackMapFrames.slots(frameStack[i]);
-      }
-      stackSizes[i] = size;
-      if (size < 0) {
-        continue;
-      }
-      int opcode = code.opcode[i];
-      if (opcode == GOTO
-          || opcode == TABLESWITCH
-          || opcode == LOOKUPSWITCH
-          || opcode == ATHROW
-          || isReturn(opcode)) {
-        size = -1;
-      } else {
-        size += code.stackDelta(i);
-      }
-    }
   }
 
   private void initLabels() {
