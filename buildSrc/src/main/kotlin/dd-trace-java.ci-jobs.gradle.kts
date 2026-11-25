@@ -25,9 +25,7 @@ allprojects {
   }
 }
 
-fun relativeToGitRoot(f: File): File {
-  return rootProject.projectDir.toPath().relativize(f.absoluteFile.toPath()).toFile()
-}
+fun relativeToGitRoot(f: File): File = rootProject.projectDir.toPath().relativize(f.absoluteFile.toPath()).toFile()
 
 /** Returns whether a file path, relative to the root project, matches any of the given glob patterns. */
 fun pathMatcher(vararg globs: String): (File) -> Boolean {
@@ -38,7 +36,7 @@ fun pathMatcher(vararg globs: String): (File) -> Boolean {
 fun getChangedFiles(baseRef: String, newRef: String): List<File> {
   val diff = providers.exec {
     // List both paths of a renamed file, so that the project it moved out of is affected too
-    commandLine("git", "diff", "--name-only", "--no-renames", "$baseRef..$newRef")
+    commandLine("git", "diff", "--name-only", "--no-renames", "$baseRef...$newRef")
     workingDir = rootProject.projectDir
     isIgnoreExitValue = true
   }
@@ -72,6 +70,7 @@ if (gitBaseRefProvider.isPresent) {
     "gradlew", "gradlew.bat", "mvnw", "mvnw.cmd",
     "NOTICE",
     "static-analysis.datadog.yml",
+    ".github/**", ".claude/**", ".agents/**", "docs/**",
   )
 
   changedFiles.forEach { f ->
@@ -94,7 +93,7 @@ if (gitBaseRefProvider.isPresent) {
   }
 
   if (rootProject.extra.get("useGitChanges") as Boolean) {
-    logger.warn("Git change tracking is enabled: $baseRef..$newRef")
+    logger.warn("Git change tracking is enabled: $baseRef...$newRef")
 
     val projects = subprojects.sortedByDescending { it.projectDir.path.length }
     val changedFilesByProject = mutableMapOf<Project, MutableList<File>>()

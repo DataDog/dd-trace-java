@@ -232,8 +232,10 @@ include(
 
 // smoke tests
 include(
+  ":dd-smoke-tests:smoke-test-common",
   ":dd-smoke-tests:apm-tracing-disabled",
   ":dd-smoke-tests:armeria-grpc",
+  ":dd-smoke-tests:azure-cosmos",
   ":dd-smoke-tests:backend-mock",
   ":dd-smoke-tests:cli",
   ":dd-smoke-tests:concurrent:java-8",
@@ -314,6 +316,7 @@ include(
   ":dd-smoke-tests:websphere-jmx",
   ":dd-smoke-tests:wildfly",
   ":dd-smoke-tests:appsec",
+  ":dd-smoke-tests:appsec:dropwizard-5",
   ":dd-smoke-tests:appsec:spring-tomcat7",
   ":dd-smoke-tests:appsec:lambda-sca",
   ":dd-smoke-tests:appsec:springboot",
@@ -343,6 +346,7 @@ include(
 // instrumentation:
 include(
   ":dd-java-agent:instrumentation:aerospike-4.0",
+  ":dd-java-agent:instrumentation:aerospike-6.0",
   ":dd-java-agent:instrumentation:akka:akka-actor-2.5",
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0",
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.2-iast",
@@ -369,6 +373,7 @@ include(
   ":dd-java-agent:instrumentation:aws-java:aws-java-sqs-2.0",
   ":dd-java-agent:instrumentation:axis2-1.3",
   ":dd-java-agent:instrumentation:axway-api-7.5",
+  ":dd-java-agent:instrumentation:azure-cosmos:azure-cosmos-4.0",
   ":dd-java-agent:instrumentation:azure-functions-1.2.2",
   ":dd-java-agent:instrumentation:azure-functions-worker-2.7",
   ":dd-java-agent:instrumentation:beanshell-2.0",

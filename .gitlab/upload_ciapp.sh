@@ -11,17 +11,25 @@ if [ -n "$TEST_JVM" ]; then
     JAVA_BIN=""
     RESOLVED_JVM="$TEST_JVM"
     if [ "$TEST_JVM" = "tip" ]; then
-        # Resolve "tip" to the highest available JAVA_*_HOME version
-        MAX_VER=0
-        for var in $(compgen -v JAVA_ | grep -E '^JAVA_[0-9]+_HOME$'); do
-            ver="${var#JAVA_}"
-            ver="${ver%_HOME}"
-            if [ "$ver" -gt "$MAX_VER" ] 2>/dev/null; then
-                MAX_VER="$ver"
+        if [[ "${LATEST_VERSION:-}" =~ ^[0-9]+$ ]]; then
+            # Resolve "tip" to the latest GA version set by the builder image, ignoring early-access JDKs
+            RESOLVED_JVM="$LATEST_VERSION"
+        else
+            if [ -n "${LATEST_VERSION:-}" ]; then
+                echo "Warning: LATEST_VERSION='$LATEST_VERSION' is not a Java major version, ignoring it" >&2
             fi
-        done
-        if [ "$MAX_VER" -gt 0 ] 2>/dev/null; then
-            RESOLVED_JVM="$MAX_VER"
+            # Resolve "tip" to the highest available JAVA_*_HOME version
+            MAX_VER=0
+            for var in $(compgen -v JAVA_ | grep -E '^JAVA_[0-9]+_HOME$'); do
+                ver="${var#JAVA_}"
+                ver="${ver%_HOME}"
+                if [ "$ver" -gt "$MAX_VER" ] 2>/dev/null; then
+                    MAX_VER="$ver"
+                fi
+            done
+            if [ "$MAX_VER" -gt 0 ] 2>/dev/null; then
+                RESOLVED_JVM="$MAX_VER"
+            fi
         fi
     fi
     if [[ "$RESOLVED_JVM" =~ ^[A-Za-z0-9_]+$ ]]; then

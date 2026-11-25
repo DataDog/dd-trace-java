@@ -79,6 +79,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   @BeforeEach
   void resetMockBackend() {
     assumeFalse(JavaVirtualMachine.isJavaVersion(27), "JDK 27 TODO: address failing test");
+    assumeFalse(JavaVirtualMachine.isJavaVersion(28), "TODO(JDK-28-EA): address failing test");
     mockBackend.reset();
   }
 

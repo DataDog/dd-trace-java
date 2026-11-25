@@ -153,6 +153,5 @@ class GitChangeTrackingIntegrationTest : GradleFixture() {
       .doesNotContain("no task will be skipped")
   }
 
-  private fun runChangeTracking(): BuildResult =
-    run("ciTest", "ciLatestDepTest", "--dry-run", "-PgitBaseRef=HEAD~1")
+  private fun runChangeTracking(): BuildResult = run("ciTest", "ciLatestDepTest", "--dry-run", "-PgitBaseRef=HEAD~1")
 }

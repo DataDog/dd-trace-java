@@ -141,6 +141,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_B3_PADDING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RDS_TAGS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES;
@@ -637,6 +638,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HT
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_INCLUDE_ROUTINGKEY_IN_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RDS_TAGS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESILIENCE4J_MEASURED_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESILIENCE4J_TAG_METRICS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
@@ -708,6 +710,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_
 import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_SERVICES;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING;
+import static datadog.trace.api.config.TracerConfig.TRACE_DENSE_TAGS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_EXPERIMENTAL_FEATURES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_GIT_METADATA_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_ERROR_STATUSES;
@@ -750,8 +753,12 @@ import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_LINKS_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.DD_INTAKE_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.LOGGING_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.PRINTING_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.TRACE_STRUCTURE_WRITER_TYPE;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
@@ -857,6 +864,12 @@ public class Config {
 
   private static final Pattern COLON = Pattern.compile(":");
   private static final Pattern COMMA = Pattern.compile(",");
+
+  // General OTLP settings, which the signals without their own fall back to. They have no
+  // DD_-prefixed form, so they are not declared with the Datadog settings in OtlpConfig.
+  private static final String OTEL_EXPORTER_OTLP_ENDPOINT = "otel.exporter.otlp.endpoint";
+  private static final String OTEL_EXPORTER_OTLP_HEADERS = "otel.exporter.otlp.headers";
+  private static final String OTEL_EXPORTER_OTLP_PROTOCOL = "otel.exporter.otlp.protocol";
 
   // Historical conflating-Batch size; used to translate TRACER_METRICS_MAX_PENDING (configured in
   // legacy batch units) into the new per-SpanSnapshot inbox capacity.
@@ -970,6 +983,7 @@ public class Config {
   private final boolean dbClientSplitByInstance;
   private final boolean dbClientSplitByInstanceTypeSuffix;
   private final boolean dbClientSplitByHost;
+  private final boolean rdsTagsEnabled;
   private final Set<String> splitByTags;
   private final Set<String> traceStatsAdditionalTags;
   private final boolean jeeSplitByDeployment;
@@ -1052,6 +1066,10 @@ public class Config {
   private final OtlpConfig.Protocol otlpTracesProtocol;
   private final OtlpConfig.Compression otlpTracesCompression;
   private final int otlpTracesTimeout;
+
+  private final String otlpEndpoint;
+  private final Map<String, String> otlpHeaders;
+  private final OtlpConfig.Protocol otlpProtocol;
 
   // These values are default-ed to those of jmx fetch values as needed
   private final boolean healthMetricsEnabled;
@@ -1461,6 +1479,7 @@ public class Config {
   private final boolean jdkSocketEnabled;
 
   private final boolean spanBuilderReuseEnabled;
+  private final boolean traceDenseTagsEnabled;
   private final int tagNameUtf8CacheSize;
   private final int tagValueUtf8CacheSize;
   private final int stackTraceLengthLimit;
@@ -1902,6 +1921,7 @@ public class Config {
     dbClientSplitByHost =
         configProvider.getBoolean(
             DB_CLIENT_HOST_SPLIT_BY_HOST, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST);
+    rdsTagsEnabled = configProvider.getBoolean(RDS_TAGS_ENABLED, DEFAULT_RDS_TAGS_ENABLED);
 
     dbmPropagationMode =
         configProvider.getString(
@@ -2259,14 +2279,8 @@ public class Config {
             OtlpConfig.Temporality.class,
             OtlpConfig.Temporality.DELTA);
 
-    // Tri-state default: when unset, SDK-computed OTLP span metrics are emitted iff OTLP trace
-    // export and OTLP metrics export are both enabled. OTEL_SDK_DISABLED=true turns them off.
     otelTracesSpanMetricsEnabled =
-        configProvider.getBoolean(
-                OTEL_TRACES_SPAN_METRICS_ENABLED,
-                isTraceOtlpExporterEnabled()
-                    && isMetricsOtelEnabled()
-                    && isMetricsOtlpExporterEnabled())
+        configProvider.getBoolean(OTEL_TRACES_SPAN_METRICS_ENABLED, false)
             && !configProvider.isOtelSdkDisabled();
 
     otlpTimeout = configProvider.getInteger(OTLP_TRACES_TIMEOUT, DEFAULT_OTLP_TRACES_TIMEOUT);
@@ -2299,6 +2313,23 @@ public class Config {
       }
     }
     otlpTracesEndpoint = otlpTracesEndpointFromEnvironment;
+
+    // The general OTLP settings have no Datadog equivalent: they only apply through the signal
+    // settings they are the fallback of, and default like them.
+    otlpHeaders =
+        decodeOtlpHeaders(configProvider.getOtelSettingMap(OTEL_EXPORTER_OTLP_HEADERS, '='));
+    otlpProtocol = parseOtlpProtocol(configProvider.getOtelSetting(OTEL_EXPORTER_OTLP_PROTOCOL));
+    String otlpEndpointFromEnvironment = configProvider.getOtelSetting(OTEL_EXPORTER_OTLP_ENDPOINT);
+    if (otlpEndpointFromEnvironment == null) {
+      otlpEndpointFromEnvironment =
+          "http://"
+              + agentHost
+              + ':'
+              + (otlpProtocol == OtlpConfig.Protocol.GRPC
+                  ? DEFAULT_OTLP_GRPC_PORT
+                  : DEFAULT_OTLP_HTTP_PORT);
+    }
+    otlpEndpoint = otlpEndpointFromEnvironment;
 
     // Runtime metrics are disabled if Otel metrics are enabled and the metrics exporter is none.
     // OTEL_SDK_DISABLED=true turns them off, whatever DD_RUNTIME_METRICS_ENABLED says.
@@ -2973,9 +3004,13 @@ public class Config {
     testOptimizationPayloadsInFiles =
         configProvider.getBoolean(TEST_OPTIMIZATION_PAYLOADS_IN_FILES, false);
 
+    // Off by default in AWS Lambda: the Datadog Lambda extension serves no Remote Configuration.
+    // Must be kept in sync with Agent.isRemoteConfigEnabled().
     remoteConfigEnabled =
         configProvider.getBoolean(
-            REMOTE_CONFIGURATION_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED, REMOTE_CONFIG_ENABLED);
+            REMOTE_CONFIGURATION_ENABLED,
+            DEFAULT_REMOTE_CONFIG_ENABLED && !awsServerless,
+            REMOTE_CONFIG_ENABLED);
     remoteConfigIntegrityCheckEnabled =
         configProvider.getBoolean(
             REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED, DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED);
@@ -3477,6 +3512,7 @@ public class Config {
 
     this.spanBuilderReuseEnabled =
         configProvider.getBoolean(GeneralConfig.SPAN_BUILDER_REUSE_ENABLED, true);
+    this.traceDenseTagsEnabled = configProvider.getBoolean(TRACE_DENSE_TAGS_ENABLED, false);
     this.tagNameUtf8CacheSize =
         Math.max(configProvider.getInteger(GeneralConfig.TAG_NAME_UTF8_CACHE_SIZE, 128), 0);
     this.tagValueUtf8CacheSize =
@@ -3503,6 +3539,18 @@ public class Config {
         configProvider.getBoolean(AI_GUARD_REDACTION_ENABLED, DEFAULT_AI_GUARD_REDACTION_ENABLED);
 
     log.debug("New instance: {}", this);
+  }
+
+  /** Parses an OTLP protocol like the signal protocols are, defaulting to HTTP/protobuf. */
+  private static OtlpConfig.Protocol parseOtlpProtocol(String protocol) {
+    if (protocol != null) {
+      try {
+        return OtlpConfig.Protocol.valueOf(protocol.replace('/', '_').toUpperCase(Locale.ROOT));
+      } catch (IllegalArgumentException ignored) {
+        // invalid protocols fall back to the default, like the signal protocols
+      }
+    }
+    return OtlpConfig.Protocol.HTTP_PROTOBUF;
   }
 
   /** Decodes resolved OTLP header values after parsing and precedence resolution. */
@@ -3869,6 +3917,10 @@ public class Config {
     return dbClientSplitByHost;
   }
 
+  public boolean isRdsTagsEnabled() {
+    return rdsTagsEnabled;
+  }
+
   public boolean isDbMetadataFetchingOnQueryEnabled() {
     return dbMetadataFetchingOnQuery;
   }
@@ -4076,6 +4128,32 @@ public class Config {
     return tracerMetricsEnabled && isApmTracingEnabled();
   }
 
+  public boolean isNativeTracerMetricsEnabled() {
+    return isTracerMetricsEnabled() && !isOtelTracesSpanMetricsEnabled() && hasAgentWriter();
+  }
+
+  public boolean hasAgentWriter() {
+    if (!writerType.startsWith(MULTI_WRITER_TYPE)) {
+      return isAgentWriterType(writerType);
+    }
+    String multiWriterConfig = Strings.replace(writerType, MULTI_WRITER_TYPE + ":", "");
+    for (String subWriterType : COMMA.split(multiWriterConfig)) {
+      if (isAgentWriterType(subWriterType)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean isAgentWriterType(String type) {
+    // WriterFactory falls back to DDAgentWriter for unrecognized writer types.
+    return !OTLP_WRITER_TYPE.equals(type)
+        && !DD_INTAKE_WRITER_TYPE.equals(type)
+        && !LOGGING_WRITER_TYPE.equals(type)
+        && !PRINTING_WRITER_TYPE.equals(type)
+        && !type.startsWith(TRACE_STRUCTURE_WRITER_TYPE);
+  }
+
   public boolean isTracerMetricsIgnoreAgentVersion() {
     return tracerMetricsIgnoreAgentVersion;
   }
@@ -4097,27 +4175,22 @@ public class Config {
   }
 
   /**
-   * Upper bound for a configured stats cardinality limit. Each limit sizes a {@code
-   * TagCardinalityHandler} that eagerly allocates four reference arrays of {@code nextPow2(limit *
-   * 2)} slots, so an unbounded value (e.g. a mis-set env var) can exhaust the heap while the
-   * aggregator is constructed, before the tracer finishes starting. {@code 1 << 16} caps a single
-   * handler near ~2 MB while staying far above any useful setting -- the highest built-in default
-   * is 1024, and the aggregate table itself caps at a few thousand rows, so a larger per-key budget
-   * cannot produce more aggregate rows anyway.
+   * Upper bound for configured client-stats cardinality limits. Handlers allocate their lookup
+   * tables lazily and grow them as they see more distinct values. This bound limits how large those
+   * tables can grow during aggregation, even if a much larger limit is configured. It stays far
+   * above any useful setting: the highest built-in default is 1024, and the aggregate table itself
+   * caps at a few thousand rows, so a larger per-key budget cannot produce more aggregate rows
+   * anyway.
    */
   private static final int MAX_TRACE_STATS_CARDINALITY_LIMIT = 1 << 16;
 
   /**
-   * Returns the per-cycle cardinality limit for the named stats field, following the RFC naming
-   * pattern {@code DD_TRACE_STATS_{tagName}_CARDINALITY_LIMIT} (e.g. {@code
-   * DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT}). The caller supplies the default from {@code
-   * MetricCardinalityLimits} so per-field rationale stays co-located with the defaults.
+   * Reads the per-cycle distinct-value limit for a client-stats field. For example, the {@code
+   * resource} field uses {@code DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT}. The caller supplies the
+   * default from {@code MetricCardinalityLimits}, so per-field rationale stays with the defaults.
    *
-   * <p>A non-positive configured value is invalid -- each limit sizes a fixed-capacity handler
-   * table that requires a positive size -- so it falls back to {@code defaultLimit}, logged at
-   * debug. A value above {@link #MAX_TRACE_STATS_CARDINALITY_LIMIT} would eagerly allocate handler
-   * tables large enough to exhaust the heap at startup, so it likewise falls back to {@code
-   * defaultLimit}, logged at warn.
+   * <p>Non-positive settings fall back to the default and log at debug level. Settings above {@link
+   * #MAX_TRACE_STATS_CARDINALITY_LIMIT} fall back to the default and log a warning.
    */
   public int getTraceStatsCardinalityLimit(String tagName, int defaultLimit) {
     int limit =
@@ -5459,6 +5532,10 @@ public class Config {
     return jdkSocketEnabled;
   }
 
+  public boolean isTraceDenseTagsEnabled() {
+    return traceDenseTagsEnabled;
+  }
+
   public boolean isSpanBuilderReuseEnabled() {
     return spanBuilderReuseEnabled;
   }
@@ -6045,6 +6122,21 @@ public class Config {
     return otlpTracesCompression;
   }
 
+  /** The general OTLP endpoint ({@code OTEL_EXPORTER_OTLP_ENDPOINT}). */
+  public String getOtlpEndpoint() {
+    return otlpEndpoint;
+  }
+
+  /** The general OTLP headers ({@code OTEL_EXPORTER_OTLP_HEADERS}). */
+  public Map<String, String> getOtlpHeaders() {
+    return otlpHeaders;
+  }
+
+  /** The general OTLP protocol ({@code OTEL_EXPORTER_OTLP_PROTOCOL}). */
+  public OtlpConfig.Protocol getOtlpProtocol() {
+    return otlpProtocol;
+  }
+
   public int getOtlpTracesTimeout() {
     return otlpTracesTimeout;
   }
@@ -6594,11 +6686,13 @@ public class Config {
       }
     }
 
-    // Try hostname command
+    // Decode the OS-owned hostname output with the host charset, independently of file.encoding.
     try (final TraceScope scope = AgentTracer.get().muteTracing();
         final BufferedReader reader =
             new BufferedReader(
-                new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
+                new InputStreamReader(
+                    Runtime.getRuntime().exec("hostname").getInputStream(),
+                    OperatingSystem.nativeCharset()))) {
       possibleHostname = reader.readLine();
     } catch (final Throwable ignore) {
       // Ignore.  Hostname command is not always available
@@ -6798,6 +6892,8 @@ public class Config {
         + dbClientSplitByInstanceTypeSuffix
         + ", dbClientSplitByHost="
         + dbClientSplitByHost
+        + ", rdsTagsEnabled="
+        + rdsTagsEnabled
         + ", dbMetadataFetchingEnabled="
         + dbMetadataFetchingOnQuery
         + ", dbMetadataFetchingOnConnect="
@@ -7260,6 +7356,8 @@ public class Config {
         + otlpTracesCompression
         + ", otlpTracesTimeout="
         + otlpTracesTimeout
+        + ", otlpProtocol="
+        + otlpProtocol
         + ", ciVisibilityGradleDependencyVerificationEnabled="
         + ciVisibilityGradleDependencyVerificationEnabled
         + ", ciVisibilityDynamicAtrEnabled="

@@ -60,6 +60,7 @@ docs/                     Developer documentation (see below)
 - **Formatting**: google-java-format enforced via Spotless. Run `./gradlew spotlessApply` before committing.
 - **Static imports**: Prefer static imports for call-style helpers; no wildcard imports. See [the import guidelines](CONTRIBUTING.md#static-imports).
 - **Documentation**: Use concise Javadoc comments (`/** ... */`) for class, method, and field documentation.
+- **Traversals**: Prefer a `datadog.trace.util.Cursor` (`next()` returns the next element, or null when done) to a hand-written `Iterator`. Add an `Iterator` only when a caller needs one, such as a for-each loop or a JDK API; see `Cursor`'s Javadoc for how to provide both without allocating on a hot path. A `forEach` is still the fastest full walk where nothing needs to be carried out of the loop.
 - **Tests**: Write new tests in Java with JUnit 5. Maintain existing Spock tests as needed; new `.groovy` files require an explicit exception. Follow the testing guides above for parameterization, forked tests, and flaky tests.
 
 ## PR conventions
@@ -74,6 +75,7 @@ docs/                     Developer documentation (see below)
 - **CI flakiness**: use [reproduce-ci-flakiness](.agents/skills/reproduce-ci-flakiness/SKILL.md) for intermittent timeouts, races, asynchronous test failures, or tests that pass locally but fail in CI.
 - **Technical debt**: run `/techdebt` over branch changes before marking a PR ready to catch code duplication, unnecessary complexity, and dead code (refactor-only, never changes behavior) — see [.agents/skills/techdebt/SKILL.md](.agents/skills/techdebt/SKILL.md).
 - **Performance**: run `/perf-review` over branch changes before marking a PR ready (advisory, not a merge gate) — see [.agents/skills/perf-review/SKILL.md](.agents/skills/perf-review/SKILL.md).
+- **Correctness contracts**: an annotation meta-annotated `@CorrectnessContract` (in `datadog.contract`, e.g. `@Confined`) states a rule code must follow, with a *Checker contract* in its Javadoc. When a change uses a type that carries one, check the change against that contract: a violation is a bug, and there is no suppression.
 
 ### Core performance rules
 

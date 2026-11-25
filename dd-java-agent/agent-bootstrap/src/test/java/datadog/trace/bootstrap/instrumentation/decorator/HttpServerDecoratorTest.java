@@ -54,6 +54,7 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.InstrumentationGateway;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -68,7 +69,10 @@ import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -555,17 +559,20 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
   }
 
   @TableTest({
-    "scenario                  | reqStarted | reqData | reqHeader | reqHeaderDone | reqStartedCount | reqHeaderCount | reqHeaderDoneCount",
-    "no callbacks              | false      | false   | false     | false         | 0               | 0              | 0                 ",
-    "data without callbacks    | false      | true    | false     | false         | 0               | 0              | 0                 ",
-    "request started           | true       | false   | false     | false         | 1               | 0              | 0                 ",
-    "request started with data | true       | true    | false     | false         | 1               | 0              | 0                 ",
-    "request header            | true       | true    | true      | false         | 1               | 3              | 0                 ",
-    "request header done       | true       | true    | true      | true          | 1               | 3              | 1                 "
+    "scenario                      | reqStarted | reqData | iastData | reqHeader | reqHeaderDone | reqStartedCount | reqHeaderCount | reqHeaderDoneCount",
+    "no callbacks                  | false      | false   | false    | false     | false         | 0               | 0              | 0                 ",
+    "data without callbacks        | false      | true    | false    | false     | false         | 0               | 0              | 0                 ",
+    "request started               | true       | false   | false    | false     | false         | 1               | 0              | 0                 ",
+    "request started with data     | true       | true    | false    | false     | false         | 1               | 0              | 0                 ",
+    "request header                | true       | true    | false    | true      | false         | 1               | 3              | 0                 ",
+    "request header done           | true       | true    | false    | true      | true          | 1               | 3              | 1                 ",
+    "header callbacks without data | true       | false   | false    | true      | true          | 1               | 0              | 1                 ",
+    "header callbacks, IAST data   | true       | false   | true     | true      | true          | 1               | 3              | 1                 "
   })
   void testStartSpanAndInstrumentationGateway(
       boolean reqStarted,
       boolean reqData,
+      boolean iastData,
       boolean reqHeader,
       boolean reqHeaderDone,
       int reqStartedCount,
@@ -579,11 +586,15 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     if (reqStarted) {
       ss.registerCallback(EVENTS.requestStarted(), callbacks);
     }
+    // With IAST data, the header callbacks are IAST's, so the headers must reach IAST.
+    Object iastObject = iastData ? new Object() : null;
+    IGCallBacks headerCallbacks = iastData ? new IGCallBacks(iastObject, IAST) : callbacks;
+    SubscriptionService headerSs = iastData ? ig.getSubscriptionService(IAST) : ss;
     if (reqHeader) {
-      ss.registerCallback(EVENTS.requestHeader(), callbacks);
+      headerSs.registerCallback(EVENTS.requestHeader(), headerCallbacks);
     }
     if (reqHeaderDone) {
-      ss.registerCallback(EVENTS.requestHeaderDone(), callbacks);
+      headerSs.registerCallback(EVENTS.requestHeaderDone(), headerCallbacks);
     }
     Map<String, String> headers = new HashMap<>();
     headers.put("foo", "bar");
@@ -591,6 +602,8 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     headers.put("another", "value");
     RequestContext reqCtxt = mock(RequestContext.class);
     when(reqCtxt.getData(APPSEC)).thenReturn(data);
+    // Header callbacks only see headers when AppSec or IAST tracks the request.
+    when(reqCtxt.getData(IAST)).thenReturn(iastObject);
     AgentSpan mSpan = mock(AgentSpan.class);
     when(mSpan.getRequestContext()).thenReturn(reqCtxt);
     when(mSpan.setMeasured(true)).thenReturn(mSpan);
@@ -599,8 +612,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     when(mTracer.getCallbackProvider(APPSEC)).thenReturn(cbpAppSec);
     when(mTracer.getCallbackProvider(IAST))
         .thenReturn(CallbackProvider.CallbackProviderNoop.INSTANCE);
-    // Universal callback lookups use the AppSec provider because no IAST callbacks are registered.
-    when(mTracer.getUniversalCallbackProvider()).thenReturn(cbpAppSec);
+    when(mTracer.getUniversalCallbackProvider()).thenReturn(ig.getUniversalCallbackProvider());
     when(mTracer.getDataStreamsMonitoring()).thenReturn(mock(DataStreamsMonitoring.class));
     HttpServerDecorator<
             Map<String, Object>, Map<String, Object>, Map<String, Object>, Map<String, String>>
@@ -612,11 +624,55 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     // then
     verify(mSpan).setMeasured(true);
     assertEquals(reqStartedCount, callbacks.reqStartedCount);
-    assertEquals(reqHeaderCount, callbacks.headers.size());
-    assertEquals(reqHeaderDoneCount, callbacks.reqHeaderDoneCount);
+    assertEquals(reqHeaderCount, headerCallbacks.headers.size());
+    assertEquals(reqHeaderDoneCount, headerCallbacks.reqHeaderDoneCount);
     if (reqHeaderCount != 0) {
-      assertEquals(headers, callbacks.headers);
+      assertEquals(headers, headerCallbacks.headers);
     }
+  }
+
+  /**
+   * Response headers are walked only for AppSec, the one product that registers a response-header
+   * callback; the done callback runs either way.
+   */
+  @TableTest({
+    "scenario       | appSecData | iastData | headerCount",
+    "no data        | false      | false    | 0          ",
+    "IAST data only | false      | true     | 0          ",
+    "AppSec data    | true       | false    | 2          "
+  })
+  void responseHeadersAreWalkedOnlyForAppSec(
+      boolean appSecData, boolean iastData, int headerCount) {
+    InstrumentationGateway ig = new InstrumentationGateway();
+    SubscriptionService ss = ig.getSubscriptionService(APPSEC);
+    List<String> events = new ArrayList<>();
+    ss.registerCallback(
+        EVENTS.responseHeader(), (ctx, key, value) -> events.add("header " + key + "=" + value));
+    ss.registerCallback(
+        EVENTS.responseHeaderDone(),
+        ctx -> {
+          events.add("done");
+          return Flow.ResultFlow.empty();
+        });
+    RequestContext reqCtxt = mock(RequestContext.class);
+    when(reqCtxt.getData(APPSEC)).thenReturn(appSecData ? new Object() : null);
+    when(reqCtxt.getData(IAST)).thenReturn(iastData ? new Object() : null);
+    AgentSpan mSpan = mock(AgentSpan.class);
+    when(mSpan.getRequestContext()).thenReturn(reqCtxt);
+    TracerAPI mTracer = mock(TracerAPI.class);
+    when(mTracer.getCallbackProvider(APPSEC)).thenReturn(ig.getCallbackProvider(APPSEC));
+    HttpServerDecorator<
+            Map<String, Object>, Map<String, Object>, Map<String, Object>, Map<String, String>>
+        decorator = newDecorator(mTracer, null);
+    Map<String, String> responseHeaders = new LinkedHashMap<>();
+    responseHeaders.put("content-type", "text/plain");
+    responseHeaders.put("x-request-id", "abc");
+
+    decorator.callIGCallbackResponseAndHeaders(
+        mSpan, responseHeaders, 200, (carrier, classifier) -> carrier.forEach(classifier::accept));
+
+    assertEquals(headerCount + 1, events.size(), () -> "events: " + events);
+    assertEquals("done", events.get(events.size() - 1), "headers arrive before done");
   }
 
   private static Map<String, Object> connection(String ip, String peerIp, Integer port) {
@@ -712,12 +768,19 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
           Function<RequestContext, Flow<Void>> {
 
     private final Object data;
+    private final RequestContextSlot slot;
     private final Map<String, String> headers = new HashMap<>();
     private int reqStartedCount = 0;
     private int reqHeaderDoneCount = 0;
 
     IGCallBacks(Object data) {
+      this(data, APPSEC);
+    }
+
+    /** Callbacks for {@code slot}'s product, which see that product's request data. */
+    IGCallBacks(Object data, RequestContextSlot slot) {
       this.data = data;
+      this.slot = slot;
     }
 
     // REQUEST_STARTED
@@ -730,14 +793,14 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     // REQUEST_HEADER
     @Override
     public void accept(RequestContext requestContext, String key, String value) {
-      assertEquals(data, requestContext.getData(APPSEC));
+      assertEquals(data, requestContext.getData(slot));
       headers.put(key, value);
     }
 
     // REQUEST_HEADER_DONE
     @Override
     public Flow<Void> apply(RequestContext requestContext) {
-      assertEquals(data, requestContext.getData(APPSEC));
+      assertEquals(data, requestContext.getData(slot));
       reqHeaderDoneCount++;
       return Flow.ResultFlow.empty();
     }

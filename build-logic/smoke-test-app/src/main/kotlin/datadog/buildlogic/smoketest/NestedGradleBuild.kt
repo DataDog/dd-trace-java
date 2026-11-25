@@ -11,11 +11,11 @@ import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.IgnoreEmptyDirectories
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Internal
-import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputDirectory
@@ -129,8 +129,8 @@ abstract class NestedGradleBuild @Inject constructor(
 
   /**
    * Whether to enable the build cache in the nested Gradle invocation.
-   * Gradle's org.gradle.caching flag is resolved from many sources (project, 
-   * init, gradle user home, environment, command line) and any of them silently 
+   * Gradle's org.gradle.caching flag is resolved from many sources (project,
+   * init, gradle user home, environment, command line) and any of them silently
    * enables the build cache for nested builds. For this reasons it defaults to `false`.
    * Opt in only when the inner plugin chain keys its cached outputs on everything that
    * varies between runs (e.g. Quarkus's native-image does not track `GRAALVM_HOME`).
@@ -322,19 +322,18 @@ abstract class NestedGradleBuild @Inject constructor(
     return null
   }
 
-  private fun proxyProperties(declaredProperties: Map<String, String>): Map<String, String> =
-    buildMap {
-      addProxyProperty(
-        MAVEN_REPOSITORY_PROXY_PROPERTY,
-        declaredProperties,
-        mavenRepositoryProxy.orNull,
-      )
-      addProxyProperty(
-        GRADLE_PLUGIN_PROXY_PROPERTY,
-        declaredProperties,
-        gradlePluginProxy.orNull,
-      )
-    }
+  private fun proxyProperties(declaredProperties: Map<String, String>): Map<String, String> = buildMap {
+    addProxyProperty(
+      MAVEN_REPOSITORY_PROXY_PROPERTY,
+      declaredProperties,
+      mavenRepositoryProxy.orNull,
+    )
+    addProxyProperty(
+      GRADLE_PLUGIN_PROXY_PROPERTY,
+      declaredProperties,
+      gradlePluginProxy.orNull,
+    )
+  }
 
   private fun writeInitScripts(hasProxy: Boolean): List<File> {
     val declared = initScripts.get()
@@ -353,12 +352,11 @@ abstract class NestedGradleBuild @Inject constructor(
     }
   }
 
-  private fun findGradleExecutable(gradleUserHomeDir: File): File? =
-    gradleUserHomeDir.walkTopDown().firstOrNull { file ->
-      file.isFile &&
-        file.name == gradleExecutableName() &&
-        file.parentFile?.name == "bin"
-    }
+  private fun findGradleExecutable(gradleUserHomeDir: File): File? = gradleUserHomeDir.walkTopDown().firstOrNull { file ->
+    file.isFile &&
+      file.name == gradleExecutableName() &&
+      file.parentFile?.name == "bin"
+  }
 
   private fun createGradleUserHome(): File {
     val directory = temporaryDir.resolve("gradle-user-home")
@@ -378,19 +376,18 @@ abstract class NestedGradleBuild @Inject constructor(
   }
 
   // Gradle's internal log naming also drives buildSrc's GradleFixture.stopDaemonsIn.
-  private fun findGradleDaemons(directory: File): List<ProcessHandle> =
-    directory.resolve("daemon").walkTopDown()
-      .filter { it.isFile && it.name.startsWith("daemon-") && it.name.endsWith(".out.log") }
-      .mapNotNull { log ->
-        val pid = log.name.removePrefix("daemon-").removeSuffix(".out.log").toLongOrNull()?.takeIf { it > 0 }
-          ?: return@mapNotNull null
-        val process = ProcessHandle.of(pid).orElse(null) ?: return@mapNotNull null
-        if (!isGradleDaemonCandidate(process.info(), log.lastModified())) {
-          return@mapNotNull null
-        }
-        process
+  private fun findGradleDaemons(directory: File): List<ProcessHandle> = directory.resolve("daemon").walkTopDown()
+    .filter { it.isFile && it.name.startsWith("daemon-") && it.name.endsWith(".out.log") }
+    .mapNotNull { log ->
+      val pid = log.name.removePrefix("daemon-").removeSuffix(".out.log").toLongOrNull()?.takeIf { it > 0 }
+        ?: return@mapNotNull null
+      val process = ProcessHandle.of(pid).orElse(null) ?: return@mapNotNull null
+      if (!isGradleDaemonCandidate(process.info(), log.lastModified())) {
+        return@mapNotNull null
       }
-      .toList()
+      process
+    }
+    .toList()
 
   internal fun deleteGradleUserHome(directory: File, daemons: List<ProcessHandle>? = null) {
     try {
@@ -424,12 +421,11 @@ abstract class NestedGradleBuild @Inject constructor(
         info.startInstant().map { it.toEpochMilli() <= logLastModified }.orElse(true)
     }
 
-    internal fun gradleExecutableName(osName: String = System.getProperty("os.name")): String =
-      if (isWindows(osName)) {
-        "gradle.bat"
-      } else {
-        "gradle"
-      }
+    internal fun gradleExecutableName(osName: String = System.getProperty("os.name")): String = if (isWindows(osName)) {
+      "gradle.bat"
+    } else {
+      "gradle"
+    }
   }
 }
 

@@ -19,8 +19,7 @@ dependencies {
 
   implementation project(':dd-java-agent:agent-otel:otel-tooling')
 
-  implementation group: 'net.java.dev.jna', name: 'jna', version: '5.8.0'
-  implementation group: 'net.java.dev.jna', name: 'jna-platform', version: '5.8.0'
+  implementation libs.jna.core
 
   compileOnly project(':dd-trace-core')
   compileOnly project(':dd-java-agent:agent-crashtracking')

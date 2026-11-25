@@ -6,14 +6,14 @@ import org.gradle.api.JavaVersion
 import org.gradle.api.Project
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.plugins.JavaPluginExtension
-import org.gradle.api.tasks.testing.Test as GradleTest
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.testfixtures.ProjectBuilder
-import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Paths
+import org.gradle.api.tasks.testing.Test as GradleTest
 
 class TestJvmConstraintsPluginTest {
   @Test
@@ -51,14 +51,16 @@ class TestJvmConstraintsPluginTest {
     val metadata = testTask.javaLauncher.get().metadata
 
     assertThat(metadata.languageVersion).isEqualTo(JavaLanguageVersion.of(17))
-    assertThat(testTask.inputs.properties["jvmIdentity"]).isEqualTo(mapOf(
-      "languageVersion" to metadata.languageVersion.asInt().toString(),
-      "vendor" to metadata.vendor,
-      "runtimeVersion" to metadata.javaRuntimeVersion,
-      "vmVersion" to metadata.jvmVersion,
-      "operatingSystem" to System.getProperty("os.name"),
-      "architecture" to System.getProperty("os.arch"),
-    ))
+    assertThat(testTask.inputs.properties["jvmIdentity"]).isEqualTo(
+      mapOf(
+        "languageVersion" to metadata.languageVersion.asInt().toString(),
+        "vendor" to metadata.vendor,
+        "runtimeVersion" to metadata.javaRuntimeVersion,
+        "vmVersion" to metadata.jvmVersion,
+        "operatingSystem" to System.getProperty("os.name"),
+        "architecture" to System.getProperty("os.arch"),
+      )
+    )
   }
 
   @Test
@@ -291,8 +293,7 @@ class TestJvmConstraintsPluginTest {
     return project.tasks.named("test", GradleTest::class.java).get()
   }
 
-  private fun jacocoExtension(testTask: GradleTest): JacocoTaskExtension =
-    testTask.extensions.getByType(JacocoTaskExtension::class.java)
+  private fun jacocoExtension(testTask: GradleTest): JacocoTaskExtension = testTask.extensions.getByType(JacocoTaskExtension::class.java)
 
   private fun withTestJvm(value: String, assertions: () -> Unit) {
     val propertyName = "org.gradle.project.${TestJvmSpec.TEST_JVM}"

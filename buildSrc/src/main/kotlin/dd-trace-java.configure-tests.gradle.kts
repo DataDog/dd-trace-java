@@ -1,5 +1,7 @@
 import datadog.gradle.plugin.testing.GeneratedGroovyClosureSpec
+import datadog.gradle.plugin.testing.configureFlakyTestSelection
 import datadog.gradle.plugin.testing.configureTestAgentPostChecks
+import datadog.gradle.plugin.testing.configureTestFailurePolicy
 import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
@@ -37,14 +39,19 @@ val skipTestsProvider = rootProject.providers.gradleProperty("skipTests")
 val skipForkedTestsProvider = rootProject.providers.gradleProperty("skipForkedTests")
 val skipFlakyTestsProvider = rootProject.providers.gradleProperty("skipFlakyTests")
 val runFlakyTestsProvider = rootProject.providers.gradleProperty("runFlakyTests")
+val rerunAllTestsProvider = rootProject.providers.gradleProperty("rerun.tests")
 val rerunTestsProperty = "rerun.tests.${project.name}"
 val rerunTestsProvider = rootProject.providers.gradleProperty(rerunTestsProperty)
+val testcontainersMaxParallelForks = providers.gradleProperty("testcontainersMaxParallelForks")
+  .map(String::toInt)
+  .orElse(1)
 val isMasterBranch = providers.environmentVariable("CI_COMMIT_BRANCH")
   .map { it == "master" }
   .orElse(false)
 
 // Go through the Test tasks and configure them
 tasks.withType<Test>().configureEach {
+  configureTestFailurePolicy()
   configureTestAgentPostChecks()
 
   // Test suites get the JUnit Platform from `useJUnitJupiter()` above, but tasks registered with
@@ -59,6 +66,7 @@ tasks.withType<Test>().configureEach {
   outputs.upToDateWhen { task ->
     val reason = when {
       isMasterBranch.get() -> "CI_COMMIT_BRANCH=master"
+      rerunAllTestsProvider.isPresent -> "rerun.tests is set"
       rerunTestsProvider.isPresent -> "$rerunTestsProperty is set"
       else -> return@upToDateWhen true
     }
@@ -79,6 +87,9 @@ tasks.withType<Test>().configureEach {
     exclude(GeneratedGroovyClosureSpec())
     setIncludes(listOf("**/*ForkedTest*"))
     forkEvery = 1
+    pluginManager.withPlugin("dd-trace-java.testcontainers") {
+      maxParallelForks = testcontainersMaxParallelForks.get()
+    }
     // Limit the number of concurrent forked tests
     usesService(forkedTestLimit)
     onlyIf("skipForkedTests are undefined or false") { !skipForkedTestsProvider.isPresent }
@@ -97,44 +108,34 @@ tasks.withType<Test>().configureEach {
 
   // Set test timeout for 20 minutes. Default job timeout is 1h (configured on CI level).
   timeout.set(Duration.of(20, ChronoUnit.MINUTES))
+
+  configureFlakyTestSelection(skipFlakyTestsProvider.isPresent, runFlakyTestsProvider.isPresent)
 }
 
 // Register a task "allTests" that depends on all non-latest and non-traceAgentTest Test tasks.
 // This is used when we only want to run the 'main' test sets.
 tasks.register("allTests") {
-  dependsOn(tasks.withType<Test>().matching { testTask ->
-    !testTask.name.contains("latest", ignoreCase = true) && testTask.name != "traceAgentTest"
-  })
+  dependsOn(
+    tasks.withType<Test>().matching { testTask ->
+      !testTask.name.contains("latest", ignoreCase = true) && testTask.name != "traceAgentTest"
+    }
+  )
 }
 
 // Register a task "allLatestDepTests" that depends on all Test tasks whose names include 'latest'.
 // This is used when we want to run tests against the latest dependency versions.
 tasks.register("allLatestDepTests") {
-  dependsOn(tasks.withType<Test>().matching { testTask ->
-    testTask.name.contains("latest", ignoreCase = true)
-  })
+  dependsOn(
+    tasks.withType<Test>().matching { testTask ->
+      testTask.name.contains("latest", ignoreCase = true)
+    }
+  )
 }
 
 // Make the 'check' task depend on all Test tasks in the project.
 // This means that when running the 'check' task, all Test tasks will run as well.
 tasks.named("check") {
   dependsOn(tasks.withType<Test>())
-}
-
-tasks.withType<Test>().configureEach {
-  // Keep suites without test-utils out of flaky-only runs. Runtime extensions refine this tag.
-  if (!skipFlakyTestsProvider.isPresent && runFlakyTestsProvider.isPresent) {
-    useJUnitPlatform {
-      includeTags("flaky")
-    }
-  }
-
-  // Let the JUnit and Spock extensions evaluate @Flaky conditions before selecting tests.
-  if (skipFlakyTestsProvider.isPresent) {
-    jvmArgs("-Drun.flaky.tests=false")
-  } else if (runFlakyTestsProvider.isPresent) {
-    jvmArgs("-Drun.flaky.tests=true")
-  }
 }
 
 tasks.withType<Test>().configureEach {

@@ -5,6 +5,7 @@ plugins {
 
 muzzle {
   pass {
+    name = 'aerospike-4.0'
     group = 'com.aerospike'
     module = 'aerospike-client'
     versions = "[4,8)"
@@ -14,6 +15,10 @@ muzzle {
 
 addTestSuiteForDir("latestDepTest", "test")
 addTestSuiteForDir("latest7DepTest", "test")
+
+sourceSets.named('latest7DepTest') {
+  java.srcDir 'src/latest7DepTest/java'
+}
 
 tasks.named("latestDepTest", Test) {
   testJvmConstraints {

@@ -6,7 +6,7 @@ import static opentelemetry147.metrics.JvmOtlpRuntimeMetricsTest.forEachJvmPoint
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import datadog.trace.agent.jmxfetch.JvmOtlpRuntimeMetrics;
-import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry;
+import datadog.trace.agent.test.utils.OtelMetricCollector;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -28,9 +28,7 @@ class JvmOtlpRuntimeMetricsNoProcessTagsForkedTest {
       }
     });
 
-    JvmOtlpRuntimeMetricsTest.MetricCollector collector =
-        new JvmOtlpRuntimeMetricsTest.MetricCollector();
-    OtelMetricRegistry.INSTANCE.collectMetrics(collector);
+    OtelMetricCollector collector = OtelMetricCollector.collect();
     assertJavaLangJmxFetchTags(collector, "jvm.thread.count", "Threading");
   }
 }

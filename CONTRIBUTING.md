@@ -19,6 +19,12 @@ Check [Adding a New Configuration](docs/add_new_configurations.md) for instructi
 
 ## Code contributions
 
+### Agent instruction changes
+
+For changes to `AGENTS.md` or other agent guidance, follow the
+[instruction review and validation guide](.llm-validation/README.md).
+Check conventions, context growth, and whether detailed guidance belongs in a skill or scoped documentation.
+
 ### Development environment quick check
 
 Prior to contributing to the project, you can quickly check your development environment using the `./setup.sh` command
@@ -85,7 +91,7 @@ Every `curl` that runs in CI (`.gitlab-ci.yml`, `.gitlab/`, GitHub Actions, the 
 
 Example: `curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused -o out.tar.gz "$url"`
 
-Exception: a script that checks the HTTP status itself (`-w "%{http_code}"`, e.g. [tooling/check_test_agent_results.sh](tooling/check_test_agent_results.sh)) may skip `--fail`, but still needs `--retry`.
+Exception: a script that checks the HTTP status itself (`-w "%{http_code}"`) may skip `--fail`, but still needs `--retry`.
 
 ### Troubleshooting
 

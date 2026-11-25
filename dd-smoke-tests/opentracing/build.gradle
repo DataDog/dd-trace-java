@@ -16,7 +16,7 @@ dependencies {
 
   implementation libs.slf4j
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }
 
 tasks.withType(Test).configureEach {
