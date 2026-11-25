@@ -68,7 +68,7 @@ public class CiVisibilityRepoServices {
     ciProvider = ciProviderInfo.getProvider();
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
 
-    repoRoot = getRepoRoot(ciInfo, services.gitClientFactory);
+    repoRoot = getRepoRoot(ciInfo, services.gitClientFactory, path);
     moduleName = getModuleName(services.config, repoRoot, path);
 
     GitClient gitClient = services.gitClientFactory.create(repoRoot);
@@ -188,7 +188,13 @@ public class CiVisibilityRepoServices {
     return PullRequestInfo.coalesce(userInfo, ddCiInfo);
   }
 
-  private static String getRepoRoot(CIInfo ciInfo, GitClient.Factory gitClientFactory) {
+  /**
+   * The root of the repository that the session's project is in. Without a CI workspace, git is
+   * asked from the project directory rather than from the process's working directory, which a
+   * build tool can set elsewhere: a Gradle daemon runs in its own directory.
+   */
+  @Nullable
+  static String getRepoRoot(CIInfo ciInfo, GitClient.Factory gitClientFactory, Path path) {
     BazelMode bazelMode = BazelMode.get();
     if (bazelMode.isEnabled()) {
       String bazelRepoRoot = bazelMode.getRepoRoot();
@@ -205,7 +211,7 @@ public class CiVisibilityRepoServices {
 
     } else {
       try {
-        return gitClientFactory.create(".").getRepoRoot();
+        return gitClientFactory.create(path.toString()).getRepoRoot();
 
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();

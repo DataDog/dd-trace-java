@@ -102,7 +102,7 @@ public class CiVisibilitySystem {
       if (executionSettings.isCodeCoverageEnabled()) {
         if (config.isCiVisibilityCoverageLineProbesEnabled()) {
           Predicate<String> instrumentationFilter =
-              createCoverageInstrumentationFilter(services, repoServices);
+              createLineProbesInstrumentationFilter(services, repoServices);
           inst.addTransformer(new ProbeClassTransformer(instrumentationFilter));
           TestPreparationWindow.enable();
         } else if (!config.isCiVisibilityCoverageLinesEnabled()) {
@@ -144,14 +144,49 @@ public class CiVisibilitySystem {
 
   private static Predicate<String> createCoverageInstrumentationFilter(
       CiVisibilityServices services, CiVisibilityRepoServices repoServices) {
+    String[] includedPackages = getCoverageIncludedPackages(services, repoServices);
+    String[] excludedPackages = services.config.getCiVisibilityCodeCoverageExcludedPackages();
+    return new CoverageInstrumentationFilter(includedPackages, excludedPackages);
+  }
+
+  private static Predicate<String> createLineProbesInstrumentationFilter(
+      CiVisibilityServices services, CiVisibilityRepoServices repoServices) {
+    String[] includedPackages =
+        getLineProbesIncludedPackages(getCoverageIncludedPackages(services, repoServices));
+    String[] excludedPackages = services.config.getCiVisibilityCodeCoverageExcludedPackages();
+    return new CoverageInstrumentationFilter(includedPackages, excludedPackages);
+  }
+
+  private static String[] getCoverageIncludedPackages(
+      CiVisibilityServices services, CiVisibilityRepoServices repoServices) {
     String[] includedPackages = services.config.getCiVisibilityCodeCoverageIncludedPackages();
     if (includedPackages.length == 0 && services.processHierarchy.isHeadless()) {
       RepoIndex repoIndex = repoServices.repoIndexProvider.getIndex();
       includedPackages =
           Config.convertJacocoExclusionFormatToPackagePrefixes(repoIndex.getRootPackages());
     }
-    String[] excludedPackages = services.config.getCiVisibilityCodeCoverageExcludedPackages();
-    return new CoverageInstrumentationFilter(includedPackages, excludedPackages);
+    return includedPackages;
+  }
+
+  /**
+   * The package prefixes that the line probes cover. Without any, they cover every class that is
+   * not excluded, as JaCoCo mode does, rather than none: the list is empty when the repository has
+   * more top-level packages than the root package limit, and covering none would leave every test
+   * without coverage, with no sign of why.
+   */
+  static String[] getLineProbesIncludedPackages(String[] includedPackages) {
+    for (String includedPackage : includedPackages) {
+      if (!includedPackage.isEmpty()) {
+        return includedPackages;
+      }
+    }
+    LOGGER.warn(
+        "Per-test line coverage has no packages to cover, so it covers every class that is not"
+            + " excluded, which costs more. The list is empty when the repository has more"
+            + " top-level packages than dd.civisibility.code.coverage.root.packages.limit allows,"
+            + " or when it could not be indexed. Set dd.civisibility.code.coverage.includes to"
+            + " the packages to cover.");
+    return new String[] {""};
   }
 
   private static BuildEventsHandler.Factory buildEventsHandlerFactory(

@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoverageProbes;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.coverage.CoverageWindow;
+import datadog.trace.api.civisibility.coverage.InstrumentedClass;
 import datadog.trace.api.civisibility.coverage.NoOpProbes;
 import datadog.trace.api.civisibility.coverage.ProbeRecorder;
 import datadog.trace.api.civisibility.coverage.SuiteSetupWindow;
@@ -22,7 +23,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Line coverage of one test, collected by the probes that {@link ProbeClassTransformer} inserts.
@@ -32,6 +36,10 @@ import javax.annotation.Nullable;
  * serializes it.
  */
 public final class ProbeCoverageStore extends CoverageWindow implements CoverageStore {
+
+  private static final Logger log = LoggerFactory.getLogger(ProbeCoverageStore.class);
+
+  private static final AtomicBoolean WARNED_NO_SOURCE_FILE_FOUND = new AtomicBoolean();
 
   private final CiVisibilityMetricCollector metrics;
   private final SourceFiles sourceFiles;
@@ -125,6 +133,9 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
           CiVisibilityCountMetric.CODE_COVERAGE_ERRORS,
           classesNotInRepository.cardinality(),
           CoverageErrorType.PATH);
+      if (linesBySourcePath.isEmpty()) {
+        warnNoSourceFileFound(classesNotInRepository.nextSetBit(0));
+      }
     }
 
     List<TestReportFileEntry> entries = new ArrayList<>(linesBySourcePath.size());
@@ -133,6 +144,25 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
     }
     metrics.add(CiVisibilityDistributionMetric.CODE_COVERAGE_FILES, entries.size());
     return new TestReport(testSessionId, testSuiteId, testSpanId, entries);
+  }
+
+  /**
+   * A test that ran code but has no line in any repository file points at a wrong repository root
+   * or an empty repository index, which would otherwise leave every test without coverage,
+   * silently.
+   */
+  private static void warnNoSourceFileFound(int classId) {
+    if (!WARNED_NO_SOURCE_FILE_FOUND.compareAndSet(false, true)) {
+      return;
+    }
+    InstrumentedClass instrumentedClass = ProbeRecorder.getInstrumentedClass(classId);
+    log.warn(
+        "Per-test line coverage could not find the source files of the classes a test ran, such as"
+            + " {} ({}), among the repository's files, so the test reports no coverage. The"
+            + " repository root may be wrong, or the repository could not be indexed. This is"
+            + " logged once.",
+        instrumentedClass != null ? instrumentedClass.name() : classId,
+        instrumentedClass != null ? instrumentedClass.sourceFile() : null);
   }
 
   private void addLines(
