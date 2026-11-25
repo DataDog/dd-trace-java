@@ -19,13 +19,8 @@ import static org.objectweb.asm.Opcodes.ICONST_1;
 import static org.objectweb.asm.Opcodes.IFEQ;
 import static org.objectweb.asm.Opcodes.IFNONNULL;
 import static org.objectweb.asm.Opcodes.IFNULL;
-import static org.objectweb.asm.Opcodes.ILOAD;
-import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
-import static org.objectweb.asm.Opcodes.IOR;
 import static org.objectweb.asm.Opcodes.IRETURN;
-import static org.objectweb.asm.Opcodes.ISHL;
-import static org.objectweb.asm.Opcodes.ISTORE;
 import static org.objectweb.asm.Opcodes.JSR;
 import static org.objectweb.asm.Opcodes.LDC;
 import static org.objectweb.asm.Opcodes.MONITORENTER;
@@ -78,18 +73,18 @@ import org.objectweb.asm.tree.VarInsnNode;
  * neither needs the local. A probe on a jump edge is placed after the method body, where it jumps
  * on to the edge's target.
  *
- * <p>Lines that run before an exception leaves a block midway are recorded through a second local
- * variable: each run of instructions that adds a line to a block and can throw first stores the
- * probe of the lines started so far. The method's own exception handlers store into that probe's
- * slot on entry, and one handler that covers the whole method where no monitor is held does the
- * same and rethrows whatever no other handler catches.
+ * <p>Lines that run before an exception leaves a block midway stay recorded because each run of
+ * instructions that adds a line to a block and can throw first stores the probe of the lines the
+ * block started so far. A block whose last such store is its own probe needs no probe where it
+ * ends.
  *
  * <p>The JIT compilers refuse a method where a handler is reached by a jump, where code in a
  * handler's first block is covered by that handler, or where exceptions reach a handler with
  * different numbers of monitors held or leave the method with one held. No inserted code creates
- * such a case: a handler entered with a monitor held records where code first may throw, which is
- * once the handler released it, and code placed after the method body runs under the handlers of
- * the jump it belongs to. A method where no probe can be placed that way is left unchanged.
+ * such a case: a store in a handler entered with a monitor held goes where code first may throw,
+ * which is once the handler released it, and code placed after the method body runs under the
+ * handlers of the jump it belongs to. A method where no probe can be placed that way is left
+ * unchanged.
  */
 final class MethodProbeInserter {
 
@@ -126,12 +121,6 @@ final class MethodProbeInserter {
 
   /** The local variable holding the method's probe array, or -1 if the method has none. */
   private int probesLocal = -1;
-
-  /**
-   * The local variable holding the probe of the last code started that can throw, or -1 if the
-   * method records no exceptions.
-   */
-  private int progressLocal = -1;
 
   private final InsnList tail = new InsnList();
 
@@ -210,44 +199,20 @@ final class MethodProbeInserter {
       if (!initializer) {
         probesLocal = addLocal(PROBES_TYPE);
       }
-      boolean constructor = "<init>".equals(method.name);
-      boolean recordsExceptions = exceptionProbes && (frames || !constructor);
-      if (recordsExceptions) {
-        progressLocal = addLocal(Opcodes.INTEGER);
-      }
       for (int block = 0; block < blockCount; block++) {
-        if (reachable[block]) {
+        if (reachable[block] && !(exceptionProbes && insertLineStores(block))) {
           insertBlockProbes(block);
         }
       }
-      List<LabelNode[]> bodyRanges = null;
-      if (recordsExceptions) {
-        boolean[] uninitializedThis = constructor ? findUninitializedThis() : null;
-        int[] recordings = handlerRecordings();
-        for (int block = 0; block < blockCount; block++) {
-          if (reachable[block]) {
-            insertProgressStores(block, uninitializedThis, recordings[block]);
-          }
-        }
-        bodyRanges = coveredRanges(uninitializedThis);
-      }
       method.instructions.add(tail);
-      if (bodyRanges != null) {
-        addThrownHandler(bodyRanges);
-      }
       coverEdgeProbes();
       renameNewLabels();
       // before the first label, so that no jump or exception handler reaches it
-      InsnList prologue = new InsnList();
       if (probesLocal >= 0) {
-        prologue.add(takeProbes());
+        InsnList prologue = takeProbes();
         prologue.add(new VarInsnNode(ASTORE, probesLocal));
+        method.instructions.insert(prologue);
       }
-      if (progressLocal >= 0) {
-        prologue.add(new InsnNode(ICONST_0));
-        prologue.add(new VarInsnNode(ISTORE, progressLocal));
-      }
-      method.instructions.insert(prologue);
     }
 
     if (maxCodeSize() > Short.MAX_VALUE) {
@@ -931,7 +896,7 @@ final class MethodProbeInserter {
       requireThrowAllowed(last, depthAt(last));
       insertReturnProbe(last, blockProbe(block));
     } else if (opcode == ATHROW) {
-      // recorded by the exception probes of the block
+      // stored by the line stores of the block
     } else if (opcode == GOTO) {
       if (idom[successors[block][0]] != block) {
         requireThrowAllowed(last, depthAt(last));
@@ -1157,22 +1122,18 @@ final class MethodProbeInserter {
 
   /**
    * Before each run of instructions that adds a line to the block and can throw, stores the probe
-   * of the lines the block has started so far, for the handlers to record.
+   * of the lines the block has started so far, so that they stay stored when that run throws. This
+   * needs no exception handler, which would add an exception edge from every call to the method's
+   * compiled code.
    *
-   * @param recording where the block, as the first block of exception handlers, records the probe
-   *     stored before the exception, which no store may precede: -1 if the block cannot record it,
-   *     and then stores nothing; -2 if the block is no handler's first block
+   * @return whether the last of these stores is the block's own probe, which then needs no store
+   *     where the block ends
    */
-  private void insertProgressStores(int block, boolean[] uninitializedThis, int recording) {
-    if (recording == -1) {
-      return;
-    }
-    if (recording >= 0) {
-      insertBeforeInstruction(insns[recording], recordProgress());
-    }
+  private boolean insertLineStores(int block) {
     LineList lines = new LineList();
     int segmentFirst = -1;
     boolean segmentThrows = false;
+    boolean storesBlock = false;
     for (int i = blockFirst[block]; i <= blockLast[block]; i++) {
       AbstractInsnNode insn = insns[i];
       if (insn.getOpcode() < 0) {
@@ -1180,92 +1141,37 @@ final class MethodProbeInserter {
       }
       if (startsNewLine(i, lines)) {
         if (segmentThrows) {
-          storeProgress(block, Math.max(segmentFirst, recording), lines);
+          storesBlock = storeLines(block, segmentFirst, i, lines);
         }
         addLinesAt(i, lines);
-        segmentFirst = -1;
+        segmentFirst = i;
         segmentThrows = false;
-      }
-      if (uninitializedThis != null && uninitializedThis[i]) {
-        continue; // no handler covers code that runs before this is initialized
-      }
-      if (segmentFirst < 0) {
+      } else if (segmentFirst < 0) {
         segmentFirst = i;
       }
       segmentThrows |= mayThrow(insn);
     }
     if (segmentThrows) {
-      storeProgress(block, Math.max(segmentFirst, recording), lines);
+      storesBlock = storeLines(block, segmentFirst, blockLast[block] + 1, lines);
     }
-  }
-
-  private void storeProgress(int block, int first, LineList lines) {
-    int probe =
-        lines.size() == blockLines[block].length
-            ? blockProbe(block)
-            : probes.newProbe(lines.toArray(), parentNode(block));
-    InsnList code = pushWithoutLdc(probe);
-    code.add(new VarInsnNode(ISTORE, progressLocal));
-    insertBeforeInstruction(insns[first], code);
+    return storesBlock;
   }
 
   /**
-   * For each block, where it records the probe stored before an exception as the first block of
-   * exception handlers: see {@link #insertProgressStores}.
+   * Stores the probe of the lines the block has started, before the first instruction from {@code
+   * first} up to {@code end} where inserted code may throw, if there is one.
+   *
+   * @return whether the probe stored is the block's own
    */
-  private int[] handlerRecordings() {
-    int[] recordings = new int[blockCount];
-    Arrays.fill(recordings, -2);
-    for (int entry : handlerEntry) {
-      if (entry < insns.length && recordings[blockOf[entry]] == -2) {
-        recordings[blockOf[entry]] = recordingPosition(entry);
-      }
-    }
-    return recordings;
-  }
-
-  /**
-   * Where a handler records the stored probe: its first instruction, or else the first one after it
-   * where inserted code may throw, if none before that one can throw other than back into the
-   * block; -1 if there is none. The first block of a handler entered with a monitor held releases
-   * it before code may throw there.
-   */
-  private int recordingPosition(int entry) {
-    int block = blockOf[entry];
-    for (int i = entry; i <= blockLast[block]; i++) {
-      if (insns[i].getOpcode() < 0) {
-        continue;
-      }
-      int depth = depthAt(i);
-      if (throwAllowedAt(i, depth)) {
-        return i;
-      }
-      if (depth < 0 || (canTrap(insns[i], depth) && !reentersBlock(i, block, depth))) {
-        return -1;
-      }
-    }
-    return -1;
-  }
-
-  /**
-   * Whether an exception that instruction {@code i} throws with no monitor held can only enter a
-   * handler that starts {@code block}, which runs the block again from its start. A handler that
-   * covers its own first instructions does that when another agent put a call before the store of
-   * the exception, as the Kotlin compiler's handler of a {@code finally} covers that store.
-   */
-  private boolean reentersBlock(int i, int block, int depth) {
-    if (depth != 0) {
-      return false;
-    }
-    for (int h = 0; h < handlerEntry.length; h++) {
-      if (handlerStart[h] < i && i < handlerEnd[h]) {
-        int entry = handlerEntry[h];
-        if (entry >= insns.length || blockOf[entry] != block || handlerDepth(h) != 0) {
-          return false;
-        }
-        if (handlerCatchesAll[h]) {
-          return true;
-        }
+  private boolean storeLines(int block, int first, int end, LineList lines) {
+    for (int i = first; i < end; i++) {
+      if (insns[i].getOpcode() >= 0 && throwAllowedAt(i, depthAt(i))) {
+        boolean whole = lines.size() == blockLines[block].length;
+        insertBeforeInstruction(
+            insns[i],
+            storeProbe(
+                whole ? blockProbe(block) : probes.newProbe(lines.toArray(), parentNode(block))));
+        return whole;
       }
     }
     return false;
@@ -1323,77 +1229,6 @@ final class MethodProbeInserter {
     }
   }
 
-  /**
-   * The ranges of the method body that the handler recording uncaught exceptions covers: all of it,
-   * except where {@code this} is not initialized yet or a monitor is held.
-   */
-  private List<LabelNode[]> coveredRanges(boolean[] uninitializedThis) {
-    List<LabelNode[]> ranges = new ArrayList<>();
-    int first = -1;
-    int last = -1;
-    for (int i = 0; i <= insns.length; i++) {
-      if (i < insns.length && insns[i].getOpcode() < 0) {
-        continue;
-      }
-      boolean covered =
-          i < insns.length
-              && (uninitializedThis == null || !uninitializedThis[i])
-              && (monitorDepths == null || monitorDepths[i] == 0);
-      if (covered) {
-        if (first < 0) {
-          first = i;
-        }
-        last = i;
-      } else if (first >= 0) {
-        LabelNode start = new LabelNode();
-        LabelNode end = new LabelNode();
-        method.instructions.insertBefore(insns[first], start);
-        method.instructions.insert(insns[last], end);
-        ranges.add(new LabelNode[] {start, end});
-        first = -1;
-      }
-    }
-    return ranges;
-  }
-
-  /**
-   * Adds the handler that records the stored probe when an exception leaves the method, last in the
-   * exception table so that the method's own handlers keep precedence, and rethrows the exception.
-   */
-  private void addThrownHandler(List<LabelNode[]> ranges) {
-    if (ranges.isEmpty()) {
-      return;
-    }
-    InsnList code = new InsnList();
-    LabelNode handler = new LabelNode();
-    code.add(handler);
-    if (frames) {
-      List<Object> locals = new ArrayList<>();
-      while (locals.size() < progressLocal) {
-        locals.add(locals.size() == probesLocal ? PROBES_TYPE : Opcodes.TOP);
-      }
-      locals.add(Opcodes.INTEGER);
-      code.add(
-          new FrameNode(
-              F_FULL, locals.size(), locals.toArray(), 1, new Object[] {"java/lang/Throwable"}));
-    }
-    code.add(recordProgress());
-    code.add(new InsnNode(ATHROW));
-    method.instructions.add(code);
-    for (LabelNode[] range : ranges) {
-      method.tryCatchBlocks.add(new TryCatchBlockNode(range[0], range[1], handler, null));
-    }
-  }
-
-  /** Stores into the slot of the probe that the progress local holds. */
-  private InsnList recordProgress() {
-    InsnList code = pushProbes();
-    code.add(new VarInsnNode(ILOAD, progressLocal));
-    code.add(new InsnNode(ICONST_1));
-    code.add(new InsnNode(BASTORE));
-    return code;
-  }
-
   private int blockProbe(int block) {
     if (blockProbe[block] < 0) {
       blockProbe[block] = probes.newProbe(blockLines[block], parentNode(block));
@@ -1429,44 +1264,6 @@ final class MethodProbeInserter {
     return blockNode[block];
   }
 
-  /**
-   * Marks the instructions of a constructor that run while {@code this} is uninitialized. No
-   * exception handler may cover them. Frames give the state wherever control flow merges, and the
-   * call that initializes {@code this} changes it.
-   */
-  private boolean[] findUninitializedThis() {
-    boolean[] uninitialized = new boolean[insns.length];
-    boolean thisUninitialized = true;
-    int pendingNew = 0;
-    for (int i = 0; i < insns.length; i++) {
-      AbstractInsnNode insn = insns[i];
-      if (insn instanceof FrameNode) {
-        FrameNode frame = (FrameNode) insn;
-        thisUninitialized = frame.local != null && frame.local.contains(UNINITIALIZED_THIS);
-        pendingNew = 0;
-        if (frame.stack != null) {
-          for (Object type : frame.stack) {
-            if (type instanceof LabelNode) {
-              pendingNew++; // an object created by NEW and not yet initialized
-            }
-          }
-        }
-      }
-      uninitialized[i] = thisUninitialized;
-      int opcode = insn.getOpcode();
-      if (opcode == NEW) {
-        pendingNew++;
-      } else if (opcode == INVOKESPECIAL && "<init>".equals(((MethodInsnNode) insn).name)) {
-        if (pendingNew > 0) {
-          pendingNew--;
-        } else {
-          thisUninitialized = false;
-        }
-      }
-    }
-    return uninitialized;
-  }
-
   private InsnList storeProbe(int probe) {
     InsnList code = pushProbes();
     code.add(push(probe));
@@ -1495,24 +1292,6 @@ final class MethodProbeInserter {
     InsnList code = new InsnList();
     code.add(push(classId));
     code.add(new MethodInsnNode(INVOKESTATIC, RECORDER, "probes", "(I)" + PROBES_TYPE, false));
-    return code;
-  }
-
-  /**
-   * Pushes an int without LDC, which HotSpot takes to possibly throw. Probe ids stay far below
-   * 2^30, so both halves fit a SIPUSH.
-   */
-  private static InsnList pushWithoutLdc(int value) {
-    InsnList code = new InsnList();
-    if (value <= Short.MAX_VALUE) {
-      code.add(push(value));
-    } else {
-      code.add(push(value >>> 15));
-      code.add(new IntInsnNode(BIPUSH, 15));
-      code.add(new InsnNode(ISHL));
-      code.add(push(value & Short.MAX_VALUE));
-      code.add(new InsnNode(IOR));
-    }
     return code;
   }
 

@@ -1,10 +1,8 @@
 package datadog.trace.civisibility.coverage.probe;
 
-import static datadog.trace.civisibility.coverage.probe.StackMapFrames.INTEGER;
 import static datadog.trace.civisibility.coverage.probe.StackMapFrames.NULL;
 import static datadog.trace.civisibility.coverage.probe.StackMapFrames.OBJECT_TAG;
 import static datadog.trace.civisibility.coverage.probe.StackMapFrames.TOP;
-import static datadog.trace.civisibility.coverage.probe.StackMapFrames.UNINITIALIZED_TAG;
 import static datadog.trace.civisibility.coverage.probe.StackMapFrames.UNINITIALIZED_THIS;
 import static datadog.trace.civisibility.coverage.probe.UnsupportedClassException.CODE_TOO_LONG;
 import static datadog.trace.civisibility.coverage.probe.UnsupportedClassException.SAME_FRAME_OFFSET;
@@ -18,26 +16,19 @@ import static org.objectweb.asm.Opcodes.GETSTATIC;
 import static org.objectweb.asm.Opcodes.GOTO;
 import static org.objectweb.asm.Opcodes.IALOAD;
 import static org.objectweb.asm.Opcodes.IASTORE;
-import static org.objectweb.asm.Opcodes.ICONST_0;
 import static org.objectweb.asm.Opcodes.ICONST_1;
 import static org.objectweb.asm.Opcodes.IDIV;
 import static org.objectweb.asm.Opcodes.IFNONNULL;
 import static org.objectweb.asm.Opcodes.IFNULL;
-import static org.objectweb.asm.Opcodes.ILOAD;
-import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
-import static org.objectweb.asm.Opcodes.IOR;
 import static org.objectweb.asm.Opcodes.IREM;
 import static org.objectweb.asm.Opcodes.IRETURN;
-import static org.objectweb.asm.Opcodes.ISHL;
-import static org.objectweb.asm.Opcodes.ISTORE;
 import static org.objectweb.asm.Opcodes.LDC;
 import static org.objectweb.asm.Opcodes.LDIV;
 import static org.objectweb.asm.Opcodes.LOOKUPSWITCH;
 import static org.objectweb.asm.Opcodes.LREM;
 import static org.objectweb.asm.Opcodes.MONITORENTER;
 import static org.objectweb.asm.Opcodes.MONITOREXIT;
-import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.RETURN;
 import static org.objectweb.asm.Opcodes.SALOAD;
 import static org.objectweb.asm.Opcodes.SASTORE;
@@ -89,9 +80,6 @@ final class CodePatcher {
   /** The local variable holding the method's probe array, or -1 if the method has none. */
   private int probesLocal = -1;
 
-  /** The local variable holding the probe of the last code started that can throw, or -1. */
-  private int progressLocal = -1;
-
   /** The stack map frame at each original instruction, as full frames; null where there is none. */
   private int[][] frameLocals;
 
@@ -110,7 +98,6 @@ final class CodePatcher {
   private InsertedCode[] before;
   private InsertedCode[] after;
   private final InsertedCode tail = new InsertedCode();
-  private InsertedCode thrown;
 
   /**
    * Labels 0 to {@code count} stand for the label of each original instruction, then for the end of
@@ -158,7 +145,6 @@ final class CodePatcher {
 
   private int[] instructionOffset;
   private int[] instructionEnd;
-  private int thrownOffset;
   private int codeLength;
 
   CodePatcher(
@@ -199,23 +185,10 @@ final class CodePatcher {
     if (!initializer) {
       probesLocal = addLocal(patch.probesType());
     }
-    if (exceptionProbes) {
-      progressLocal = addLocal(INTEGER);
-    }
     for (int block = 0; block < blockCount; block++) {
-      if (reachable[block]) {
+      if (reachable[block] && !(exceptionProbes && insertLineStores(block))) {
         insertBlockProbes(block);
       }
-    }
-    if (exceptionProbes) {
-      boolean[] uninitializedThis = "<init>".equals(code.name) ? findUninitializedThis() : null;
-      int[] recordings = handlerRecordings();
-      for (int block = 0; block < blockCount; block++) {
-        if (reachable[block]) {
-          insertProgressStores(block, uninitializedThis, recordings[block]);
-        }
-      }
-      addThrownHandler(uninitializedThis);
     }
     coverEdgeProbes();
     // before the first label, so that no jump or exception handler reaches it
@@ -223,10 +196,6 @@ final class CodePatcher {
     if (probesLocal >= 0) {
       takeProbes(prologue);
       prologue.variable(ASTORE, probesLocal);
-    }
-    if (progressLocal >= 0) {
-      prologue.opcode(ICONST_0);
-      prologue.variable(ISTORE, progressLocal);
     }
     return true;
   }
@@ -578,38 +547,43 @@ final class CodePatcher {
     return mayThrow(i);
   }
 
-  /** Whether an instruction can raise an exception, leaving its block midway. */
+  /**
+   * Whether an instruction can raise an exception, leaving its block midway. A table rather than a
+   * switch, so that the compiled patcher does not deoptimize each time it meets a new opcode.
+   */
   private boolean mayThrow(int i) {
     int opcode = code.opcode[i];
-    switch (opcode) {
-      case IDIV:
-      case LDIV:
-      case IREM:
-      case LREM:
-        return true;
-      case LDC:
-        int tag = code.ldcConstantTag(i);
-        return tag != ClassFile.CONSTANT_INTEGER
-            && tag != ClassFile.CONSTANT_FLOAT
-            && tag != ClassFile.CONSTANT_LONG
-            && tag != ClassFile.CONSTANT_DOUBLE
-            && tag != ClassFile.CONSTANT_STRING;
-      default:
-        break;
+    if (opcode == LDC) {
+      int tag = code.ldcConstantTag(i);
+      return tag != ClassFile.CONSTANT_INTEGER
+          && tag != ClassFile.CONSTANT_FLOAT
+          && tag != ClassFile.CONSTANT_LONG
+          && tag != ClassFile.CONSTANT_DOUBLE
+          && tag != ClassFile.CONSTANT_STRING;
     }
-    if (opcode <= SALOAD) {
-      // constants and local variable loads; array loads start at IALOAD
-      return opcode >= IALOAD;
+    return THROWING_OPCODES[opcode];
+  }
+
+  /** Opcodes that can raise an exception, LDC aside. */
+  private static final boolean[] THROWING_OPCODES = throwingOpcodes();
+
+  private static boolean[] throwingOpcodes() {
+    boolean[] throwing = new boolean[256];
+    for (int opcode = 0; opcode < throwing.length; opcode++) {
+      if (opcode <= SALOAD) {
+        // constants and local variable loads; array loads start at IALOAD
+        throwing[opcode] = opcode >= IALOAD;
+      } else if (opcode <= SASTORE) {
+        // stores to locals are safe; array stores may throw
+        throwing[opcode] = opcode >= IASTORE;
+      } else if (opcode <= RETURN) {
+        // stack, arithmetic, conversion, comparison, jump, switch and return instructions
+        throwing[opcode] = opcode == IDIV || opcode == LDIV || opcode == IREM || opcode == LREM;
+      } else {
+        throwing[opcode] = opcode != IFNULL && opcode != IFNONNULL;
+      }
     }
-    if (opcode <= SASTORE) {
-      // stores to locals are safe; array stores may throw
-      return opcode >= IASTORE;
-    }
-    if (opcode <= RETURN) {
-      // stack, arithmetic, conversion, comparison, jump, switch and return instructions
-      return false;
-    }
-    return opcode != IFNULL && opcode != IFNONNULL;
+    return throwing;
   }
 
   /** Monitors held before instruction {@code i}: -1 if no path reaches it. */
@@ -723,7 +697,7 @@ final class CodePatcher {
       requireThrowAllowed(last, depthAt(last));
       insertReturnProbe(last, blockProbe(block));
     } else if (opcode == ATHROW) {
-      // recorded by the exception probes of the block
+      // stored by the line stores of the block
     } else if (opcode == GOTO) {
       if (idom[successors[block][0]] != block) {
         requireThrowAllowed(last, depthAt(last));
@@ -932,155 +906,43 @@ final class CodePatcher {
     storeProbe(before(returnIndex), probe);
   }
 
-  /** See {@code MethodProbeInserter.insertProgressStores}. */
-  private void insertProgressStores(int block, boolean[] uninitializedThis, int recording) {
-    if (recording == -1) {
-      return;
-    }
-    if (recording >= 0) {
-      recordProgress(before(recording));
-    }
+  /** See {@code MethodProbeInserter.insertLineStores}. */
+  private boolean insertLineStores(int block) {
     LineList lines = new LineList();
     int segmentFirst = -1;
     boolean segmentThrows = false;
+    boolean storesBlock = false;
     for (int i = blockFirst[block]; i <= blockLast[block]; i++) {
       if (lineOf[i] >= 0 && !lines.contains(lineOf[i])) {
         if (segmentThrows) {
-          storeProgress(block, Math.max(segmentFirst, recording), lines);
+          storesBlock = storeLines(block, segmentFirst, i, lines);
         }
         lines.add(lineOf[i]);
-        segmentFirst = -1;
+        segmentFirst = i;
         segmentThrows = false;
-      }
-      if (uninitializedThis != null && uninitializedThis[i]) {
-        continue; // no handler covers code that runs before this is initialized
-      }
-      if (segmentFirst < 0) {
+      } else if (segmentFirst < 0) {
         segmentFirst = i;
       }
       segmentThrows |= mayThrow(i);
     }
     if (segmentThrows) {
-      storeProgress(block, Math.max(segmentFirst, recording), lines);
+      storesBlock = storeLines(block, segmentFirst, blockLast[block] + 1, lines);
     }
+    return storesBlock;
   }
 
-  private void storeProgress(int block, int first, LineList lines) {
-    int probe =
-        lines.size() == blockLines[block].length
-            ? blockProbe(block)
-            : probes.newProbe(lines.toArray(), parentNode(block));
-    InsertedCode inserted = before(first);
-    pushWithoutLdc(inserted, probe);
-    inserted.variable(ISTORE, progressLocal);
-  }
-
-  /**
-   * For each block, where it records the probe stored before an exception as the first block of
-   * exception handlers: see {@code MethodProbeInserter.insertProgressStores}.
-   */
-  private int[] handlerRecordings() {
-    int[] recordings = new int[blockCount];
-    Arrays.fill(recordings, -2);
-    for (int h = 0; h < code.handlerCount; h++) {
-      int entry = code.handlerEntry[h];
-      if (recordings[blockOf[entry]] == -2) {
-        recordings[blockOf[entry]] = recordingPosition(entry);
-      }
-    }
-    return recordings;
-  }
-
-  /** See {@code MethodProbeInserter.recordingPosition}. */
-  private int recordingPosition(int entry) {
-    int block = blockOf[entry];
-    for (int i = entry; i <= blockLast[block]; i++) {
-      int depth = depthAt(i);
-      if (throwAllowedAt(i, depth)) {
-        return i;
-      }
-      if (depth < 0 || (canTrap(i, depth) && !reentersBlock(i, block, depth))) {
-        return -1;
-      }
-    }
-    return -1;
-  }
-
-  /** See {@code MethodProbeInserter.reentersBlock}. */
-  private boolean reentersBlock(int i, int block, int depth) {
-    if (depth != 0) {
-      return false;
-    }
-    for (int h = 0; h < code.handlerCount; h++) {
-      if (covers(h, i)) {
-        if (blockOf[code.handlerEntry[h]] != block || handlerDepth(h) != 0) {
-          return false;
-        }
-        if (catchesAll(h)) {
-          return true;
-        }
+  /** See {@code MethodProbeInserter.storeLines}. */
+  private boolean storeLines(int block, int first, int end, LineList lines) {
+    for (int i = first; i < end; i++) {
+      if (throwAllowedAt(i, depthAt(i))) {
+        boolean whole = lines.size() == blockLines[block].length;
+        storeProbe(
+            before(i),
+            whole ? blockProbe(block) : probes.newProbe(lines.toArray(), parentNode(block)));
+        return whole;
       }
     }
     return false;
-  }
-
-  /**
-   * Adds the handler that records the stored probe when an exception leaves the method, last in the
-   * exception table so that the method's own handlers keep precedence, and rethrows the exception.
-   * It covers the method body except where {@code this} is not initialized yet or a monitor is
-   * held.
-   */
-  private void addThrownHandler(boolean[] uninitializedThis) {
-    int[] rangeFirst = new int[4];
-    int[] rangeLast = new int[4];
-    int ranges = 0;
-    int first = -1;
-    int last = -1;
-    for (int i = 0; i <= count; i++) {
-      boolean covered =
-          i < count
-              && (uninitializedThis == null || !uninitializedThis[i])
-              && (monitorDepths == null || monitorDepths[i] == 0);
-      if (covered) {
-        if (first < 0) {
-          first = i;
-        }
-        last = i;
-      } else if (first >= 0) {
-        if (ranges == rangeFirst.length) {
-          rangeFirst = Arrays.copyOf(rangeFirst, ranges * 2);
-          rangeLast = Arrays.copyOf(rangeLast, ranges * 2);
-        }
-        rangeFirst[ranges] = first;
-        rangeLast[ranges] = last;
-        ranges++;
-        first = -1;
-      }
-    }
-    if (ranges == 0) {
-      return;
-    }
-    int[] locals = new int[progressLocal + 1]; // all TOP
-    if (probesLocal >= 0) {
-      locals[probesLocal] = patch.probesType();
-    }
-    locals[progressLocal] = INTEGER;
-    int handler = newLabel(locals, new int[] {patch.throwableType()});
-    thrown = new InsertedCode();
-    thrown.label(handler);
-    recordProgress(thrown);
-    thrown.opcode(ATHROW);
-    for (int r = 0; r < ranges; r++) {
-      addEntry(8 * rangeFirst[r] + 2, 8 * rangeLast[r] + 4, handler, 0, -1);
-    }
-  }
-
-  /** Stores into the slot of the probe that the progress local holds. */
-  private void recordProgress(InsertedCode inserted) {
-    pushProbes(inserted);
-    inserted.variable(ILOAD, progressLocal);
-    inserted.opcode(ICONST_1);
-    inserted.opcode(BASTORE);
   }
 
   private int blockProbe(int block) {
@@ -1118,43 +980,6 @@ final class CodePatcher {
     return blockNode[block];
   }
 
-  /**
-   * Marks the instructions of a constructor that run while {@code this} is uninitialized. Frames
-   * give the state wherever control flow merges, and the call that initializes {@code this} changes
-   * it.
-   */
-  private boolean[] findUninitializedThis() {
-    boolean[] uninitialized = new boolean[count];
-    boolean thisUninitialized = true;
-    int pendingNew = 0;
-    for (int i = 0; i < count; i++) {
-      if (frameLocals[i] != null) {
-        thisUninitialized = false;
-        for (int type : frameLocals[i]) {
-          thisUninitialized |= type == UNINITIALIZED_THIS;
-        }
-        pendingNew = 0;
-        for (int type : frameStack[i]) {
-          if (StackMapFrames.tag(type) == UNINITIALIZED_TAG) {
-            pendingNew++; // an object created by NEW and not yet initialized
-          }
-        }
-      }
-      uninitialized[i] = thisUninitialized;
-      int opcode = code.opcode[i];
-      if (opcode == NEW) {
-        pendingNew++;
-      } else if (opcode == INVOKESPECIAL && code.callsConstructor(i)) {
-        if (pendingNew > 0) {
-          pendingNew--;
-        } else {
-          thisUninitialized = false;
-        }
-      }
-    }
-    return uninitialized;
-  }
-
   private void storeProbe(InsertedCode inserted, int probe) {
     pushProbes(inserted);
     push(inserted, probe);
@@ -1179,22 +1004,6 @@ final class CodePatcher {
   private void takeProbes(InsertedCode inserted) {
     push(inserted, classId);
     inserted.member(INVOKESTATIC, patch.probesMethod());
-  }
-
-  /**
-   * Pushes an int without LDC, which HotSpot takes to possibly throw. Probe ids stay far below
-   * 2^30, so both halves fit a SIPUSH.
-   */
-  private void pushWithoutLdc(InsertedCode inserted, int value) {
-    if (value <= Short.MAX_VALUE) {
-      push(inserted, value);
-    } else {
-      push(inserted, value >>> 15);
-      push(inserted, 15);
-      inserted.opcode(ISHL);
-      push(inserted, value & Short.MAX_VALUE);
-      inserted.opcode(IOR);
-    }
   }
 
   private void push(InsertedCode inserted, int value) {
@@ -1345,10 +1154,6 @@ final class CodePatcher {
     }
     labelOffset[count] = at;
     at = tail.layout(at, labelOffset);
-    thrownOffset = at;
-    if (thrown != null) {
-      at = thrown.layout(at, labelOffset);
-    }
     if (at > Short.MAX_VALUE) {
       throw new UnsupportedClassException(CODE_TOO_LONG);
     }
@@ -1411,9 +1216,6 @@ final class CodePatcher {
       }
     }
     tail.write(out, labelOffset[count], labelOffset);
-    if (thrown != null) {
-      thrown.write(out, thrownOffset, labelOffset);
-    }
     if (out.length - codeStart != codeLength) {
       throw new IllegalStateException("Code laid out and written differ in " + code.name);
     }

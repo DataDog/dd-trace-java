@@ -39,7 +39,9 @@ class WindowBoundaryTest {
     AtomicReference<Map<String, BitSet>> windowLines = new AtomicReference<>();
     around(loader, () -> windowLines.set(window.closeAndCollect()));
 
-    assertEquals(withoutWorkload(reference.get(0)), windowLines.get());
+    // lines that can throw are stored as they start, so the window keeps the workload's lines that
+    // started before it closed; the probes stored after it closed give them to Shared as well
+    assertEquals(reference.get(0), windowLines.get());
     assertEquals(union(reference.get(1), workloadOnly(reference.get(0))), sharedLines(loader));
   }
 
