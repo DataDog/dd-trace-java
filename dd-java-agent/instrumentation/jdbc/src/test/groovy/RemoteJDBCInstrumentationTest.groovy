@@ -24,6 +24,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.naming.v1.DatabaseNamingV1
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import java.nio.ByteBuffer
 import java.sql.CallableStatement
 import java.sql.Connection
 import java.sql.Driver
@@ -1273,6 +1274,121 @@ class RemoteDBMTraceInjectedForkedTest extends RemoteJDBCInstrumentationTest {
   protected String getDbType(DbType dbType) {
     final databaseNaming = new DatabaseNamingV1()
     return databaseNaming.normalizedName(dbType.toString())
+  }
+
+  def "SQL Server JDBC escape call preserves trace context with #method: #query"() {
+    setup:
+    assert !Config.get().isDbmAlwaysAppendSqlComment()
+    Connection connection = setupConnection(null, SQLSERVER)
+    Statement statement = connection.createStatement()
+    // A local temporary procedure is scoped to this connection and removed when it closes.
+    statement.execute("CREATE PROCEDURE #dbm_escape_call @value int = 42 AS SELECT @value AS value, CONTEXT_INFO() AS context_info, (SELECT event_info FROM sys.dm_exec_input_buffer(@@SPID, NULL)) AS input_sql")
+    TEST_WRITER.clear()
+
+    when:
+    ResultSet resultSet = runUnderTrace("parent") {
+      if (method == "executeQuery") {
+        return statement.executeQuery(query)
+      }
+      assert statement.execute(query)
+      return statement.getResultSet()
+    }
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    resultSet.next()
+    resultSet.getInt("value") == 42
+    resultSet.getString("input_sql").count("/*ddps=") == 1
+    TEST_WRITER.size() == 1
+    def trace = TEST_WRITER.get(0)
+    trace.size() == 3
+    def querySpan = trace.find {
+      it.getTag(Tags.COMPONENT)?.toString() == "java-jdbc-statement" && !it.getTag("dd.instrumentation")
+    }
+    querySpan != null
+    !querySpan.error
+    querySpan.getTag(InstrumentationTags.DBM_TRACE_INJECTED) == true
+
+    // SQL Server pads CONTEXT_INFO; the first 25 bytes must identify the actual query span.
+    byte[] contextInfo = resultSet.getBytes("context_info")
+    contextInfo.length >= 25
+    def context = ByteBuffer.wrap(contextInfo)
+    (context.get() & 0xfe) == 0
+    context.getLong() == querySpan.spanId
+    context.getLong() == querySpan.traceId.toHighOrderLong()
+    context.getLong() == querySpan.traceId.toLong()
+
+    cleanup:
+    resultSet?.close()
+    statement?.close()
+    connection?.close()
+
+    where:
+    method         | query
+    "executeQuery" | "{call #dbm_escape_call(42)}"
+    "executeQuery" | "{ call #dbm_escape_call(42) }"
+    "executeQuery" | " \t{call #dbm_escape_call(42)}"
+    "executeQuery" | "{call #dbm_escape_call()}"
+    "executeQuery" | "{call #dbm_escape_call}"
+    "execute"      | "{call #dbm_escape_call(42)}"
+    "execute"      | "{ call #dbm_escape_call(42) }"
+    "execute"      | " \t{call #dbm_escape_call(42)}"
+    "execute"      | "{call #dbm_escape_call()}"
+    "execute"      | "{call #dbm_escape_call}"
+  }
+
+  def "SQL Server callable escape preserves comments and parameters with return value #hasReturn"() {
+    setup:
+    Connection connection = setupConnection(null, SQLSERVER)
+    def setup = connection.createStatement()
+    setup.execute("CREATE PROCEDURE #dbm_callable @value int, @out int OUTPUT AS BEGIN SET NOCOUNT ON; SET @out = @value + 1; SELECT @value AS value, CONTEXT_INFO() AS context_info, (SELECT event_info FROM sys.dm_exec_input_buffer(@@SPID, NULL)) AS input_sql; RETURN 7; END")
+    setup.close()
+    String query = hasReturn ? "{? = call #dbm_callable(?, ?)}" : "{call #dbm_callable(?, ?)}"
+    CallableStatement statement = connection.prepareCall(query)
+    int offset = hasReturn ? 1 : 0
+    if (hasReturn) {
+      statement.registerOutParameter(1, Types.INTEGER)
+    }
+    statement.setInt(1 + offset, 42)
+    statement.registerOutParameter(2 + offset, Types.INTEGER)
+    TEST_WRITER.clear()
+
+    when:
+    boolean hasResult = runUnderTrace("parent") {
+      statement.execute()
+    }
+    TEST_WRITER.waitForTraces(1)
+    ResultSet resultSet = statement.getResultSet()
+
+    then:
+    hasResult
+    resultSet.next()
+    resultSet.getInt("value") == 42
+    resultSet.getString("input_sql").count("/*ddps=") == 1
+    def trace = TEST_WRITER.get(0)
+    trace.size() == 3
+    def querySpan = trace.find {
+      it.getTag(Tags.COMPONENT)?.toString() == "java-jdbc-prepared_statement"
+    }
+    querySpan != null
+    !querySpan.error
+    def context = ByteBuffer.wrap(resultSet.getBytes("context_info"))
+    (context.get() & 0xfe) == 0
+    context.getLong() == querySpan.spanId
+    context.getLong() == querySpan.traceId.toHighOrderLong()
+    context.getLong() == querySpan.traceId.toLong()
+    resultSet.close()
+    statement.getInt(2 + offset) == 43
+    !hasReturn || statement.getInt(1) == 7
+
+    cleanup:
+    resultSet?.close()
+    statement?.close()
+    setup?.close()
+    connection?.close()
+
+    where:
+    hasReturn << [false, true]
   }
 
   def "Oracle DBM comment contains instance name in dddbs and dddb, not generic type string"() {

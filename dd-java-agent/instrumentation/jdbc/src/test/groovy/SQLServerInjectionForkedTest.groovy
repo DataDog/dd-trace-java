@@ -18,7 +18,7 @@ abstract class InjectionForkedTest extends InstrumentationSpecification {
 }
 
 class SQLServerInjectionForkedTest extends InjectionForkedTest {
-  def "SQL Server appends comment for JDBC escape call #sql"() {
+  def "SQL Server injects comment into JDBC escape arguments for #sql"() {
     setup:
     def connection = new TestConnection(false)
     def metadata = new TestDatabaseMetaData()
@@ -30,15 +30,16 @@ class SQLServerInjectionForkedTest extends InjectionForkedTest {
     statement.execute(sql)
 
     then:
-    assert statement.sql == "${sql} /*${serviceInjection}*/"
+    assert statement.sql == expected.replace("<comment>", "/*${serviceInjection}*/")
 
     where:
-    sql << [
-      "{call dbo.get_user_widgets(1)}",
-      "{ call dbo.get_user_widgets(1) }",
-      "{? = call dbo.get_user_widgets(1)}",
-      " \t{call dbo.get_user_widgets(1)}"
-    ]
+    sql                                     | expected
+    "{call dbo.get_user_widgets(1)}"         | "{call dbo.get_user_widgets(1 <comment>)}"
+    "{ call dbo.get_user_widgets(1) }"       | "{ call dbo.get_user_widgets(1 <comment>) }"
+    "{? = call dbo.get_user_widgets(1)}"     | "{? = call dbo.get_user_widgets(1 <comment>)}"
+    " \t{call dbo.get_user_widgets(1)}"       | " \t{call dbo.get_user_widgets(1 <comment>)}"
+    "{call dbo.get_user_widgets()}"          | "{call dbo.get_user_widgets( <comment>)}"
+    "{call dbo.get_user_widgets}"            | "{call dbo.get_user_widgets(<comment>)}"
   }
 
   def "SQL Server no trace injection with full propagation mode"() {
@@ -72,6 +73,14 @@ class SQLServerInjectionForkedTest extends InjectionForkedTest {
 
     then:
     assert statement.sql == "${query} /*${serviceInjection}*/"
+  }
+}
+
+class SQLServerServiceInjectionForkedTest extends SQLServerInjectionForkedTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE, "service")
   }
 }
 
