@@ -603,6 +603,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               injectLinksAsTags,
               flushOnClose);
       if (derivedTags) {
+        tracer.deferredTags = true;
         tracer.baseDerivations =
             BaseTagDerivations.create(
                 SpanNaming.instance().namingSchema().peerService(),
@@ -619,6 +620,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   TagDerivations baseDerivations() {
     return baseDerivations;
+  }
+
+  /** Whether spans defer extracting expensive tag values; on with derived tags, for now. */
+  private volatile boolean deferredTags;
+
+  boolean deferredTagsEnabled() {
+    return deferredTags;
   }
 
   @Deprecated

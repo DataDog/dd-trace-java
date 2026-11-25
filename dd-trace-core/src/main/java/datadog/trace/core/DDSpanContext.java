@@ -191,6 +191,10 @@ public class DDSpanContext
   @GuardedBy("knownTags")
   private DerivedTagState derivedState;
 
+  /** Tags whose values are extracted when first read; null until one is set. */
+  @GuardedBy("knownTags")
+  private DeferredTags deferredTags;
+
   /** The service name is required, otherwise the span are dropped by the agent */
   private volatile String serviceName;
 
@@ -1105,8 +1109,65 @@ public class DDSpanContext
     }
   }
 
+  /**
+   * Sets a known tag whose value is extracted from {@code source} only when something reads it, or
+   * when the span's tags are enumerated, typically by the serializer on its own thread. For values
+   * that are expensive to build and rarely read on the application thread, such as a stack trace.
+   *
+   * <p>{@code source} must be value-like: not pooled, recycled or mutated afterwards, since it is
+   * read later and possibly on another thread. The span keeps it reachable until then. {@code
+   * extractor} should capture nothing, so passing it allocates nothing.
+   *
+   * <p>Extracts immediately for an intercepted tag, or when deferred tags are off.
+   */
+  public <T> void setDeferredTag(
+      final long tagId, final T source, final Function<? super T, ?> extractor) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (source == null) {
+      removeTag(tagId);
+      return;
+    }
+    CoreTracer tracer = getTracer();
+    if (tracer == null || !tracer.deferredTagsEnabled() || tagInterceptor.needsIntercept(tagId)) {
+      setTag(tagId, extractor.apply(source));
+      return;
+    }
+    synchronized (knownTags) {
+      knownRemove(tagId); // replaces an explicit value, and counts as a write for formulas
+      DeferredTags pending = this.deferredTags;
+      if (pending == null) {
+        this.deferredTags = pending = new DeferredTags();
+      }
+      pending.put(tagId, source, extractor);
+    }
+  }
+
+  /** Extracts one pending deferred tag into the store. Call under the {@code knownTags} lock. */
+  private Object extractDeferred(long tagId) {
+    DeferredTags pending = this.deferredTags;
+    Object value = pending == null ? null : pending.extract(tagId);
+    if (value != null) {
+      knownStore(tagId, value); // an explicit value, late: formulas reading it are invalidated
+    }
+    return value;
+  }
+
+  /** Extracts every pending deferred tag. Call under the {@code knownTags} lock. */
+  private void extractAllDeferred() {
+    DeferredTags pending = this.deferredTags;
+    if (pending == null) {
+      return;
+    }
+    while (!pending.isEmpty()) {
+      extractDeferred(pending.anyId());
+    }
+  }
+
   /** Runs every pending formula. Call under the {@code knownTags} lock. */
   private void resolveDerivedTags() {
+    extractAllDeferred(); // formulas may read deferred tags
     if (!derivations.isEmpty()) {
       derivedState().evaluateAll();
     }
@@ -1118,6 +1179,7 @@ public class DDSpanContext
    * without allocating any per-span state. Call under the {@code knownTags} lock.
    */
   private void resolveDerivedTagsForSerialization() {
+    extractAllDeferred(); // here, on the serializer's thread, is where deferred values belong
     if (derivations.isEmpty()) {
       return;
     }
@@ -1197,16 +1259,34 @@ public class DDSpanContext
   /** A known tag's value: stored, else computed by a formula. The read path's one extra step. */
   private Object loadKnown(long tagId) {
     Object value = knownTags.load(tagId);
-    if (value != null || !derivations.mayProduce(tagId)) {
+    if (value != null) {
       return value;
     }
+    DeferredTags pending = this.deferredTags;
+    boolean mayBeDeferred = pending != null && pending.mayHold(tagId);
+    if (!mayBeDeferred && !derivations.mayProduce(tagId)) {
+      return null;
+    }
     synchronized (knownTags) { // reentrant: most readers already hold it
-      derivedState().evaluateFor(tagId);
-      return knownTags.load(tagId);
+      if (mayBeDeferred) {
+        value = extractDeferred(tagId);
+        if (value != null) {
+          return value;
+        }
+      }
+      if (derivations.mayProduce(tagId)) {
+        derivedState().evaluateFor(tagId);
+        value = knownTags.load(tagId);
+      }
+      return value;
     }
   }
 
   private void afterKnownWrite(long tagId) {
+    DeferredTags pending = this.deferredTags;
+    if (pending != null) {
+      pending.remove(tagId); // an explicit write or removal replaces a pending value
+    }
     DerivedTagState state = this.derivedState;
     if (state != null) {
       state.onWrite(tagId);
@@ -1991,8 +2071,12 @@ public class DDSpanContext
   @Override
   public String loadString(long tagId) {
     String value = knownTags.loadString(tagId);
-    if (value != null || !derivations.mayProduce(tagId)) {
+    if (value != null) {
       return value;
+    }
+    DeferredTags pending = this.deferredTags;
+    if (!derivations.mayProduce(tagId) && (pending == null || !pending.mayHold(tagId))) {
+      return null;
     }
     Object derived = loadKnown(tagId);
     return derived == null ? null : derived.toString();
