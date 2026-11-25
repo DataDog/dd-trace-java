@@ -227,7 +227,7 @@ default:
     MAVEN_OPTS: "-Xms256M -Xmx1024M"
     CACHE_TYPE: "lib" #default
     FF_USE_FASTZIP: "true"
-    CACHE_COMPRESSION_LEVEL: "slowest"
+    CACHE_COMPRESSION_LEVEL: "fast"
 
     RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE: 4 # Runtime.getRuntime().availableProcessors() returns incorrect or very high values in Kubernetes
     GIT_SUBMODULE_STRATEGY: normal
@@ -238,8 +238,8 @@ default:
       paths:
         # Cached dependencies and wrappers for Gradle and Maven:
         - .gradle/wrapper
-        - .gradle/caches
-        - .gradle/notifications
+        - .gradle/caches/modules-2/files-2.1
+        - .gradle/caches/modules-2/metadata-*
         - .mvn/caches
       policy: $DEPENDENCY_CACHE_POLICY
       unprotect: true
@@ -946,17 +946,8 @@ muzzle-dep-report:
       when: manual
       allow_failure: true
   cache:
-    - key: dependency-$CACHE_TYPE
-      paths:
-        - .gradle/wrapper
-        - .gradle/caches
-        - .gradle/notifications
-        - .mvn/caches
+    - <<: *dependency_cache
       policy: pull
-      fallback_keys:
-        - dependency-base
-        - dependency-lib
-      unprotect: true
   before_script:
     - git config --global --add safe.directory "$CI_PROJECT_DIR"
     - !reference [.gradle_build, before_script]
