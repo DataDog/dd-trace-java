@@ -32,7 +32,7 @@ class EscapeUtilsCallSiteTest extends InstrumentationSpecification {
     'escapeHtml4'      | ['<htmlTag>"escape this < </htmlTag>']                          | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
     'escapeHtml5'      | ['<htmlTag>"escape this < </htmlTag>']                          | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
     'escapeHtml5Xml'   | ['<htmlTag>"escape this < </htmlTag>']                          | '&lt;htmlTag&gt;&quot;escape this &lt; &lt;/htmlTag&gt;'
-    'escapeJavaScript' | ['<script>function a(){console.log("escape this < ")}<script>'] | '<script>function a(){console.log(\\"escape this < \\")}<script>'
+    'escapeJavaScript' | ['<script>function a(){console.log("escape this < ")}<script>'] | (isLatestDepTest ? '\\x3Cscript\\x3Efunction a(){console.log(\\"escape this \\x3C \\")}\\x3Cscript\\x3E' : '<script>function a(){console.log(\\"escape this < \\")}<script>')
   }
 
   void 'test #method with null args not thrown exception'() {
