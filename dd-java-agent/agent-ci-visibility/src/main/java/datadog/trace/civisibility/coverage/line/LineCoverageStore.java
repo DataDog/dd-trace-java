@@ -76,6 +76,11 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
     this.analysisCacheBytes = analysisCacheBytes;
   }
 
+  @Override
+  public String getCollectorName() {
+    return "jacoco";
+  }
+
   @Nullable
   @Override
   protected TestReport report(

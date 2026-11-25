@@ -158,6 +158,11 @@ public class TestImpl implements DDTest {
       span.setTag(capability.asTag(), capability.getVersion());
     }
 
+    String coverageCollector = coverageStore.getCollectorName();
+    if (coverageCollector != null) {
+      span.setTag(Tags.TEST_CODE_COVERAGE_COLLECTOR, coverageCollector);
+    }
+
     testDecorator.afterStart(span);
 
     if (testSkippingEnabled) {

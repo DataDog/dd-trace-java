@@ -99,6 +99,11 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
   }
 
   @Override
+  public String getCollectorName() {
+    return "probes";
+  }
+
+  @Override
   public void discard() {
     List<ClassHits> closedHits = close();
     synchronized (reportLock) {

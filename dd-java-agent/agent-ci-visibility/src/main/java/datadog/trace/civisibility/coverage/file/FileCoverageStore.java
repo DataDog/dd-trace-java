@@ -43,6 +43,11 @@ public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
     this.sourcePathResolver = sourcePathResolver;
   }
 
+  @Override
+  public String getCollectorName() {
+    return "file";
+  }
+
   @Nullable
   @Override
   protected TestReport report(

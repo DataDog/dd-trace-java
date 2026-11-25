@@ -98,6 +98,7 @@ public class Tags {
   public static final String TEST_CODE_COVERAGE_ENABLED = "test.code_coverage.enabled";
   public static final String TEST_CODE_COVERAGE_LINES_PERCENTAGE = "test.code_coverage.lines_pct";
   public static final String TEST_CODE_COVERAGE_BACKFILLED = "test.code_coverage.backfilled";
+  public static final String TEST_CODE_COVERAGE_COLLECTOR = "_dd.ci.code_coverage.collector";
   public static final String TEST_ITR_TESTS_SKIPPING_ENABLED = "test.itr.tests_skipping.enabled";
   public static final String TEST_ITR_TESTS_SKIPPING_TYPE = "test.itr.tests_skipping.type";
   public static final String TEST_ITR_TESTS_SKIPPING_COUNT = "test.itr.tests_skipping.count";

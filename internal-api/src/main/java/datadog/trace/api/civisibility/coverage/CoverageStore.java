@@ -24,6 +24,15 @@ public interface CoverageStore extends TestReportHolder {
     return false;
   }
 
+  /**
+   * The name of the collector that gathers this store's coverage, which the test reports, or {@code
+   * null} if the store gathers none.
+   */
+  @Nullable
+  default String getCollectorName() {
+    return null;
+  }
+
   interface Factory extends Registry {
     CoverageStore create(@Nullable TestIdentifier testIdentifier);
   }
