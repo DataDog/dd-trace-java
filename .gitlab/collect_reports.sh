@@ -10,6 +10,7 @@ shopt -s globstar
 REPORTS_DIR=./reports
 MOVE=false
 DELETE=false
+SKIP_TEST_HTML=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -21,6 +22,10 @@ while [[ $# -gt 0 ]]; do
     --move)
       MOVE=true
       shift # past argument
+      ;;
+    --skip-test-html)
+      SKIP_TEST_HTML=true
+      shift
       ;;
     --delete)
       DELETE=true
@@ -58,12 +63,23 @@ function process_reports () {
       mv -f $project_dir/build/hs_err_pid*.log $report_path/ || true
       mv -f $project_dir/build/javacore*.txt $report_path/ || true
     else
+      local entry
+      local -a files=()
+      for entry in "$project_dir"/build/reports/*; do
+        if [[ "$SKIP_TEST_HTML" = true && "${entry##*/}" = tests ]]; then
+          continue
+        fi
+        files+=("$entry")
+      done
+      files+=("$project_dir"/build/hs_err_pid*.log "$project_dir"/build/javacore*.txt "$project_dir"/build/dumps/*.*)
+      if (( ${#files[@]} == 0 )); then
+        return
+      fi
       echo "copying reports for $project_to_save"
-      mkdir -p $report_path
-      cp -r $project_dir/build/reports/* $report_path/ 2>/dev/null || true
-      cp $project_dir/build/hs_err_pid*.log $report_path/ 2>/dev/null || true
-      cp $project_dir/build/javacore*.txt $report_path/ 2>/dev/null || true
-      cp $project_dir/build/dumps/*.* $report_path/ 2>/dev/null || true
+      mkdir -p "$report_path"
+      for entry in "${files[@]}"; do
+        cp -r "$entry" "$report_path/" || true
+      done
     fi
 }
 

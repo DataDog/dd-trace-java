@@ -839,7 +839,12 @@ muzzle-dep-report:
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
-    - .gitlab/collect_reports.sh
+    - |
+      if [ "$CI_JOB_STATUS" = "success" ] && [ "$CONTINUE_ON_FAILURE" != "true" ]; then
+        .gitlab/collect_reports.sh --skip-test-html
+      else
+        .gitlab/collect_reports.sh
+      fi
     - if [ "$PROFILE_TESTS" == "true" ]; then .gitlab/collect_profiles.sh; fi
     - .gitlab/collect_results.sh
     - .gitlab/upload_ciapp.sh $CACHE_TYPE $testJvm
