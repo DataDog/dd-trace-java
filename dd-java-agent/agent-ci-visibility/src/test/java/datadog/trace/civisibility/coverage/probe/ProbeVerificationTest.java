@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.net.JarURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.jar.JarEntry;
@@ -114,7 +115,13 @@ class ProbeVerificationTest {
             }
           }
         } catch (Throwable e) {
-          instrumentationFailures.add(name + ": " + e);
+          StackTraceElement[] frames = e.getStackTrace();
+          instrumentationFailures.add(
+              name
+                  + ": "
+                  + e
+                  + " at "
+                  + Arrays.asList(frames).subList(0, Math.min(frames.length, 6)));
         }
         return defineClass(name, bytes, 0, bytes.length);
       }

@@ -5,14 +5,16 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nullable;
 
 /**
  * The period during which probe hits are credited to one test.
  *
- * <p>A window opens when it is created and closes in {@link #close()}, which collects the probes
- * the test hit and resets their slots in {@link ProbeRecorder#PROBES} for the next test. Code
- * running on other threads on behalf of the test can still be marking probes while the window
- * closes, so those threads register as writers and {@link #close()} waits for them.
+ * <p>A window opens on the thread that creates it and closes in {@link #close()}, which collects
+ * the probes the test hit and resets their slots for the next window that uses the same table (see
+ * {@link ProbeRecorder}). Code running on other threads on behalf of the test can still be marking
+ * probes while the window closes, so those threads register as writers and {@link #close()} waits
+ * for them.
  */
 public abstract class CoverageWindow {
 
@@ -23,6 +25,33 @@ public abstract class CoverageWindow {
 
   private int[] touchedClasses = new int[32];
   private int touchedClassCount;
+
+  @Nullable private final CoverageWindow outer;
+  private final boolean[][] table;
+
+  /** The primary window whose thread this window took over, guarded by the recorder's lock. */
+  @Nullable CoverageWindow suspendedPrimary;
+
+  protected CoverageWindow() {
+    outer = ProbeRecorder.ownWindow();
+    table = ProbeRecorder.openWindow(this);
+  }
+
+  final Thread thread() {
+    return thread;
+  }
+
+  /**
+   * @return the probe array of a class in this window, or {@code null} if the window is closed
+   */
+  @Nullable
+  final boolean[] probes(int classId) {
+    if (closed) {
+      return null;
+    }
+    boolean[] probes = table[classId];
+    return probes != null ? probes : ProbeRecorder.allocate(table, classId);
+  }
 
   /**
    * @return {@code false} if the window is already closed
@@ -51,7 +80,10 @@ public abstract class CoverageWindow {
   }
 
   private void set(int classId, int probeId) {
-    boolean[] probes = ProbeRecorder.PROBES[classId];
+    boolean[] probes = table[classId];
+    if (probes == null) {
+      probes = ProbeRecorder.allocate(table, classId);
+    }
     probes[probeId] = true;
     if (!probes[0]) {
       probes[0] = true;
@@ -73,7 +105,8 @@ public abstract class CoverageWindow {
   }
 
   /**
-   * Closes the window. Must be called once, on the thread that opened it.
+   * Closes the window. Must be called once, on the thread that opened it: until another thread
+   * closing it is seen by the opening thread, that thread can skip probes that the next window hit.
    *
    * @return the probes hit while the window was open, one entry per class
    */
@@ -89,14 +122,10 @@ public abstract class CoverageWindow {
       classIds = touchedClasses;
       classCount = touchedClassCount;
     }
-    if (classCount == 0) {
-      return Collections.emptyList();
-    }
-
-    List<ClassHits> hits = new ArrayList<>(classCount);
+    List<ClassHits> hits = classCount == 0 ? Collections.emptyList() : new ArrayList<>(classCount);
     for (int i = 0; i < classCount; i++) {
       int classId = classIds[i];
-      boolean[] probes = ProbeRecorder.PROBES[classId];
+      boolean[] probes = table[classId];
       if (!probes[0]) {
         continue; // the same class was added twice by racing threads
       }
@@ -113,6 +142,7 @@ public abstract class CoverageWindow {
       }
       hits.add(new ClassHits(classId, instrumentedClass, bits));
     }
+    ProbeRecorder.closeWindow(this, table, outer);
     return hits;
   }
 

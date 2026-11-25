@@ -26,7 +26,6 @@ public final class InstrumentedClass {
   private final int[][] nodeLines;
   private final int[] nodeParent;
 
-  private volatile boolean[] unowned;
   private volatile Object resolved;
 
   public InstrumentedClass(
@@ -105,19 +104,14 @@ public final class InstrumentedClass {
     }
   }
 
-  /** Adds the lines of the probes that were hit by code no open test owned. */
-  public boolean addUnownedLines(BitSet lines) {
-    boolean[] hits = unowned;
-    if (hits == null) {
-      return false;
-    }
+  /** Adds the lines of the probes set in {@code probes}, other than class initializer probes. */
+  public void addMethodLines(boolean[] probes, BitSet lines) {
     boolean[] visitedNodes = null;
-    for (int probe = 0; probe < hits.length; probe++) {
-      if (hits[probe]) {
+    for (int probe = 1; probe < initStart; probe++) {
+      if (probes[probe]) {
         visitedNodes = addProbeLines(probe, lines, visitedNodes);
       }
     }
-    return true;
   }
 
   private boolean[] addProbeLines(int probe, BitSet lines, @Nullable boolean[] visitedNodes) {
@@ -136,19 +130,6 @@ public final class InstrumentedClass {
       }
     }
     return visitedNodes;
-  }
-
-  void recordUnowned(int probe) {
-    boolean[] hits = unowned;
-    if (hits == null) {
-      synchronized (this) {
-        hits = unowned;
-        if (hits == null) {
-          unowned = hits = new boolean[probeLines.length];
-        }
-      }
-    }
-    hits[probe] = true;
   }
 
   /** Caches what the reporting side resolved for this class, such as its source path. */
