@@ -92,6 +92,11 @@ class EventDispatcherTest {
         .verify(dataListener1)
         .onDataAvailable(savedFlow1.capture(), eq(ctx), any(DataBundle.class), eq(gwCtx));
     assertSame(savedFlow2.getValue(), savedFlow1.getValue());
+
+    // each listener is notified exactly once (InOrder alone does not reject duplicates)
+    verify(dataListener3).onDataAvailable(any(), any(), any(), any());
+    verify(dataListener2).onDataAvailable(any(), any(), any(), any());
+    verify(dataListener1).onDataAvailable(any(), any(), any(), any());
   }
 
   @Test
