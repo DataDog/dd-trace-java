@@ -188,6 +188,11 @@ public class AgentInstaller {
       agentBuilder = agentBuilder.with(listener);
     }
 
+    if (Boolean.getBoolean("dd.prototype.string-rewrites")) {
+      // PROTOTYPE ONLY: retransformation-incapable, so it sees classes before ByteBuddy does
+      inst.addTransformer(new datadog.trace.agent.tooling.jit.StringCallSiteRewriter(), false);
+    }
+
     InstrumenterIndex instrumenterIndex = InstrumenterIndex.readIndex();
 
     // pre-size state before registering instrumentations to reduce number of allocations
