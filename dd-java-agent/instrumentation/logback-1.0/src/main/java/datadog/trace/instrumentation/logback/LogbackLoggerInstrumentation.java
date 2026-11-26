@@ -9,6 +9,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.isBootstrapClassLoader;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -41,7 +42,10 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Helpers cannot be injected into the bootstrap class loader, where instrumentation tests load
     // Logback
-    return not(isBootstrapClassLoader());
+    return Config.get().isLogPatternInject()
+            && !InstrumenterConfig.get().isAppLogsCollectionEnabled()
+        ? any()
+        : not(isBootstrapClassLoader());
   }
 
   @Override
@@ -74,6 +78,15 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
             .and(takesArguments(1))
             .and(takesArgument(0, named("ch.qos.logback.classic.spi.ILoggingEvent"))),
         LogbackLoggerInstrumentation.class.getName() + "$CallAppendersAdvice");
+    if (InstrumenterConfig.get().isAppLogsCollectionEnabled()) {
+      transformer.applyAdvice(
+          isMethod()
+              .and(isPublic())
+              .and(named("callAppenders"))
+              .and(takesArguments(1))
+              .and(takesArgument(0, named("ch.qos.logback.classic.spi.ILoggingEvent"))),
+          LogbackLoggerInstrumentation.class.getName() + "$LogsIntakeAdvice");
+    }
   }
 
   public static class CallAppendersAdvice {
@@ -88,8 +101,15 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
         InstrumentationContext.get(ILoggingEvent.class, AgentSpanContext.class)
             .put(event, span.spanContext());
       }
+    }
+  }
 
-      LogsIntakeHelper.log(event);
+  public static class LogsIntakeAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(@Advice.Argument(0) ILoggingEvent event) {
+      if (event != null) {
+        LogsIntakeHelper.log(event);
+      }
     }
   }
 }
