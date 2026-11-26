@@ -1129,8 +1129,26 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     if (operationName == null) {
       operationName = prototype.operationName();
     }
-    CoreSpanBuilder builder =
-        createMultiSpanBuilder(prototype.instrumentationName(), operationName);
+    return seedFrom(
+        createMultiSpanBuilder(prototype.instrumentationName(), operationName), prototype);
+  }
+
+  /**
+   * Like {@link #buildSpan(SpanPrototype, CharSequence)}, for one span only: the thread's reusable
+   * builder carries the prototype (see {@link #singleSpanBuilder(String, CharSequence)}), which it
+   * drops when reset for the next span.
+   */
+  @Override
+  public CoreSpanBuilder singleSpanBuilder(
+      @Nonnull final SpanPrototype prototype, CharSequence operationName) {
+    if (operationName == null) {
+      operationName = prototype.operationName();
+    }
+    return seedFrom(singleSpanBuilder(prototype.instrumentationName(), operationName), prototype);
+  }
+
+  /** Seeds {@code builder}'s prototype and span type; its tags are seeded when the span starts. */
+  private static CoreSpanBuilder seedFrom(CoreSpanBuilder builder, SpanPrototype prototype) {
     builder.spanPrototype = prototype;
     if (prototype.spanType() != null) {
       builder.spanType = prototype.spanType();

@@ -309,6 +309,50 @@ final class DenseIdStore extends IdStore {
     this.tombstoneLevels |= (byte) level;
   }
 
+  /** A dense store can seed in bulk; see {@link #seedAbsent}. */
+  @Override
+  public boolean supportsBulkSeed() {
+    return true;
+  }
+
+  /**
+   * The bulk seed: when {@code source} is a parentless dense store with no tombstones and its
+   * occupancy words share no bit with this store's (live, tombstoned or inherited, per level), none
+   * of its tags can be present here, so its serials and values are appended with two array copies
+   * and its occupancy ORed in. The occupancy words over-approximate presence, so a shared bit only
+   * means "maybe present" and falls back to the caller's tag-by-tag seed.
+   */
+  @Override
+  public boolean seedAbsent(IdStore source) {
+    if (!(source instanceof DenseIdStore)) {
+      return false;
+    }
+    DenseIdStore src = (DenseIdStore) source;
+    int n = src.used;
+    if (src.parent != null || n != src.count) {
+      return false; // read-through or tombstones: not a plain list of tags
+    }
+    long maybeHere = this.tombstoneMask | this.inheritedMask;
+    if ((src.spanOccupancy & (this.spanOccupancy | maybeHere)) != 0L
+        || (src.traceOccupancy & (this.traceOccupancy | maybeHere)) != 0L) {
+      return false;
+    }
+    if (n == 0) {
+      return true;
+    }
+    int used = this.used;
+    if (used + n > this.serials.length) {
+      this.growTo(used + n);
+    }
+    System.arraycopy(src.serials, 0, this.serials, used, n);
+    System.arraycopy(src.values, 0, this.values, used, n);
+    this.used = used + n;
+    this.count += n;
+    this.spanOccupancy |= src.spanOccupancy;
+    this.traceOccupancy |= src.traceOccupancy;
+    return true;
+  }
+
   /** Grows the arrays to hold at least {@code minCapacity} slots. Rare, so kept out of line. */
   private void growTo(int minCapacity) {
     int length = this.serials.length;
@@ -693,7 +737,7 @@ final class DenseIdStore extends IdStore {
   }
 
   @Override
-  void forEach(Consumer<? super EntryReader> consumer) {
+  public void forEach(Consumer<? super EntryReader> consumer) {
     DenseReader reader = new DenseReader();
     for (DenseIdStore level = this; level != null; level = level.parent) {
       for (int i = 0; i < level.used; ++i) {
@@ -705,7 +749,7 @@ final class DenseIdStore extends IdStore {
   }
 
   @Override
-  <T> void forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
+  public <T> void forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer) {
     DenseReader reader = new DenseReader();
     for (DenseIdStore level = this; level != null; level = level.parent) {
       for (int i = 0; i < level.used; ++i) {
@@ -727,7 +771,8 @@ final class DenseIdStore extends IdStore {
   }
 
   @Override
-  <T, U> void forEach(T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
+  public <T, U> void forEach(
+      T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer) {
     DenseReader reader = new DenseReader();
     for (DenseIdStore level = this; level != null; level = level.parent) {
       for (int i = 0; i < level.used; ++i) {

@@ -219,4 +219,14 @@ class SpanPrototypeTest {
   void noKindByDefault() {
     assertNull(SpanPrototype.NONE.kind());
   }
+
+  @Test
+  void theSeedPlanIsNullUntilTheCoreRecordsOne() {
+    final SpanPrototype proto = SpanPrototype.builder().initOperationName("op").build();
+    assertNull(proto.seedPlan());
+
+    final Object plan = new Object();
+    proto.seedPlan(plan);
+    assertSame(plan, proto.seedPlan());
+  }
 }

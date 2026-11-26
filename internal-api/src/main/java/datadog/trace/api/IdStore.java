@@ -66,6 +66,24 @@ public abstract class IdStore {
   }
 
   /**
+   * Copies every tag of {@code source} in at once if none of them can already be present here --
+   * locally, as a tombstone, or inherited -- and returns true; otherwise copies nothing and returns
+   * false, and the caller seeds tag by tag. A store that can't prove absence in bulk always returns
+   * false. {@code source} must be frozen.
+   */
+  public boolean seedAbsent(IdStore source) {
+    return false;
+  }
+
+  /**
+   * Whether {@link #seedAbsent} can ever succeed for this kind of store, so a caller can skip it,
+   * and the lock it needs, when it can't.
+   */
+  public boolean supportsBulkSeed() {
+    return false;
+  }
+
+  /**
    * Builds the exception for an id that names no known tag.
    *
    * @param tagId the rejected id
@@ -240,7 +258,7 @@ public abstract class IdStore {
    *
    * @param consumer receives each visible entry
    */
-  abstract void forEach(Consumer<? super EntryReader> consumer);
+  public abstract void forEach(Consumer<? super EntryReader> consumer);
 
   /**
    * {@link #forEach(Consumer)} with a context object, so the consumer can be a non-capturing lambda
@@ -250,7 +268,7 @@ public abstract class IdStore {
    * @param thisObj passed as the consumer's first argument
    * @param consumer receives {@code thisObj} and each visible entry
    */
-  abstract <T> void forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer);
+  public abstract <T> void forEach(T thisObj, BiConsumer<T, ? super EntryReader> consumer);
 
   /**
    * {@link #forEach(Object, BiConsumer)} with a second context object: {@code store.forEach(this,
@@ -260,7 +278,7 @@ public abstract class IdStore {
    * @param otherObj passed as the consumer's second argument
    * @param consumer receives both context objects and each visible entry
    */
-  abstract <T, U> void forEach(
+  public abstract <T, U> void forEach(
       T thisObj, U otherObj, TriConsumer<T, U, ? super EntryReader> consumer);
 
   /**

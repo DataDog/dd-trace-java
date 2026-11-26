@@ -35,6 +35,13 @@ public final class SpanPrototype {
   private final SpanKind kind;
 
   /**
+   * The tracer core's plan for seeding these tags into a span (whether they can be copied in bulk,
+   * and the span kind they carry), built on first use. Racy by design: the plan is immutable, so a
+   * reader sees null or a complete plan, and two threads building it at once just build it twice.
+   */
+  private Object seedPlan;
+
+  /**
    * The dense-store sizing hints for spans that use this prototype's own operation name, in the
    * entry-span and child-span lanes, resolved on first use so later spans skip the table lookup.
    * Racy by design: two threads resolving a lane at once can get distinct hints if they both miss
@@ -90,6 +97,18 @@ public final class SpanPrototype {
    */
   public SpanKind kind() {
     return kind;
+  }
+
+  /** The tracer core's seed plan for these tags, or null before the first span uses it. */
+  @Restricted(allowedIn = {"datadog.trace.core"})
+  public Object seedPlan() {
+    return seedPlan;
+  }
+
+  /** Records the tracer core's seed plan for these tags; see {@link #seedPlan()}. */
+  @Restricted(allowedIn = {"datadog.trace.core"})
+  public void seedPlan(Object plan) {
+    this.seedPlan = plan;
   }
 
   /**
