@@ -1,5 +1,8 @@
 package datadog.trace.civisibility.coverage.probe;
 
+import static datadog.trace.civisibility.coverage.probe.ConcurrentWorkloads.FIXTURES;
+import static datadog.trace.civisibility.coverage.probe.ConcurrentWorkloads.referenceLinesOfEachWorker;
+import static datadog.trace.civisibility.coverage.probe.ConcurrentWorkloads.run;
 import static datadog.trace.civisibility.coverage.probe.TestWindow.sharedLines;
 import static datadog.trace.civisibility.coverage.probe.TestWindow.union;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -9,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.trace.api.civisibility.coverage.SharedPart;
 import datadog.trace.api.civisibility.coverage.SuiteSetupWindow;
 import datadog.trace.api.civisibility.coverage.TestPreparationWindow;
-import datadog.trace.civisibility.coverage.probe.fixtures.ConcurrentWorkload;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
@@ -24,18 +26,12 @@ import org.junit.jupiter.api.Test;
  */
 class SuiteSetupWindowTest {
 
-  private static final String FIXTURES = ConcurrentWorkload.class.getName();
-
   /** Reference lines of each worker run alone. */
   private static final List<Map<String, BitSet>> WORKER_LINES = new ArrayList<>();
 
   @BeforeAll
   static void recordReferenceLines() {
-    for (int worker = 0; worker < ConcurrentWorkload.WORKERS; worker++) {
-      ReferenceLines.drain();
-      run(new FixtureLoader(ReferenceLines::instrument, FIXTURES), worker);
-      WORKER_LINES.add(ReferenceLines.drain());
-    }
+    WORKER_LINES.addAll(referenceLinesOfEachWorker());
     TestPreparationWindow.enable();
   }
 
@@ -182,14 +178,5 @@ class SuiteSetupWindowTest {
       parts.add(TestWindow.lines(setup.hits));
     }
     return union(parts);
-  }
-
-  private static void run(ClassLoader loader, int worker) {
-    try {
-      Class<?> workload = Class.forName(ConcurrentWorkload.class.getName(), true, loader);
-      workload.getMethod("run", int.class).invoke(null, worker);
-    } catch (ReflectiveOperationException e) {
-      throw new AssertionError(e);
-    }
   }
 }

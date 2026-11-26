@@ -100,18 +100,7 @@ public class CiTestCycleMapperV1PayloadTest extends DDJavaSpecification {
 
   private void writeAndVerify(
       int bufferSize, int traceCount, boolean lowCardinality, boolean chunked) {
-    CiVisibilityWellKnownTags wellKnownTags =
-        new CiVisibilityWellKnownTags(
-            "runtimeid",
-            "my-env",
-            "language",
-            "my-runtime-name",
-            "my-runtime-version",
-            "my-runtime-vendor",
-            "my-os-arch",
-            "my-os-platform",
-            "my-os-version",
-            "false");
+    CiVisibilityWellKnownTags wellKnownTags = wellKnownTags();
     CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags, false);
 
     List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality);
@@ -367,19 +356,7 @@ public class CiTestCycleMapperV1PayloadTest extends DDJavaSpecification {
   private static Map<String, Object> whenASpanIsWritten(TraceGenerator.PojoSpan span) {
     List<TraceGenerator.PojoSpan> trace = Collections.singletonList(span);
 
-    CiVisibilityWellKnownTags wellKnownTags =
-        new CiVisibilityWellKnownTags(
-            "runtimeid",
-            "my-env",
-            "language",
-            "my-runtime-name",
-            "my-runtime-version",
-            "my-runtime-vendor",
-            "my-os-arch",
-            "my-os-platform",
-            "my-os-version",
-            "false");
-    CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags, false);
+    CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags(), false);
 
     CaptureConsumer consumer = new CaptureConsumer();
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(100 << 10, consumer));

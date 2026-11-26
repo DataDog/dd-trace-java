@@ -1,5 +1,10 @@
 package datadog.trace.civisibility.coverage.probe;
 
+import static datadog.trace.civisibility.coverage.probe.ConcurrentWorkloads.FIXTURES;
+import static datadog.trace.civisibility.coverage.probe.ConcurrentWorkloads.await;
+import static datadog.trace.civisibility.coverage.probe.ConcurrentWorkloads.join;
+import static datadog.trace.civisibility.coverage.probe.ConcurrentWorkloads.referenceLinesOfEachWorker;
+import static datadog.trace.civisibility.coverage.probe.ConcurrentWorkloads.run;
 import static datadog.trace.civisibility.coverage.probe.TestWindow.sharedLines;
 import static datadog.trace.civisibility.coverage.probe.TestWindow.union;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -36,18 +41,12 @@ import org.junit.jupiter.api.Test;
  */
 class ProbeConcurrencyTest {
 
-  private static final String FIXTURES = ConcurrentWorkload.class.getName();
-
   /** Reference lines of each worker run alone. */
   private static final List<Map<String, BitSet>> WORKER_LINES = new ArrayList<>();
 
   @BeforeAll
-  static void recordReferenceLines() throws Exception {
-    for (int worker = 0; worker < ConcurrentWorkload.WORKERS; worker++) {
-      ReferenceLines.drain();
-      run(new FixtureLoader(ReferenceLines::instrument, FIXTURES), worker);
-      WORKER_LINES.add(ReferenceLines.drain());
-    }
+  static void recordReferenceLines() {
+    WORKER_LINES.addAll(referenceLinesOfEachWorker());
   }
 
   @Test
@@ -244,7 +243,7 @@ class ProbeConcurrencyTest {
           new TimerTask() {
             @Override
             public void run() {
-              ProbeConcurrencyTest.run(loader, 2);
+              ConcurrentWorkloads.run(loader, 2);
               timerRan.countDown();
             }
           },
@@ -352,38 +351,5 @@ class ProbeConcurrencyTest {
       lines = window.closeAndCollect();
     }
     return lines;
-  }
-
-  private static void run(ClassLoader loader, int worker) {
-    try {
-      Class<?> workload = Class.forName(ConcurrentWorkload.class.getName(), true, loader);
-      workload.getMethod("run", int.class).invoke(null, worker);
-    } catch (ReflectiveOperationException e) {
-      throw new AssertionError(e);
-    }
-  }
-
-  private static void await(CyclicBarrier barrier) {
-    try {
-      barrier.await(30, TimeUnit.SECONDS);
-    } catch (Exception e) {
-      throw new AssertionError(e);
-    }
-  }
-
-  private static void await(CountDownLatch latch) {
-    try {
-      assertTrue(latch.await(30, TimeUnit.SECONDS));
-    } catch (InterruptedException e) {
-      throw new AssertionError(e);
-    }
-  }
-
-  private static void join(Thread thread) {
-    try {
-      thread.join(TimeUnit.SECONDS.toMillis(30));
-    } catch (InterruptedException e) {
-      throw new AssertionError(e);
-    }
   }
 }

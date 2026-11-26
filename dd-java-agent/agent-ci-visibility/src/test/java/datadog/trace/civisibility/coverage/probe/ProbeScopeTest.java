@@ -1,5 +1,10 @@
 package datadog.trace.civisibility.coverage.probe;
 
+import static datadog.trace.civisibility.coverage.probe.ConcurrentWorkloads.FIXTURES;
+import static datadog.trace.civisibility.coverage.probe.ConcurrentWorkloads.await;
+import static datadog.trace.civisibility.coverage.probe.ConcurrentWorkloads.referenceLinesOfEachWorker;
+import static datadog.trace.civisibility.coverage.probe.ConcurrentWorkloads.run;
+import static datadog.trace.civisibility.coverage.probe.ConcurrentWorkloads.runOnNewThread;
 import static datadog.trace.civisibility.coverage.probe.TestWindow.sharedLines;
 import static datadog.trace.civisibility.coverage.probe.TestWindow.union;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -38,8 +43,6 @@ import org.junit.jupiter.api.Test;
  */
 class ProbeScopeTest {
 
-  private static final String FIXTURES = ConcurrentWorkload.class.getName();
-
   /** Reference lines of each worker run alone. */
   private static final List<Map<String, BitSet>> WORKER_LINES = new ArrayList<>();
 
@@ -47,12 +50,8 @@ class ProbeScopeTest {
   private static CoreTracer tracer;
 
   @BeforeAll
-  static void setUp() throws Exception {
-    for (int worker = 0; worker < ConcurrentWorkload.WORKERS; worker++) {
-      ReferenceLines.drain();
-      run(new FixtureLoader(ReferenceLines::instrument, FIXTURES), worker);
-      WORKER_LINES.add(ReferenceLines.drain());
-    }
+  static void setUp() {
+    WORKER_LINES.addAll(referenceLinesOfEachWorker());
     original = AgentTracer.get();
     tracer = CoreTracer.builder().writer(new ListWriter()).build();
     AgentTracer.forceRegister(tracer);
@@ -68,23 +67,13 @@ class ProbeScopeTest {
   @Test
   void codeAContinuationRunsForAFinishedTestGoesToShared() {
     FixtureLoader loader = new FixtureLoader(null, FIXTURES);
-    TestWindow registering = new TestWindow();
-    AgentSpan registeringSpan = testSpan(registering);
-    ContextContinuation continuation;
-    Map<String, BitSet> registeringLines;
-    try (ContextScope scope = tracer.activateSpan(registeringSpan)) {
-      run(loader, 0);
-      continuation = capture();
-    } finally {
-      registeringSpan.finish();
-      registeringLines = registering.closeAndCollect();
-    }
+    FinishedTest registering = runTestThatCaptures(() -> run(loader, 0));
 
     TestWindow opening = new TestWindow();
     AgentSpan openingSpan = testSpan(opening);
     Map<String, BitSet> openingLines;
     try (ContextScope scope = tracer.activateSpan(openingSpan)) {
-      try (ContextScope resumed = continuation.resume()) {
+      try (ContextScope resumed = registering.continuation.resume()) {
         run(loader, 2);
         // a span the continuation starts carries the finished test too
         AgentSpan child = tracer.buildSpan("test", "child").start();
@@ -101,7 +90,7 @@ class ProbeScopeTest {
       openingLines = opening.closeAndCollect();
     }
 
-    assertEquals(WORKER_LINES.get(0), registeringLines);
+    assertEquals(WORKER_LINES.get(0), registering.lines);
     assertEquals(WORKER_LINES.get(1), openingLines);
     assertEquals(WORKER_LINES.get(2), sharedLines(loader));
   }
@@ -197,15 +186,7 @@ class ProbeScopeTest {
   @Test
   void aContinuationResumedForAnotherTestChangesTheOwner() {
     FixtureLoader loader = new FixtureLoader(null, FIXTURES);
-    TestWindow registering = new TestWindow();
-    AgentSpan registeringSpan = testSpan(registering);
-    ContextContinuation continuation;
-    try (ContextScope scope = tracer.activateSpan(registeringSpan)) {
-      continuation = capture();
-    } finally {
-      registeringSpan.finish();
-      registering.closeAndCollect();
-    }
+    ContextContinuation continuation = runTestThatCaptures(() -> {}).continuation;
 
     TestWindow opening = new TestWindow();
     AgentSpan openingSpan = testSpan(opening);
@@ -225,17 +206,7 @@ class ProbeScopeTest {
   @Test
   void codeAContinuationRunsAfterEveryWindowClosedGoesToShared() {
     FixtureLoader loader = new FixtureLoader(null, FIXTURES);
-    TestWindow registering = new TestWindow();
-    AgentSpan registeringSpan = testSpan(registering);
-    ContextContinuation continuation;
-    Map<String, BitSet> registeringLines;
-    try (ContextScope scope = tracer.activateSpan(registeringSpan)) {
-      run(loader, 0);
-      continuation = capture();
-    } finally {
-      registeringSpan.finish();
-      registeringLines = registering.closeAndCollect();
-    }
+    FinishedTest registering = runTestThatCaptures(() -> run(loader, 0));
     TestWindow opening = new TestWindow();
     Map<String, BitSet> openingLines;
     try {
@@ -244,11 +215,11 @@ class ProbeScopeTest {
       openingLines = opening.closeAndCollect();
     }
 
-    try (ContextScope resumed = continuation.resume()) {
+    try (ContextScope resumed = registering.continuation.resume()) {
       run(loader, 2);
     }
 
-    assertEquals(WORKER_LINES.get(0), registeringLines);
+    assertEquals(WORKER_LINES.get(0), registering.lines);
     assertEquals(WORKER_LINES.get(1), openingLines);
     assertEquals(WORKER_LINES.get(2), sharedLines(loader));
   }
@@ -289,22 +260,31 @@ class ProbeScopeTest {
     assertEquals(WORKER_LINES.get(1), sharedLines(loader));
   }
 
-  private static void runOnNewThread(ClassLoader loader, int worker) {
-    Thread thread = new Thread(() -> run(loader, worker));
-    thread.start();
-    try {
-      thread.join(TimeUnit.SECONDS.toMillis(30));
-    } catch (InterruptedException e) {
-      throw new AssertionError(e);
+  /** A test that ended after it captured its context for code that runs later. */
+  private static final class FinishedTest {
+    final ContextContinuation continuation;
+    final Map<String, BitSet> lines;
+
+    FinishedTest(ContextContinuation continuation, Map<String, BitSet> lines) {
+      this.continuation = continuation;
+      this.lines = lines;
     }
   }
 
-  private static void await(CountDownLatch latch) {
-    try {
-      assertTrue(latch.await(30, TimeUnit.SECONDS));
-    } catch (InterruptedException e) {
-      throw new AssertionError(e);
+  /** Runs a test that runs a body and then captures its context, and ends the test. */
+  private static FinishedTest runTestThatCaptures(Runnable body) {
+    TestWindow window = new TestWindow();
+    AgentSpan span = testSpan(window);
+    ContextContinuation continuation;
+    Map<String, BitSet> lines;
+    try (ContextScope scope = tracer.activateSpan(span)) {
+      body.run();
+      continuation = capture();
+    } finally {
+      span.finish();
+      lines = window.closeAndCollect();
     }
+    return new FinishedTest(continuation, lines);
   }
 
   private static AgentSpan testSpan(TestWindow window) {
@@ -332,14 +312,5 @@ class ProbeScopeTest {
       }
     }
     throw new AssertionError(name + " is not instrumented");
-  }
-
-  private static void run(ClassLoader loader, int worker) {
-    try {
-      Class<?> workload = Class.forName(ConcurrentWorkload.class.getName(), true, loader);
-      workload.getMethod("run", int.class).invoke(null, worker);
-    } catch (ReflectiveOperationException e) {
-      throw new AssertionError(e);
-    }
   }
 }

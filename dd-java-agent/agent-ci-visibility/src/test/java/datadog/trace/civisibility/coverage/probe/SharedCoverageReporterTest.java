@@ -1,5 +1,7 @@
 package datadog.trace.civisibility.coverage.probe;
 
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -14,7 +16,6 @@ import datadog.trace.civisibility.coverage.probe.fixtures.SharedPartsWorkload;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.util.BitSet;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -39,14 +40,14 @@ class SharedCoverageReporterTest {
       new SourcePathResolver() {
         @Override
         public Collection<String> getSourcePaths(@Nonnull Class<?> c) {
-          return Collections.emptyList(); // source files resolve lines by path
+          return emptyList(); // source files resolve lines by path
         }
 
         @Override
         public Collection<String> getResourcePaths(@Nullable String relativePath) {
           return WORKLOAD_FILE.equals(relativePath)
-              ? Collections.singletonList(SOURCE_ROOT + relativePath)
-              : Collections.emptyList();
+              ? singletonList(SOURCE_ROOT + relativePath)
+              : emptyList();
         }
       };
 
