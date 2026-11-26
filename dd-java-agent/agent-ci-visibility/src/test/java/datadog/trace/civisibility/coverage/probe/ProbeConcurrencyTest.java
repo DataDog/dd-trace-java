@@ -12,8 +12,13 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeAll;
@@ -21,7 +26,9 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Windows open at the same time, on different threads or nested on one, get exactly the lines of
- * the code they own; code that no window owns goes to Shared.
+ * the code they own; code that no window owns goes to Shared. A thread created while a window owns
+ * the code of its creator runs its code for that window while it is open, unless it is a pool
+ * worker.
  */
 class ProbeConcurrencyTest {
 
@@ -163,6 +170,94 @@ class ProbeConcurrencyTest {
     assertEquals(WORKER_LINES.get(0), sharedLines(loader));
   }
 
+  @Test
+  void threadsCreatedWhileAWindowIsOpenRunTheirCodeForIt() throws Exception {
+    FixtureLoader loader = new FixtureLoader(null, FIXTURES);
+    TestWindow window = new TestWindow();
+    Map<String, BitSet> windowLines;
+    try {
+      // the thread creates another before it runs any instrumented code itself
+      Thread thread =
+          new Thread(() -> {
+            Thread nested = new Thread(() -> run(loader, 1));
+            nested.start();
+            join(nested);
+            run(loader, 0);
+          });
+      thread.start();
+      join(thread);
+    } finally {
+      windowLines = window.closeAndCollect();
+    }
+
+    assertEquals(union(WORKER_LINES.get(0), WORKER_LINES.get(1)), windowLines);
+    assertTrue(sharedLines(loader).isEmpty());
+  }
+
+  @Test
+  void aThreadCreatedWhileAWindowIsOpenRunsForSharedOnceTheWindowCloses() throws Exception {
+    FixtureLoader loader = new FixtureLoader(null, FIXTURES);
+    CountDownLatch ran = new CountDownLatch(1);
+    CountDownLatch closed = new CountDownLatch(1);
+    TestWindow window = new TestWindow();
+    Thread thread;
+    Map<String, BitSet> windowLines;
+    try {
+      thread =
+          new Thread(() -> {
+            run(loader, 0);
+            ran.countDown();
+            await(closed);
+            run(loader, 1);
+          });
+      thread.start();
+      await(ran);
+    } finally {
+      windowLines = window.closeAndCollect();
+    }
+    closed.countDown();
+    join(thread);
+
+    assertEquals(WORKER_LINES.get(0), windowLines);
+    assertEquals(WORKER_LINES.get(1), sharedLines(loader));
+  }
+
+  @Test
+  void poolWorkersCreatedWhileAWindowIsOpenAreHandedNoWindow() throws Exception {
+    FixtureLoader loader = new FixtureLoader(null, FIXTURES);
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    ForkJoinPool forkJoinPool = new ForkJoinPool(1);
+    TestWindow window = new TestWindow();
+    // created while the window is open, as are the workers of the pools below
+    Timer timer = new Timer(true);
+    Map<String, BitSet> windowLines;
+    try {
+      // the tasks carry no test's context, so the code they run is Shared's
+      executor.submit(() -> run(loader, 0)).get(30, TimeUnit.SECONDS);
+      forkJoinPool.submit(() -> run(loader, 1)).get(30, TimeUnit.SECONDS);
+      CountDownLatch timerRan = new CountDownLatch(1);
+      timer.schedule(
+          new TimerTask() {
+            @Override
+            public void run() {
+              ProbeConcurrencyTest.run(loader, 2);
+              timerRan.countDown();
+            }
+          },
+          0);
+      await(timerRan);
+    } finally {
+      windowLines = window.closeAndCollect();
+      executor.shutdown();
+      forkJoinPool.shutdown();
+      timer.cancel();
+    }
+
+    assertTrue(windowLines.isEmpty());
+    assertEquals(
+        union(WORKER_LINES.get(0), WORKER_LINES.get(1), WORKER_LINES.get(2)), sharedLines(loader));
+  }
+
   private static Map<String, BitSet> runInWindow(
       ClassLoader loader,
       int worker,
@@ -202,6 +297,14 @@ class ProbeConcurrencyTest {
   private static void await(CountDownLatch latch) {
     try {
       assertTrue(latch.await(30, TimeUnit.SECONDS));
+    } catch (InterruptedException e) {
+      throw new AssertionError(e);
+    }
+  }
+
+  private static void join(Thread thread) {
+    try {
+      thread.join(TimeUnit.SECONDS.toMillis(30));
     } catch (InterruptedException e) {
       throw new AssertionError(e);
     }

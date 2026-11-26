@@ -50,11 +50,49 @@ public final class ProbeRecorder {
   /** Probes hit by suite setup, allocated on first use: the suite setup part of Shared. */
   private static final boolean[][] SUITE_SETUP = new boolean[MAX_CLASSES][];
 
+  /**
+   * Hands a new thread the window that owns the code of the thread that creates it. The value is
+   * the thread's {@link ThreadProbes} once it has them, and before that the window the thread was
+   * handed, or null.
+   */
+  private static final InheritableThreadLocal<Object> CREATOR =
+      new InheritableThreadLocal<Object>() {
+        @Override
+        protected Object childValue(Object creator) {
+          // called by the creating thread while it constructs the new thread
+          return windowForNewThread(creator);
+        }
+      };
+
+  /**
+   * The methods that create the worker threads of pools, by class and method name. A pool worker
+   * runs tasks that other code submits, so it is handed no window: a task that runs for a test
+   * carries the test's context.
+   */
+  private static final String[][] POOL_WORKER_CREATORS = {
+    {"java.util.concurrent.ThreadPoolExecutor", "addWorker"},
+    {"java.util.concurrent.ForkJoinPool", "createWorker"},
+    {"java.util.Timer", "<init>"},
+    {"kotlinx.coroutines.scheduling.CoroutineScheduler", "createNewWorker"},
+    {"kotlinx.coroutines.DefaultExecutor", "createThreadSync"},
+    {"io.netty.util.concurrent.SingleThreadEventExecutor", "doStartThread"},
+    {"io.netty.util.concurrent.GlobalEventExecutor", "startThread"},
+    {"io.netty.util.HashedWheelTimer", "<init>"},
+    {"org.eclipse.jetty.util.thread.QueuedThreadPool", "startThread"},
+    {"org.apache.tomcat.util.threads.ThreadPoolExecutor", "addWorker"},
+  };
+
   private static final ThreadLocal<ThreadProbes> THREAD_PROBES =
       new ThreadLocal<ThreadProbes>() {
         @Override
         protected ThreadProbes initialValue() {
-          return register(new ThreadProbes(Thread.currentThread()));
+          Object handed = CREATOR.get();
+          ThreadProbes threadProbes =
+              new ThreadProbes(
+                  Thread.currentThread(),
+                  handed instanceof CoverageWindow ? (CoverageWindow) handed : null);
+          CREATOR.set(threadProbes);
+          return register(threadProbes);
         }
       };
 
@@ -222,6 +260,45 @@ public final class ProbeRecorder {
   static CoverageWindow contextWindow() {
     CoverageWindow window = testWindow();
     return window != null && !window.isClosed() ? window : null;
+  }
+
+  /**
+   * The window that a thread created by the current thread is handed: the window that owns the code
+   * of the current thread, unless it closed or the new thread is the worker thread of a pool.
+   *
+   * @param creator the value of {@link #CREATOR} on the current thread
+   */
+  @Nullable
+  private static CoverageWindow windowForNewThread(@Nullable Object creator) {
+    try {
+      CoverageWindow window;
+      if (creator instanceof ThreadProbes) {
+        window = ((ThreadProbes) creator).currentOwner();
+      } else {
+        // the current thread has run no instrumented code, so no window is open on it
+        window = contextWindow();
+        if (window == null) {
+          window = (CoverageWindow) creator;
+        }
+      }
+      return window != null && !window.isClosed() && !createsPoolWorker() ? window : null;
+    } catch (Throwable e) {
+      // creating a thread must never fail because of the recorder
+      return null;
+    }
+  }
+
+  /** Whether the current thread is creating the worker thread of a pool. */
+  private static boolean createsPoolWorker() {
+    for (StackTraceElement frame : new Throwable().getStackTrace()) {
+      String method = frame.getMethodName();
+      for (String[] creator : POOL_WORKER_CREATORS) {
+        if (creator[1].equals(method) && creator[0].equals(frame.getClassName())) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   /** The window of the test whose context the current thread carries, open or closed. */

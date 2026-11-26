@@ -8,9 +8,12 @@ import javax.annotation.Nullable;
 
 /**
  * The probe arrays of one thread, and the owner of the code the thread runs: the innermost window
- * open on the thread; with none open, the open window of the test whose context the thread carries;
- * else Shared. While a scope whose context carries another test is active on a thread with a window
- * open, the owner is that test's window, or Shared once that window has closed.
+ * open on the thread; with none open, the open window of the test whose context the thread carries,
+ * or else the window the thread was handed when it was created, while that window is open; else
+ * Shared. A new thread is handed the window that owns the code of the thread that creates it,
+ * unless it is the worker thread of a pool. While a scope whose context carries another test is
+ * active on a thread with a window open, the owner is that test's window, or Shared once that
+ * window has closed.
  *
  * <p>Only the thread stores into its arrays. A method takes its array at entry and keeps it until
  * it returns, and what an array holds belongs to the owner it was handed out to: a method's lines
@@ -47,6 +50,9 @@ final class ThreadProbes {
   /** The innermost window open on the thread. Written under the lock. */
   @Nullable private volatile CoverageWindow innermost;
 
+  /** The window the thread was handed when it was created, until it closes. Used by the thread. */
+  @Nullable private CoverageWindow handed;
+
   /**
    * Whether the owner comes from the context of the active scope rather than from the innermost
    * window. Written under the lock.
@@ -66,16 +72,27 @@ final class ThreadProbes {
   private boolean[] retiredStoredLate = new boolean[16];
   private int retiredCount;
 
-  ThreadProbes(Thread thread) {
+  ThreadProbes(Thread thread, @Nullable CoverageWindow handed) {
     this.thread = thread;
+    this.handed = handed;
+  }
+
+  /**
+   * The owner of the code the thread runs now, or null for Shared. With no window open, the owner
+   * follows the context only when the thread next takes an array; this reads it as it is now.
+   * Called by the thread.
+   */
+  @Nullable
+  CoverageWindow currentOwner() {
+    return innermost != null ? owner : contextOrHandedWindow();
   }
 
   /** The thread's array for a class. Called by the thread at method entry. */
   boolean[] take(int classId) {
     if (innermost == null) {
-      CoverageWindow contextWindow = ProbeRecorder.contextWindow();
-      if (contextWindow != owner) {
-        followContext(contextWindow);
+      CoverageWindow window = contextOrHandedWindow();
+      if (window != owner) {
+        followContext(window);
       }
     }
     boolean[][] handedOut = table;
@@ -86,6 +103,26 @@ final class ThreadProbes {
       }
     }
     return handOut(classId);
+  }
+
+  /**
+   * With no window open on the thread: the open window of the test whose context the thread
+   * carries, or else the window the thread was handed, while it is open.
+   */
+  @Nullable
+  private CoverageWindow contextOrHandedWindow() {
+    CoverageWindow window = ProbeRecorder.contextWindow();
+    return window != null ? window : handedWindow();
+  }
+
+  /** The window the thread was handed when it was created, while it is open. */
+  @Nullable
+  private CoverageWindow handedWindow() {
+    CoverageWindow window = handed;
+    if (window != null && window.isClosed()) {
+      handed = window = null;
+    }
+    return window;
   }
 
   /** Allocates the thread's array for a class, if it has none since the last change. */

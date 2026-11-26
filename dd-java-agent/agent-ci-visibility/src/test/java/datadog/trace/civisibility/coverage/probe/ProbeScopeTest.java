@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterAll;
@@ -32,7 +33,8 @@ import org.junit.jupiter.api.Test;
 /**
  * On a thread with a window open, the code that a scope runs under another test's context belongs
  * to that test while its window is open, and to Shared once it closed. A scope under the context of
- * the window's own test, or under no test's context, leaves the code to the window.
+ * the window's own test, or under no test's context, leaves the code to the window. A thread is
+ * handed the owner that the code of its creator has when it is created.
  */
 class ProbeScopeTest {
 
@@ -249,6 +251,60 @@ class ProbeScopeTest {
     assertEquals(WORKER_LINES.get(0), registeringLines);
     assertEquals(WORKER_LINES.get(1), openingLines);
     assertEquals(WORKER_LINES.get(2), sharedLines(loader));
+  }
+
+  @Test
+  void aThreadCreatedOnAThreadWithNoWindowOpenIsHandedTheOwnerOfItsCode() throws Exception {
+    FixtureLoader loader = new FixtureLoader(null, FIXTURES);
+    CountDownLatch opened = new CountDownLatch(1);
+    AtomicReference<AgentSpan> span = new AtomicReference<>();
+    // created before the window opens, so it is handed none
+    Thread creator =
+        new Thread(() -> {
+          await(opened);
+          try (ContextScope scope = tracer.activateSpan(span.get())) {
+            run(loader, 0);
+          }
+          // the code of the creator has no owner now, before it runs any instrumented code
+          runOnNewThread(loader, 1);
+          run(loader, 1);
+          // and belongs to the test again, before it runs any instrumented code
+          try (ContextScope scope = tracer.activateSpan(span.get())) {
+            runOnNewThread(loader, 2);
+          }
+        });
+    creator.start();
+    TestWindow window = new TestWindow();
+    span.set(testSpan(window));
+    Map<String, BitSet> lines;
+    try {
+      opened.countDown();
+      creator.join(TimeUnit.SECONDS.toMillis(30));
+    } finally {
+      span.get().finish();
+      lines = window.closeAndCollect();
+    }
+
+    assertEquals(union(WORKER_LINES.get(0), WORKER_LINES.get(2)), lines);
+    assertEquals(WORKER_LINES.get(1), sharedLines(loader));
+  }
+
+  private static void runOnNewThread(ClassLoader loader, int worker) {
+    Thread thread = new Thread(() -> run(loader, worker));
+    thread.start();
+    try {
+      thread.join(TimeUnit.SECONDS.toMillis(30));
+    } catch (InterruptedException e) {
+      throw new AssertionError(e);
+    }
+  }
+
+  private static void await(CountDownLatch latch) {
+    try {
+      assertTrue(latch.await(30, TimeUnit.SECONDS));
+    } catch (InterruptedException e) {
+      throw new AssertionError(e);
+    }
   }
 
   private static AgentSpan testSpan(TestWindow window) {
