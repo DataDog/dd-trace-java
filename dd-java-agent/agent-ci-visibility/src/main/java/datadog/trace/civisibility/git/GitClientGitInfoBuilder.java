@@ -70,16 +70,20 @@ public class GitClientGitInfoBuilder implements GitInfoBuilder {
           CIProviderInfo provider =
               ciProviderInfoFactory.createCIProviderInfo(Paths.get(repositoryPath));
           GitInfo ci = provider.buildCIGitInfo();
-          if (GitCheckoutInfo.samePath(
-                  gitClient.getRepoRoot(), provider.buildCIInfo().getCiWorkspace())
-              && GitCheckoutInfo.matchesRevision(
-                  commitInfo.getSha(),
-                  ci,
-                  provider.buildPullRequestInfo(),
-                  provider.getMergeCommitSha())) {
+          GitCheckoutInfo checkout =
+              new GitCheckoutInfo(
+                  gitClient.getRepoRoot(),
+                  provider.buildCIInfo().getCiWorkspace(),
+                  ci.getCommit().getSha(),
+                  provider.buildPullRequestInfo().getHeadCommit().getSha(),
+                  provider.getMergeCommitSha());
+          // A detached CI checkout takes its branch, tag and canonical URL from the CI provider
+          if (checkout.isCiWorkspace() && checkout.matchesCiRevision(commitInfo.getSha())) {
             remoteUrl = coalesce(ci.getRepositoryURL(), remoteUrl);
             branch = coalesce(ci.getBranch(), branch);
-            tag = isNotBlank(ci.getTag()) ? ci.getTag() : isNotBlank(ci.getBranch()) ? null : tag;
+            if (isNotBlank(ci.getBranch()) || isNotBlank(ci.getTag())) {
+              tag = ci.getTag();
+            }
           }
         } catch (InterruptedException e) {
           throw e;

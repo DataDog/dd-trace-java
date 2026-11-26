@@ -1,7 +1,5 @@
 package datadog.trace.civisibility;
 
-import static datadog.trace.api.git.UserSuppliedGitInfoBuilder.DD_GIT_COMMIT_SHA;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.GIT_COMMIT_SHA;
 import static datadog.trace.civisibility.Constants.DDCI_PULL_REQUEST_SOURCE_SHA;
 import static datadog.trace.util.Strings.isBlank;
 import static datadog.trace.util.Strings.isNotBlank;
@@ -14,7 +12,7 @@ import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.api.git.UserSuppliedGitInfoBuilder;
 import datadog.trace.civisibility.ci.CIInfo;
 import datadog.trace.civisibility.ci.CIProviderInfo;
 import datadog.trace.civisibility.ci.CITagsProvider;
@@ -89,22 +87,20 @@ public class CiVisibilityRepoServices {
     GitInfo providerGit = ciProviderInfo.buildCIGitInfo();
     String mergeSha = ciProviderInfo.getMergeCommitSha();
     String selectedSha = services.gitInfoProvider.getGitInfo(repoRoot).getCommit().getSha();
-    boolean custom =
-        checkoutRoot != null
-            && isNotBlank(ciInfo.getCiWorkspace())
-            && !GitCheckoutInfo.samePath(checkoutRoot, ciInfo.getCiWorkspace());
+    GitCheckoutInfo checkout =
+        new GitCheckoutInfo(
+            checkoutRoot,
+            ciInfo.getCiWorkspace(),
+            providerGit.getCommit().getSha(),
+            providerPr.getHeadCommit().getSha(),
+            mergeSha,
+            services.environment.get(DDCI_PULL_REQUEST_SOURCE_SHA));
+    // CI pull request data describes the CI revision, so it only applies to the same checkout
     boolean useCiInfo =
-        !custom
-            && (GitCheckoutInfo.matchesRevision(selectedSha, providerGit, providerPr, mergeSha)
-                || GitCheckoutInfo.sameRevision(
-                    selectedSha, services.environment.get(DDCI_PULL_REQUEST_SOURCE_SHA))
-                || isBlank(ConfigProvider.getInstance().getString(DD_GIT_COMMIT_SHA))
-                    && isBlank(services.config.getGlobalTags().get(GIT_COMMIT_SHA))
-                    && (isBlank(selectedSha)
-                        || isBlank(providerGit.getCommit().getSha())
-                            && isBlank(providerPr.getHeadCommit().getSha())
-                            && isBlank(mergeSha)
-                            && isBlank(services.environment.get(DDCI_PULL_REQUEST_SOURCE_SHA))));
+        !checkout.isCustom()
+            && (checkout.matchesCiRevision(selectedSha)
+                || isBlank(UserSuppliedGitInfoBuilder.getCommitSha(services.config))
+                    && (isBlank(selectedSha) || !checkout.hasCiRevision()));
     PullRequestInfo pullRequestInfo =
         buildPullRequestInfo(
             services.config, services.environment, ciProviderInfo, gitClient, useCiInfo);
@@ -119,7 +115,7 @@ public class CiVisibilityRepoServices {
     if (checkoutRoot != null) {
       ciTags.put("git.checkout.root", checkoutRoot);
     }
-    if (custom) {
+    if (checkout.isCustom()) {
       ciTags.put("git.checkout.is_custom", "true");
     }
     if (mergeSha != null) {
