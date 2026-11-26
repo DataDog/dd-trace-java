@@ -6,7 +6,6 @@ public final class JDBCConnectionContext {
 
   private final DBInfo dbInfo;
   private volatile String poolName;
-  private volatile String oracleServiceHash;
   private volatile boolean oracleServiceActionUnsupported;
 
   public JDBCConnectionContext(DBInfo dbInfo) {
@@ -25,19 +24,9 @@ public final class JDBCConnectionContext {
     this.poolName = poolName;
   }
 
-  /** Returns whether this connection needs the given Oracle service hash. */
-  public boolean shouldSetOracleServiceHash(String baseHash) {
-    return !oracleServiceActionUnsupported && !baseHash.equals(oracleServiceHash);
-  }
-
-  /** Returns whether the given Oracle service hash was successfully applied to this connection. */
-  public boolean isOracleServiceHashSet(String baseHash) {
-    return baseHash.equals(oracleServiceHash);
-  }
-
-  /** Records a successfully applied Oracle service hash. */
-  public void markOracleServiceHashSet(String baseHash) {
-    oracleServiceHash = baseHash;
+  /** Returns whether the driver rejected the Oracle ACTION client info for this connection. */
+  public boolean isOracleServiceActionUnsupported() {
+    return oracleServiceActionUnsupported;
   }
 
   public void markOracleServiceActionUnsupported() {
