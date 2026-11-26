@@ -152,6 +152,37 @@ class VertxRouteParserTest {
     assertFalse(VertxRouteParser.parse("/img*", Grammar.DEFAULT).needsUnnamedCatchAllRemainder());
   }
 
+  @TableTest({
+    "Scenario                     | Grammar  | Path             | Name   | Declared",
+    "single param                 | DEFAULT  | '/users/:id'     | id     | true    ",
+    "second param in segment      | DEFAULT  | '/a/:id.:format' | format | true    ",
+    "name prefix of a longer name | DEFAULT  | '/a/:idx'        | id     | false   ",
+    "longer name than declared    | DEFAULT  | '/a/:id'         | idx    | false   ",
+    "name before a trailing star  | DEFAULT  | '/a/:id*'        | id     | true    ",
+    "undeclared name              | DEFAULT  | '/users/:id'     | tenant | false   ",
+    "no param                     | DEFAULT  | '/users'         | id     | false   ",
+    "colon without a name         | LEGACY   | '/a/:1/:id'      | id     | true    ",
+    "digit name, legacy           | LEGACY   | '/a/:1abc'       | 1abc   | false   ",
+    "digit name, default          | DEFAULT  | '/a/:1abc'       | 1abc   | true    ",
+    "dashed name, extended        | EXTENDED | '/a/:a-b'        | a-b    | true    ",
+    "dashed name, default         | DEFAULT  | '/a/:a-b'        | a-b    | false   ",
+    "empty name                   | DEFAULT  | '/a/:id'         | ''     | false   ",
+    "null name                    | DEFAULT  | '/a/:id'         |        | false   ",
+    "null path                    | DEFAULT  |                  | id     | false   ",
+    "null grammar                 |          | '/a/:id'         | id     | false   "
+  })
+  void findsDeclaredParams(Grammar grammar, String path, String name, boolean declared) {
+    assertEquals(declared, VertxRouteParser.declaresParam(path, name, grammar));
+  }
+
+  @Test
+  void findsTheEndOfAParamName() {
+    assertEquals(6, VertxRouteParser.nameEnd("/a/:id.json", 3, 11, Grammar.DEFAULT));
+    assertEquals(5, VertxRouteParser.nameEnd("/a/:id.json", 3, 5, Grammar.DEFAULT));
+    assertEquals(-1, VertxRouteParser.nameEnd("/a/:", 3, 4, Grammar.DEFAULT));
+    assertEquals(-1, VertxRouteParser.nameEnd("/a/:.x", 3, 6, Grammar.DEFAULT));
+  }
+
   @Test
   void rendersWithMountPrefix() {
     assertEquals(

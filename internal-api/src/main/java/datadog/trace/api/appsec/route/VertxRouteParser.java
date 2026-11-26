@@ -210,6 +210,39 @@ public final class VertxRouteParser {
         .build();
   }
 
+  /**
+   * Whether {@code declaredPath} declares a {@code :name} parameter called {@code name} under
+   * {@code grammar}. Never allocates.
+   */
+  static boolean declaresParam(String declaredPath, String name, Grammar grammar) {
+    if (declaredPath == null || name == null || grammar == null) {
+      return false;
+    }
+    int len = declaredPath.length();
+    for (int i = declaredPath.indexOf(':'); i >= 0; i = declaredPath.indexOf(':', i + 1)) {
+      int nameEnd = nameEnd(declaredPath, i, len, grammar);
+      if (nameEnd - i - 1 == name.length() && declaredPath.startsWith(name, i + 1)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * End (exclusive) of the parameter name that starts after the {@code :} at {@code colon}, within
+   * {@code end}; -1 when that {@code :} does not start a name (static text).
+   */
+  static int nameEnd(String path, int colon, int end, Grammar grammar) {
+    if (colon + 1 >= end || !grammar.isNameStart(path.charAt(colon + 1))) {
+      return -1;
+    }
+    int nameEnd = colon + 2;
+    while (nameEnd < end && grammar.isNamePart(path.charAt(nameEnd))) {
+      nameEnd++;
+    }
+    return nameEnd;
+  }
+
   /** Regex syntax that Vert.x does not escape in a parameter path (besides a non-trailing '*'). */
   private static boolean isRegexOperator(char c) {
     switch (c) {
