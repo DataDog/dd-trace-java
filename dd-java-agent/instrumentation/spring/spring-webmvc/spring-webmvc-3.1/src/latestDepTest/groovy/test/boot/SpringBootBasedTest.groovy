@@ -35,6 +35,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_P
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOCKET
+import static datadog.trace.api.appsec.route.NormalizedRouteHelper.NORMALIZED_ROUTE_TAG
 
 class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext> {
 
@@ -139,6 +140,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
       default:
         return endpoint.path
     }
+  }
+
+  @Override
+  Serializable expectedNormalizedRoute(ServerEndpoint endpoint) {
+    normalizedRouteOf("/$servletContext", expectedServerSpanRoute(endpoint))
   }
 
   @Override
@@ -395,6 +401,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
           tags {
             "$Tags.COMPONENT" 'java-web-servlet-dispatcher'
             "$Tags.HTTP_ROUTE" '/error'
+            "$NORMALIZED_ROUTE_TAG" "/$servletContext/error"
             'servlet.context' "/$servletContext"
             'servlet.path' '/not-found'
             "$DDTags.PATHWAY_HASH" String

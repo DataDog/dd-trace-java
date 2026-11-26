@@ -15,6 +15,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.KnownTags
 import datadog.trace.api.ProductActivation
 import datadog.trace.api.appsec.AppSecContext
+import datadog.trace.api.appsec.route.NormalizedRouteHelper
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.datastreams.DataStreamsContext
@@ -252,6 +253,19 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
     null
+  }
+
+  /** Expected {@code _dd.appsec.normalized_route} on the server span, or null when not set. */
+  Serializable expectedNormalizedRoute(ServerEndpoint endpoint) {
+    null
+  }
+
+  /**
+   * Normalized route for a framework route served under {@code prefix}, or null for a null route.
+   * Only spaces are encoded ({@code %20}): enough for the routes of the shared endpoints.
+   */
+  protected static String normalizedRouteOf(String prefix, Object route) {
+    route == null ? null : "${prefix ?: ''}${route.toString().replace(' ', '%20')}".toString()
   }
 
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
@@ -2692,6 +2706,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   Map<String, Serializable> extraTags = null,
   String clientIp = null) {
     Object expectedServerSpanRoute = expectedServerSpanRoute(endpoint)
+    Object expectedNormalizedRoute = expectedNormalizedRoute(endpoint)
     Map<String, Serializable> expectedExtraErrorInformation = hasExtraErrorInformation() ? expectedExtraErrorInformation(endpoint) : null
     boolean hasPeerInformation = hasPeerInformation()
     boolean hasPeerPort = hasPeerPort()
@@ -2756,6 +2771,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
         if (null != expectedServerSpanRoute) {
           "$Tags.HTTP_ROUTE" expectedServerSpanRoute
+        }
+        if (null != expectedNormalizedRoute) {
+          "$NormalizedRouteHelper.NORMALIZED_ROUTE_TAG" expectedNormalizedRoute
         }
         if (span.getTag(InstrumentationTags.SERVLET_PATH) != null) {
           assert span.getTag(InstrumentationTags.SERVLET_PATH).toString().startsWith("/")

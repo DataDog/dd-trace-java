@@ -1,6 +1,6 @@
 package datadog.trace.api.appsec.route;
 
-import static datadog.trace.api.appsec.route.NormalizedRouteHelper.NORMALIZED_ROUTE_TAG;
+import static datadog.trace.api.KnownTags.DD_APPSEC_NORMALIZED_ROUTE;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED_EXPERIMENTAL;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
@@ -48,7 +48,7 @@ class NormalizedRouteHelperForkedTest {
     AgentSpan span = spanWithRoute();
     NormalizedRouteHelper.tag(span, SpringRouteParser.parse("/users/{id}"), null, null);
 
-    verify(span).setTag(NORMALIZED_ROUTE_TAG, "/users/{id}");
+    verify(span).setTag(DD_APPSEC_NORMALIZED_ROUTE, "/users/{id}");
   }
 
   @Test
@@ -60,7 +60,7 @@ class NormalizedRouteHelperForkedTest {
     AgentSpan span = spanWithRoute();
     NormalizedRouteHelper.tag(span, SpringRouteParser.parse("/users/{id}"), null, null);
 
-    verify(span, never()).setTag(eq(NORMALIZED_ROUTE_TAG), anyString());
+    verify(span, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), anyString());
   }
 
   @ParameterizedTest(name = "{0}")
