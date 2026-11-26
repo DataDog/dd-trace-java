@@ -1,9 +1,7 @@
 package datadog.gradle.plugin.instrument
 
 import datadog.gradle.plugin.HostPlatform
-import datadog.gradle.plugin.instrument.BuildTimeInstrumentationPlugin.Companion.BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION
 import org.gradle.api.Action
-import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileCollection
@@ -20,6 +18,7 @@ import javax.inject.Inject
 abstract class InstrumentPostProcessingAction @Inject constructor(
   javaVersion: String,
   val plugins: ListProperty<String>,
+  val pluginClassPath: FileCollection,
   val instrumentingClassPath: FileCollection,
   val compilerOutputDirectory: DirectoryProperty,
   val tmpDirectory: DirectoryProperty,
@@ -30,9 +29,6 @@ abstract class InstrumentPostProcessingAction @Inject constructor(
     BuildTimeInstrumentationPlugin.DEFAULT_JAVA_VERSION -> JavaLanguageVersion.current()
     else -> JavaLanguageVersion.of(javaVersion)
   }
-
-  @get:Inject
-  abstract val project: Project
 
   @get:Inject
   abstract val javaToolchainService: JavaToolchainService
@@ -58,7 +54,7 @@ abstract class InstrumentPostProcessingAction @Inject constructor(
     val action = this
     workQueue().submit(InstrumentAction::class) {
       buildStartedTime.set(invocationDetails.buildStartedTime)
-      pluginClassPath.from(project.configurations.named(BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION))
+      pluginClassPath.setFrom(action.pluginClassPath)
       plugins.set(action.plugins)
       instrumentingClassPath.setFrom(action.instrumentingClassPath)
       compilerOutputDirectory.set(action.compilerOutputDirectory)

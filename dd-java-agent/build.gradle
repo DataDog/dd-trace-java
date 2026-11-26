@@ -540,9 +540,10 @@ tasks.register('verifyAgentJarContents') {
   description = 'Verify the agent jar contains required entries and meets structural invariants'
 
   def jarProvider = tasks.named('shadowJar', ShadowJar).flatMap { it.archiveFile }
+  def productPrefixes = includedProductPrefixes.get()
   inputs.file(jarProvider)
   inputs.file(agentJarChecksProps)
-  inputs.property('productPrefixes', includedProductPrefixes)
+  inputs.property('productPrefixes', productPrefixes)
   outputs.file(project.layout.buildDirectory.file("tmp/${it.name}/.verified"))
 
   doLast {
@@ -605,7 +606,7 @@ tasks.register('verifyAgentJarContents') {
       .findAll { it.endsWith('.classdata') }
       .collect { it.split('/')[0] }
       .toSet()
-    includedProductPrefixes.get().each { dir ->
+    productPrefixes.each { dir ->
       if (!classdataPrefixes.contains(dir)) {
         failures.add("Product '${dir}' has no .classdata entries in the assembled jar")
       }
@@ -618,7 +619,6 @@ tasks.register('verifyAgentJarContents') {
 
     // Packages that must not appear anywhere in the jar after relocation.
     // NOTE: Hardcoded to catch accidental removal of relocate() calls in generalShadowJarConfig or in a nested shadow jar.
-    def productPrefixes = includedProductPrefixes.get()
     ['org/slf4j/', 'org/jctools/', 'net/jpountz/', 'org/objectweb/asm/', 'io/airlift/'].each { pkg ->
       def leaked = entries.keySet().findAll { entry ->
         entry.startsWith(pkg) || productPrefixes.any { prefix -> entry.startsWith("${prefix}/${pkg}") }
@@ -662,13 +662,13 @@ tasks.register('verifyAgentJarIntegrations', JavaExec) {
 
   // Capture both stdout and stderr: InstrumenterIndex.buildModule() logs ERROR and returns null when a module
   // fails to load, while the process exits with status 0.
-  def capturedOutput = new ByteArrayOutputStream()
-  def capturedError  = new ByteArrayOutputStream()
-  standardOutput = capturedOutput
-  errorOutput = capturedError
+  doFirst {
+    standardOutput = new ByteArrayOutputStream()
+    errorOutput = new ByteArrayOutputStream()
+  }
 
   doLast {
-    def stderr = capturedError.toString()
+    def stderr = errorOutput.toString()
     if (!stderr.isBlank()) {
       throw new GradleException(
       "--list-integrations produced unexpected stderr output " +
@@ -677,7 +677,7 @@ tasks.register('verifyAgentJarIntegrations', JavaExec) {
 
     def props = new Properties()
     agentJarChecksProps.withInputStream { props.load(it) }
-    def actual   = capturedOutput.toString().readLines().findAll { !it.isBlank() }.toSorted()
+    def actual   = standardOutput.toString().readLines().findAll { !it.isBlank() }.toSorted()
     def expected = props.getProperty('expected.integrations').split(',').collect { it.trim() }.toSorted()
     def added    = actual - expected
     def removed  = expected - actual
@@ -709,11 +709,12 @@ tasks.register('updateAgentJarIntegrationsGoldenFile', JavaExec) {
   classpath = objects.fileCollection().from(jarProvider)
   args = ['--list-integrations']
 
-  def capturedOutput = new ByteArrayOutputStream()
-  standardOutput = capturedOutput
+  doFirst {
+    standardOutput = new ByteArrayOutputStream()
+  }
 
   doLast {
-    def integrations = capturedOutput.toString().readLines().findAll { !it.isBlank() }.toSorted()
+    def integrations = standardOutput.toString().readLines().findAll { !it.isBlank() }.toSorted()
 
     def entryLines = integrations.withIndex().collect { name, i ->
       def prefix = (i == 0) ? 'expected.integrations = ' : '  '

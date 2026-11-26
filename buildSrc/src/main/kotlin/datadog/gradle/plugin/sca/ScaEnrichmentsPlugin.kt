@@ -30,6 +30,8 @@ class ScaEnrichmentsPlugin : Plugin<Project> {
 
   override fun apply(project: Project) {
     val outputFile = project.file("src/main/resources/sca_cves.json")
+    val refresh = project.providers.gradleProperty("refreshSca")
+    val sourceUrl = project.providers.gradleProperty("scaEnrichmentsUrl").orElse(SCA_ENRICHMENTS_API_DEFAULT)
 
     val generateTask =
       project.tasks.register("generateScaCvesJson") {
@@ -41,15 +43,14 @@ class ScaEnrichmentsPlugin : Plugin<Project> {
         group = "build"
         outputs.file(outputFile)
         // upToDateWhen: when -PrefreshSca is set, always consider outputs stale (force re-run).
-        outputs.upToDateWhen { !project.hasProperty("refreshSca") }
+        outputs.upToDateWhen { !refresh.isPresent }
         // onlyIf: skip entirely when the file already exists and no refresh was requested,
         // so that normal builds (no network, no -PrefreshSca) never touch GitHub.
-        onlyIf { project.hasProperty("refreshSca") || !outputFile.exists() }
+        onlyIf { refresh.isPresent || !outputFile.exists() }
 
         doLast {
           val token = System.getenv("GITHUB_TOKEN")
-          val apiUrl =
-            project.findProperty("scaEnrichmentsUrl")?.toString() ?: SCA_ENRICHMENTS_API_DEFAULT
+          val apiUrl = sourceUrl.get()
 
           logger.lifecycle("Fetching GHSA symbol index from $apiUrl ...")
           @Suppress("UNCHECKED_CAST")
@@ -78,8 +79,8 @@ class ScaEnrichmentsPlugin : Plugin<Project> {
         dependsOn(generateTask)
         doLast {
           // Minify only sca_cves.json — not all JSON files in the module output.
-          project
-            .fileTree(mapOf("dir" to outputs.files.asPath, "includes" to listOf("**/sca_cves.json")))
+          outputs.files.asFileTree
+            .matching { include("**/sca_cves.json") }
             .forEach { f -> f.writeText(JsonOutput.toJson(JsonSlurper().parse(f))) }
         }
       }
