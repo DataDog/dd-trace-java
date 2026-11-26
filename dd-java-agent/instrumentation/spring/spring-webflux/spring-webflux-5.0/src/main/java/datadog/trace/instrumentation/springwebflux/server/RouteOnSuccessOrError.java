@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.springwebflux.server;
 import static datadog.trace.api.KnownTags.REQUEST_PREDICATE;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
+import datadog.trace.api.appsec.route.NormalizedRouteHelper;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -77,8 +78,11 @@ public class RouteOnSuccessOrError implements Consumer<HandlerFunction<?>> {
       if (parentSpan != null) {
         final HttpMethod httpMethod = serverRequest.method();
         if (httpMethod != null) {
-          HTTP_RESOURCE_DECORATOR.withRoute(
-              parentSpan, httpMethod.name(), parseRoute(predicateString));
+          final String route = parseRoute(predicateString);
+          HTTP_RESOURCE_DECORATOR.withRoute(parentSpan, httpMethod.name(), route);
+          if (NormalizedRouteHelper.isEnabled()) {
+            WebfluxNormalizedRoute.tagFunctional(parentSpan, serverRequest, route);
+          }
         }
       }
     }
