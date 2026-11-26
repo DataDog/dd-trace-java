@@ -150,6 +150,9 @@ import org.slf4j.LoggerFactory;
 public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private static final Logger log = LoggerFactory.getLogger(CoreTracer.class);
 
+  /** Temporary development gate; remove together with the legacy Lambda path. */
+  private static final boolean NATIVE_LAMBDA_TRACING_ENABLED = false;
+
   public static CoreTracerBuilder builder() {
     return new CoreTracerBuilder();
   }
@@ -1266,16 +1269,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public boolean isAsyncPropagationEnabled() {
-    return scopeManager.isAsyncPropagationEnabled();
-  }
-
-  @Override
-  public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
-    scopeManager.setAsyncPropagationEnabled(asyncPropagationEnabled);
-  }
-
-  @Override
   public void closePrevious(boolean finishSpan) {
     if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
       throw new IllegalStateException(
@@ -1330,6 +1323,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     if (activeScope != null) {
       activeScope.close();
     }
+  }
+
+  @Override
+  public boolean isNativeLambdaTracingEnabled() {
+    return NATIVE_LAMBDA_TRACING_ENABLED;
   }
 
   @Override
@@ -2738,6 +2736,16 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       }
     }
     return result.freeze();
+  }
+
+  @Override
+  public boolean isCaptureEnabled() {
+    return scopeManager.isCaptureEnabled();
+  }
+
+  @Override
+  public void setCaptureEnabled(boolean enabled) {
+    scopeManager.setCaptureEnabled(enabled);
   }
 
   @Override

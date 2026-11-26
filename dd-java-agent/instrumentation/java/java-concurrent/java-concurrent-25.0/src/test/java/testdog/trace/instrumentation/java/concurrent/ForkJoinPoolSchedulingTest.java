@@ -5,8 +5,6 @@ import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -18,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.scopediag.ContinuationRecord;
@@ -344,16 +343,16 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
   }
 
   @Test
-  void disabledPropagationDoesNotCaptureParent() throws Exception {
+  void scheduledTaskHasNoParentWithCaptureDisabled() throws Exception {
     try (ForkJoinPool pool = new ForkJoinPool(1)) {
       AgentSpan parent = startSpan("test", "parent");
       try (ContextScope ignored = current().with(parent).attach()) {
-        boolean enabled = isAsyncPropagationEnabled();
-        setAsyncPropagationEnabled(false);
+        boolean enabled = Context.isCaptureEnabled();
+        Context.setCaptureEnabled(false);
         try {
           pool.schedule(() -> assertNull(AgentSpan.current()), 0, MILLISECONDS).get(10, SECONDS);
         } finally {
-          setAsyncPropagationEnabled(enabled);
+          Context.setCaptureEnabled(enabled);
         }
       } finally {
         parent.finish();

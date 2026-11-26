@@ -1,9 +1,6 @@
 import datadog.trace.agent.test.InstrumentationSpecification.blockUntilChildSpansFinished
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
-  setAsyncPropagationEnabled,
-  activeSpan
-}
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{activeSpan}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -16,7 +13,6 @@ class ScalaConcurrentTests {
     */
   @Trace
   def traceWithFutureAndCallbacks(): Integer = {
-    setAsyncPropagationEnabled(true)
     val goodFuture: Future[Integer] = Future {
       tracedChild("goodFuture")
       1
@@ -34,7 +30,6 @@ class ScalaConcurrentTests {
 
   @Trace
   def tracedAcrossThreadsWithNoTrace(): Integer = {
-    setAsyncPropagationEnabled(true)
     val goodFuture: Future[Integer] = Future {
       1
     }
@@ -53,7 +48,6 @@ class ScalaConcurrentTests {
     */
   @Trace
   def traceWithPromises(): Integer = {
-    setAsyncPropagationEnabled(true)
     val keptPromise   = Promise[Boolean]()
     val brokenPromise = Promise[Boolean]()
     val afterPromise  = keptPromise.future
@@ -80,7 +74,6 @@ class ScalaConcurrentTests {
     */
   @Trace
   def tracedWithFutureFirstCompletions(): Integer = {
-    setAsyncPropagationEnabled(true)
     val completedVal = Future.firstCompletedOf(
       List(
         Future {
@@ -108,7 +101,6 @@ class ScalaConcurrentTests {
     */
   @Trace
   def tracedTimeout(): Integer = {
-    setAsyncPropagationEnabled(true)
     val f: Future[String] = Future {
       tracedChild("timeoutChild")
       while (true) {

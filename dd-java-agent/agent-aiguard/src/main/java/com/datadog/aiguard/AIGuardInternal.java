@@ -14,6 +14,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.communication.http.OkHttpUtils;
+import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -565,7 +566,7 @@ public class AIGuardInternal implements Evaluator {
               .url(url)
               .method("POST", new MoshiJsonRequestBody(moshi, messages, meta));
       headers.forEach(request::header);
-      try (final Response response = executeRequest(tracer, request.build())) {
+      try (final Response response = executeRequest(request.build())) {
         final Map<String, Object> result;
         try {
           result = parseResponseBody(response);
@@ -658,15 +659,14 @@ public class AIGuardInternal implements Evaluator {
     }
   }
 
-  private Response executeRequest(final AgentTracer.TracerAPI tracer, final Request request)
-      throws IOException {
-    final boolean asyncPropagation = tracer.isAsyncPropagationEnabled();
+  private Response executeRequest(final Request request) throws IOException {
+    final boolean captureEnabled = Context.isCaptureEnabled();
     try {
       // The synchronous HTTP call must not pass its context to pool maintenance threads.
-      tracer.setAsyncPropagationEnabled(false);
+      Context.setCaptureEnabled(false);
       return client.newCall(request).execute();
     } finally {
-      tracer.setAsyncPropagationEnabled(asyncPropagation);
+      Context.setCaptureEnabled(captureEnabled);
     }
   }
 

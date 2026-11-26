@@ -1,6 +1,6 @@
 package datadog.trace.api.appsec.route;
 
-import static datadog.trace.api.appsec.route.NormalizedRouteHelper.NORMALIZED_ROUTE_TAG;
+import static datadog.trace.api.KnownTags.DD_APPSEC_NORMALIZED_ROUTE;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -44,14 +44,14 @@ class NormalizedRouteHelperTest {
   void tagsTheSpanWhenEnabled() {
     NormalizedRouteHelper.tag(true, span, SpringRouteParser.parse("/users/{id}"), null, null);
 
-    verify(span).setTag(NORMALIZED_ROUTE_TAG, "/users/{id}");
+    verify(span).setTag(DD_APPSEC_NORMALIZED_ROUTE, "/users/{id}");
   }
 
   @Test
   void includesTheDecodedPrefix() {
     NormalizedRouteHelper.tag(true, span, SpringRouteParser.parse("/users/{id}"), "/ctx", null);
 
-    verify(span).setTag(NORMALIZED_ROUTE_TAG, "/ctx/users/{id}");
+    verify(span).setTag(DD_APPSEC_NORMALIZED_ROUTE, "/ctx/users/{id}");
   }
 
   @Test
@@ -74,21 +74,21 @@ class NormalizedRouteHelperTest {
 
     NormalizedRouteHelper.tag(true, noRoute, SpringRouteParser.parse("/users/{id}"), null, null);
 
-    verify(noRoute, never()).setTag(eq(NORMALIZED_ROUTE_TAG), anyString());
+    verify(noRoute, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), anyString());
   }
 
   @Test
   void noTagForNotExpressibleTemplate() {
     NormalizedRouteHelper.tag(true, span, RouteTemplate.NOT_EXPRESSIBLE, "/ctx", null);
 
-    verify(span, never()).setTag(eq(NORMALIZED_ROUTE_TAG), anyString());
+    verify(span, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), anyString());
   }
 
   @Test
   void noTagForUnparseableRoute() {
     NormalizedRouteHelper.tag(true, span, SpringRouteParser.parse("/a/{b"), "/ctx", null);
 
-    verify(span, never()).setTag(eq(NORMALIZED_ROUTE_TAG), anyString());
+    verify(span, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), anyString());
   }
 
   @Test
@@ -102,7 +102,7 @@ class NormalizedRouteHelperTest {
     NormalizedRouteHelper.tag(
         true, span, SpringRouteParser.parse("/files/{*path}"), null, THROWING);
 
-    verify(span, never()).setTag(eq(NORMALIZED_ROUTE_TAG), anyString());
+    verify(span, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), anyString());
   }
 
   @Test
@@ -111,7 +111,7 @@ class NormalizedRouteHelperTest {
 
     assertDoesNotThrow(() ->
         NormalizedRouteHelper.tag(true, span, SpringRouteParser.parse("/users/{id}"), null, null));
-    verify(span, never()).setTag(eq(NORMALIZED_ROUTE_TAG), anyString());
+    verify(span, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), anyString());
   }
 
   @Test
@@ -120,7 +120,7 @@ class NormalizedRouteHelperTest {
 
     NormalizedRouteHelper.tag(true, span, SpringRouteParser.parse("/users/{id}"), null, null);
 
-    verify(span).setTag(NORMALIZED_ROUTE_TAG, "/users/{id}");
+    verify(span).setTag(DD_APPSEC_NORMALIZED_ROUTE, "/users/{id}");
   }
 
   @Test
