@@ -12,7 +12,8 @@ public interface TimeoutChecker {
   /**
    * Wall-clock mode compensating JVM pauses detected by {@link PauseDetector}. Falls back to {@link
    * #WALL} on Windows, where the coarse timer resolution (~15.6ms) makes almost every detector
-   * sleep look like a pause, or when the detector thread cannot be started.
+   * sleep look like a pause, or when the detector is not started (see {@link
+   * #startPauseDetectorIfEnabled(Config)}).
    */
   String WALL_PAUSE_DETECTOR = "WALL-PAUSE-DETECTOR";
 
@@ -25,14 +26,25 @@ public interface TimeoutChecker {
     if (CPU.equals(mode)) {
       return new CpuTimeoutChecker(timeout);
     }
-    if (WALL_PAUSE_DETECTOR.equals(mode) && !OperatingSystem.isWindows()) {
-      try {
-        return new WallTimeoutChecker(timeout, PauseDetector.get());
-      } catch (Throwable t) {
-        // the detector thread could not be started (e.g. no more native threads): its class
-        // initialization failed, fall back to the uncompensated wall-clock checker
+    if (WALL_PAUSE_DETECTOR.equals(mode)) {
+      // null when the detector is not started (Windows, start failure, not initialized yet)
+      PauseDetector pauseDetector = PauseDetector.get();
+      if (pauseDetector != null) {
+        return new WallTimeoutChecker(timeout, pauseDetector);
       }
     }
     return new WallTimeoutChecker(timeout);
+  }
+
+  /**
+   * Starts the shared {@link PauseDetector} when the {@link #WALL_PAUSE_DETECTOR} mode is
+   * configured. Must be called from an agent thread so the detector thread does not inherit
+   * application thread locals.
+   */
+  static void startPauseDetectorIfEnabled(Config config) {
+    if (WALL_PAUSE_DETECTOR.equals(config.getDynamicInstrumentationTimeoutCheckerMode())
+        && !OperatingSystem.isWindows()) {
+      PauseDetector.start();
+    }
   }
 }

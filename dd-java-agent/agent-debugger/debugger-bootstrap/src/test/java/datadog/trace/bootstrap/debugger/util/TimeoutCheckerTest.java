@@ -162,9 +162,10 @@ public class TimeoutCheckerTest {
     assertFalse(((WallTimeoutChecker) wall).isCompensatingPauses());
     when(config.getDynamicInstrumentationTimeoutCheckerMode())
         .thenReturn(TimeoutChecker.WALL_PAUSE_DETECTOR);
+    TimeoutChecker.startPauseDetectorIfEnabled(config);
     TimeoutChecker wallPauseDetector = TimeoutChecker.create(config, Duration.ofMillis(50));
     assertInstanceOf(WallTimeoutChecker.class, wallPauseDetector);
-    // pause detector is disabled on Windows because of the coarse timer resolution
+    // pause detector is not started on Windows because of the coarse timer resolution
     assertEquals(
         !OperatingSystem.isWindows(),
         ((WallTimeoutChecker) wallPauseDetector).isCompensatingPauses());
