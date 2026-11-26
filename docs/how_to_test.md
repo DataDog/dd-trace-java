@@ -59,6 +59,21 @@ This mechanism exists to make sure either java agent state or static data are re
 > Forked tests are not run as part of the gradle `test` task.
 > In order to run them, you need to use the `forkedTest` task instead.
 
+Gradle can run up to four test JVMs per forked task by default. Give each fork its own writable
+files and directories. For example, the Liberty tests copy the server template into a temporary
+directory before changing `server.xml` so concurrent forks cannot overwrite each other's settings.
+
+For a serial comparison when debugging, set `-Pforked.test.max.parallel.forks=1`. Modules that apply
+the Testcontainers convention use `-Ptestcontainers.max.parallel.forks=1` to override the general
+limit. Set both properties to run one JVM at a time within each forked task across both kinds of
+modules. Use `--rerun` to execute the selected task again even if its previous results are up to date
+or available from the build cache.
+
+```shell
+./gradlew :path:to:module:forkedTest --rerun \
+  -Pforked.test.max.parallel.forks=1 -Ptestcontainers.max.parallel.forks=1
+```
+
 ### Flaky Tests
 
 Mark unreliable test methods or classes with `@Flaky` in both JUnit and Spock.

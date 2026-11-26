@@ -4308,6 +4308,14 @@
         "aliases": []
       }
     ],
+    "DD_TEST_OPTIMIZATION_RUNTIME_TAGS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_TEST_SESSION_NAME": [
       {
         "version": "A",

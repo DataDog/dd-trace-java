@@ -1,6 +1,7 @@
 package datadog.trace.agent.test.base
 
 
+import datadog.appsec.api.blocking.BlockingContentType
 import datadog.trace.agent.test.asserts.TagsAssert
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
@@ -1146,6 +1147,8 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
       boolean hasAppSecData
       List<HttpClientRequest> requests = []
       List<HttpClientResponse> responses = []
+      /** When set, a downstream request whose URL ends with this suffix is blocked. */
+      String blockRequestUrlSuffix
     }
 
     final BiFunction<RequestContext, Long, Flow<Boolean>> httpClientBodySamplingCb = {
@@ -1161,8 +1164,26 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
         context.hasAppSecData = true
         context.requests.add(req)
       }
+      if (context?.blockRequestUrlSuffix != null && req.url?.endsWith(context.blockRequestUrlSuffix)) {
+        return blockingFlow()
+      }
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, HttpClientRequest, Flow<Void>>
+
+    private static Flow<Void> blockingFlow() {
+      final action = new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO)
+      return new Flow<Void>() {
+        @Override
+        Flow.Action getAction() {
+          action
+        }
+
+        @Override
+        Void getResult() {
+          null
+        }
+      }
+    }
 
     final BiFunction<RequestContext, HttpClientResponse, Flow<Void>> httpClientResponseCb = {
       RequestContext rqCtxt, HttpClientResponse res ->

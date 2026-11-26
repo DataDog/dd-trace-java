@@ -2,6 +2,7 @@ package com.datadog.debugger.sink;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,9 @@ public class IntakeBatchHelper {
   private IntakeBatchHelper() {}
 
   public static List<byte[]> createBatches(List<String> payloads) {
+    if (payloads.isEmpty()) {
+      return Collections.emptyList();
+    }
     List<byte[]> batches = new ArrayList<>();
     int start = 0;
     int count = payloads.size();

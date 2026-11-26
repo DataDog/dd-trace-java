@@ -8,20 +8,31 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 import datadog.context.Context;
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.Pair;
+import datadog.trace.api.appsec.route.BoundValuesPresenceResolver;
+import datadog.trace.api.appsec.route.NormalizedRouteHelper;
+import datadog.trace.api.appsec.route.RouteTemplate;
+import datadog.trace.api.appsec.route.ServletMountPrefix;
+import datadog.trace.api.appsec.route.SpringRouteParser;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.Servlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.lang.reflect.Method;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.server.RequestPath;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.HttpRequestHandler;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.Controller;
+import org.springframework.web.util.ServletRequestPathUtils;
 
 public class SpringWebHttpServerDecorator
     extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse, Void> {
@@ -41,6 +52,12 @@ public class SpringWebHttpServerDecorator
 
   public static final String DD_HANDLER_SPAN_PREFIX_KEY = "dd.handler.span.";
   public static final String DD_HANDLER_SPAN_CONTINUE_SUFFIX = ".continue";
+
+  /** Lookup path cached by Spring's {@code UrlPathHelper} (absent in PathPatternParser mode). */
+  private static final String URL_PATH_HELPER_PATH_ATTRIBUTE =
+      "org.springframework.web.util.UrlPathHelper.PATH";
+
+  private static final Logger log = LoggerFactory.getLogger(SpringWebHttpServerDecorator.class);
 
   private static final ClassValue<Pair<String, String>> HANDLER_SPAN_KEYS =
       GenericClassValue.of(type -> {
@@ -131,9 +148,139 @@ public class SpringWebHttpServerDecorator
           request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
       if (method != null && bestMatchingPattern != null && !bestMatchingPattern.equals("/**")) {
         request.setAttribute(DD_FILTERED_SPRING_ROUTE_ALREADY_APPLIED, true);
-        HTTP_RESOURCE_DECORATOR.withRoute(span, method, bestMatchingPattern.toString());
+        final String pattern = bestMatchingPattern.toString();
+        HTTP_RESOURCE_DECORATOR.withRoute(span, method, pattern);
+        if (NormalizedRouteHelper.isEnabled()) {
+          tagNormalizedRoute(span, request, pattern);
+        }
       }
     }
+  }
+
+  /**
+   * Sets {@code _dd.appsec.normalized_route} from the matched pattern, under the mount prefix
+   * served before Spring's lookup path (see {@link ServletMountPrefix}). During an include the
+   * request values come from the {@code jakarta.servlet.include.*} attributes, as Spring's {@code
+   * UrlPathHelper} reads them.
+   */
+  static void tagNormalizedRoute(
+      final AgentSpan span, final HttpServletRequest request, final String pattern) {
+    try {
+      final RouteTemplate template = SpringRouteParser.cached(pattern);
+      if (!template.isExpressible()) {
+        return;
+      }
+      final boolean include = request.getAttribute(RequestDispatcher.INCLUDE_REQUEST_URI) != null;
+      final String requestUri =
+          include
+              ? (String) request.getAttribute(RequestDispatcher.INCLUDE_REQUEST_URI)
+              : request.getRequestURI();
+      final String contextPath =
+          include
+              ? includeOr(request, RequestDispatcher.INCLUDE_CONTEXT_PATH, request.getContextPath())
+              : request.getContextPath();
+      final String servletPath =
+          include
+              ? includeOr(request, RequestDispatcher.INCLUDE_SERVLET_PATH, request.getServletPath())
+              : request.getServletPath();
+      final String pathInfo =
+          include
+              ? (String) request.getAttribute(RequestDispatcher.INCLUDE_PATH_INFO)
+              : request.getPathInfo();
+      final String cachedLookupPath = cachedLookupPath(request);
+      String prefix =
+          ServletMountPrefix.inferred(
+              requestUri,
+              contextPath,
+              servletPath,
+              cachedLookupPath,
+              request.getCharacterEncoding());
+      final RequestPath requestPath = cachedLookupPath == null ? parsedRequestPath(request) : null;
+      final String parsedLookupPath =
+          requestPath == null ? null : requestPath.pathWithinApplication().value();
+      if (prefix == null && parsedLookupPath != null) {
+        // what Spring excluded from the path it matched: context path and servlet mount
+        prefix = ServletMountPrefix.parsed(requestPath.value(), parsedLookupPath);
+      }
+      if (prefix == null) {
+        prefix = ServletMountPrefix.fallback(contextPath, servletPath, pathInfo != null);
+      }
+      if (template.staticRoute() != null) {
+        // nothing depends on the request: no presence to resolve
+        NormalizedRouteHelper.tag(span, template, prefix, null);
+        return;
+      }
+      String lookupPath = cachedLookupPath;
+      boolean rawLookupPath = false;
+      if (lookupPath == null && parsedLookupPath != null) {
+        lookupPath = parsedLookupPath;
+        rawLookupPath = true;
+      }
+      if (lookupPath == null) {
+        // the path the pattern matched when Spring did not cache nor parse it
+        lookupPath = pathInfo != null ? pathInfo : servletPath;
+      }
+      // extracted from the untouched lookup path: the segment positions are the matched ones
+      final String extracted = unnamedCatchAllRemainder(template, pattern, lookupPath);
+      final String remainder = rawLookupPath ? matchedValue(extracted) : extracted;
+      NormalizedRouteHelper.tag(
+          span,
+          template,
+          prefix,
+          BoundValuesPresenceResolver.fromRaw(
+              template,
+              request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE),
+              remainder,
+              lookupPath != null
+                  && (lookupPath.endsWith("/")
+                      // a raw remainder made only of ';' content followed a '/'
+                      || (remainder != null && remainder.isEmpty() && !extracted.isEmpty()))));
+    } catch (final Throwable t) {
+      // never break the request: drop the tag
+      log.debug("Failed to compute the normalized route", t);
+    }
+  }
+
+  private static String includeOr(
+      final HttpServletRequest request, final String attribute, final String value) {
+    final Object included = request.getAttribute(attribute);
+    return included instanceof String ? (String) included : value;
+  }
+
+  /** Lookup path cached by Spring's {@code UrlPathHelper}, or null (PathPatternParser mode). */
+  private static String cachedLookupPath(final HttpServletRequest request) {
+    final Object lookupPath = request.getAttribute(URL_PATH_HELPER_PATH_ATTRIBUTE);
+    return lookupPath instanceof String ? (String) lookupPath : null;
+  }
+
+  /** Request path parsed by Spring for PathPatternParser mode, or null when not parsed. */
+  private static RequestPath parsedRequestPath(final HttpServletRequest request) {
+    final Object requestPath = request.getAttribute(ServletRequestPathUtils.PATH_ATTRIBUTE);
+    return requestPath instanceof RequestPath ? (RequestPath) requestPath : null;
+  }
+
+  /** Part matched by a trailing {@code **}, computed by Spring's own matcher; null if not used. */
+  private static String unnamedCatchAllRemainder(
+      final RouteTemplate template, final String pattern, final String lookupPath) {
+    if (lookupPath == null || !template.needsUnnamedCatchAllRemainder()) {
+      return null;
+    }
+    return PathMatcherHolder.PATH_MATCHER.extractPathWithinPattern(pattern, lookupPath);
+  }
+
+  /**
+   * Value Spring matched for a remainder of the raw parsed request path: the {@code ;} content of
+   * each segment removed, then decoded. Same instance when there is no {@code ;} nor {@code %}.
+   */
+  private static String matchedValue(final String rawRemainder) {
+    return rawRemainder == null
+        ? null
+        : NormalizedRouteHelper.decodePath(ServletMountPrefix.removeSemicolonContent(rawRemainder));
+  }
+
+  /** Defers loading {@link AntPathMatcher} until a trailing {@code **} needs it. */
+  private static final class PathMatcherHolder {
+    static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
   }
 
   public void onHandle(final AgentSpan span, final Object handler) {

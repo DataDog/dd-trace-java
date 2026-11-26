@@ -28,7 +28,9 @@ public final class DispatcherServletInstrumentation extends InstrumenterModule.T
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SpringWebHttpServerDecorator", packageName + ".ServletRequestURIAdapter",
+      packageName + ".SpringWebHttpServerDecorator",
+      packageName + ".SpringWebHttpServerDecorator$PathMatcherHolder",
+      packageName + ".ServletRequestURIAdapter",
     };
   }
 

@@ -73,7 +73,6 @@ public class CompletableFutureCallbackBenchmark {
     AgentSpan checkSpan = AgentTracer.startSpan("benchmark", "callback.preflight");
     require(checkSpan != AgentTracer.noopSpan(), "Tracer returned a noop span");
     try (ContextScope ignored = AgentTracer.activateSpan(checkSpan)) {
-      AgentTracer.setAsyncPropagationEnabled(true);
       verify(new Ordinary(), checkSpan, false, false);
       verify(new Excluded(), checkSpan, patched, false);
       verify(new Ordinary(), checkSpan, false, true);
@@ -113,7 +112,6 @@ public class CompletableFutureCallbackBenchmark {
   public void setupIteration() {
     span = AgentTracer.startSpan("benchmark", "callback.iteration");
     registrationScope = AgentTracer.activateSpan(span);
-    AgentTracer.setAsyncPropagationEnabled(true);
     operations = 0;
     callback.calls = 0;
     callback.total = 0;

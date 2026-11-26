@@ -133,6 +133,7 @@ span_types:
       - { dd-name: url.path,          type: string, required: conditional }  # OTel-only; server replacement for http.url
       - { dd-name: url.scheme,        type: string, required: conditional }  # OTel-only; server replacement for http.url
       - { dd-name: http.query.string, type: string, required: recommended }
+      - { dd-name: _dd.appsec.normalized_route, type: string, required: optional }  # API Security route template (RFC-1125), when AppSec and API Security are enabled
       - { dd-name: url.query,         type: string, required: conditional }  # OTel-only; kept separate from http.query.string
       - { dd-name: http.client_ip,    type: string, required: recommended, otel-name: client.address, span-kind-neutral: true }
       # Inbound only: the client's socket address. Server spans also carry that address in peer.ipv4 /

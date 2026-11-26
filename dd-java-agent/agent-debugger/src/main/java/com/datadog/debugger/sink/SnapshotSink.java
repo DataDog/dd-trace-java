@@ -4,11 +4,13 @@ import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.ExceptionHelper;
 import com.datadog.debugger.util.SnapshotPruner;
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.TagsHelper;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -25,6 +27,7 @@ import org.slf4j.LoggerFactory;
  */
 public class SnapshotSink {
   private static final Logger LOGGER = LoggerFactory.getLogger(SnapshotSink.class);
+  private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
   public static final int MAX_SNAPSHOT_SIZE = 1024 * 1024;
   public static final int LOW_RATE_CAPACITY = 1024;
   static final int HIGH_RATE_MIN_FLUSH_INTERVAL_MS = 1;
@@ -52,6 +55,10 @@ public class SnapshotSink {
   private final AgentTaskScheduler highRateScheduler =
       new AgentTaskScheduler(AgentThreadFactory.AgentThread.DEBUGGER_SNAPSHOT_SERIALIZER);
   private final AtomicBoolean started = new AtomicBoolean();
+  private final RatelimitedLogger ratelimitedLogger =
+      new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
+  private final RatelimitedLogger highRateFlushErrorLogger =
+      new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
   private volatile AgentTaskScheduler.Scheduled<SnapshotSink> highRateScheduled;
   private volatile long currentHighRateFlushInterval = HIGH_RATE_MAX_FLUSH_INTERVAL_MS;
 
@@ -83,24 +90,31 @@ public class SnapshotSink {
   }
 
   public void lowRateFlush(String tags) {
-    List<String> snapshots = getSerializedSnapshots(lowRateSnapshots, batchSize);
-    if (snapshots.isEmpty()) {
-      return;
+    try {
+      List<String> snapshots = getSerializedSnapshots(lowRateSnapshots, batchSize);
+      if (!snapshots.isEmpty()) {
+        uploadPayloads(lowRateUploader, snapshots, tags);
+      }
+    } catch (Exception e) {
+      ratelimitedLogger.warn("Error during snapshot flush", e);
     }
-    uploadPayloads(lowRateUploader, snapshots, tags);
   }
 
   public void highRateFlush(SnapshotSink ignored) {
-    do {
-      List<String> snapshots = getSerializedSnapshots(highRateSnapshots, HIGH_RATE_CAPACITY);
-      if (snapshots.isEmpty()) {
-        backOffHighRateFlush();
-        return;
-      }
-      int count = snapshots.size();
-      reconsiderHighRateFlushInterval(count);
-      uploadPayloads(highRateUploader, snapshots, tags);
-    } while (!highRateSnapshots.isEmpty());
+    try {
+      do {
+        List<String> snapshots = getSerializedSnapshots(highRateSnapshots, HIGH_RATE_CAPACITY);
+        if (snapshots.isEmpty()) {
+          backOffHighRateFlush();
+          return;
+        }
+        int count = snapshots.size();
+        reconsiderHighRateFlushInterval(count);
+        uploadPayloads(highRateUploader, snapshots, tags);
+      } while (!highRateSnapshots.isEmpty());
+    } catch (Exception e) {
+      highRateFlushErrorLogger.warn("Error during high rate snapshot flush", e);
+    }
   }
 
   public HttpUrl getUrl() {
@@ -169,6 +183,9 @@ public class SnapshotSink {
   }
 
   private List<String> getSerializedSnapshots(BlockingQueue<Snapshot> queue, int localBatchSize) {
+    if (queue.isEmpty()) {
+      return Collections.emptyList();
+    }
     List<Snapshot> snapshots = new ArrayList<>();
     if (queue.remainingCapacity() == 0) {
       localBatchSize = queue.size();

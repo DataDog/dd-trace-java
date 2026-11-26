@@ -28,6 +28,7 @@ import reactor.core.publisher.Mono
 import static datadog.trace.agent.test.base.HttpServerTest.websocketCloseSpan
 import static datadog.trace.agent.test.base.HttpServerTest.websocketReceiveSpan
 import static datadog.trace.agent.test.base.HttpServerTest.websocketSendSpan
+import static datadog.trace.api.appsec.route.NormalizedRouteHelper.NORMALIZED_ROUTE_TAG
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
 classes = [SpringWebFluxTestApplication, ForceNettyAutoConfiguration],
@@ -89,6 +90,7 @@ class SpringWebfluxTest extends InstrumentationSpecification {
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
             "$Tags.HTTP_ROUTE" "$urlPathWithVariables"
+            "$NORMALIZED_ROUTE_TAG" "$urlPathWithVariables"
             defaultTags(true)
           }
         }
@@ -171,6 +173,7 @@ class SpringWebfluxTest extends InstrumentationSpecification {
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
             "$Tags.HTTP_ROUTE" "$urlPathWithVariables"
+            "$NORMALIZED_ROUTE_TAG" "$urlPathWithVariables"
             defaultTags(true)
           }
         }
@@ -372,6 +375,7 @@ class SpringWebfluxTest extends InstrumentationSpecification {
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
             "$Tags.HTTP_ROUTE" "/echo"
+            "$NORMALIZED_ROUTE_TAG" "/echo"
             defaultTags(true)
           }
         }
@@ -439,6 +443,7 @@ class SpringWebfluxTest extends InstrumentationSpecification {
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
             "$Tags.HTTP_ROUTE" "$urlPathWithVariables"
+            "$NORMALIZED_ROUTE_TAG" "$urlPathWithVariables"
             defaultTags(true)
           }
         }
@@ -530,6 +535,7 @@ class SpringWebfluxTest extends InstrumentationSpecification {
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
             "$Tags.HTTP_ROUTE" "/double-greet-redirect"
+            "$NORMALIZED_ROUTE_TAG" "/double-greet-redirect"
             defaultTags(true)
           }
         }
@@ -576,6 +582,7 @@ class SpringWebfluxTest extends InstrumentationSpecification {
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
             "$Tags.HTTP_ROUTE" "/double-greet"
+            "$NORMALIZED_ROUTE_TAG" "/double-greet"
             defaultTags(true)
           }
         }
@@ -636,6 +643,7 @@ class SpringWebfluxTest extends InstrumentationSpecification {
               "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
               "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
               "$Tags.HTTP_ROUTE" "$urlPathWithVariables"
+              "$NORMALIZED_ROUTE_TAG" "$urlPathWithVariables"
               defaultTags(true)
             }
           }
@@ -714,6 +722,7 @@ class SpringWebfluxTest extends InstrumentationSpecification {
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
             "$Tags.HTTP_ROUTE" "/websocket"
+            "$NORMALIZED_ROUTE_TAG" "/websocket"
             defaultTags()
           }
         }
