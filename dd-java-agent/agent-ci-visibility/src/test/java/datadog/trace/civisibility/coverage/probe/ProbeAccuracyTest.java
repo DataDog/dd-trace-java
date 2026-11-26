@@ -15,6 +15,7 @@ import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.IntStream;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -22,6 +23,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * Runs each scenario twice, once under the line probes and once under {@link ReferenceLines}, and
  * expects the same lines and the same outcome.
  */
+@ExtendWith(NoDroppedEntries.class)
 class ProbeAccuracyTest {
 
   private static final String FIXTURES = CoverageFixture.class.getPackage().getName() + ".";

@@ -2,6 +2,7 @@ package datadog.trace.api.civisibility.coverage;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
+import datadog.environment.SystemProperties;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.api.civisibility.domain.TestContext;
@@ -37,6 +38,13 @@ public final class ProbeRecorder {
 
   /** Upper bound on instrumented classes per process; classes beyond it are not instrumented. */
   public static final int MAX_CLASSES = 1 << 16;
+
+  /** Names a directory that each process writes counts of the probe collector's work to at exit. */
+  public static final String STATS_DIRECTORY_PROPERTY =
+      "dd.civisibility.experiment.patcher.stats.dir";
+
+  /** Whether threads count the methods they start with no window open. */
+  static final boolean COUNTING_ENTRIES = SystemProperties.get(STATS_DIRECTORY_PROPERTY) != null;
 
   /** Probe arrays of class initializers, indexed by class id. */
   public static final boolean[][] PROBES = new boolean[MAX_CLASSES][];
@@ -119,6 +127,8 @@ public final class ProbeRecorder {
   private static ThreadProbes primary;
   private static ThreadProbes[] registered = new ThreadProbes[64];
   private static int registeredCount;
+  private static long droppedEntriesOfRemovedThreads;
+  private static long noWindowEntriesOfRemovedThreads;
 
   /**
    * The primary thread while a window is open on it, else null. Read without a lock: a thread can
@@ -148,6 +158,34 @@ public final class ProbeRecorder {
 
   public static int getClassCount() {
     return Math.min(NEXT_CLASS_ID.get(), MAX_CLASSES);
+  }
+
+  /**
+   * Methods that code inside a thread's move of its hits started, and whose hits were dropped (see
+   * {@link ThreadProbes}). Exact for threads that are not running.
+   */
+  public static long getDroppedEntryCount() {
+    synchronized (LOCK) {
+      long count = droppedEntriesOfRemovedThreads;
+      for (int i = 0; i < registeredCount; i++) {
+        count += registered[i].droppedEntries();
+      }
+      return count;
+    }
+  }
+
+  /**
+   * Methods that threads started with no window open, which look up their owner; counted only if
+   * {@link #STATS_DIRECTORY_PROPERTY} is set. Exact for threads that are not running.
+   */
+  public static long getNoWindowEntryCount() {
+    synchronized (LOCK) {
+      long count = noWindowEntriesOfRemovedThreads;
+      for (int i = 0; i < registeredCount; i++) {
+        count += registered[i].noWindowEntries();
+      }
+      return count;
+    }
   }
 
   /**
@@ -401,6 +439,8 @@ public final class ProbeRecorder {
           if (candidate.isThreadAlive()) {
             registered[kept++] = candidate;
           } else {
+            droppedEntriesOfRemovedThreads += candidate.droppedEntries();
+            noWindowEntriesOfRemovedThreads += candidate.noWindowEntries();
             if (dead == null) {
               dead = new ThreadProbes[registeredCount];
             }

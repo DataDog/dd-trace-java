@@ -2,6 +2,7 @@ package datadog.trace.civisibility.coverage.probe;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import datadog.trace.api.civisibility.coverage.ProbeRecorder;
 import datadog.trace.util.PidHelper;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -15,13 +16,14 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Counts how the transformer handled each class: patched, left without probes, or left to ASM and
- * why. The counts are written to a file named after the process id when the JVM exits. Off unless
- * {@code dd.civisibility.experiment.patcher.stats.dir} names a directory.
+ * why, and what {@link ProbeRecorder} counted. The counts are written to a file named after the
+ * process id when the JVM exits. Off unless {@link ProbeRecorder#STATS_DIRECTORY_PROPERTY} names a
+ * directory.
  */
 final class PatcherStats {
 
   private static final String DIRECTORY =
-      System.getProperty("dd.civisibility.experiment.patcher.stats.dir");
+      System.getProperty(ProbeRecorder.STATS_DIRECTORY_PROPERTY);
 
   private static final Map<String, AtomicLong> COUNTS = new ConcurrentHashMap<>();
 
@@ -50,6 +52,11 @@ final class PatcherStats {
       for (Map.Entry<String, AtomicLong> entry : new TreeMap<>(COUNTS).entrySet()) {
         writer.write(entry.getValue().get() + "\t" + entry.getKey() + "\n");
       }
+      writer.write(
+          ProbeRecorder.getDroppedEntryCount() + "\tprobes: methods started inside a move\n");
+      writer.write(
+          ProbeRecorder.getNoWindowEntryCount()
+              + "\tprobes: methods started with no window open\n");
     } catch (IOException e) {
       // nothing to report to
     }

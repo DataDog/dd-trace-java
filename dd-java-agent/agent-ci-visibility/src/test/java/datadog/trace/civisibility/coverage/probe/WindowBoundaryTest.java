@@ -15,12 +15,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * A method that keeps running while windows open and close keeps the owner it started with: its
  * lines go to that owner, or to Shared once that owner's window has reported. The methods it calls
  * after a change start with the owner after the change.
  */
+@ExtendWith(NoDroppedEntries.class)
 class WindowBoundaryTest {
 
   private static final String WORKLOAD = WindowSpanningWorkload.class.getName();

@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * On a thread with a window open, the code that a scope runs under another test's context belongs
@@ -41,6 +42,7 @@ import org.junit.jupiter.api.Test;
  * the window's own test, or under no test's context, leaves the code to the window. A thread is
  * handed the owner that the code of its creator has when it is created.
  */
+@ExtendWith(NoDroppedEntries.class)
 class ProbeScopeTest {
 
   /** Reference lines of each worker run alone. */

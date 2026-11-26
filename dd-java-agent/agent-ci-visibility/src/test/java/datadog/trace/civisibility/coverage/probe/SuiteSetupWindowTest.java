@@ -18,12 +18,14 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * A suite's setup, up to the start of its first child, is credited to every test in the suite,
  * nested suites included, and to the suite setup part of Shared; what the suite runs after its
  * first child started is not, and goes to the unowned part.
  */
+@ExtendWith(NoDroppedEntries.class)
 class SuiteSetupWindowTest {
 
   /** Reference lines of each worker run alone. */

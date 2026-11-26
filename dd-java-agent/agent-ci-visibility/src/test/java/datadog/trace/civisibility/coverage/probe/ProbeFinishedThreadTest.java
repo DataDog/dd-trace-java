@@ -16,11 +16,13 @@ import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * The recorder keeps what a thread hit after the thread ends, but not the thread: a finished thread
  * and its task can be collected, and the lines the thread ran still go to the test it ran them for.
  */
+@ExtendWith(NoDroppedEntries.class)
 class ProbeFinishedThreadTest {
 
   @Test

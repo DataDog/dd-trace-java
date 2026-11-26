@@ -25,6 +25,11 @@ import javax.annotation.Nullable;
  * #IDLE_CHANGES} changes without a store into it, or {@value #IDLE_CHANGES_AFTER_LATE_STORE} once a
  * method stored into it after a change; a method that stores into a dropped array loses those
  * lines.
+ *
+ * <p>Code that runs inside a move on the moving thread, such as a mocking library's advice in the
+ * JDK collections the move uses, does not change the owner. A method it starts takes the array
+ * handed out for its class if the move has not reached it yet, and otherwise an array that nothing
+ * reads: those hits are dropped, and counted.
  */
 final class ThreadProbes {
 
@@ -46,6 +51,24 @@ final class ThreadProbes {
    * so that they cannot call the lookup again without end.
    */
   private boolean findingOwner;
+
+  /**
+   * Whether the arrays are being moved to their owners. Guarded by this, so only the moving thread
+   * sees it set.
+   */
+  private boolean moving;
+
+  /**
+   * Methods started inside a move that got an array nothing reads. Written under the lock, read
+   * without it at exit.
+   */
+  private long droppedEntries;
+
+  /**
+   * Methods started with no window open, when {@link ProbeRecorder#COUNTING_ENTRIES}. Written by
+   * the thread, read without the lock at exit.
+   */
+  private long noWindowEntries;
 
   /**
    * The arrays handed out since the last change, by class id. The thread reads it without the lock:
@@ -108,6 +131,9 @@ final class ThreadProbes {
   /** The thread's array for a class. Called by the thread at method entry. */
   boolean[] take(int classId) {
     if (innermost == null && !findingOwner) {
+      if (ProbeRecorder.COUNTING_ENTRIES) {
+        noWindowEntries++;
+      }
       findOwner();
     }
     boolean[][] handedOut = table;
@@ -158,6 +184,11 @@ final class ThreadProbes {
 
   /** Allocates the thread's array for a class, if it has none since the last change. */
   private synchronized boolean[] handOut(int classId) {
+    if (moving) {
+      // code the move runs: handing out would change the lists being moved
+      droppedEntries++;
+      return ProbeRecorder.PROBES[classId];
+    }
     boolean[][] handedOut = table;
     if (classId >= handedOut.length) {
       handedOut = Arrays.copyOf(handedOut, Math.max(classId + 1, handedOut.length * 2));
@@ -193,6 +224,14 @@ final class ThreadProbes {
     return primary;
   }
 
+  long droppedEntries() {
+    return droppedEntries;
+  }
+
+  long noWindowEntries() {
+    return noWindowEntries;
+  }
+
   /** Whether a window is open on the thread. Called by the thread. */
   boolean hasOpenWindow() {
     return innermost != null;
@@ -212,8 +251,8 @@ final class ThreadProbes {
 
   private synchronized void followScope(CoverageWindow window) {
     CoverageWindow current = innermost;
-    if (current == null) {
-      // take() follows the context
+    if (current == null || moving) {
+      // take() follows the context; code the move runs keeps the owner
       return;
     }
     CoverageWindow next;
@@ -242,7 +281,7 @@ final class ThreadProbes {
   }
 
   private synchronized void endScopeOwner() {
-    if (!ownerFromScope) {
+    if (!ownerFromScope || moving) {
       return;
     }
     ownerFromScope = false;
@@ -253,7 +292,7 @@ final class ThreadProbes {
   }
 
   private synchronized void followContext(@Nullable CoverageWindow window) {
-    if (innermost != null || window == owner) {
+    if (innermost != null || window == owner || moving) {
       return;
     }
     if (window != null && !window.addOtherThread(this)) {
@@ -373,6 +412,16 @@ final class ThreadProbes {
 
   /** Moves what the arrays handed out before the last change hold. Holds the lock. */
   private void moveRetiredHits() {
+    boolean outerMove = moving;
+    moving = true;
+    try {
+      moveRetiredHitsWhileMoving();
+    } finally {
+      moving = outerMove;
+    }
+  }
+
+  private void moveRetiredHitsWhileMoving() {
     int kept = 0;
     for (int i = 0; i < retiredCount; i++) {
       int classId = retiredClassIds[i];
@@ -414,6 +463,16 @@ final class ThreadProbes {
    * starts from now on take new arrays. Holds the lock.
    */
   private void moveHandedHits() {
+    boolean outerMove = moving;
+    moving = true;
+    try {
+      moveHandedHitsWhileMoving();
+    } finally {
+      moving = outerMove;
+    }
+  }
+
+  private void moveHandedHitsWhileMoving() {
     CoverageWindow target = owner;
     List<CoverageWindow.ClassHits> windowHits = null;
     boolean[][] handedOut = table;

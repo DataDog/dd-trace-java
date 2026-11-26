@@ -27,12 +27,14 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * On a thread with no window open, finding the owner from the context can run code that has probes,
  * as a mocking library's advice in JDK classes does. That code does not look up the owner again,
  * and its lines go to the owner the thread had before the lookup, or to Shared if it had none.
  */
+@ExtendWith(NoDroppedEntries.class)
 class ProbeOwnerLookupTest {
 
   /** Reference lines of each worker run alone. */

@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Windows open at the same time, on different threads or nested on one, get exactly the lines of
@@ -39,6 +40,7 @@ import org.junit.jupiter.api.Test;
  * the code of its creator runs its code for that window while it is open, unless it is a pool
  * worker.
  */
+@ExtendWith(NoDroppedEntries.class)
 class ProbeConcurrencyTest {
 
   /** Reference lines of each worker run alone. */

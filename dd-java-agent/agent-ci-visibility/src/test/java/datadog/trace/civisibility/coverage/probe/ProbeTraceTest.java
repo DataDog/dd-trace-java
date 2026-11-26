@@ -40,12 +40,14 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * The code that runs under a span of a test's trace whose local root is not the test's span, such
  * as the span of an in-process server that the test calls through an instrumented client, belongs
  * to the test while its window is open, and to Shared once it closed.
  */
+@ExtendWith(NoDroppedEntries.class)
 class ProbeTraceTest {
 
   /** Reference lines of each worker run alone. */
