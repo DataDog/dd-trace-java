@@ -133,6 +133,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   protected final HashMap<Long, SparkPlanInfo> sqlPlans = new HashMap<>();
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
 
+  // Spark Connect: a long-lived server hosts many client sessions. Each session gets its own
+  // spark.application span, from the session's start to its close, instead of everything rolling
+  // up into one server-wide span.
+  private final HashMap<String, ConnectSession> connectSessions = new HashMap<>();
+  private final HashMap<Integer, ConnectSession> jobToConnectSession = new HashMap<>();
+
   private final Map<Long, Integer> accumulatorToStageID = new HashMap<>();
 
   private volatile boolean isStreamingJob = false;
@@ -382,6 +388,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
     applicationEnded = true;
 
+    // Sessions still open when the server stops end with it. This runs before the guard below
+    // because a server that only ran Connect jobs never creates the global application span.
+    for (ConnectSession session : new ArrayList<>(connectSessions.values())) {
+      finishConnectSession(session, time);
+    }
+
     if ((applicationSpan == null && jobCount > 0) || isRunningOnDatabricks) {
       // If the application span is not initialized, but spark jobs have been executed, all those
       // spark jobs were databricks or streaming. In this case we don't send the application span
@@ -499,12 +511,15 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
             .withTag("details", queryStart.details())
             .withTag(DDTags.RESOURCE_NAME, queryStart.description());
 
+    ConnectSession connectSession;
     if (batchKey != null) {
       AgentSpan batchSpan =
           getOrCreateStreamingBatchSpan(batchKey, queryStart.time(), jobProperties);
       spanBuilder.asChildOf(batchSpan.spanContext());
     } else if (isRunningOnDatabricks) {
       addDatabricksSpecificTags(spanBuilder, jobProperties, true);
+    } else if ((connectSession = getConnectSession(jobProperties, queryStart.time())) != null) {
+      spanBuilder.asChildOf(connectSession.span.spanContext());
     } else {
       initApplicationSpanIfNotInitialized();
       spanBuilder.asChildOf(applicationSpan.spanContext());
@@ -546,7 +561,14 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
      *                    [spark.sql] optional, only present if using spark-sql
      *                          |
      *                      spark.job
+     *
+     * On a Spark Connect server, spark.application is the per-session span of the job's session.
      */
+    ConnectSession connectSession = null;
+    if (!isRunningOnDatabricks && batchKey == null) {
+      connectSession = getConnectSession(jobStart.properties(), jobStart.time());
+    }
+
     if (sqlSpan != null) {
       jobSpanBuilder.asChildOf(sqlSpan.spanContext());
     } else if (batchKey != null) {
@@ -556,6 +578,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       jobSpanBuilder.asChildOf(batchSpan.spanContext());
     } else if (isRunningOnDatabricks) {
       addDatabricksSpecificTags(jobSpanBuilder, jobStart.properties(), true);
+    } else if (connectSession != null) {
+      jobSpanBuilder.asChildOf(connectSession.span.spanContext());
     } else {
       // In non-databricks, non-streaming env, the spark application is the local root span
       initApplicationSpanIfNotInitialized();
@@ -571,6 +595,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     for (int stageId : getSparkJobStageIds(jobStart)) {
       stageToJob.put(stageId, jobStart.jobId());
     }
+    if (connectSession != null) {
+      jobToConnectSession.put(jobStart.jobId(), connectSession);
+    }
     jobSpans.put(jobStart.jobId(), jobSpan);
     notifyOl(x -> openLineageSparkListener.onJobStart(x), jobStart);
   }
@@ -581,6 +608,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     if (jobSpan == null) {
       return;
     }
+
+    ConnectSession connectSession = jobToConnectSession.remove(jobEnd.jobId());
 
     if (jobEnd.jobResult() instanceof JobFailed) {
       JobFailed jobFailed = (JobFailed) jobEnd.jobResult();
@@ -596,10 +625,18 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
       // Only propagate the error to the application if it is not a cancellation
       if (errorMessage != null && !errorMessage.toLowerCase(Locale.ROOT).contains("cancelled")) {
-        lastJobFailed = true;
-        lastJobFailedMessage = errorMessage;
-        lastJobFailedStackTrace = errorStackTrace;
+        if (connectSession != null) {
+          connectSession.lastJobFailed = true;
+          connectSession.lastJobFailedMessage = errorMessage;
+          connectSession.lastJobFailedStackTrace = errorStackTrace;
+        } else {
+          lastJobFailed = true;
+          lastJobFailedMessage = errorMessage;
+          lastJobFailedStackTrace = errorStackTrace;
+        }
       }
+    } else if (connectSession != null) {
+      connectSession.lastJobFailed = false;
     } else {
       lastJobFailed = false;
       lastSqlFailed = false;
@@ -714,7 +751,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     if (stageMetric != null) {
       stageMetric.computeSkew();
       stageMetric.setSpanMetrics(span);
-      applicationMetrics.accumulateStageMetrics(stageMetric);
+      ConnectSession connectSession = jobToConnectSession.get(jobId);
+      if (connectSession != null) {
+        connectSession.metrics.accumulateStageMetrics(stageMetric);
+      } else {
+        applicationMetrics.accumulateStageMetrics(stageMetric);
+      }
 
       jobMetrics
           .computeIfAbsent(jobId, k -> new SparkAggregatedTaskMetrics())
@@ -874,9 +916,178 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       onSQLExecutionStart((SparkListenerSQLExecutionStart) event);
     } else if (event instanceof SparkListenerSQLExecutionEnd) {
       onSQLExecutionEnd((SparkListenerSQLExecutionEnd) event);
+    } else if (CONNECT_SESSION_STARTED_EVENT.equals(event.getClass().getName())) {
+      onConnectSessionStarted(event);
+    } else if (CONNECT_SESSION_CLOSED_EVENT.equals(event.getClass().getName())) {
+      onConnectSessionClosed(event);
     }
 
     updateAdaptiveSQLPlan(event);
+  }
+
+  // Spark Connect server classes are not on this module's compile classpath, so the session
+  // events are matched by name and read reflectively. Both are case classes with sessionId,
+  // userId and eventTime accessors (Spark 3.5+).
+  private static final String CONNECT_SESSION_STARTED_EVENT =
+      "org.apache.spark.sql.connect.service.SparkListenerConnectSessionStarted";
+  private static final String CONNECT_SESSION_CLOSED_EVENT =
+      "org.apache.spark.sql.connect.service.SparkListenerConnectSessionClosed";
+
+  // Spark Connect tags every job it runs with
+  // "SparkConnect_OperationTag_User_<userId>_Session_<sessionId>_Operation_<operationId>"
+  // in the spark.job.tags local property (ExecuteJobTag in ExecuteHolder.scala).
+  private static final String SPARK_JOB_TAGS = "spark.job.tags";
+  private static final String CONNECT_OPERATION_TAG_PREFIX = "SparkConnect_OperationTag_";
+  private static final String CONNECT_SESSION_MARKER = "_Session_";
+  private static final String CONNECT_OPERATION_MARKER = "_Operation_";
+
+  /** State for one Spark Connect client session. */
+  private static final class ConnectSession {
+    final String sessionId;
+    final String userId;
+    final long startTimeMs;
+    final SparkAggregatedTaskMetrics metrics = new SparkAggregatedTaskMetrics();
+    // Created at the session's first job, so sessions that never run one leave nothing behind.
+    AgentSpan span;
+    // spark.datadog.tags.* values shared by every job of the session; per-query tags drop out.
+    Map<String, String> commonTags;
+    boolean lastJobFailed = false;
+    String lastJobFailedMessage;
+    String lastJobFailedStackTrace;
+
+    ConnectSession(String sessionId, String userId, long startTimeMs) {
+      this.sessionId = sessionId;
+      this.userId = userId;
+      this.startTimeMs = startTimeMs;
+    }
+  }
+
+  private synchronized void onConnectSessionStarted(SparkListenerEvent event) {
+    String sessionId = readEventField(event, "sessionId");
+    if (sessionId == null
+        || connectSessions.containsKey(sessionId)
+        || connectSessions.size() >= MAX_COLLECTION_SIZE) {
+      return;
+    }
+    Long eventTime = readEventField(event, "eventTime");
+    connectSessions.put(
+        sessionId,
+        new ConnectSession(
+            sessionId,
+            readEventField(event, "userId"),
+            eventTime != null ? eventTime : System.currentTimeMillis()));
+  }
+
+  private synchronized void onConnectSessionClosed(SparkListenerEvent event) {
+    String sessionId = readEventField(event, "sessionId");
+    ConnectSession session = sessionId != null ? connectSessions.get(sessionId) : null;
+    if (session == null) {
+      return;
+    }
+    Long eventTime = readEventField(event, "eventTime");
+    finishConnectSession(session, eventTime != null ? eventTime : System.currentTimeMillis());
+  }
+
+  /**
+   * Returns the Connect session that the job with these properties belongs to, creating its
+   * spark.application span on first use. Returns null for jobs that are not from a Connect session,
+   * or when too many sessions are open; those jobs use the global application span.
+   */
+  private ConnectSession getConnectSession(Properties jobProperties, long jobTimeMs) {
+    String sessionId = getSparkConnectSessionId(jobProperties);
+    if (sessionId == null) {
+      return null;
+    }
+
+    ConnectSession session = connectSessions.get(sessionId);
+    if (session == null) {
+      // The session started before this listener saw its start event.
+      if (connectSessions.size() >= MAX_COLLECTION_SIZE) {
+        return null;
+      }
+      session = new ConnectSession(sessionId, null, jobTimeMs);
+      connectSessions.put(sessionId, session);
+    }
+
+    Map<String, String> jobTags = getRuntimeTags(jobProperties);
+    if (session.commonTags == null) {
+      session.commonTags = jobTags;
+    } else {
+      session.commonTags.entrySet().removeIf(e -> !e.getValue().equals(jobTags.get(e.getKey())));
+    }
+
+    if (session.span == null) {
+      AgentTracer.SpanBuilder builder =
+          buildSparkSpan("spark.application", null)
+              .withStartTimestamp(session.startTimeMs * 1000)
+              .withTag("spark_connect.session_id", sessionId);
+      if (session.userId != null) {
+        builder.withTag("spark_user", session.userId);
+      }
+      if (applicationStart != null) {
+        builder.withTag("application_name", applicationStart.appName());
+      }
+      captureApplicationParameters(builder);
+
+      session.span = builder.start();
+      setDataJobsSamplingPriority(session.span);
+      session.span.setMeasured(true);
+    }
+    return session;
+  }
+
+  private void finishConnectSession(ConnectSession session, long timeMs) {
+    connectSessions.remove(session.sessionId);
+    if (session.span == null) {
+      return;
+    }
+
+    if (session.lastJobFailed) {
+      session.span.setError(true);
+      session.span.setTag(DDTags.ERROR_TYPE, "Spark Application Failed");
+      session.span.setTag(DDTags.ERROR_MSG, session.lastJobFailedMessage);
+      session.span.setTag(DDTags.ERROR_STACK, session.lastJobFailedStackTrace);
+    }
+    if (session.commonTags != null) {
+      session.commonTags.forEach(session.span::setTag);
+    }
+    session.metrics.setSpanMetrics(session.span);
+    session.span.finish(timeMs * 1000);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <T> T readEventField(SparkListenerEvent event, String accessor) {
+    try {
+      return (T) event.getClass().getMethod(accessor).invoke(event);
+    } catch (ReflectiveOperationException | ClassCastException e) {
+      log.debug("Unable to read {} from {}", accessor, event.getClass().getName(), e);
+      return null;
+    }
+  }
+
+  static String getSparkConnectSessionId(Properties properties) {
+    if (properties == null) {
+      return null;
+    }
+    String jobTags = properties.getProperty(SPARK_JOB_TAGS);
+    if (jobTags == null) {
+      return null;
+    }
+    for (String tag : jobTags.split(",")) {
+      if (!tag.startsWith(CONNECT_OPERATION_TAG_PREFIX)) {
+        continue;
+      }
+      int sessionStart = tag.indexOf(CONNECT_SESSION_MARKER);
+      if (sessionStart < 0) {
+        continue;
+      }
+      sessionStart += CONNECT_SESSION_MARKER.length();
+      int sessionEnd = tag.indexOf(CONNECT_OPERATION_MARKER, sessionStart);
+      if (sessionEnd > sessionStart) {
+        return tag.substring(sessionStart, sessionEnd);
+      }
+    }
+    return null;
   }
 
   private <T extends SparkListenerEvent> void notifyOl(Consumer<T> ol, T event) {
@@ -1132,18 +1343,23 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private void addPropertiesTags(AgentTracer.SpanBuilder builder, Properties properties) {
+    getRuntimeTags(properties).forEach(builder::withTag);
+  }
+
+  private Map<String, String> getRuntimeTags(Properties properties) {
+    Map<String, String> tags = new HashMap<>();
     if (properties == null) {
-      return;
+      return tags;
     }
 
     for (String propertyName : properties.stringPropertyNames()) {
       if (propertyName.startsWith(RUNTIME_TAGS_PREFIX)) {
-        String value = properties.getProperty(propertyName);
-        String key = propertyName.substring(RUNTIME_TAGS_PREFIX.length());
-
-        builder.withTag(key, value);
+        tags.put(
+            propertyName.substring(RUNTIME_TAGS_PREFIX.length()),
+            properties.getProperty(propertyName));
       }
     }
+    return tags;
   }
 
   private long stageSpanKey(int stageId, int attemptId) {
