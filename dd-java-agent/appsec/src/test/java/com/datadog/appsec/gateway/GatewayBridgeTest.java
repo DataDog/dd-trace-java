@@ -29,7 +29,6 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
@@ -349,9 +348,11 @@ class GatewayBridgeTest extends DDJavaSpecification {
     Map<String, List<String>> reqHeaders = arCtx.getRequestHeaders();
     assertEquals(asList("value 1.1", "value 1.2", "value 1.3"), reqHeaders.get("header1"));
     assertEquals(singletonList("value 2"), reqHeaders.get("header2"));
+    assertEquals(2, reqHeaders.size());
     Map<String, List<String>> respHeaders = arCtx.getResponseHeaders();
     assertEquals(asList("value 3.1", "value 3.2", "value 3.3"), respHeaders.get("header3"));
     assertEquals(singletonList("value 4"), respHeaders.get("header4"));
+    assertEquals(2, respHeaders.size());
   }
 
   @Test
@@ -365,11 +366,13 @@ class GatewayBridgeTest extends DDJavaSpecification {
     Map<String, List<String>> collectedHeaders = arCtx.getRequestHeaders();
     assertEquals(singletonList("another value"), collectedHeaders.get("another-header"));
     assertFalse(collectedHeaders.containsKey("cookie"));
+    assertEquals(1, collectedHeaders.size());
 
     Map<String, ? extends Collection<String>> cookies = arCtx.getCookies();
     assertEquals(singletonList("bar"), cookies.get("foo"));
     assertEquals(singletonList("bar2"), cookies.get("foo2"));
     assertEquals(singletonList("bar3"), cookies.get("foo3"));
+    assertEquals(3, cookies.size());
   }
 
   @Test
@@ -468,6 +471,7 @@ class GatewayBridgeTest extends DDJavaSpecification {
       Map<String, List<String>> query = published.bundle.get(KnownAddresses.REQUEST_QUERY);
       assertEquals(asList("bar 1", "bar 2"), query.get("foo"));
       assertEquals(singletonList(""), query.get("xpto"));
+      assertEquals(2, query.size());
     }
   }
 
@@ -759,9 +763,6 @@ class GatewayBridgeTest extends DDJavaSpecification {
 
   @Test
   void processDatabaseType() {
-    // setup
-    subscribeTo(KnownAddresses.DB_TYPE);
-
     // when
     databaseConnectionCB.accept(ctx, "postgresql");
 
@@ -790,7 +791,6 @@ class GatewayBridgeTest extends DDJavaSpecification {
   @ValueSource(booleans = {true, false})
   void processHttpClientRequestSampling(boolean sampled) {
     // setup
-    subscribeTo(KnownAddresses.IO_NET_URL);
     when(downstreamSampler.sampleHttpClientRequest(arCtx, 1L)).thenReturn(sampled);
 
     // when
@@ -1264,34 +1264,15 @@ class GatewayBridgeTest extends DDJavaSpecification {
     verify(eventDispatcher).publishDataEvent(any(), any(), any(), any());
   }
 
-  @Test
-  void testApiSecuritySampling() {
+  @ParameterizedTest(name = "test api security sampling (preSampled={0})")
+  @ValueSource(booleans = {true, false})
+  void testApiSecuritySampling(boolean preSampled) {
     // given
     AppSecRequestContext mockAppSecCtx = mock(AppSecRequestContext.class);
     RequestContext mockCtx = mockRequestContext(mockAppSecCtx);
     AgentSpan spanInfo = mockSpringWebSpan();
     when(mockAppSecCtx.transferCollectedEvents()).thenReturn(emptyList());
-    when(requestSampler.preSampleRequest(any(), eq("spring-web"))).thenReturn(true);
-
-    // when
-    requestEndedCB.apply(mockCtx, spanInfo);
-
-    // then
-    verify(mockAppSecCtx).transferCollectedEvents();
-    verify(spanInfo).getTags();
-    verify(requestSampler).preSampleRequest(any(), eq("spring-web"));
-    verify(traceSegment, never()).setTagTop(ASM_KEEP, true);
-    verify(traceSegment, never()).setTagTop(PROPAGATED_TRACE_SOURCE, ASM);
-  }
-
-  @Test
-  void testApiSecuritySamplingTraceExcluded() {
-    // given
-    AppSecRequestContext mockAppSecCtx = mock(AppSecRequestContext.class);
-    RequestContext mockCtx = mockRequestContext(mockAppSecCtx);
-    AgentSpan spanInfo = mockSpringWebSpan();
-    when(mockAppSecCtx.transferCollectedEvents()).thenReturn(emptyList());
-    when(requestSampler.preSampleRequest(any(), eq("spring-web"))).thenReturn(false);
+    when(requestSampler.preSampleRequest(any(), eq("spring-web"))).thenReturn(preSampled);
 
     // when
     requestEndedCB.apply(mockCtx, spanInfo);
@@ -1338,7 +1319,7 @@ class GatewayBridgeTest extends DDJavaSpecification {
     verify(traceSegment).setTagTop("http.request.headers.x-allowed-header", "value1");
     verify(traceSegment)
         .setTagTop("http.request.headers.x-multiple-allowed-header", "value1A,value1B");
-    verify(traceSegment, times(2)).setTagTop(anyString(), any());
+    verifyNoMoreInteractions(traceSegment);
   }
 
   @Test
@@ -1354,7 +1335,7 @@ class GatewayBridgeTest extends DDJavaSpecification {
     verify(traceSegment).setTagTop("http.response.headers.x-allowed-header", "value1");
     verify(traceSegment)
         .setTagTop("http.response.headers.x-multiple-allowed-header", "value1A,value1B");
-    verify(traceSegment, times(2)).setTagTop(anyString(), any());
+    verifyNoMoreInteractions(traceSegment);
   }
 
   @Test
@@ -1376,7 +1357,7 @@ class GatewayBridgeTest extends DDJavaSpecification {
     verify(traceSegment).setTagTop("http.request.headers.x-other-header-1", "value2");
     verify(traceSegment).setTagTop("http.request.headers.x-other-header-2", "value3");
     verify(traceSegment).setTagTop("_dd.appsec.request.header_collection.discarded", 1);
-    verify(traceSegment, times(5)).setTagTop(anyString(), any());
+    verifyNoMoreInteractions(traceSegment);
   }
 
   @Test
@@ -1397,7 +1378,7 @@ class GatewayBridgeTest extends DDJavaSpecification {
     verify(traceSegment).setTagTop("http.response.headers.x-other-header-1", "value2");
     verify(traceSegment).setTagTop("http.response.headers.x-other-header-2", "value3");
     verify(traceSegment).setTagTop("_dd.appsec.response.header_collection.discarded", 1);
-    verify(traceSegment, times(5)).setTagTop(anyString(), any());
+    verifyNoMoreInteractions(traceSegment);
   }
 
   @Test
@@ -1430,7 +1411,7 @@ class GatewayBridgeTest extends DDJavaSpecification {
     verify(traceSegment).setTagTop("http.request.headers.user-agent", "Mozilla/5.0");
     verify(traceSegment)
         .setTagTop("http.request.headers.accept", "text/html,application/xhtml+xml");
-    verify(traceSegment, times(7)).setTagTop(anyString(), any());
+    verifyNoMoreInteractions(traceSegment);
   }
 
   @Test
@@ -1459,7 +1440,7 @@ class GatewayBridgeTest extends DDJavaSpecification {
     verify(traceSegment)
         .setTagTop("http.response.headers.content-type", "text/html; charset=UTF-8");
     verify(traceSegment).setTagTop("http.response.headers.server", "nginx/1.18.0");
-    verify(traceSegment, times(5)).setTagTop(anyString(), any());
+    verifyNoMoreInteractions(traceSegment);
   }
 
   @Test

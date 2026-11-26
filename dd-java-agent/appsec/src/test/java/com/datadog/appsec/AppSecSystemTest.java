@@ -51,6 +51,7 @@ import java.util.function.BiFunction;
 import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 
 class AppSecSystemTest extends DDJavaSpecification {
@@ -86,25 +87,21 @@ class AppSecSystemTest extends DDJavaSpecification {
   }
 
   @Test
-  void systemShouldThrowAbortStartupExceptionWhenConfigFileIsNotValidJson() throws IOException {
+  void systemShouldThrowAbortStartupExceptionWhenConfigFileIsNotValidJson(@TempDir Path tempDir)
+      throws IOException {
     // given: 'a temporary file with invalid JSON content'
-    Path path = Files.createTempFile("dd-trace-", ".json");
-    try {
-      Files.write(path, "{".getBytes(UTF_8)); // Invalid JSON - missing closing brace
-      injectSysConfig(APPSEC_RULES_FILE, path.toString());
+    Path path = tempDir.resolve("dd-trace-rules.json");
+    Files.write(path, "{".getBytes(UTF_8)); // Invalid JSON - missing closing brace
+    injectSysConfig(APPSEC_RULES_FILE, path.toString());
 
-      // when: 'starting the AppSec system'
-      AbortStartupException exception =
-          assertThrows(
-              AbortStartupException.class,
-              () -> AppSecSystem.start(subService, sharedCommunicationObjects()));
+    // when: 'starting the AppSec system'
+    AbortStartupException exception =
+        assertThrows(
+            AbortStartupException.class,
+            () -> AppSecSystem.start(subService, sharedCommunicationObjects()));
 
-      // then: 'an AbortStartupException should be thrown'
-      assertInstanceOf(IOException.class, exception.getCause());
-    } finally {
-      // cleanup: 'delete the temporary file'
-      Files.deleteIfExists(path);
-    }
+    // then: 'an AbortStartupException should be thrown'
+    assertInstanceOf(IOException.class, exception.getCause());
   }
 
   @Test
@@ -138,23 +135,6 @@ class AppSecSystemTest extends DDJavaSpecification {
   }
 
   @Test
-  void throwsIfTheConfigFileIsNotParseable() throws IOException {
-    // setup
-    Path path = Files.createTempFile("dd-trace-", ".json");
-    try {
-      Files.write(path, "{".getBytes(UTF_8));
-      injectSysConfig(APPSEC_RULES_FILE, path.toString());
-
-      // when
-      assertThrows(
-          AbortStartupException.class,
-          () -> AppSecSystem.start(subService, sharedCommunicationObjects()));
-    } finally {
-      Files.deleteIfExists(path);
-    }
-  }
-
-  @Test
   void whenNotStartedReturnsEmptyListForStartedModules() {
     // expect
     assertTrue(AppSecSystem.getStartedModulesInfo().isEmpty());
@@ -164,7 +144,7 @@ class AppSecSystemTest extends DDJavaSpecification {
   void updatingConfigurationReplacesTheEventProducer() throws IOException {
     // when
     AppSecSystem.start(subService, sharedCommunicationObjects());
-    EventProducerService initialEPS = AppSecSystem.REPLACEABLE_EVENT_PRODUCER.getCurrent();
+    EventProducerService initialEPS = AppSecSystem.currentEventProducer();
 
     // then
     ArgumentCaptor<ProductListener> asmListenerCaptor =
@@ -184,7 +164,7 @@ class AppSecSystemTest extends DDJavaSpecification {
     confEndListenerCaptor.getValue().onConfigurationEnd();
 
     // then
-    assertNotSame(initialEPS, AppSecSystem.REPLACEABLE_EVENT_PRODUCER.getCurrent());
+    assertNotSame(initialEPS, AppSecSystem.currentEventProducer());
   }
 
   @SuppressWarnings("unchecked")

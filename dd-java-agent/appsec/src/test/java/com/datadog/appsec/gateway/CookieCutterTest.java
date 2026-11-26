@@ -21,6 +21,7 @@ class CookieCutterTest {
     // then
     assertEquals(singletonList("b"), result.get("a"));
     assertEquals(singletonList("d"), result.get("c"));
+    assertEquals(2, result.size());
   }
 
   @Test
