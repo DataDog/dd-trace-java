@@ -213,9 +213,11 @@ tasks.withType(Javadoc).configureEach {
   options.charSet = "utf-8"
 
   options.addStringOption('Xdoclint:none', '-quiet')
+}
 
-  doFirst {
-    if (project.ext.has("apiLinks")) {
+afterEvaluate {
+  if (project.ext.has("apiLinks")) {
+    tasks.withType(Javadoc).configureEach {
       options.links(*project.apiLinks)
     }
   }

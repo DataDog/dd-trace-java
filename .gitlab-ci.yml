@@ -583,7 +583,7 @@ test_published_artifacts:
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-    - ./gradlew publishToMavenLocal $GRADLE_ARGS
+    - ./gradlew publishToMavenLocal $GRADLE_ARGS --no-configuration-cache
     - unset GPG_PRIVATE_KEY GPG_PASSWORD
     - cd test-published-dependencies
     - printf '\norg.gradle.console=colored\n' >> gradle.properties
@@ -1394,7 +1394,7 @@ deploy_to_maven_central:
     - export MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
-    - ./gradlew publishToSonatype closeSonatypeStagingRepository -PskipTests $GRADLE_ARGS
+    - ./gradlew publishToSonatype closeSonatypeStagingRepository -PskipTests $GRADLE_ARGS --no-configuration-cache
   artifacts:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'
@@ -1423,7 +1423,7 @@ deploy_snapshot_with_ddprof_snapshot:
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
     - echo "Publishing dd-trace-java snapshot with ddprof snapshot dependency"
-    - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID -PddprofUseSnapshot publishToSonatype -PskipTests $GRADLE_ARGS
+    - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID -PddprofUseSnapshot publishToSonatype -PskipTests $GRADLE_ARGS --no-configuration-cache
   artifacts:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'

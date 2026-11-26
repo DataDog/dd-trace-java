@@ -34,18 +34,19 @@ publishing {
            * Add all the project dependencies, but set as compile instead of runtime
            * (which is what project.shadow.component(publication) would use).
            */
+          def apiDependencies = project.configurations.api.allDependencies
+            .findAll { it instanceof ProjectDependency || it instanceof ExternalModuleDependency }
+            .collect { [group: it.group, name: it.name, version: it.version] }
           publication.pom { org.gradle.api.publish.maven.MavenPom pom ->
             pom.withXml { xml ->
               def dependenciesNode = xml.asNode().appendNode('dependencies')
 
-              project.configurations.api.allDependencies.each {
-                if (it instanceof ProjectDependency || it instanceof ExternalModuleDependency) {
-                  def dependencyNode = dependenciesNode.appendNode('dependency')
-                  dependencyNode.appendNode('groupId', it.group)
-                  dependencyNode.appendNode('artifactId', it.name)
-                  dependencyNode.appendNode('version', it.version)
-                  dependencyNode.appendNode("scope", "compile")
-                }
+              apiDependencies.each {
+                def dependencyNode = dependenciesNode.appendNode('dependency')
+                dependencyNode.appendNode('groupId', it.group)
+                dependencyNode.appendNode('artifactId', it.name)
+                dependencyNode.appendNode('version', it.version)
+                dependencyNode.appendNode("scope", "compile")
               }
             }
           }
@@ -64,14 +65,16 @@ if (project.plugins.hasPlugin('com.gradleup.shadow')) {
   }
 }
 
+def signingKey = providers.environmentVariable("GPG_PRIVATE_KEY")
+def signingPassword = providers.environmentVariable("GPG_PASSWORD")
 signing {
-  useInMemoryPgpKeys(providers.environmentVariable("GPG_PRIVATE_KEY").orNull, providers.environmentVariable("GPG_PASSWORD").orNull)
+  useInMemoryPgpKeys(signingKey.orNull, signingPassword.orNull)
   sign publishing.publications.maven
 }
 
 tasks.withType(Sign).configureEach {
-  // Only sign in Gitlab CI
-  onlyIf { isGitlabCI || (providers.environmentVariable("GPG_PRIVATE_KEY").isPresent() && providers.environmentVariable("GPG_PASSWORD").isPresent()) }
+  def signPublication = isGitlabCI || (signingKey.isPresent() && signingPassword.isPresent())
+  onlyIf { signPublication }
 }
 
 /**
