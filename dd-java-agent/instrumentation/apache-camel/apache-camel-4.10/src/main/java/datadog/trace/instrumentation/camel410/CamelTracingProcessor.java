@@ -21,29 +21,8 @@ public final class CamelTracingProcessor extends DelegateAsyncProcessor {
     if (context == null) {
       return processor.process(exchange, callback);
     }
-    ContextScope scope = attach(context);
-    try {
+    try (ContextScope ignored = context.attach()) {
       return processor.process(exchange, new Callback(callback, context));
-    } finally {
-      close(scope);
-    }
-  }
-
-  private static ContextScope attach(Context context) {
-    try {
-      return context.attach();
-    } catch (Throwable ignored) {
-      return null;
-    }
-  }
-
-  private static void close(ContextScope scope) {
-    try {
-      if (scope != null) {
-        scope.close();
-      }
-    } catch (Throwable ignored) {
-      // Never change a processor's result or callback when context cleanup fails.
     }
   }
 
@@ -58,11 +37,8 @@ public final class CamelTracingProcessor extends DelegateAsyncProcessor {
 
     @Override
     public void done(boolean doneSync) {
-      ContextScope scope = attach(context);
-      try {
+      try (ContextScope ignored = context.attach()) {
         delegate.done(doneSync);
-      } finally {
-        close(scope);
       }
     }
   }
