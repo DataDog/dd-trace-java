@@ -1,5 +1,7 @@
 package datadog.trace.civisibility.config;
 
+import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import datadog.trace.util.ProcessUtils;
 import java.io.BufferedReader;
@@ -8,6 +10,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
+import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -81,7 +84,11 @@ public class JvmInfoFactoryImpl implements JvmInfoFactory {
           vendor = getPropertyValue(line);
         }
       }
-      return new JvmInfo(name, version, vendor);
+      Map<String, String> runtimeTags = Config.get().getTestOptimizationRuntimeTags();
+      return new JvmInfo(
+          runtimeTags.getOrDefault(Tags.RUNTIME_NAME, name),
+          runtimeTags.getOrDefault(Tags.RUNTIME_VERSION, version),
+          runtimeTags.getOrDefault(Tags.RUNTIME_VENDOR, vendor));
     }
 
     private String getPropertyValue(String line) {
