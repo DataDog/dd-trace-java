@@ -1,5 +1,7 @@
 import org.gradle.api.plugins.jvm.JvmTestSuite
 
+import static datadog.gradle.plugin.ci.TestShardingKt.useSuiteShard
+
 // Registers a test suite named 'testSuiteName' compiling 'src/<dirName>/', with configurations
 // extending the 'parentSuiteName' suite ones.
 //
@@ -111,6 +113,7 @@ ext.addForkedTestTask = { String sourceSetName ->
   def suiteTask = tasks.named(sourceSetName, Test)
   def suiteConstraints = suiteTask.map { it.extensions.getByName('testJvmConstraints') }
   return tasks.register(taskName, Test) {
+    useSuiteShard(it, sourceSetName)
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     description = "Runs the '*ForkedTest' classes of the '${sourceSetName}' source set, each in its own JVM."
     testClassesDirs = sourceSets[sourceSetName].output.classesDirs

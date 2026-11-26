@@ -1223,17 +1223,31 @@ src/
 
 ### CI Slots and Parallelization
 
-Distributes test execution across multiple CI jobs using hash-based project slotting.
+With `-Pslot=X/Y`, the root `*Test` and `*LatestDepTest` aggregates, such as
+`instrumentationTest`, place projects by a hash of their path. A project whose aggregate
+runs suites besides its default one (`test` or `latestDepTest`, with their forked companions)
+is split by suite group instead, and its default suite keeps the project slot. A group holds a
+suite and its forked companion, tests linked by `dependsOn` or `finalizedBy`, and tests sharing
+an explicit setup task of the project, such as an application build. JaCoCo projects,
+`*Check` aggregates, and direct test invocations use project slots.
+
+Tests linked only through inferred dependencies, such as one test consuming another's outputs,
+fail the build with the list of links: declare them with `dependsOn` or `finalizedBy` so both
+tests share a slot.
 
 ```bash
-# Run only projects assigned to slot 2 out of 4 parallel jobs
+# Run suites assigned to slot 2 out of 4
+./gradlew instrumentationTest -Pslot=2/4
+
+# Run the default test tasks for projects assigned to slot 2
 ./gradlew test -Pslot=2/4
 
 # Without slot parameter, all projects run
 ./gradlew test
 ```
 
-Projects are assigned to slots based on a hash of their path, ensuring consistent distribution across builds.
+Assignments are deterministic for a given slot count. Git change tracking selects the
+same affected project aggregates before their suites are distributed across slots.
 
 ### Git Change Tracking
 

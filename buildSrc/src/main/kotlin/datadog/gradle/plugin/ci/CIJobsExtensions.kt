@@ -8,9 +8,9 @@ import org.gradle.api.Task
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.extra
 import java.io.File
-import kotlin.math.abs
 
 /** Marker for every task of a project. */
 internal const val ALL_TASKS = "all"
@@ -30,45 +30,7 @@ private const val AFFECTED_TASKS = "affectedTasksByProject"
  */
 val Project.isInSelectedSlot: Provider<Boolean>
   get() = rootProject.providers.gradleProperty("slot").map { slot ->
-    val parts = slot.split("/")
-    if (parts.size != 2) {
-      project.logger.warn("Invalid slot format '{}', expected 'X/Y'. Treating all projects as selected.", slot)
-      return@map true
-    }
-
-    // When CI_NODE_INDEX or CI_NODE_TOTAL is unset in non-parallel jobs, one part may be empty (e.g. slot="/1") — treat as no filtering
-    if (parts[0].isBlank() || parts[1].isBlank()) {
-      project.logger.info("Incomplete slot value '{}', CI_NODE_INDEX or CI_NODE_TOTAL not set. Treating all projects as selected.", slot)
-      return@map true
-    }
-
-    val selectedSlot = parts[0].toIntOrNull()
-    val totalSlots = parts[1].toIntOrNull()
-
-    if (selectedSlot == null || totalSlots == null || totalSlots <= 0) {
-      project.logger.warn("Invalid slot values '{}', expected numeric 'X/Y' with Y > 0. Treating all projects as selected.", slot)
-      return@map true
-    }
-
-    // Distribution numbers when running on rootProject.allprojects indicates
-    // bucket sizes are reasonably balanced:
-    //
-    // * size  4 distribution: {2=146, 0=143, 1=157, 3=145}
-    // * size  6 distribution: {4=100, 0=92, 3=97, 2=97, 1=108, 5=97}
-    // * size  8 distribution: {2=62, 4=72, 0=71, 5=70, 7=78, 6=84, 1=87, 3=67}
-    // * size 10 distribution: {8=62, 0=65, 5=70, 9=59, 3=54, 1=56, 6=63, 4=47, 2=52, 7=63}
-    // * size 12 distribution: {10=55, 0=47, 4=45, 9=46, 8=51, 3=51, 2=46, 1=59, 5=52, 7=49, 11=45, 6=45}
-    val projectSlot = abs(project.path.hashCode() % totalSlots) + 1 // Convert to 1-based
-
-    project.logger.info(
-      "Project {} assigned to slot {}/{}, active slot is {}",
-      project.path,
-      projectSlot,
-      totalSlots,
-      selectedSlot,
-    )
-
-    projectSlot == selectedSlot
+    parseSlot(slot)?.selects(path, "Project $path") ?: true
   }.orElse(true)
 
 /**
@@ -181,53 +143,85 @@ private fun Project.affectedTasksByProject(): Map<Project, Set<String>> {
 }
 
 /**
- * Creates a single aggregate root task that depends on matching subproject tasks
+ * Creates a single aggregate root task that depends on matching subproject tasks.
+ *
+ * With [suiteSharding] and several active slots, a project whose aggregate runs more than its
+ * default suite is distributed by suite groups (see [testShardGroups]). The group holding the
+ * default suite keeps the project slot. JaCoCo projects keep project placement for their coverage
+ * tasks and execution data. Git filtering selects the same project aggregates either way.
  */
 private fun Project.createRootTask(
   rootTaskName: String,
   subProjTaskName: String,
   includePrefixes: List<String>,
   excludePrefixes: List<String>,
-  forceCoverage: Boolean
+  forceCoverage: Boolean,
+  suiteSharding: SuiteSharding? = null,
 ) {
   val checkCoverage = forceCoverage || rootProject.providers.gradleProperty(CHECK_COVERAGE).isPresent
   val checkCoverageOnFirstTestJvm = rootProject.providers.gradleProperty(CHECK_COVERAGE_ON_FIRST_TEST_JVM).isPresent
   val testJvm = rootProject.providers.gradleProperty("testJvm").orNull
+  val sharding = rootProject.extensions.getByType(TestSharding::class.java)
+  val activeSlot = sharding.slot
   tasks.register(rootTaskName) {
+    val rootTaskPath = path
+    val useGitChanges = rootProject.extra.get("useGitChanges") as Boolean
     subprojects.forEach { subproject ->
       if (
-        subproject.isInSelectedSlot.get() &&
-        includePrefixes.any { subproject.path.startsWith(it) } &&
-        !excludePrefixes.any { subproject.path.startsWith(it) }
+        !includePrefixes.any { subproject.path.startsWith(it) } ||
+        excludePrefixes.any { subproject.path.startsWith(it) }
       ) {
-        val testTask = subproject.tasks.findByName(subProjTaskName)
-        var isAffected = true
+        return@forEach
+      }
 
-        if (testTask != null) {
-          val useGitChanges = rootProject.extra.get("useGitChanges") as Boolean
-          if (useGitChanges) {
-            val affectedTaskPath = findAffectedTaskPath(testTask, project.affectedTasksByProject())
-            if (affectedTaskPath != null) {
-              logger.warn("Selecting ${subproject.path}:$subProjTaskName (affected by $affectedTaskPath)")
+      val splitSuites = suiteSharding != null &&
+        activeSlot != null && activeSlot.total > 1 &&
+        subproject.path !in sharding.jacocoProjects &&
+        // Judged on registered names, so projects that stay in their project slot do not realize
+        // their Test tasks on the other runners.
+        suiteSharding.hasExtraSuite(subproject.tasks.withType(Test::class.java).names)
+      val inProjectSlot = activeSlot == null || activeSlot.selects(subproject.path, "Project ${subproject.path}")
+      if (!splitSuites && !inProjectSlot) {
+        return@forEach
+      }
+
+      val aggregate = subproject.tasks.findByName(subProjTaskName)
+      if (aggregate != null && useGitChanges) {
+        val affectedTaskPath = findAffectedTaskPath(aggregate, project.affectedTasksByProject())
+        if (affectedTaskPath == null) {
+          logger.warn("Skipping ${aggregate.path} (not affected by changed files)")
+          return@forEach
+        }
+        logger.warn("Selecting ${aggregate.path} (affected by $affectedTaskPath)")
+      }
+
+      if (splitSuites && aggregate != null) {
+        val children = aggregate.taskDependencies.getDependencies(aggregate)
+        val groups = aggregate.testShardGroups(children)
+        if (groups != null) {
+          for (group in groups) {
+            val key = if (group.any { it.suiteName == suiteSharding.defaultSuite }) {
+              subproject.path
             } else {
-              logger.warn("Skipping ${subproject.path}:$subProjTaskName (not affected by changed files)")
-              isAffected = false
+              "${subproject.path}:${group.minOf { it.suiteName }}"
+            }
+            val selected = activeSlot.selects(key, "Test suite group $key")
+            sharding.recordGroup(rootTaskPath, key, group, selected)
+            if (selected) {
+              dependsOn(group.filter { it in children })
             }
           }
-          if (isAffected) {
-            dependsOn(testTask)
-          }
+          return@forEach
         }
+      }
 
-        if (isAffected && subproject.checksCoverage(checkCoverage, checkCoverageOnFirstTestJvm, testJvm)) {
-          val coverageTask = subproject.tasks.findByName("jacocoTestReport")
-          if (coverageTask != null) {
-            dependsOn(coverageTask)
-          }
-          val verificationTask = subproject.tasks.findByName("jacocoTestCoverageVerification")
-          if (verificationTask != null) {
-            dependsOn(verificationTask)
-          }
+      if (inProjectSlot) {
+        if (aggregate != null) {
+          dependsOn(aggregate)
+        }
+        if (subproject.checksCoverage(checkCoverage, checkCoverageOnFirstTestJvm, testJvm)) {
+          subproject.tasks.findByName("jacocoTestReport")?.let { dependsOn(it) }
+          subproject.tasks.findByName("jacocoTestCoverageVerification")?.let { dependsOn(it) }
         }
       }
     }
@@ -248,7 +242,23 @@ fun Project.testAggregate(
   excludePrefixes: List<String> = emptyList(),
   forceCoverage: Boolean = false
 ) {
-  createRootTask("${baseTaskName}Test", "allTests", includePrefixes, excludePrefixes, forceCoverage)
-  createRootTask("${baseTaskName}LatestDepTest", "allLatestDepTests", includePrefixes, excludePrefixes, forceCoverage)
+  // The aggregates read the slot and git state this plugin sets up.
+  pluginManager.apply("dd-trace-java.ci-jobs")
+  createRootTask(
+    "${baseTaskName}Test",
+    "allTests",
+    includePrefixes,
+    excludePrefixes,
+    forceCoverage,
+    SuiteSharding(::isAllTestsTask, defaultSuite = "test"),
+  )
+  createRootTask(
+    "${baseTaskName}LatestDepTest",
+    "allLatestDepTests",
+    includePrefixes,
+    excludePrefixes,
+    forceCoverage,
+    SuiteSharding(::isAllLatestDepTestsTask, defaultSuite = "latestDepTest"),
+  )
   createRootTask("${baseTaskName}Check", "check", includePrefixes, excludePrefixes, forceCoverage)
 }
