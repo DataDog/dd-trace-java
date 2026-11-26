@@ -197,6 +197,28 @@ class SourceFilesTest {
   }
 
   @Test
+  void picksTheFileOfAModuleThatKeepsItsSourcesOutsideASrcDirectory() {
+    String file = "com/google/common/collect/ImmutableListTest.java";
+    List<String> sourcePaths =
+        Arrays.asList("guava-tests/test/" + file, "android/guava-tests/test/" + file);
+
+    assertEquals(
+        "guava-tests/test/" + file,
+        SourceFiles.pickCompiledSourcePath(
+            sourcePaths, "file:/repo/guava-tests/target/test-classes/"));
+    assertEquals(
+        "android/guava-tests/test/" + file,
+        SourceFiles.pickCompiledSourcePath(
+            sourcePaths, "file:/repo/android/guava-tests/target/test-classes/"));
+    assertNull(
+        SourceFiles.pickCompiledSourcePath(sourcePaths, "file:/repo/guava/target/test-classes/"));
+    assertNull(
+        SourceFiles.pickCompiledSourcePath(
+            Arrays.asList("guava-tests/test/" + file, "guava-tests/benchmark/" + file),
+            "file:/repo/guava-tests/target/test-classes/"));
+  }
+
+  @Test
   void picksNoFileWhenSeveralFitOrNoneDoes() {
     List<String> sourcePaths =
         Arrays.asList(

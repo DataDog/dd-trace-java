@@ -217,9 +217,7 @@ final class SourceFiles {
       if (moduleEnd < 0 || moduleEnd < moduleLength) {
         continue;
       }
-      String module = "/" + sourcePath.substring(0, moduleEnd);
-      if (!classpathEntry.contains(module + "build/")
-          && !classpathEntry.contains(module + "target/")) {
+      if (!isBuildOutputOf(classpathEntry, "/" + sourcePath.substring(0, moduleEnd))) {
         continue;
       }
       if (moduleEnd > moduleLength) {
@@ -227,6 +225,9 @@ final class SourceFiles {
         moduleLength = moduleEnd;
       }
       inModule.add(sourcePath);
+    }
+    if (inModule.isEmpty()) {
+      return pickByModuleDirectory(sourcePaths, classpathEntry);
     }
     if (inModule.size() == 1) {
       return inModule.get(0);
@@ -241,6 +242,59 @@ final class SourceFiles {
       }
     }
     return picked;
+  }
+
+  /**
+   * Picks, among files none of which is in a {@code src} directory, the one in the deepest module
+   * directory whose build output the classpath entry is in, such as {@code guava-tests/test/...}
+   * for {@code .../guava-tests/target/test-classes/}. The repository's root does not count as such
+   * a directory.
+   *
+   * @return {@code null} if no single file fits
+   */
+  @Nullable
+  private static String pickByModuleDirectory(
+      Collection<String> sourcePaths, String classpathEntry) {
+    String picked = null;
+    int pickedModuleEnd = 0;
+    boolean several = false;
+    for (String sourcePath : sourcePaths) {
+      int moduleEnd = outputModuleEnd(sourcePath, classpathEntry);
+      if (moduleEnd > pickedModuleEnd) {
+        picked = sourcePath;
+        pickedModuleEnd = moduleEnd;
+        several = false;
+      } else if (moduleEnd > 0 && moduleEnd == pickedModuleEnd) {
+        several = true;
+      }
+    }
+    return several ? null : picked;
+  }
+
+  /**
+   * The length of the deepest directory, other than the repository's root, that a repository path
+   * starts with and whose {@code build} or {@code target} directory the classpath entry is in, or 0
+   * if there is none.
+   */
+  private static int outputModuleEnd(String sourcePath, String classpathEntry) {
+    int moduleEnd = 0;
+    for (int slash = sourcePath.indexOf('/');
+        slash >= 0;
+        slash = sourcePath.indexOf('/', slash + 1)) {
+      if (isBuildOutputOf(classpathEntry, "/" + sourcePath.substring(0, slash + 1))) {
+        moduleEnd = slash + 1;
+      }
+    }
+    return moduleEnd;
+  }
+
+  /**
+   * Whether a classpath entry is in the {@code build} or {@code target} directory of a module
+   * directory such as {@code /okhttp/}.
+   */
+  private static boolean isBuildOutputOf(String classpathEntry, String moduleDirectory) {
+    return classpathEntry.contains(moduleDirectory + "build/")
+        || classpathEntry.contains(moduleDirectory + "target/");
   }
 
   /**
