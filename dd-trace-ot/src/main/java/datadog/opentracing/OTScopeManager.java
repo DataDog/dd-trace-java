@@ -10,7 +10,6 @@ import datadog.trace.context.TraceScope;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
 import io.opentracing.Span;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +17,8 @@ import org.slf4j.LoggerFactory;
 class OTScopeManager implements ScopeManager {
   static final Logger log = LoggerFactory.getLogger(OTScopeManager.class);
 
-  private static final AtomicBoolean UNSUPPORTED_CLOSE_LOGGED = new AtomicBoolean();
+  /** Best-effort suppression; concurrent callers may each log a warning. */
+  private static volatile boolean unsupportedCloseLogged;
 
   private final TypeConverter converter;
   private final AgentTracer.TracerAPI tracer;
@@ -132,10 +132,10 @@ class OTScopeManager implements ScopeManager {
       if (agentSpan == tracer.activeSpan()) {
         if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
           tracer.closeActive();
-        } else if (UNSUPPORTED_CLOSE_LOGGED.compareAndSet(false, true)) {
+        } else if (!unsupportedCloseLogged) {
+          unsupportedCloseLogged = true;
           log.warn(
-              "ScopeManager.active().close() has no effect; "
-                  + "close the Scope returned by activate() instead");
+              "ScopeManager.active().close() has no effect; close the Scope returned by activate() instead");
         }
       } else if (Config.get().isScopeStrictMode()) {
         throw new RuntimeException("Tried to close " + agentSpan + " scope when not on top");
