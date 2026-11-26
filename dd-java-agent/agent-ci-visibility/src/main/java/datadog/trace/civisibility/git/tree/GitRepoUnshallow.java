@@ -32,6 +32,9 @@ public class GitRepoUnshallow {
     long unshallowStart = System.currentTimeMillis();
     try {
       gitClient.unshallow(commit);
+      if (!GitClient.HEAD.equals(commit)) {
+        return true;
+      }
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
       LOGGER.debug(
           "Could not unshallow using {} - assuming it points to a local commit that does not exist in the remote repo",
