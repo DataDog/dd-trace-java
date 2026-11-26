@@ -232,7 +232,7 @@ class KnownTagsTest {
   @Test
   void unknownIdsResolveToNullName() {
     assertNull(KnownTagCodec.nameOf(0L));
-    assertNull(KnownTagCodec.nameOf(KnownTagCodec.makeTagId(9999))); // serial with no assigned tag
+    assertNull(KnownTagCodec.nameOf(KnownTagCodec.makeTagId(KnownTagCodec.serialLimit())));
   }
 
   /**
@@ -279,7 +279,7 @@ class KnownTagsTest {
 
   @Test
   void levelBitCompositionRoundTrips() {
-    long spanId = KnownTagCodec.makeTagId(300); // no level bit
+    long spanId = KnownTags.HTTP_ROUTE;
     assertFalse(KnownTagCodec.isTraceLevel(spanId));
     long traceId = KnownTagCodec.traceLevel(spanId);
     assertTrue(KnownTagCodec.isTraceLevel(traceId));
@@ -290,8 +290,10 @@ class KnownTagsTest {
 
   @Test
   void serialEncodingRoundTrips() {
-    long id = KnownTagCodec.makeTagId(263);
-    assertEquals(263, KnownTagCodec.serialNum(id));
+    int serial = KnownTags.HTTP_ROUTE_SERIAL_NUM;
+    long id = KnownTagCodec.makeTagId(serial);
+    assertEquals(serial, KnownTagCodec.serialNum(id));
+    assertEquals(KnownTags.HTTP_ROUTE, id);
     assertFalse(KnownTagCodec.isTraceLevel(id));
   }
 
@@ -318,16 +320,15 @@ class KnownTagsTest {
   @Test
   void idOfRecoversEveryKnownTagsFullIdFromItsSerial() throws IllegalAccessException {
     int checked = 0;
-    for (java.lang.reflect.Field field : KnownTags.class.getFields()) {
-      if (field.getType() == long.class && field.getName().endsWith("_ID")) {
+    for (Field field : KnownTags.class.getFields()) {
+      if (field.getType() == long.class) {
         long tagId = field.getLong(null);
-        if (KnownTagCodec.isKnown(tagId)) {
-          assertEquals(tagId, KnownTagCodec.idOf(KnownTagCodec.serialNum(tagId)), field.getName());
-          checked++;
-        }
+        assertTrue(KnownTagCodec.isKnown(tagId), field.getName());
+        assertEquals(tagId, KnownTagCodec.idOf(KnownTagCodec.serialNum(tagId)), field.getName());
+        checked++;
       }
     }
-    assertTrue(checked > 0);
+    assertEquals(KnownTagCodec.serialLimit() - 1, checked);
   }
 
   @TableTest({
