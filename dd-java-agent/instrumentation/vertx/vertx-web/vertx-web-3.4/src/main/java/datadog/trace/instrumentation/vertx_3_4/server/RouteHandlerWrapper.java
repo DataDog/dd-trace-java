@@ -8,14 +8,23 @@ import static datadog.trace.instrumentation.vertx_3_4.server.VertxDecorator.DECO
 import static datadog.trace.instrumentation.vertx_3_4.server.VertxDecorator.INSTRUMENTATION_NAME;
 
 import datadog.context.ContextScope;
+import datadog.trace.api.appsec.route.NormalizedRouteHelper;
+import datadog.trace.api.appsec.route.VertxNormalizedRoute;
+import datadog.trace.api.appsec.route.VertxRouteParser;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.vertx.core.Handler;
+import io.vertx.ext.web.Route;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.impl.RouteImpl;
 import io.vertx.ext.web.impl.RouterImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RouteHandlerWrapper implements Handler<RoutingContext> {
+  private static final Logger log = LoggerFactory.getLogger(RouteHandlerWrapper.class);
+
   static final String PARENT_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".parent";
   static final String HANDLER_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".handler";
   static final String ROUTE_CONTEXT_KEY = "dd." + Tags.HTTP_ROUTE;
@@ -23,8 +32,13 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
   private final Handler<RoutingContext> actual;
   private final boolean spanStarter;
 
-  public RouteHandlerWrapper(final Handler<RoutingContext> handler) {
+  /** Declared path of each route, null when the instrumentation could not provide it. */
+  private final ContextStore<Route, String> declaredPaths;
+
+  public RouteHandlerWrapper(
+      final Handler<RoutingContext> handler, final ContextStore<Route, String> declaredPaths) {
     actual = handler;
+    this.declaredPaths = declaredPaths;
     // When mounting a sub router, the handler is a lambda in either RouterImpl or RouteImpl, so
     // this skips that. This prevents routers from creating a span during handling. In the event
     // a route is not found, without this code, a span would be created for the router when it
@@ -106,6 +120,25 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     if (method != null && path != null && shouldUpdateRoute(routingContext, parentSpan, path)) {
       routingContext.put(ROUTE_CONTEXT_KEY, path);
       HTTP_RESOURCE_DECORATOR.withRoute(parentSpan, method, path, true);
+      if (NormalizedRouteHelper.isEnabled()) {
+        tagNormalizedRoute(routingContext, parentSpan);
+      }
+    }
+  }
+
+  private void tagNormalizedRoute(final RoutingContext routingContext, final AgentSpan span) {
+    try {
+      final String declared =
+          declaredPaths != null ? declaredPaths.get(routingContext.currentRoute()) : null;
+      VertxNormalizedRoute.tag(
+          span,
+          declared,
+          VertxRouteParser.Grammar.LEGACY,
+          routingContext.mountPoint(),
+          routingContext.normalisedPath(),
+          routingContext.pathParams());
+    } catch (Throwable t) {
+      log.debug("Failed to collect the Vert.x normalized route", t);
     }
   }
 
