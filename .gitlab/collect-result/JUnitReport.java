@@ -179,17 +179,7 @@ final class JUnitReport {
     }
   }
 
-  record Counts(long tests, long failures, long errors, long skipped) {
-    Counts plus(Counts other) {
-      return new Counts(
-          tests + other.tests,
-          failures + other.failures,
-          errors + other.errors,
-          skipped + other.skipped);
-    }
-  }
-
-  Counts counts() {
+  TestCounts counts() {
     long tests = 0;
     long failures = 0;
     long errors = 0;
@@ -205,7 +195,7 @@ final class JUnitReport {
         default -> {}
       }
     }
-    return new Counts(tests, failures, errors, skipped);
+    return new TestCounts(tests, failures, errors, skipped);
   }
 
   void write(Path xmlFile) throws Exception {

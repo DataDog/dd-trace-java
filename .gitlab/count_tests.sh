@@ -4,6 +4,7 @@ set -e
 
 # Count tests from JUnit XML reports and emit metrics
 # Usage: count_tests.sh [-v] [--collect] <test_category> <jvm_version> <results_dir> <output_file>
+# In --collect mode, exit status 2 indicates that XML export succeeded but count generation failed.
 
 # https://docs.gitlab.com/ci/variables/predefined_variables/
 
@@ -51,7 +52,7 @@ if [[ "$COLLECT" = true ]]; then
 else
     source "$(dirname "$0")/java-utils.sh"
     java_bin=$(resolve_java)
-    counts=$("$java_bin" "$(dirname "$0")/CountTests.java" "$RESULTS_DIR" "$VERBOSE")
+    counts=$("$java_bin" "$(dirname "$0")/collect-result/CountTests.java" "$RESULTS_DIR" "$VERBOSE")
 fi
 read -r TOTAL_TESTS TOTAL_FAILURES TOTAL_ERRORS TOTAL_SKIPPED <<< "$counts"
 
@@ -99,7 +100,7 @@ fi
 # ============================================================================
 
 log_verbose "Writing JSON output to $OUTPUT_FILE"
-cat > "$OUTPUT_FILE" <<EOF
+if ! cat > "$OUTPUT_FILE" <<EOF
 {
   "test_category": "$TEST_CATEGORY",
   "jvm_version": "$JVM_VERSION",
@@ -120,5 +121,11 @@ cat > "$OUTPUT_FILE" <<EOF
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
 EOF
+then
+    if [[ "$COLLECT" = true ]]; then
+        exit 2
+    fi
+    exit 1
+fi
 
 echo "Test count output written to $OUTPUT_FILE"

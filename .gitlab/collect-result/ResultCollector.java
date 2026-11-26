@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 final class ResultCollector {
@@ -26,7 +27,7 @@ final class ResultCollector {
     this.sourceFileResolver = new SourceFileResolver(workspaceDir);
   }
 
-  void collect(boolean countTests) throws Exception {
+  Map<Path, TestCounts> collect(boolean countTests) throws Exception {
     Files.createDirectories(resultsDir);
     Files.createDirectories(workspaceDir);
 
@@ -38,7 +39,7 @@ final class ResultCollector {
       System.err.println("CONTINUE_ON_FAILURE=true: reporting all tests as skip");
     }
 
-    var countsByTarget = new HashMap<Path, JUnitReport.Counts>();
+    Map<Path, TestCounts> countsByTarget = countTests ? new HashMap<>() : Map.of();
     System.err.println("Saving test results:");
     for (var sourceXml : findXmlFiles(testResultDirs)) {
       var targetXml = resultsDir.resolve(aggregatedFileName(sourceXml));
@@ -48,16 +49,17 @@ final class ResultCollector {
         countsByTarget.put(targetXml, report.counts());
       }
     }
-    if (countTests) {
-      var total = new JUnitReport.Counts(0, 0, 0, 0);
-      for (var path : findXmlFiles(List.of(resultsDir))) {
-        var counts = countsByTarget.get(path);
-        // Include any XML already in results/ when the collector started.
-        total = total.plus(counts != null ? counts : JUnitReport.parse(path).counts());
-      }
-      System.out.printf(
-          "%d %d %d %d%n", total.tests(), total.failures(), total.errors(), total.skipped());
+    return countsByTarget;
+  }
+
+  TestCounts countTests(Map<Path, TestCounts> countsByTarget) throws Exception {
+    var total = TestCounts.ZERO;
+    for (var path : findXmlFiles(List.of(resultsDir))) {
+      var counts = countsByTarget.get(path);
+      // Read pre-existing XML with the same parser used by the standalone counter.
+      total = total.plus(counts != null ? counts : CountTests.count(path));
     }
+    return total;
   }
 
   private JUnitReport collect(Path sourceXml, Path targetXml) throws Exception {
