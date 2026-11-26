@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
+import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.context.ContextScope;
 import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -64,6 +65,22 @@ public class TraceShapeBenchmark {
   @Param({"1", "5", "20"})
   int children;
 
+  /**
+   * {@code off}: no agent, so client-side stats never captures. {@code on}: an agent that supports
+   * stats, so every finished trace is published to the stats aggregator on the finishing thread, as
+   * in production.
+   */
+  @Param({"off"})
+  String stats;
+
+  /**
+   * CPU tokens burned per trace ({@link Blackhole#consumeCPU}), standing in for the request's own
+   * work, so background threads such as the stats aggregator keep up as they would in production. 0
+   * runs the trace shape flat out.
+   */
+  @Param({"0"})
+  long pace;
+
   // server: HttpServerDecorator (tomcat)
   static final String SERVER_INSTRUMENTATION = "tomcat-server";
   static final CharSequence SERVER_OPERATION = UTF8BytesString.create("servlet.request");
@@ -111,7 +128,22 @@ public class TraceShapeBenchmark {
 
   @Setup
   public void setup(Blackhole blackhole) {
-    this.tracer = CoreTracer.builder().writer(new DropWriter(blackhole)).build();
+    CoreTracer.CoreTracerBuilder builder = CoreTracer.builder().writer(new DropWriter(blackhole));
+    if ("on".equals(stats)) {
+      SharedCommunicationObjects sco = new SharedCommunicationObjects();
+      sco.setFeaturesDiscovery(new StatsOnFeaturesDiscovery());
+      builder.sharedCommunicationObjects(sco);
+    }
+    this.tracer = builder.build();
+    if ("on".equals(stats)) {
+      // The tracer starts its stats aggregator about a second after it's built. Traces published
+      // before then are refused at a full inbox, so wait for it rather than measure the refusals.
+      try {
+        Thread.sleep(3_000);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
     // the decorators' prototype chains: Base (type, component) -> Server / Client (kind, language)
     this.serverProto =
         SpanPrototype.builder()
@@ -147,6 +179,7 @@ public class TraceShapeBenchmark {
 
   @Benchmark
   public void legacy() {
+    Blackhole.consumeCPU(pace);
     AgentSpan server = tracer.startSpan(SERVER_INSTRUMENTATION, SERVER_OPERATION);
     server.setSpanType(WEB);
     server.setTag(Tags.COMPONENT, SERVER_COMPONENT);
@@ -199,6 +232,7 @@ public class TraceShapeBenchmark {
 
   @Benchmark
   public void normal() {
+    Blackhole.consumeCPU(pace);
     // HttpServerDecorator: startSpan, afterStart, onRequest, then onResponseStatus at the end
     AgentSpan server = tracer.startSpan(SERVER_INSTRUMENTATION, SERVER_OPERATION);
     server.applyOverwriting(serverProto); // BaseDecorator.afterStart
@@ -242,6 +276,7 @@ public class TraceShapeBenchmark {
 
   @Benchmark
   public void newApi() {
+    Blackhole.consumeCPU(pace);
     AgentSpan server = tracer.startSpan(serverProto, SERVER_OPERATION);
     server.setTag(KnownTags.HTTP_USERAGENT, USER_AGENT);
     server.setTag(KnownTags.HTTP_METHOD, METHOD);
