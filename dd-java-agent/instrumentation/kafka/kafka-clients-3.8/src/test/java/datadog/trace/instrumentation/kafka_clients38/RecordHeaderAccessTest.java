@@ -163,8 +163,7 @@ class RecordHeaderAccessTest {
   @Test
   void fieldsMatchWhatTheInstrumentationExpects() {
     assertTrue(
-        new FieldAccessors(
-                BufferedHeaderFields.class, RecordHeaderInstrumentation.GETTERS_AND_FIELDS)
+        new FieldAccessors(BufferedHeaderFields.class)
             .appliesTo(ForLoadedType.of(RecordHeader.class)),
         "RecordHeader's layout changed; the accessor won't be installed");
   }
@@ -318,11 +317,38 @@ class RecordHeaderAccessTest {
     return seen;
   }
 
+  /** A header subclass that transforms its value, as a decrypting header might. */
+  static final class TransformingHeader extends FieldsHeader {
+    TransformingHeader(ByteBuffer keyBuffer, ByteBuffer valueBuffer) {
+      super(keyBuffer, valueBuffer);
+    }
+
+    @Override
+    public byte[] value() {
+      return "transformed".getBytes(UTF_8);
+    }
+  }
+
+  @Test
+  void onlyHeadersKeepingKafkasAccessorsAreReadThroughTheirFields() {
+    FieldsHeader keeps = fetched("traceparent", "raw");
+    assertSame(keeps, RecordHeaderAccess.bufferedFields(keeps));
+    // an override must be read through itself, not the raw fields
+    TransformingHeader overrides =
+        new TransformingHeader(
+            ByteBuffer.wrap("traceparent".getBytes(UTF_8)), ByteBuffer.wrap("raw".getBytes(UTF_8)));
+    assertNull(RecordHeaderAccess.bufferedFields(overrides));
+    // a RecordHeader without the accessor (no agent here) and other Header types aren't either
+    assertNull(
+        RecordHeaderAccess.bufferedFields(new RecordHeader("traceparent", "raw".getBytes(UTF_8))));
+    assertNull(RecordHeaderAccess.bufferedFields(new OtherHeader("traceparent", "raw")));
+  }
+
   /**
    * A {@link RecordHeader} with the accessor the agent installs, its getters reading the same
    * fields reflectively.
    */
-  static final class FieldsHeader extends RecordHeader implements BufferedHeaderFields {
+  static class FieldsHeader extends RecordHeader implements BufferedHeaderFields {
     private static final Field KEY = field("key");
     private static final Field KEY_BUFFER = field("keyBuffer");
     private static final Field VALUE = field("value");

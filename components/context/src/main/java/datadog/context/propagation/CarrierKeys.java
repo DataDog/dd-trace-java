@@ -93,19 +93,15 @@ public final class CarrierKeys {
     if (all) {
       return true;
     }
-    int length = key.length();
-    if (length < namesByLength.length) {
-      String[] names = namesByLength[length];
-      if (names != null) {
-        for (String name : names) {
-          if (name.equals(key) || name.regionMatches(true, 0, key, 0, length)) {
-            return true;
-          }
-        }
-      }
+    if (nameIndex(key) >= 0) {
+      return true;
     }
+    int length = key.length();
+    boolean upperCase = hasUpperCase(key);
     for (String prefix : prefixes) {
-      if (prefix.length() <= length && key.regionMatches(true, 0, prefix, 0, prefix.length())) {
+      if (prefix.length() <= length
+          && (key.startsWith(prefix)
+              || (upperCase && key.regionMatches(true, 0, prefix, 0, prefix.length())))) {
         return true;
       }
     }
@@ -146,19 +142,50 @@ public final class CarrierKeys {
    * it's no declared name, or one with no constant.
    */
   public HeaderSchema header(String key) {
+    int index = nameIndex(key);
+    return index < 0 ? null : headersByLength[key.length()][index];
+  }
+
+  /**
+   * The index, among the names of its length, of the name {@code key} is ignoring case, or -1. Keys
+   * are almost always lower case already (the declared name itself, or a decoded copy of it), so
+   * they're compared exactly first; the case-insensitive pass runs only for a key with an
+   * upper-case character at all. Most keys a carrier offers are no declared name, and comparing
+   * those ignoring case against every name of the same length was the bulk of the matching cost.
+   */
+  private int nameIndex(String key) {
     int length = key.length();
-    if (length < namesByLength.length) {
-      String[] names = namesByLength[length];
-      if (names != null) {
-        for (int i = 0; i < names.length; i++) {
-          // usually lower case already: the declared name itself, or a decoded copy of it
-          if (names[i].equals(key) || names[i].regionMatches(true, 0, key, 0, length)) {
-            return headersByLength[length][i];
-          }
-        }
+    if (length >= namesByLength.length) {
+      return -1;
+    }
+    String[] names = namesByLength[length];
+    if (names == null) {
+      return -1;
+    }
+    for (int i = 0; i < names.length; i++) {
+      if (names[i].equals(key)) {
+        return i;
       }
     }
-    return null;
+    if (!hasUpperCase(key)) {
+      return -1;
+    }
+    for (int i = 0; i < names.length; i++) {
+      if (names[i].regionMatches(true, 0, key, 0, length)) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  private static boolean hasUpperCase(String s) {
+    for (int i = 0; i < s.length(); i++) {
+      char c = s.charAt(i);
+      if (c >= 'A' && c <= 'Z') {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** The index, among the names of its length, of the name {@code key}'s bytes spell, or -1. */

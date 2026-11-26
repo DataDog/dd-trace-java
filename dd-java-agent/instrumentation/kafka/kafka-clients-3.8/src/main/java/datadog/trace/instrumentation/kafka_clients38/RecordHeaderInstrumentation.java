@@ -12,21 +12,13 @@ import net.bytebuddy.matcher.ElementMatcher;
  * Makes Kafka's {@code RecordHeader} implement {@link BufferedHeaderFields}, so extraction can read
  * a fetched header's key and value from the record batch without {@code key()} decoding and {@code
  * value()} copying them. A {@code RecordHeader} loaded before the agent, or with other fields, is
- * left alone, and extraction reads it through {@code key()} and {@code value()}.
+ * left alone, and extraction reads it through {@code key()} and {@code value()}. The fields are
+ * also checked by muzzle (generated from {@code installFieldAccessors}), against every Kafka
+ * version in range.
  */
 @AutoService(InstrumenterModule.class)
 public final class RecordHeaderInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.WithStructuralChange {
-
-  /**
-   * Each getter of {@link BufferedHeaderFields}, then the {@code RecordHeader} field it returns.
-   */
-  static final String[] GETTERS_AND_FIELDS = {
-    "$$DD$$__key", "key",
-    "$$DD$$__keyBuffer", "keyBuffer",
-    "$$DD$$__value", "value",
-    "$$DD$$__valueBuffer", "valueBuffer",
-  };
 
   public RecordHeaderInstrumentation() {
     super("kafka", "kafka-3.8");
@@ -49,6 +41,6 @@ public final class RecordHeaderInstrumentation extends InstrumenterModule.Tracin
 
   @Override
   public void typeAdvice(TypeTransformer transformer) {
-    transformer.installFieldAccessors(BufferedHeaderFields.class, GETTERS_AND_FIELDS);
+    transformer.installFieldAccessors(BufferedHeaderFields.class);
   }
 }

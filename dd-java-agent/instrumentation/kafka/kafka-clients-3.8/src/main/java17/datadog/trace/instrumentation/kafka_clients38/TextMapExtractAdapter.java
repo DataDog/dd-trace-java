@@ -78,8 +78,7 @@ public class TextMapExtractAdapter implements ContextVisitor<Headers> {
       AgentPropagation.KeyClassifier sink,
       TransientValueConsumer transientSink) {
     for (Header header : carrier) {
-      BufferedHeaderFields fields =
-          header instanceof BufferedHeaderFields ? (BufferedHeaderFields) header : null;
+      BufferedHeaderFields fields = RecordHeaderAccess.bufferedFields(header);
       String key = key(header, fields, keys);
       if (key == null) {
         continue;

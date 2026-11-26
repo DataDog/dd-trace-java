@@ -2,10 +2,12 @@ package datadog.trace.instrumentation.kafka_clients38;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.BufferedHeaderFields;
 import datadog.trace.util.AsciiSequence;
 import java.nio.ByteBuffer;
 import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.internals.RecordHeader;
 
 /**
  * Reads a fetched Kafka header's key and value straight from the record batch, skipping the copies
@@ -23,7 +25,11 @@ import org.apache.kafka.common.header.Header;
  * buffer alive.
  */
 final class RecordHeaderAccess {
-  /** Header names the tracer reads on extraction, as written by tracers on inject. */
+  /**
+   * Header names the tracer reads on extraction, as written by tracers on inject. Only a fast path:
+   * a key not listed here is still read, through {@link Header#key()}, so a name missing from this
+   * list costs a decode, never correctness.
+   */
   private static final String[] KNOWN_KEYS = {
     "x-datadog-trace-id",
     "x-datadog-parent-id",
@@ -33,11 +39,46 @@ final class RecordHeaderAccess {
     "traceparent",
     "tracestate",
     "baggage",
-    "dd-pathway-ctx-base64",
+    PathwayContext.PROPAGATION_KEY_BASE64,
     KafkaDecorator.KAFKA_PRODUCED_KEY,
   };
 
+  private static final ClassValue<Boolean> OVERRIDES_ACCESSORS = new OverridesAccessors();
+
+  /**
+   * Whether a {@code RecordHeader} subclass overrides {@code key()} or {@code value()}. A named
+   * class rather than an anonymous one, so instrumentations can declare it as a helper.
+   */
+  static final class OverridesAccessors extends ClassValue<Boolean> {
+    @Override
+    protected Boolean computeValue(Class<?> type) {
+      try {
+        return type.getMethod("key").getDeclaringClass() != RecordHeader.class
+            || type.getMethod("value").getDeclaringClass() != RecordHeader.class;
+      } catch (NoSuchMethodException e) {
+        return true;
+      }
+    }
+  }
+
   private RecordHeaderAccess() {}
+
+  /**
+   * The header's buffered fields if it can be read through them: a {@code RecordHeader} the agent
+   * gave {@link BufferedHeaderFields}, or a subclass that keeps Kafka's own {@code key()} and
+   * {@code value()} (an override, say one that decrypts, must be read through itself); otherwise
+   * null. Exactly {@code RecordHeader}, the usual case, is checked first, which keeps the interface
+   * test constant once compiled rather than a lookup per header.
+   */
+  static BufferedHeaderFields bufferedFields(Header header) {
+    Class<?> type = header.getClass();
+    if (type == RecordHeader.class) {
+      return header instanceof BufferedHeaderFields ? (BufferedHeaderFields) header : null;
+    }
+    return header instanceof BufferedHeaderFields && !OVERRIDES_ACCESSORS.get(type)
+        ? (BufferedHeaderFields) header
+        : null;
+  }
 
   /**
    * The header's key: the decoded key if there is one, a known name's constant if the key bytes
