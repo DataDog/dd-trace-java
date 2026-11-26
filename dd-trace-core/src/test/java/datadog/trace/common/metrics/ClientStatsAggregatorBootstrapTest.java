@@ -301,8 +301,9 @@ class ClientStatsAggregatorBootstrapTest {
   @SuppressWarnings({"rawtypes", "unchecked"})
   private static CoreSpan<?> peerAggregationSpan() {
     CoreSpan span = mock(CoreSpan.class);
-    // the bulk tag read is a CoreSpan default method: let the mock run it over unsafeGetTag
+    // the bulk tag reads are CoreSpan default methods: let the mock run them over unsafeGetTag
     when(span.unsafeGetTagStrings(any())).thenCallRealMethod();
+    when(span.unsafeGetTagStrings(any(), any())).thenCallRealMethod();
     when(span.isMeasured()).thenReturn(false);
     when(span.isTopLevel()).thenReturn(true);
     // Return true for any SpanKindFilter -- shouldComputeMetric will see METRICS_ELIGIBLE_KINDS

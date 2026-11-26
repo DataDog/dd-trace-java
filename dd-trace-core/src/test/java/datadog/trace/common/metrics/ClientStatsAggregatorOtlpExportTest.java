@@ -66,6 +66,7 @@ class ClientStatsAggregatorOtlpExportTest {
     CoreSpan span = mock(CoreSpan.class);
     // the bulk tag read is a CoreSpan default method: let the mock run it over unsafeGetTag
     when(span.unsafeGetTagStrings(any())).thenCallRealMethod();
+    when(span.unsafeGetTagStrings(any(), any())).thenCallRealMethod();
     when(span.isMeasured()).thenReturn(false);
     when(span.isTopLevel()).thenReturn(true);
     when(span.isKind(any(SpanKindFilter.class))).thenReturn(false);
