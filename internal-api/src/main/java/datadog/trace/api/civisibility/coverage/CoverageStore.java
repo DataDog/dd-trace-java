@@ -35,6 +35,12 @@ public interface CoverageStore extends TestReportHolder {
 
   interface Factory extends Registry {
     CoverageStore create(@Nullable TestIdentifier testIdentifier);
+
+    /**
+     * Reports the lines that the process ran and that no test owns, once all tests of the process
+     * ran.
+     */
+    default void reportShared(DDTraceId testSessionId) {}
   }
 
   interface Registry {

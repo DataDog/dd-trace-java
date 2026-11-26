@@ -91,8 +91,15 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
   @Override
   public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
     long serializationStartTimestamp = System.currentTimeMillis();
+    int written = 0;
 
     for (final CoreSpan<?> span : trace) {
+      CharSequence spanType = span.getType();
+      if (equals(InternalSpanTypes.TEST_SHARED_COVERAGE, spanType)) {
+        // it carries coverage, which only the coverage payload writes
+        continue;
+      }
+
       DDTraceId testSessionId = span.getTag(Tags.TEST_SESSION_ID);
       Number testModuleId = span.getTag(Tags.TEST_MODULE_ID);
       Number testSuiteId = span.getTag(Tags.TEST_SUITE_ID);
@@ -117,7 +124,6 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       Long spanId;
       Long parentId;
       int version;
-      CharSequence spanType = span.getType();
       if (equals(InternalSpanTypes.TEST, spanType)) {
         type = InternalSpanTypes.TEST;
         traceId = span.getTraceId().toLong();
@@ -224,8 +230,9 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       writable.writeInt(span.getError());
       /* 7 (meta), 8 (metrics) */
       span.processTagsAndBaggage(metaWriter.withWritable(writable), OWN_PROPAGATION_TAGS);
+      written++;
     }
-    eventCount += trace.size();
+    eventCount += written;
     serializationTimeMillis += (int) (System.currentTimeMillis() - serializationStartTimestamp);
   }
 

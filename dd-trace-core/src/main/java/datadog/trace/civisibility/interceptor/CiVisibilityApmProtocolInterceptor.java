@@ -6,6 +6,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.interceptor.AbstractTraceInterceptor;
 import datadog.trace.api.interceptor.MutableSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Collection;
 import java.util.List;
@@ -60,6 +61,7 @@ public class CiVisibilityApmProtocolInterceptor extends AbstractTraceInterceptor
     String spanType = span.getSpanType();
     return !DDSpanTypes.TEST_SESSION_END.equals(spanType)
         && !DDSpanTypes.TEST_MODULE_END.equals(spanType)
-        && !DDSpanTypes.TEST_SUITE_END.equals(spanType);
+        && !DDSpanTypes.TEST_SUITE_END.equals(spanType)
+        && !InternalSpanTypes.TEST_SHARED_COVERAGE.toString().equals(spanType);
   }
 }

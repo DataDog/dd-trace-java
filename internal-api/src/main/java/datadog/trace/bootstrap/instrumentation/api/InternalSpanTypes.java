@@ -42,6 +42,14 @@ public class InternalSpanTypes {
       UTF8BytesString.create(DDSpanTypes.TEST_MODULE_END);
   public static final UTF8BytesString TEST_SESSION_END =
       UTF8BytesString.create(DDSpanTypes.TEST_SESSION_END);
+
+  /**
+   * A span that carries a part of a process's Shared coverage to the coverage payload. Only that
+   * payload writes it.
+   */
+  public static final UTF8BytesString TEST_SHARED_COVERAGE =
+      UTF8BytesString.create("test_shared_coverage");
+
   public static final UTF8BytesString VULNERABILITY =
       UTF8BytesString.create(DDSpanTypes.VULNERABILITY);
   public static final UTF8BytesString PROTOBUF = UTF8BytesString.create(DDSpanTypes.PROTOBUF);

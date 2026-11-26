@@ -201,6 +201,11 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
     }
 
     @Override
+    public void reportShared(DDTraceId testSessionId) {
+      SharedCoverageReporter.report(sourceFiles, testSessionId);
+    }
+
+    @Override
     public void setTotalProbeCount(String className, int totalProbeCount) {
       // probe counts are kept per class in ProbeRecorder
     }

@@ -9,6 +9,7 @@ import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.InstrumentationBridge;
+import datadog.trace.api.civisibility.coverage.SharedPart;
 import datadog.trace.api.civisibility.coverage.TestReport;
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
 import datadog.trace.api.civisibility.coverage.TestReportHolder;
@@ -41,6 +42,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
   private static final byte[] TEST_SESSION_ID = "test_session_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] TEST_SUITE_ID = "test_suite_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] SPAN_ID = "span_id".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] SHARED = "shared".getBytes(StandardCharsets.UTF_8);
   private static final byte[] FILES = "files".getBytes(StandardCharsets.UTF_8);
   private static final byte[] FILENAME = "filename".getBytes(StandardCharsets.UTF_8);
   private static final byte[] BITMAP = "bitmap".getBytes(StandardCharsets.UTF_8);
@@ -69,7 +71,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
     int written = 0;
 
     for (CoreSpan<?> span : trace) {
-      if (!isTestSpan(span)) {
+      if (!isCoverageSpan(span)) {
         continue;
       }
 
@@ -80,6 +82,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
 
       DDTraceId testSessionId = testReport.getTestSessionId();
       Long testSuiteId = testReport.getTestSuiteId();
+      SharedPart sharedPart = testReport.getSharedPart();
 
       int fieldCount = 2 + (testSessionId != null ? 1 : 0) + (testSuiteId != null ? 1 : 0);
 
@@ -95,8 +98,14 @@ public class CiTestCovMapperV2 implements RemoteMapper {
         writable.writeLong(testSuiteId);
       }
 
-      writable.writeUTF8(SPAN_ID);
-      writable.writeLong(testReport.getSpanId());
+      if (sharedPart != null) {
+        // a part of Shared belongs to no test: the part's name takes the place of the span id
+        writable.writeUTF8(SHARED);
+        writable.writeString(sharedPart.payloadName(), null);
+      } else {
+        writable.writeUTF8(SPAN_ID);
+        writable.writeLong(testReport.getSpanId());
+      }
 
       Collection<TestReportFileEntry> fileEntries = testReport.getTestReportFileEntries();
 
@@ -126,9 +135,14 @@ public class CiTestCovMapperV2 implements RemoteMapper {
     serializationTimeMillis += (int) (System.currentTimeMillis() - serializationStartTimestamp);
   }
 
-  private static boolean isTestSpan(CoreSpan<?> span) {
+  private static boolean isCoverageSpan(CoreSpan<?> span) {
     CharSequence type = span.getType();
-    return type != null && type.toString().contentEquals(InternalSpanTypes.TEST);
+    if (type == null) {
+      return false;
+    }
+    String typeName = type.toString();
+    return typeName.contentEquals(InternalSpanTypes.TEST)
+        || typeName.contentEquals(InternalSpanTypes.TEST_SHARED_COVERAGE);
   }
 
   private static TestReport getTestReport(CoreSpan<?> span) {

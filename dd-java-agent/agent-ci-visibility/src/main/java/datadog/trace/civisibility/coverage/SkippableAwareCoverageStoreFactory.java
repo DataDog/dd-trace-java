@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.coverage;
 
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.coverage.NoOpCoverageStore;
@@ -35,5 +36,10 @@ public class SkippableAwareCoverageStoreFactory implements CoverageStore.Factory
   @Override
   public void setTotalProbeCount(String className, int totalProbeCount) {
     delegate.setTotalProbeCount(className, totalProbeCount);
+  }
+
+  @Override
+  public void reportShared(DDTraceId testSessionId) {
+    delegate.reportShared(testSessionId);
   }
 }

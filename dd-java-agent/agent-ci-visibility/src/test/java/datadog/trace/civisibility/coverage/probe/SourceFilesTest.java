@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.civisibility.coverage.InstrumentedClass;
 import datadog.trace.api.civisibility.coverage.ProbeRecorder;
+import datadog.trace.api.civisibility.coverage.SharedPart;
 import datadog.trace.civisibility.coverage.probe.fixtures.CoverageFixture;
 import datadog.trace.civisibility.coverage.probe.fixtures.KotlinCoverageFixture;
 import datadog.trace.civisibility.source.SourcePathResolver;
@@ -248,7 +249,8 @@ class SourceFilesTest {
         continue;
       }
       BitSet classLines = new BitSet();
-      ProbeRecorder.addSharedLines(classId, classLines); // no test window is open here
+      ProbeRecorder.addSharedLines(
+          SharedPart.UNOWNED, classId, classLines); // no test window is open here
       instrumentedClass.addInitLines(ProbeRecorder.PROBES[classId], classLines);
       if (!classLines.isEmpty()) {
         assertTrue(sourceFiles.addLines(instrumentedClass, classLines, linesBySourcePath));

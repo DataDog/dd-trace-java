@@ -22,6 +22,7 @@ import static org.objectweb.asm.Opcodes.V1_8;
 
 import datadog.trace.api.civisibility.coverage.InstrumentedClass;
 import datadog.trace.api.civisibility.coverage.ProbeRecorder;
+import datadog.trace.api.civisibility.coverage.SharedPart;
 import java.util.BitSet;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -196,7 +197,7 @@ class LargeMethodTest {
     for (int classId = 0; classId < ProbeRecorder.getClassCount(); classId++) {
       InstrumentedClass instrumentedClass = ProbeRecorder.getInstrumentedClass(classId);
       if (instrumentedClass != null && instrumentedClass.loader() == loader) {
-        ProbeRecorder.addSharedLines(classId, lines);
+        ProbeRecorder.addSharedLines(SharedPart.UNOWNED, classId, lines);
       }
     }
     return lines;

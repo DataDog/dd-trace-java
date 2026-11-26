@@ -38,9 +38,13 @@ import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.TraceGenerator;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.test.util.DDJavaSpecification;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -237,6 +241,56 @@ public class CiTestCycleMapperV1PayloadTest extends DDJavaSpecification {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
+  void aSpanThatCarriesSharedCoverageIsNotAnEvent() throws IOException {
+    CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags(), false);
+    PayloadCapture capture = new PayloadCapture(mapper);
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(100 << 10, capture));
+
+    packer.format(
+        Arrays.asList(
+            generateRandomSpan(InternalSpanTypes.TEST, Collections.emptyMap()),
+            generateRandomSpan(InternalSpanTypes.TEST_SHARED_COVERAGE, Collections.emptyMap())),
+        mapper);
+    packer.flush();
+
+    Map<String, Object> payload =
+        new ObjectMapper(new MessagePackFactory()).readValue(capture.bytes(), Map.class);
+    List<Map<String, Object>> events = (List<Map<String, Object>>) payload.get("events");
+    assertEquals(1, events.size());
+    assertEquals("test", events.get(0).get("type"));
+  }
+
+  @Test
+  void aTraceThatOnlyCarriesSharedCoverageMakesNoPayload() {
+    CiTestCycleMapperV1 mapper = new CiTestCycleMapperV1(wellKnownTags(), false);
+    PayloadCapture capture = new PayloadCapture(mapper);
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(100 << 10, capture));
+
+    packer.format(
+        Collections.singletonList(
+            generateRandomSpan(InternalSpanTypes.TEST_SHARED_COVERAGE, Collections.emptyMap())),
+        mapper);
+    packer.flush();
+
+    assertEquals(0, capture.bytes().length);
+  }
+
+  private static CiVisibilityWellKnownTags wellKnownTags() {
+    return new CiVisibilityWellKnownTags(
+        "runtimeid",
+        "my-env",
+        "language",
+        "my-runtime-name",
+        "my-runtime-version",
+        "my-runtime-vendor",
+        "my-os-arch",
+        "my-os-platform",
+        "my-os-version",
+        "false");
+  }
+
+  @Test
   void verifyResultIsNotAffectedBySuccessiveMappingCalls() {
     Map<String, Object> extraTags = new HashMap<>();
     extraTags.put(Tags.TEST_SESSION_ID, DDTraceId.from(123));
@@ -355,6 +409,29 @@ public class CiTestCycleMapperV1PayloadTest extends DDJavaSpecification {
       assertEquals("", actual);
     } else {
       assertEquals(expected.toString(), actual.toString());
+    }
+  }
+
+  /** Captures the payloads that the mapper makes of what the buffer flushes. */
+  private static final class PayloadCapture implements ByteBufferConsumer {
+    private final CiTestCycleMapperV1 mapper;
+    private final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+
+    PayloadCapture(CiTestCycleMapperV1 mapper) {
+      this.mapper = mapper;
+    }
+
+    @Override
+    public void accept(int messageCount, ByteBuffer buffer) {
+      try {
+        mapper.newPayload().withBody(messageCount, buffer).writeTo(Channels.newChannel(bytes));
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
+
+    byte[] bytes() {
+      return bytes.toByteArray();
     }
   }
 

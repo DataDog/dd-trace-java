@@ -148,6 +148,7 @@ public class ProxyTestModule implements TestFrameworkModule {
     // we have no span locally,
     // send execution result to parent process that manages the span
     sendModuleExecutionResult();
+    coverageStoreFactory.reportShared(parentProcessModuleContext.getTraceId());
   }
 
   private void sendModuleExecutionResult() {

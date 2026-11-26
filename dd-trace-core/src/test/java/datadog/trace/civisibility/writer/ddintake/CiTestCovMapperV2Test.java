@@ -3,6 +3,7 @@ package datadog.trace.civisibility.writer.ddintake;
 import static datadog.communication.http.OkHttpUtils.sendWithRetries;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -16,6 +17,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.coverage.CoverageProbes;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.coverage.NoOpProbes;
+import datadog.trace.api.civisibility.coverage.SharedPart;
 import datadog.trace.api.civisibility.coverage.TestReport;
 import datadog.trace.api.civisibility.coverage.TestReportFileEntry;
 import datadog.trace.api.civisibility.domain.TestContext;
@@ -199,6 +201,38 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
     assertEquals(1, files.size());
     assertFile(
         files.get(0), "source", new byte[] {33, 0, 0, 0, 0, 0, 0, 0, 53, 0, 0, 0, 0, 0, 0, 0, 87});
+  }
+
+  @Test
+  void writesTheSharedPartInPlaceOfASpanId() throws Exception {
+    TestReport report =
+        TestReport.shared(
+            DDTraceId.from(1),
+            SharedPart.SUITE_SETUP,
+            Arrays.asList(new TestReportFileEntry("source", BitSet.valueOf(new long[] {3, 5, 8}))));
+    List<DDSpan> trace = new ArrayList<>();
+    trace.add(
+        buildSpan(
+            0,
+            InternalSpanTypes.TEST_SHARED_COVERAGE,
+            PropagationTags.factory().empty(),
+            Collections.emptyMap(),
+            PrioritySampling.SAMPLER_KEEP,
+            new DummyTestContext(new DummyReportHolder(report))));
+
+    Map<String, Object> message = getMappedMessage(trace);
+
+    List<Map<String, Object>> coverages = assertVersionAndGetCoverages(message, 2);
+    assertEquals(1, coverages.size());
+    Map<String, Object> coverage = coverages.get(0);
+    assertEquals(1, coverage.get("test_session_id"));
+    assertEquals("suiteSetup", coverage.get("shared"));
+    assertFalse(coverage.containsKey("span_id"));
+    assertFalse(coverage.containsKey("test_suite_id"));
+    List<Map<String, Object>> files = (List<Map<String, Object>>) coverage.get("files");
+    assertEquals(1, files.size());
+    assertFile(
+        files.get(0), "source", new byte[] {3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 8});
   }
 
   @Test

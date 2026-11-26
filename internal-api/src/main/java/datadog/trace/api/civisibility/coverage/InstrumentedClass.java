@@ -94,14 +94,21 @@ public final class InstrumentedClass {
     }
   }
 
-  /** Adds the lines of the class initializer probes that are set in {@code probes}. */
-  public void addInitLines(boolean[] probes, BitSet lines) {
+  /**
+   * Adds the lines of the class initializer probes that are set in {@code probes}.
+   *
+   * @return {@code false} if no such probe is set
+   */
+  public boolean addInitLines(boolean[] probes, BitSet lines) {
     boolean[] visitedNodes = null;
+    boolean set = false;
     for (int probe = initStart; probe < probes.length; probe++) {
       if (probes[probe]) {
         visitedNodes = addProbeLines(probe, lines, visitedNodes);
+        set = true;
       }
     }
+    return set;
   }
 
   /**

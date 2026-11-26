@@ -166,6 +166,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       setTag(DDTags.TEST_HAS_FAILED_TEST_REPLAY, true);
     }
 
+    coverageStoreFactory.reportShared(span.getTraceId());
     super.end(endTime);
   }
 

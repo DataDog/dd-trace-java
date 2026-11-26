@@ -17,7 +17,8 @@ import javax.annotation.Nullable;
  * {@link #probes}, and each probe stores {@code true} in its slot of that array. What an array
  * holds belongs to the owner of the code the thread ran when the array was handed out: an open
  * {@link CoverageWindow}, or Shared for code that no open window owns. {@link ThreadProbes}
- * describes how the hits reach their owner. Shared is never reset: it is reported once per process.
+ * describes how the hits reach their owner. Shared is never reset: it is reported once per process,
+ * in the parts of {@link SharedPart}.
  *
  * <p>The first thread that opens a window is the primary thread: while a window is open on it, it
  * takes its arrays from {@link #PRIMARY} without looking up its owner.
@@ -40,8 +41,14 @@ public final class ProbeRecorder {
   /** Probe arrays of the primary thread, indexed by class id. */
   private static final boolean[][] PRIMARY = new boolean[MAX_CLASSES][];
 
-  /** Probes hit by code that no open window owned, allocated on first use. */
+  /**
+   * Probes hit by code that no open window owned, allocated on first use: the unowned part of
+   * Shared.
+   */
   private static final boolean[][] SHARED = new boolean[MAX_CLASSES][];
+
+  /** Probes hit by suite setup, allocated on first use: the suite setup part of Shared. */
+  private static final boolean[][] SUITE_SETUP = new boolean[MAX_CLASSES][];
 
   private static final ThreadLocal<ThreadProbes> THREAD_PROBES =
       new ThreadLocal<ThreadProbes>() {
@@ -132,15 +139,31 @@ public final class ProbeRecorder {
     }
   }
 
-  /** Gives to Shared the probes that a window hit and that no test is credited with. */
+  /**
+   * Gives to the unowned part of Shared the probes that a window hit and that no test is credited
+   * with.
+   */
   public static void addSharedHits(List<CoverageWindow.ClassHits> hits) {
-    for (CoverageWindow.ClassHits classHits : hits) {
-      addSharedHits(classHits.classId, classHits.probes);
-    }
+    addHits(SHARED, hits);
   }
 
   static void addSharedHits(int classId, long[] hits) {
-    boolean[] probes = sharedProbes(classId);
+    addHits(SHARED, classId, hits);
+  }
+
+  /** Gives to the suite setup part of Shared the probes that the setup of a suite hit. */
+  static void addSuiteSetupHits(List<CoverageWindow.ClassHits> hits) {
+    addHits(SUITE_SETUP, hits);
+  }
+
+  private static void addHits(boolean[][] table, List<CoverageWindow.ClassHits> hits) {
+    for (CoverageWindow.ClassHits classHits : hits) {
+      addHits(table, classHits.classId, classHits.probes);
+    }
+  }
+
+  private static void addHits(boolean[][] table, int classId, long[] hits) {
+    boolean[] probes = probesOf(table, classId);
     for (int word = 0; word < hits.length; word++) {
       for (long remaining = hits[word]; remaining != 0; remaining &= remaining - 1) {
         probes[(word << 6) + Long.numberOfTrailingZeros(remaining)] = true;
@@ -149,26 +172,34 @@ public final class ProbeRecorder {
   }
 
   /**
-   * Adds to {@code lines} the lines of a class that ran while no open window owned them, other than
-   * its initializer lines. Only hits moved to Shared are seen: see {@link #flushShared}.
+   * Adds to {@code lines} the lines of a class in a part of Shared. The unowned part has only the
+   * hits moved to it: see {@link #flushShared}.
    *
-   * @return {@code false} if no such line ran
+   * @return {@code false} if no line of the class is in the part
    */
-  public static boolean addSharedLines(int classId, BitSet lines) {
-    boolean[] probes = SHARED[classId];
-    return probes != null && CLASSES[classId].addMethodLines(probes, lines);
+  public static boolean addSharedLines(SharedPart part, int classId, BitSet lines) {
+    InstrumentedClass instrumentedClass = CLASSES[classId];
+    if (instrumentedClass == null) {
+      return false;
+    }
+    if (part == SharedPart.INIT) {
+      boolean[] probes = PROBES[classId];
+      return probes != null && instrumentedClass.addInitLines(probes, lines);
+    }
+    boolean[] probes = (part == SharedPart.SUITE_SETUP ? SUITE_SETUP : SHARED)[classId];
+    return probes != null && instrumentedClass.addMethodLines(probes, lines);
   }
 
-  private static boolean[] sharedProbes(int classId) {
-    boolean[] probes = SHARED[classId];
+  private static boolean[] probesOf(boolean[][] table, int classId) {
+    boolean[] probes = table[classId];
     if (probes != null) {
       return probes;
     }
-    synchronized (SHARED) {
-      probes = SHARED[classId];
+    synchronized (table) {
+      probes = table[classId];
       if (probes == null) {
         probes = newProbes(classId);
-        SHARED[classId] = probes;
+        table[classId] = probes;
       }
       return probes;
     }

@@ -7,6 +7,7 @@ import datadog.trace.api.civisibility.coverage.CoverageWindow;
 import datadog.trace.api.civisibility.coverage.InstrumentedClass;
 import datadog.trace.api.civisibility.coverage.NoOpProbes;
 import datadog.trace.api.civisibility.coverage.ProbeRecorder;
+import datadog.trace.api.civisibility.coverage.SharedPart;
 import datadog.trace.api.civisibility.coverage.TestReport;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -60,15 +61,20 @@ final class TestWindow extends CoverageWindow implements CoverageStore {
     return lines;
   }
 
-  /** The Shared lines of the classes a loader defined, by source path. */
+  /** The unowned Shared lines of the classes a loader defined, by source path. */
   static Map<String, BitSet> sharedLines(ClassLoader loader) {
+    return sharedLines(loader, SharedPart.UNOWNED);
+  }
+
+  /** The lines in a part of Shared of the classes a loader defined, by source path. */
+  static Map<String, BitSet> sharedLines(ClassLoader loader, SharedPart part) {
     ProbeRecorder.flushShared();
     Map<String, BitSet> lines = new HashMap<>();
     for (int classId = 0; classId < ProbeRecorder.getClassCount(); classId++) {
       InstrumentedClass instrumentedClass = ProbeRecorder.getInstrumentedClass(classId);
       if (instrumentedClass != null && instrumentedClass.loader() == loader) {
         BitSet classLines = new BitSet();
-        if (ProbeRecorder.addSharedLines(classId, classLines)) {
+        if (ProbeRecorder.addSharedLines(part, classId, classLines)) {
           lines.computeIfAbsent(sourcePath(instrumentedClass), path -> new BitSet()).or(classLines);
         }
       }

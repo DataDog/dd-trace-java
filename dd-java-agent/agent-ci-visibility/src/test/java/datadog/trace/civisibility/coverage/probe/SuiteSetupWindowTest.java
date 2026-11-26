@@ -4,7 +4,9 @@ import static datadog.trace.civisibility.coverage.probe.TestWindow.sharedLines;
 import static datadog.trace.civisibility.coverage.probe.TestWindow.union;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.api.civisibility.coverage.SharedPart;
 import datadog.trace.api.civisibility.coverage.SuiteSetupWindow;
 import datadog.trace.api.civisibility.coverage.TestPreparationWindow;
 import datadog.trace.civisibility.coverage.probe.fixtures.ConcurrentWorkload;
@@ -17,7 +19,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * A suite's setup, up to the start of its first child, is credited to every test in the suite,
- * nested suites included, and to Shared; what the suite runs after its first child started is not.
+ * nested suites included, and to the suite setup part of Shared; what the suite runs after its
+ * first child started is not, and goes to the unowned part.
  */
 class SuiteSetupWindowTest {
 
@@ -60,7 +63,8 @@ class SuiteSetupWindowTest {
     Map<String, BitSet> expected = union(WORKER_LINES.get(0), WORKER_LINES.get(1));
     assertEquals(expected, testLines.get(0));
     assertEquals(expected, testLines.get(1));
-    assertEquals(union(WORKER_LINES.get(0), WORKER_LINES.get(2)), sharedLines(loader));
+    assertEquals(WORKER_LINES.get(0), sharedLines(loader, SharedPart.SUITE_SETUP));
+    assertEquals(WORKER_LINES.get(2), sharedLines(loader, SharedPart.UNOWNED));
   }
 
   @Test
@@ -81,7 +85,7 @@ class SuiteSetupWindowTest {
     SuiteSetupWindow.finish(suite);
 
     assertEquals(union(WORKER_LINES.get(0), WORKER_LINES.get(1), WORKER_LINES.get(2)), testLines);
-    assertEquals(union(WORKER_LINES.get(0), WORKER_LINES.get(1)), sharedLines(loader));
+    assertSuiteSetupOnly(union(WORKER_LINES.get(0), WORKER_LINES.get(1)), loader);
   }
 
   @Test
@@ -96,7 +100,7 @@ class SuiteSetupWindowTest {
     TestPreparationWindow preparation = TestPreparationWindow.detach();
     assertNull(preparation.suiteSetupHits());
     new TestWindow(preparation).closeAndCollect();
-    assertEquals(WORKER_LINES.get(0), sharedLines(loader));
+    assertSuiteSetupOnly(WORKER_LINES.get(0), loader);
   }
 
   @Test
@@ -115,7 +119,7 @@ class SuiteSetupWindowTest {
     assertEquals(union(WORKER_LINES.get(0), WORKER_LINES.get(1)), firstTestLines);
     assertEquals(
         union(WORKER_LINES.get(0), WORKER_LINES.get(1), WORKER_LINES.get(2)), secondTestLines);
-    assertEquals(union(WORKER_LINES.get(0), WORKER_LINES.get(1)), sharedLines(loader));
+    assertSuiteSetupOnly(union(WORKER_LINES.get(0), WORKER_LINES.get(1)), loader);
   }
 
   @Test
@@ -134,7 +138,13 @@ class SuiteSetupWindowTest {
 
     assertEquals(WORKER_LINES.get(1), otherTestLines);
     assertEquals(union(WORKER_LINES.get(0), WORKER_LINES.get(2)), testLines);
-    assertEquals(WORKER_LINES.get(0), sharedLines(loader));
+    assertSuiteSetupOnly(WORKER_LINES.get(0), loader);
+  }
+
+  /** Shared has {@code setupLines} in its suite setup part and nothing in its unowned part. */
+  private static void assertSuiteSetupOnly(Map<String, BitSet> setupLines, ClassLoader loader) {
+    assertEquals(setupLines, sharedLines(loader, SharedPart.SUITE_SETUP));
+    assertTrue(sharedLines(loader, SharedPart.UNOWNED).isEmpty());
   }
 
   /**

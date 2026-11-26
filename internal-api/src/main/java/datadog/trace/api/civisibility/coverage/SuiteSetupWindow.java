@@ -10,8 +10,8 @@ import javax.annotation.Nullable;
  * thread that starts the suite runs until the suite's first child starts. That includes the
  * preparation of the first child, such as building the first test instance, where a test can build
  * shared state lazily that later tests reuse. Every test in the suite, nested suites included, is
- * credited with these lines, and so is Shared. What runs after that, such as the suite's teardown,
- * is not setup.
+ * credited with these lines, and so is the suite setup part of Shared. What runs after that, such
+ * as the suite's teardown, is not setup.
  *
  * <p>A framework integration calls {@link #open} when a suite starts, {@link #handOver} on the same
  * thread when the suite hands its context to a child, {@link #coversPreparation} where it starts
@@ -117,7 +117,7 @@ public final class SuiteSetupWindow extends CoverageWindow {
     if (window != null && window.suite == suite) {
       OPEN.remove();
       // no test ran after this setup
-      ProbeRecorder.addSharedHits(window.close());
+      ProbeRecorder.addSuiteSetupHits(window.close());
     }
     HITS.remove(suite);
   }
@@ -129,14 +129,15 @@ public final class SuiteSetupWindow extends CoverageWindow {
   }
 
   /**
-   * Closes the window and gives its hits to Shared and to the tests of the suite.
+   * Closes the window and gives its hits to the suite setup part of Shared and to the tests of the
+   * suite.
    *
    * @return the setup hits of the suite's tests from now on
    */
   @Nullable
   private Hits end() {
     List<ClassHits> hits = close();
-    ProbeRecorder.addSharedHits(hits);
+    ProbeRecorder.addSuiteSetupHits(hits);
     Hits suiteHits = hits.isEmpty() ? outerHits : new Hits(hits, outerHits);
     if (suiteHits != null) {
       HITS.put(suite, suiteHits);

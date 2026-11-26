@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
@@ -59,6 +60,24 @@ public class CiVisibilityApmProtocolInterceptorTest extends DDCoreJavaSpecificat
 
     DDSpan span = trace.get(0);
     assertEquals("test", span.getOperationName().toString());
+  }
+
+  @Test
+  void sharedCoverageSpansAreFilteredOut() throws InterruptedException, TimeoutException {
+    tracer.addTraceInterceptor(CiVisibilityApmProtocolInterceptor.INSTANCE);
+
+    tracer
+        .buildSpan("datadog", "shared-coverage")
+        .withSpanType(InternalSpanTypes.TEST_SHARED_COVERAGE)
+        .start()
+        .finish();
+    tracer.buildSpan("datadog", "test").withSpanType(DDSpanTypes.TEST).start().finish();
+
+    writer.waitForTraces(1);
+
+    List<DDSpan> trace = writer.firstTrace();
+    assertEquals(1, trace.size());
+    assertEquals("test", trace.get(0).getOperationName().toString());
   }
 
   @Test
