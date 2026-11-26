@@ -7,6 +7,8 @@ plugins {
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2.0')
   testImplementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
+  // Captures the Jersey request match for _dd.appsec.normalized_route
+  testImplementation project(':dd-java-agent:instrumentation:jersey:jersey-appsec:jersey-appsec-2.0')
   // Dropwizard 0.8 transitively depends on Jetty 9.2.9, so load the jetty-server
   // instrumentation modules whose muzzle ranges cover that version, matching the
   // production classpath:

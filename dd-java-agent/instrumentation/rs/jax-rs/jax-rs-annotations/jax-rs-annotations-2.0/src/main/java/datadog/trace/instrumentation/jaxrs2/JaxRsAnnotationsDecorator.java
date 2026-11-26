@@ -1,12 +1,19 @@
 package datadog.trace.instrumentation.jaxrs2;
 
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
+import static datadog.trace.bootstrap.ContextStores.getContextStore;
+import static datadog.trace.bootstrap.ContextStores.getContextStoreId;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.Pair;
+import datadog.trace.api.appsec.route.JaxRsRequestMatch;
+import datadog.trace.api.appsec.route.JaxRsRouteParser;
+import datadog.trace.api.appsec.route.NormalizedRouteHelper;
+import datadog.trace.api.appsec.route.RouteTemplate;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.ClassHierarchyIterable;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -43,6 +50,11 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
   private static final ClassValue<ConcurrentHashMap<Method, Pair<CharSequence, CharSequence>>>
       RESOURCE_NAMES = GenericClassValue.constructing(ConcurrentHashMap.class);
 
+  /** Filled by the Jersey and RESTEasy AppSec capture advices, keyed by the local root span. */
+  private static final ContextStore<Object, Object> REQUEST_MATCHES =
+      getContextStore(
+          getContextStoreId(AgentSpan.class.getName(), JaxRsRequestMatch.class.getName()));
+
   @Override
   protected String[] instrumentationNames() {
     return new String[0];
@@ -69,14 +81,17 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
     final boolean isRootScope = parent == null;
     if (isRootScope) {
       if (httpMethodAndRoute.hasRight()) { // no route when no path was readable: keep the name
+        markSubResourceLocator(span, httpMethodAndRoute);
         HTTP_RESOURCE_DECORATOR.withRoute(
             span, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
+        tagNormalizedRoute(span, httpMethodAndRoute.getRight());
       }
     } else {
       span.setResourceName(DECORATE.spanNameForMethod(target, method));
 
-      if (parent.getLocalRootSpan().getResourceNamePriority()
-          < ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE) {
+      final AgentSpan localRoot = parent.getLocalRootSpan();
+      markSubResourceLocator(localRoot, httpMethodAndRoute);
+      if (localRoot.getResourceNamePriority() < ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE) {
         parent.setTag(Tags.COMPONENT, "jax-rs");
 
         // current handler is a filter
@@ -90,9 +105,58 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
         }
 
         HTTP_RESOURCE_DECORATOR.withRoute(
-            parent.getLocalRootSpan(), httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
+            localRoot, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
+        tagNormalizedRoute(localRoot, httpMethodAndRoute.getRight());
       }
     }
+  }
+
+  /**
+   * Marks the request of {@code localRoot} as handled by a sub-resource locator (an annotated
+   * method with a route but no http method): the route of its sub-resource methods is truncated, so
+   * they set no normalized route. Runs before the capture advice, which keeps the mark. Never
+   * throws.
+   */
+  private static void markSubResourceLocator(
+      final AgentSpan localRoot, final Pair<CharSequence, CharSequence> httpMethodAndRoute) {
+    if (localRoot == null
+        || httpMethodAndRoute.hasLeft()
+        || !httpMethodAndRoute.hasRight()
+        || httpMethodAndRoute.getRight().length() == 0
+        || !NormalizedRouteHelper.isEnabled()) {
+      return;
+    }
+    try {
+      REQUEST_MATCHES.put(localRoot, JaxRsRequestMatch.SUBRESOURCE);
+    } catch (Throwable t) {
+      log.debug(EXCLUDE_TELEMETRY, "Failed to mark a JAX-RS sub-resource locator", t);
+    }
+  }
+
+  /**
+   * Sets {@code _dd.appsec.normalized_route} on {@code span}, the span that just received {@code
+   * route} as {@code http.route} (the local root), from the request match a capture advice stored
+   * for it. No match (prefix unknown) or a sub-resource locator means no tag. Never throws.
+   */
+  private static void tagNormalizedRoute(final AgentSpan span, final CharSequence route) {
+    if (!NormalizedRouteHelper.isEnabled()) {
+      return;
+    }
+    try {
+      tagNormalizedRoute(span, route, (JaxRsRequestMatch) REQUEST_MATCHES.get(span));
+    } catch (Throwable t) {
+      log.debug(EXCLUDE_TELEMETRY, "Failed to set the JAX-RS normalized route", t);
+    }
+  }
+
+  @VisibleForTesting
+  static void tagNormalizedRoute(
+      final AgentSpan span, final CharSequence route, final JaxRsRequestMatch match) {
+    if (match == null || match == JaxRsRequestMatch.SUBRESOURCE || route == null) {
+      return;
+    }
+    final RouteTemplate template = JaxRsRouteParser.cached(route.toString());
+    NormalizedRouteHelper.tag(span, template, match.prefix(), match.presenceFor(template));
   }
 
   /**

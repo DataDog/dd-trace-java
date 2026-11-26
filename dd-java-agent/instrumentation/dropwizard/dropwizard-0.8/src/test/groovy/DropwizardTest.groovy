@@ -94,6 +94,12 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
   }
 
   @Override
+  Serializable expectedNormalizedRoute(ServerEndpoint endpoint) {
+    // Jersey servlet mounted at the root: no prefix; the %20 escape of the @Path literal is kept
+    return normalizedRouteOf('', expectedServerSpanRoute(endpoint))
+  }
+
+  @Override
   String expectedIntegrationName() {
     // In production, Jetty's server instrumentation creates the request span before Servlet3
     // gets a chance to. Servlet3Advice detects the existing span and skips, so the span is

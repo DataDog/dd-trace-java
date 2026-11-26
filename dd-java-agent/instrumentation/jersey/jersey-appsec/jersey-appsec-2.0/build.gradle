@@ -18,6 +18,13 @@ muzzle {
     assertInverse = true
   }
   pass {
+    name = 'jersey_server_2+3'
+    group = 'org.glassfish.jersey.core'
+    module = 'jersey-server'
+    versions = '[2,)'
+    assertInverse = true
+  }
+  pass {
     name = 'jersey_2+3'
     group = 'org.glassfish.jersey.core'
     module = 'jersey-common'
@@ -43,6 +50,13 @@ dependencies {
   compileOnly group: 'org.glassfish.jersey.media', name: 'jersey-media-multipart', version: '2.0'
 
   testImplementation group: 'org.glassfish.jersey.media', name: 'jersey-media-multipart', version: '2.18'
+
+  // Normalized route tests: Jersey servlet on Jetty, server span from jetty-server-7.6
+  testImplementation group: 'org.glassfish.jersey.containers', name: 'jersey-container-servlet-core', version: '2.18'
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '8.2.0.v20160908'
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '8.2.0.v20160908'
+  testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.6')
+  testImplementation project(':dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2.0')
 }
 
 // tested in grizzly-http-2.3.20
