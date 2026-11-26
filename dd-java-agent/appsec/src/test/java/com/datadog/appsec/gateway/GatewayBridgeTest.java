@@ -188,10 +188,13 @@ class GatewayBridgeTest extends DDJavaSpecification {
 
   @AfterEach
   void tearDown() {
-    // no callback is registered other than the ones captured at init
-    verify(ig, times(registeredCallbacks)).registerCallback(any(), any());
-    WafMetricCollector.INSTANCE = ORIGINAL_METRIC_COLLECTOR;
-    bridge.stop();
+    try {
+      // no callback is registered other than the ones captured at init
+      verify(ig, times(registeredCallbacks)).registerCallback(any(), any());
+    } finally {
+      WafMetricCollector.INSTANCE = ORIGINAL_METRIC_COLLECTOR;
+      bridge.stop();
+    }
   }
 
   @Test
@@ -681,7 +684,7 @@ class GatewayBridgeTest extends DDJavaSpecification {
     assertSame(NoopFlow.INSTANCE, socketAddressFlow);
     assertSame(NoopFlow.INSTANCE, headersDoneFlow);
     assertSame(NoopFlow.INSTANCE, methodUriFlow);
-    verify(eventDispatcher, never()).getDataSubscribers(KnownAddresses.REQUEST_SCHEME);
+    verify(eventDispatcher, never()).getDataSubscribers(any());
     verify(eventDispatcher, never()).publishDataEvent(any(), any(), any(), any());
   }
 
