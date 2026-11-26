@@ -2,10 +2,12 @@ package datadog.trace.api.civisibility.coverage;
 
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.api.civisibility.domain.TestContext;
+import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 /**
@@ -290,12 +292,19 @@ public final class ProbeRecorder {
 
   /** Whether the current thread is creating the worker thread of a pool. */
   private static boolean createsPoolWorker() {
-    for (StackTraceElement frame : new Throwable().getStackTrace()) {
-      String method = frame.getMethodName();
-      for (String[] creator : POOL_WORKER_CREATORS) {
-        if (creator[1].equals(method) && creator[0].equals(frame.getClassName())) {
-          return true;
-        }
+    // the walk stops at the first match, which for a pool is a few frames below the constructor
+    return StackWalkerFactory.INSTANCE.walk(ProbeRecorder::hasPoolWorkerCreator);
+  }
+
+  private static boolean hasPoolWorkerCreator(Stream<StackTraceElement> frames) {
+    return frames.anyMatch(ProbeRecorder::isPoolWorkerCreator);
+  }
+
+  private static boolean isPoolWorkerCreator(StackTraceElement frame) {
+    String method = frame.getMethodName();
+    for (String[] creator : POOL_WORKER_CREATORS) {
+      if (creator[1].equals(method) && creator[0].equals(frame.getClassName())) {
+        return true;
       }
     }
     return false;

@@ -5,7 +5,9 @@ import static datadog.trace.civisibility.coverage.probe.TestWindow.union;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import datadog.environment.ThreadSupport;
 import datadog.trace.api.civisibility.coverage.TestPreparationWindow;
 import datadog.trace.civisibility.coverage.probe.fixtures.ConcurrentWorkload;
 import java.util.ArrayList;
@@ -14,11 +16,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeAll;
@@ -256,6 +260,79 @@ class ProbeConcurrencyTest {
     assertTrue(windowLines.isEmpty());
     assertEquals(
         union(WORKER_LINES.get(0), WORKER_LINES.get(1), WORKER_LINES.get(2)), sharedLines(loader));
+  }
+
+  @Test
+  void poolWorkersCreatedThroughThreadFactoriesAreHandedNoWindow() throws Exception {
+    FixtureLoader loader = new FixtureLoader(null, FIXTURES);
+    // the frames of two factories sit between the pool's frame and the thread's constructor
+    ThreadFactory inner = Executors.defaultThreadFactory();
+    ThreadFactory outer = task -> inner.newThread(task);
+    ExecutorService executor = Executors.newSingleThreadExecutor(outer);
+    TestWindow window = new TestWindow();
+    Map<String, BitSet> windowLines;
+    try {
+      executor.submit(() -> run(loader, 0)).get(30, TimeUnit.SECONDS);
+    } finally {
+      windowLines = window.closeAndCollect();
+      executor.shutdown();
+    }
+
+    assertTrue(windowLines.isEmpty());
+    assertEquals(WORKER_LINES.get(0), sharedLines(loader));
+  }
+
+  @Test
+  void virtualThreadsCreatedWhileAWindowIsOpenRunTheirCodeForIt() throws Exception {
+    assumeTrue(ThreadSupport.supportsVirtualThreads(), "no virtual threads");
+    FixtureLoader loader = new FixtureLoader(null, FIXTURES);
+    ExecutorService executor = ThreadSupport.newVirtualThreadPerTaskExecutor().get();
+    TestWindow window = new TestWindow();
+    Map<String, BitSet> windowLines;
+    try {
+      // each task runs on a new virtual thread, not on a pool worker
+      executor.submit(() -> run(loader, 0)).get(30, TimeUnit.SECONDS);
+    } finally {
+      windowLines = window.closeAndCollect();
+      executor.shutdown();
+    }
+
+    assertEquals(WORKER_LINES.get(0), windowLines);
+    assertTrue(sharedLines(loader).isEmpty());
+  }
+
+  @Test
+  void poolWorkersAndPlainThreadsAreToldApartDeepInTheStack() throws Exception {
+    FixtureLoader loader = new FixtureLoader(null, FIXTURES);
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    TestWindow window = new TestWindow();
+    Map<String, BitSet> windowLines;
+    try {
+      // the pool's frame is near the top; for the plain thread, the walk goes through every frame
+      atDepth(300, () -> executor.submit(() -> run(loader, 0)).get(30, TimeUnit.SECONDS));
+      atDepth(
+          300,
+          () -> {
+            Thread thread = new Thread(() -> run(loader, 1));
+            thread.start();
+            join(thread);
+            return null;
+          });
+    } finally {
+      windowLines = window.closeAndCollect();
+      executor.shutdown();
+    }
+
+    assertEquals(WORKER_LINES.get(1), windowLines);
+    assertEquals(WORKER_LINES.get(0), sharedLines(loader));
+  }
+
+  private static void atDepth(int depth, Callable<?> action) throws Exception {
+    if (depth > 0) {
+      atDepth(depth - 1, action);
+    } else {
+      action.call();
+    }
   }
 
   private static Map<String, BitSet> runInWindow(
