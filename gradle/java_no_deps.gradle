@@ -215,14 +215,6 @@ tasks.withType(Javadoc).configureEach {
   options.addStringOption('Xdoclint:none', '-quiet')
 }
 
-afterEvaluate {
-  if (project.ext.has("apiLinks")) {
-    tasks.withType(Javadoc).configureEach {
-      options.links(*project.apiLinks)
-    }
-  }
-}
-
 tasks.named("javadoc", Javadoc) {
   javadocTool = javaToolchains.javadocToolFor {
     languageVersion = JavaLanguageVersion.of(8)

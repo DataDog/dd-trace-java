@@ -29,26 +29,21 @@ publishing {
         publication.artifact sourcesJar
         publication.artifact javadocJar
 
-        afterEvaluate {
-          /**
-           * Add all the project dependencies, but set as compile instead of runtime
-           * (which is what project.shadow.component(publication) would use).
-           */
-          def apiDependencies = project.configurations.api.allDependencies
+        // Publish API dependencies with compile scope.
+        def apiDependencies = providers.provider {
+          project.configurations.api.allDependencies
             .findAll { it instanceof ProjectDependency || it instanceof ExternalModuleDependency }
             .collect { [group: it.group, name: it.name, version: it.version] }
-          publication.pom { org.gradle.api.publish.maven.MavenPom pom ->
-            pom.withXml { xml ->
-              def dependenciesNode = xml.asNode().appendNode('dependencies')
+        }
+        publication.pom.withXml { xml ->
+          def dependenciesNode = xml.asNode().appendNode('dependencies')
 
-              apiDependencies.each {
-                def dependencyNode = dependenciesNode.appendNode('dependency')
-                dependencyNode.appendNode('groupId', it.group)
-                dependencyNode.appendNode('artifactId', it.name)
-                dependencyNode.appendNode('version', it.version)
-                dependencyNode.appendNode("scope", "compile")
-              }
-            }
+          apiDependencies.get().each {
+            def dependencyNode = dependenciesNode.appendNode('dependency')
+            dependencyNode.appendNode('groupId', it.group)
+            dependencyNode.appendNode('artifactId', it.name)
+            dependencyNode.appendNode('version', it.version)
+            dependencyNode.appendNode("scope", "compile")
           }
         }
       } else {
