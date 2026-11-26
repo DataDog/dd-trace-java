@@ -58,7 +58,7 @@ class OtlpMetricsServiceTest {
 
     assertInstanceOf(OtlpMetricsJsonCollector.class, service.getCollector());
     OtlpHttpSender sender = assertInstanceOf(OtlpHttpSender.class, service.getSender());
-    assertEquals("http://localhost:4318/v1/metrics", sender.url().toString());
+    assertEquals("http://localhost:4318/v1/metrics", sender.destination().toString());
     service.shutdown();
   }
 

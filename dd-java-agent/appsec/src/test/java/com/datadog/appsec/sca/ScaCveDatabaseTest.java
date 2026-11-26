@@ -9,8 +9,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class ScaCveDatabaseTest {
 
@@ -23,6 +29,44 @@ class ScaCveDatabaseTest {
           + "{\"class\":\"com/example/Foo\",\"method\":\"dangerousOp\"},"
           + "{\"class\":\"com/example/Bar\",\"method\":\"dangerousOp\"}"
           + "]}]}";
+
+  @TempDir Path tempDir;
+
+  @Test
+  void fileOverrideReplacesBundledCatalog() throws Exception {
+    Path catalog = tempDir.resolve("advisories.json");
+    Files.write(catalog, MINIMAL_JSON.getBytes(StandardCharsets.UTF_8));
+
+    ScaCveDatabase db = ScaCveDatabase.load(catalog.toString());
+
+    assertEquals(2, db.size());
+    assertEquals("GHSA-test-1234-5678", db.entriesForClass("com/example/Foo").get(0).vulnId());
+    assertNull(db.entriesForClass("com/github/junrar/LocalFolderExtractor"));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"{\"version\":1,\"entries\":[]}", "{invalid json", ""})
+  void emptyOrMalformedOverrideDoesNotFallBack(String contents) throws Exception {
+    Path catalog = tempDir.resolve("advisories.json");
+    Files.write(catalog, contents.getBytes(StandardCharsets.UTF_8));
+
+    assertTrue(ScaCveDatabase.load(catalog.toString()).isEmpty());
+  }
+
+  @Test
+  void missingOverrideDoesNotFallBack() {
+    assertTrue(ScaCveDatabase.load(tempDir.resolve("missing.json").toString()).isEmpty());
+  }
+
+  @Test
+  void directoryOverrideDoesNotFallBack() {
+    assertTrue(ScaCveDatabase.load(tempDir.toString()).isEmpty());
+  }
+
+  @Test
+  void emptyOverridePathDoesNotFallBack() {
+    assertTrue(ScaCveDatabase.load("").isEmpty());
+  }
 
   @Test
   void loadsFromJson() throws Exception {

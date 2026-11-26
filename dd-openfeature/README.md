@@ -46,8 +46,8 @@ Settings are read from the Datadog Java agent configuration when attached, then 
 | Environment variable | Default | Description |
 |---|---|---|
 | `DD_FEATURE_FLAGS_ENABLED` | `true` | Enables Feature Flags. `false` makes the provider fail initialization, so evaluations return defaults. |
-| `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE` | `agentless` | `agentless` polls the configuration from the Datadog CDN. `remote_config` receives it through Remote Configuration and requires `dd-java-agent`. |
-| `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL` | | Custom configuration endpoint. A URL without a path gets the default path. |
+| `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE` | `agentless` | `agentless` polls the configuration from the Datadog CDN; without `DD_API_KEY` or a custom endpoint, the provider fails initialization, so evaluations return defaults. `remote_config` receives it through Remote Configuration and requires `dd-java-agent`. |
+| `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL` | | Custom configuration endpoint, such as a proxy. A URL without a path gets the default path. Configuration requests omit the `DD-API-KEY` header, even when `DD_API_KEY` is set. A proxy can supply the key, so the application needs none for configuration loading. |
 | `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS` | `30` | CDN poll interval. |
 | `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS` | `5` | CDN request timeout. |
 | `DD_FLAGGING_EVALUATION_COUNTS_ENABLED` | `true` | Sends aggregated flag evaluation counts. |
@@ -69,6 +69,32 @@ Settings are read from the Datadog Java agent configuration when attached, then 
 | Health metrics | No | Agent telemetry |
 | Span enrichment | No | Yes |
 | `ExposureHook` accessors `getFlagKey()`, `getVariant()`, `getAllocationKey()`, `getTargetingKey()` | The next release after 1.68.1 | The next release after 1.68.1 |
+
+## Flag selection
+
+To load only part of the flag configuration, give the provider a flag selection. It then loads the flags that have any of the tags, or whose key matches any of the key patterns:
+
+```java
+import com.datadog.openfeature.FlagSelection;
+import com.datadog.openfeature.Provider;
+import dev.openfeature.sdk.OpenFeatureAPI;
+import java.util.List;
+
+OpenFeatureAPI.getInstance().setProviderAndWait(new Provider(new Provider.Options()
+    .flagSelection(new FlagSelection()
+        .tags(List.of("checkout"))
+        .keyPatterns(List.of("checkout.*")))));
+```
+
+* Tags match exactly and case-sensitively. A key pattern matches the whole key, case-sensitively: `*` matches any run of characters, and every other character is literal.
+* Evaluating a flag outside the selection returns the default value with `FLAG_NOT_FOUND`. A selection that matches no flag loads an empty configuration.
+* Leading and trailing Unicode white space is trimmed from every value, and empty and duplicate values are dropped. A null list is treated as absent.
+* Each list accepts at most 31 values, and each tag and key pattern is at most 200 UTF-8 bytes. A selection over a limit, one holding a null or non-`String` value or an unpaired UTF-16 surrogate, or one that would make the request URL longer than 8192 bytes, is not sent. The provider logs an error, for example `flagSelection was not sent (too_many_values: each list accepts at most 31 values). Loading the full flag configuration.`, and loads all the flags.
+* The server can also ignore a selection. It then returns all the flags, and the provider logs `flagSelection was ignored by the server (<reason>). Loaded the full flag configuration.` once per reason. A custom configuration endpoint must forward the `selected_flag_tags` and `selected_flag_key_patterns` query parameters, and the `DD-Flag-Selection-Ignored` response header.
+* The selection is set in code only, and the provider captures it at construction.
+* The providers of a class loader share one flag configuration. The first provider initialized decides the selection, including a provider without one, which loads all the flags. A later provider with a different selection uses the first selection, until the last provider shuts down; the first such provider logs a warning, once per class loader.
+* The `remote_config` source does not support a selection: the provider logs a warning and loads all the flags.
+* With `dd-java-agent`, dropped and ignored selections are also counted in the agent health metrics.
 
 ## Exposures in your own data store
 
@@ -131,6 +157,53 @@ DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false
 The provider then sends no exposures to Datadog. `ExposureHook` callbacks still receive every evaluation, and `shouldSend()` gives the same result as before. The default is `true`.
 
 This setting stops exposures only. Flag evaluation events have their own setting, `DD_FLAGGING_EVALUATION_COUNTS_ENABLED`. The Java provider does not read dd-trace-py's `DD_FFE_INTAKE_ENABLED`.
+
+To make evaluations stop counting as exposures, rather than only stop sending them, see [Evaluation telemetry and exposures](#evaluation-telemetry-and-exposures).
+
+## Evaluation telemetry and exposures
+
+A provider has two independent options. Each is on by default and applies to that provider only:
+
+| Provider option | When off |
+|---|---|
+| `evaluationTelemetryEnabled(false)` | No flag evaluation events, no `feature_flag.evaluations` metric, and no span enrichment. |
+| `exposuresEnabled(false)` | Evaluations are not exposures: none is recorded, deduplicated, or sent to Datadog, and `ExposureHook` reports them with `isExposure()` and `shouldSend()` false. With span enrichment on, the span records the evaluation but not the subject. |
+
+Neither option changes flag results or assignment. The provider reads both at construction.
+
+Process-wide, `DD_FLAGGING_EVALUATION_COUNTS_ENABLED=false` stops flag evaluation events, and `DD_FEATURE_FLAGS_EXPOSURES_DATADOG_LOGGING_ENABLED=false` stops sending exposures to Datadog. Neither setting stops the `feature_flag.evaluations` metric, which is recorded whenever OpenTelemetry supplies a working meter. To stop evaluation metrics across the process, set `evaluationTelemetryEnabled(false)` on every Datadog provider. Span enrichment is off by default.
+
+### Inspecting an assignment before the subject sees it
+
+Some applications decide something ahead of time, such as which version of a notification to send, and expose the subject only when they act on it, such as when they open the notification. Register a second provider for the inspection, under its own OpenFeature domain, with both options off:
+
+```java
+import com.datadog.openfeature.Provider;
+import dev.openfeature.sdk.Client;
+import dev.openfeature.sdk.MutableContext;
+import dev.openfeature.sdk.OpenFeatureAPI;
+
+OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+api.setProviderAndWait("live", new Provider());
+api.setProviderAndWait("peek", new Provider(new Provider.Options()
+    .evaluationTelemetryEnabled(false)
+    .exposuresEnabled(false)));
+
+Client live = api.getClient("live");
+Client peek = api.getClient("peek");
+
+MutableContext user = new MutableContext("user-123");
+
+// At send time: the variant the subject gets, with no exposure or evaluation telemetry.
+String planned = peek.getStringValue("digest-subject-line", "control", user);
+
+// When the subject opens the notification: the same variant, and the exposure.
+String seen = live.getStringValue("digest-subject-line", "control", user);
+```
+
+* Both providers share the process's flag configuration, so for the same flag, targeting key, attributes and configuration, and the same `experimentationOptOutMode`, they return the same variant.
+* An inspection does not mark the subject as exposed, so the later live evaluation still sends the exposure.
+* Evaluate inspections through the inspection domain's client only. Hooks that the application registers itself, at the API or client level, still run.
 
 ## Per-subject experimentation opt-out
 

@@ -1,5 +1,9 @@
 # How to Test
 
+Write new tests in Java with JUnit 5, including instrumentation and smoke tests. Maintain existing Groovy/Spock tests
+as needed. The [Groovy enforcement workflow](../.github/workflows/enforce-groovy-migration.yaml) rejects new `.groovy`
+files unless the pull request has the `tag: override groovy enforcement` label.
+
 For JUnit test authoring, see the [JUnit testing guide](how_to_test_with_junit.md).
 Prefer `@TableTest` for parameterized tests with multi-column literal data. When a simple `@TypeConverter` can turn
 table values into the required arguments, prefer it over switching to `@MethodSource`. Use `@MethodSource` for cases
@@ -12,16 +16,13 @@ The project leverages different types of tests:
 1. The most common ones are **unit tests**.  
    They are intended to test a single isolated feature, and rely
    on [JUnit 5 framework](https://junit.org/junit5/docs/current/user-guide/)
-   or [Spock 2 framework](https://spockframework.org/spock/docs/).
-  * JUnit framework is recommended for most unit tests for its simplicity and performance reasons.
-  * Spock framework provides an alternative for more complex test scenarios, or tests that require Groovy Script to
-    access data outside their scope limitation (eg private fields).
+   or, for existing tests, [Spock 2 framework](https://spockframework.org/spock/docs/).
 
 2. A variant of unit tests is **instrumented tests**.  
    Their purpose is similar to unit tests, but the tested code is instrumented by the java agent
    (`:dd-trace-java:java-agent`) while running.
-   They extend the Spock specification `datadog.trace.agent.test.InstrumentationSpecification` which produces traces and
-   metrics for testing.
+   JUnit tests extend [AbstractInstrumentationTest](how_to_test_with_junit.md#instrumentation-tests-with-abstractinstrumentationtest).
+   Existing Spock tests extend `datadog.trace.agent.test.InstrumentationSpecification`.
    Instrumentation test harnesses always use strict trace writes so unfinished asynchronous work fails visibly instead
    of producing an incomplete trace.
 
@@ -57,6 +58,21 @@ This mechanism exists to make sure either java agent state or static data are re
 > [!NOTE]
 > Forked tests are not run as part of the gradle `test` task.
 > In order to run them, you need to use the `forkedTest` task instead.
+
+Gradle can run up to four test JVMs per forked task by default. Give each fork its own writable
+files and directories. For example, the Liberty tests copy the server template into a temporary
+directory before changing `server.xml` so concurrent forks cannot overwrite each other's settings.
+
+For a serial comparison when debugging, set `-Pforked.test.max.parallel.forks=1`. Modules that apply
+the Testcontainers convention use `-Ptestcontainers.max.parallel.forks=1` to override the general
+limit. Set both properties to run one JVM at a time within each forked task across both kinds of
+modules. Use `--rerun` to execute the selected task again even if its previous results are up to date
+or available from the build cache.
+
+```shell
+./gradlew :path:to:module:forkedTest --rerun \
+  -Pforked.test.max.parallel.forks=1 -Ptestcontainers.max.parallel.forks=1
+```
 
 ### Flaky Tests
 
@@ -350,16 +366,32 @@ option to the Gradle task:
 * `-PtestJvm=X` like `-PtestJvm=8`, `-PtestJvm=25` to run with a specific JDK version,
 * `-PtestJvm=/path/to/jdk` to run with a given JDK,
 
-To also run CI tests on the additional vendor and pre-release JVMs, include the exact, case-sensitive
-`[ci: NON_DEFAULT_JVMS]` text in the commit message. By default, CI runs amd64 tests only.
+To also run CI tests on the additional vendor and pre-release JVMs, include the case-sensitive
+`[ci: NON_DEFAULT_JVMS]` option in the commit message. By default, CI runs amd64 tests only.
 
-On pull requests, arm64 tests are manual jobs. To run them on CI, include one of the following exact, case-sensitive
+On pull requests, arm64 tests are manual jobs. To run them on CI, include one of the following case-sensitive
 texts in the commit message:
 
 * `[ci: ARM64]` to run them on the default arm64 JVMs.
 * `[ci: ARM64, NON_DEFAULT_JVMS]` to run them on all eligible JVMs.
 * `[ci: ARM64, JAVA11]` to add Java 11 to the default arm64 JVMs.
 * `[ci: ARM64, NON_DEFAULT_JVMS, JAVA11]` to also include Java 11 vendor JVMs (Zulu and Semeru).
+
+### Rerunning Tests on CI
+
+On master, CI runs every selected test task even when its inputs match a previous run.
+Pull requests reuse up-to-date and cached test results instead. To give a pull request
+the master behavior, include the case-sensitive `[ci: RERUN_TESTS]` option in the commit
+message, or set the GitLab CI variable `RERUN_TESTS=true` when starting a pipeline.
+Combine it with other CI options as needed, for example `[ci: ARM64, RERUN_TESTS]`.
+
+Only test tasks run again. Compilation and other tasks still reuse the build cache, and
+successful test results are still stored in it. Use this to compare test durations or
+collect flaky-test signals. To also rebuild everything else, use
+[`SKIP_BUILD_CACHE`](how_to_work_with_gradle.md#forcing-fresh-ci-task-execution).
+
+The option sets the Gradle property `rerun.tests`. Locally, pass `-Prerun.tests` for all
+projects, or `-Prerun.tests.<project-name>` for one project.
 
 ### Running System Tests
 
@@ -391,7 +423,8 @@ Read more about [the APM Test Agent](https://github.com/datadog/dd-apm-test-agen
 ### Forwarding CI Test Logs to Datadog
 
 Test output remains available in GitLab job artifacts. To also forward JUnit-captured output to Datadog, include the
-exact, case-sensitive `[ci: DEBUG_LOGS]` token in the commit message or set the GitLab CI variable
+case-sensitive `[ci: DEBUG_LOGS]` option in the commit message or set the GitLab CI variable
 `DD_CIVISIBILITY_LOGS_ENABLED=true`.
+You can combine it with other CI options, for example `[ci: ARM64, DEBUG_LOGS]`.
 
 The opt-in forwards all JUnit-captured output, not only DEBUG messages.

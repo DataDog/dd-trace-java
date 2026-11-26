@@ -24,4 +24,15 @@ final class Headers {
         .header("Datadog-Meta-Lang-Interpreter-Vendor", JAVA_VM_VENDOR)
         .header("Datadog-Meta-Tracer-Version", SdkVersion.VERSION);
   }
+
+  /**
+   * Adds the client library headers. The Feature Flags CDN logs the requesting SDK from them.
+   *
+   * @param request the request to add the headers to.
+   */
+  static void addClientLibrary(final HttpRequest.Builder request) {
+    request
+        .header("DD-Client-Library-Language", "java")
+        .header("DD-Client-Library-Version", SdkVersion.VERSION);
+  }
 }

@@ -64,7 +64,7 @@ dependencies {
   implementation project(':dd-trace-api')
   implementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1.24.0'
 
-  testImplementation project(':dd-smoke-tests')
+  testImplementation project(':dd-smoke-tests:smoke-test-common')
 }
 
 configurations.testImplementation {

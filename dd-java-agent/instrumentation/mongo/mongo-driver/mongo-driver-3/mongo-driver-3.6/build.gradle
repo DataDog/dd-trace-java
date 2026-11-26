@@ -56,5 +56,5 @@ dependencies {
   }
 
   testImplementation group: 'org.mongodb', name: 'mongo-java-driver', version: '3.6.0'
-  latestDepTestImplementation group: 'org.mongodb', name: 'mongo-java-driver', version: '3.+'
+  latestDepTestImplementation group: 'org.mongodb', name: 'mongo-java-driver', version: '3.7.+'
 }

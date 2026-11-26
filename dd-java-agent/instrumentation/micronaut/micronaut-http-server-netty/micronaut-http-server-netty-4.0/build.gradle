@@ -48,6 +48,7 @@ dependencies {
     exclude group: 'ch.qos.logback', module: 'logback-classic'
   }
   testAnnotationProcessor "io.micronaut:micronaut-inject-java:4.0.0"
+  testImplementation libs.bundles.mockito
 
   latestDepTestImplementation group: 'io.micronaut', name: 'micronaut-http-server-netty', version: '4.+', {
     exclude group: 'org.slf4j', module: 'slf4j-api'

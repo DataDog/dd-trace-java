@@ -12,6 +12,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -52,16 +53,16 @@ class AIGuardContextPropagationTest {
   }
 
   @TableTest({
-    "scenario                    | callerPropagation | outcome | scopeDepthLimit",
-    "allow with evaluation scope | {true, false}     | ALLOW   | 100            ",
-    "block with evaluation scope | {true, false}     | BLOCK   | 100            ",
-    "error with evaluation scope | {true, false}     | ERROR   | 100            ",
-    "allow at scope depth limit  | {true, false}     | ALLOW   | 1              ",
-    "block at scope depth limit  | {true, false}     | BLOCK   | 1              ",
-    "error at scope depth limit  | {true, false}     | ERROR   | 1              "
+    "scenario                    | callerCaptureEnabled | outcome | scopeDepthLimit",
+    "allow with evaluation scope | {true, false}        | ALLOW   | 100            ",
+    "block with evaluation scope | {true, false}        | BLOCK   | 100            ",
+    "error with evaluation scope | {true, false}        | ERROR   | 100            ",
+    "allow at scope depth limit  | {true, false}        | ALLOW   | 1              ",
+    "block at scope depth limit  | {true, false}        | BLOCK   | 1              ",
+    "error at scope depth limit  | {true, false}        | ERROR   | 1              "
   })
   void isolatesHttpWorkAndRestoresCaller(
-      boolean callerPropagation, Outcome outcome, int scopeDepthLimit) throws Exception {
+      boolean callerCaptureEnabled, Outcome outcome, int scopeDepthLimit) throws Exception {
     Properties properties = new Properties();
     properties.setProperty("trace.scope.depth.limit", Integer.toString(scopeDepthLimit));
     tracer =
@@ -80,7 +81,7 @@ class AIGuardContextPropagationTest {
           DDSpan span = (DDSpan) tracer.activeSpan();
           assertEquals(
               scopeDepthLimit == 1 ? "parent" : "ai_guard", span.getOperationName().toString());
-          assertFalse(tracer.isAsyncPropagationEnabled());
+          assertFalse(Context.isCaptureEnabled());
           if (outcome == Outcome.ERROR) {
             throw new IOException("Transport failed");
           }
@@ -102,7 +103,7 @@ class AIGuardContextPropagationTest {
     List<AIGuard.Message> messages = singletonList(AIGuard.Message.message("user", "Hello"));
     AgentSpan parent = tracer.startSpan("test", "parent");
     try (ContextScope ignored = tracer.activateSpan(parent)) {
-      tracer.setAsyncPropagationEnabled(callerPropagation);
+      Context.setCaptureEnabled(callerCaptureEnabled);
       if (outcome == Outcome.ERROR) {
         assertThrows(
             AIGuard.AIGuardClientError.class,
@@ -117,7 +118,7 @@ class AIGuardContextPropagationTest {
             evaluator.evaluate(messages, AIGuard.Options.DEFAULT).getAction());
       }
       assertSame(parent, tracer.activeSpan());
-      assertEquals(callerPropagation, tracer.isAsyncPropagationEnabled());
+      assertEquals(callerCaptureEnabled, Context.isCaptureEnabled());
       verify(call).execute();
     } finally {
       parent.finish();

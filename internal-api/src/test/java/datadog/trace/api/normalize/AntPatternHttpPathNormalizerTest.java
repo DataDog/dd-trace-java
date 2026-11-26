@@ -3,7 +3,6 @@ package datadog.trace.api.normalize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import datadog.trace.test.util.DDJavaSpecification;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -11,7 +10,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
-class AntPatternHttpPathNormalizerTest extends DDJavaSpecification {
+class AntPatternHttpPathNormalizerTest {
 
   @TableTest({
     "path                                       | ignoreMatchers                  | normalizedPath",

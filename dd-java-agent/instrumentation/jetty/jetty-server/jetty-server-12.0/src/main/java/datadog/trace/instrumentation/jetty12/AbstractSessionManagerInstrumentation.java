@@ -18,6 +18,15 @@ public final class AbstractSessionManagerInstrumentation extends InstrumenterMod
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".JettyBlockResponseFunction",
+      packageName + ".JettyBlockResponseHelper",
+      packageName + ".JettyDeferredCompletion"
+    };
+  }
+
+  @Override
   public String muzzleDirective() {
     return "jetty-session";
   }

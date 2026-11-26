@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InternalContextKeys.SP
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
+import datadog.context.ContextHandle;
 import datadog.context.ContextKey;
 import datadog.context.ContextScope;
 import datadog.context.ImplicitContextKeyed;
@@ -39,12 +40,12 @@ public interface AgentSpan
   }
 
   /**
-   * Extracts the span from the given {@link Context}.
+   * Extracts the span from the given {@link ContextHandle}.
    *
    * @param context the context to extract the span from.
    * @return the span if existing, {@code null} otherwise.
    */
-  static AgentSpan fromContext(Context context) {
+  static AgentSpan fromContext(ContextHandle context) {
     return context == null ? null : context.get(SPAN_KEY);
   }
 
@@ -107,7 +108,7 @@ public interface AgentSpan
   AgentSpan setTag(String key, Object value);
 
   /*
-   * Id-keyed setTag family: the caller passes a KnownTags.*_ID instead of a name. The default
+   * Id-keyed setTag family: the caller passes a KnownTags id instead of a name. The default
    * resolves the id to its name and delegates to the String setter, which is correct for every
    * implementation; the core span overrides these to skip the name lookup when storing the tag.
    */

@@ -14,6 +14,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -170,6 +171,51 @@ public class MetricProbesInstrumentationTest {
     assertEquals(3, result);
     assertFalse(listener.counters.containsKey(METRIC_NAME));
     verify(probeStatusSink).addError(eq(METRIC_ID), eq("Cannot resolve symbol value"));
+  }
+
+  @Test
+  public void invalidMetricFirstOnSameMethodAsValidMetric() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    MetricProbe invalidProbe = createInvalidMainMetric(CLASS_NAME);
+    MetricProbe validProbe = createValidMainMetric(CLASS_NAME);
+    assertProbeStatusPerProbe(CLASS_NAME, installMetricProbes(invalidProbe, validProbe));
+  }
+
+  @Test
+  public void invalidMetricLastOnSameMethodAsValidMetric() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot01";
+    MetricProbe validProbe = createValidMainMetric(CLASS_NAME);
+    MetricProbe invalidProbe = createInvalidMainMetric(CLASS_NAME);
+    assertProbeStatusPerProbe(CLASS_NAME, installMetricProbes(validProbe, invalidProbe));
+  }
+
+  private static MetricProbe createInvalidMainMetric(String className) {
+    return createMethodMetric(
+        METRIC_ID,
+        "invalid_count",
+        COUNT,
+        className,
+        "main",
+        "int (java.lang.String)",
+        new ValueScript(DSL.ref("value"), "value"),
+        null);
+  }
+
+  private static MetricProbe createValidMainMetric(String className) {
+    return createMethodMetric(
+        METRIC_ID1, "call_count", COUNT, className, "main", "int (java.lang.String)", null, null);
+  }
+
+  private void assertProbeStatusPerProbe(String className, MetricForwarderListener listener)
+      throws IOException, URISyntaxException {
+    Class<?> testClass = compileAndLoadClass(className);
+    int result = Reflect.on(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    assertEquals(1, listener.counters.get("call_count").longValue());
+    assertFalse(listener.counters.containsKey("invalid_count"));
+    verify(probeStatusSink).addError(eq(METRIC_ID), eq("Cannot resolve symbol value"));
+    verify(probeStatusSink, never()).addInstalled(eq(METRIC_ID));
+    verify(probeStatusSink).addInstalled(eq(METRIC_ID1));
   }
 
   @Test

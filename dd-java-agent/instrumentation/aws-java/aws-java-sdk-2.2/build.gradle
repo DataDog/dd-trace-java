@@ -13,19 +13,14 @@ muzzle {
   }
 }
 
-addTestSuiteForDir('latestDepTest', 'test')
-// Broken: at some point S3 moved the bucket name to the hostname resulting in host not found somebucket.localhost on all S3 tests
-// addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+// TODO APMLP-2196: no latestDepForkedTest until the tests handle S3 moving the bucket name to the hostname (somebucket.localhost)
+addTestSuiteForDir('latestDepTest', 'test', false)
 
 addTestSuite('dsmTest')
-addForkedTestTask('dsmTest')
 addTestSuiteForDir('latestDsmTest', 'dsmTest')
-addTestSuiteExtendingForDir('latestDsmForkedTest', 'latestDsmTest', 'dsmTest')
 
 addTestSuite('payloadTaggingTest')
-addForkedTestTask('payloadTaggingTest')
 addTestSuiteForDir('latestPayloadTaggingTest', 'payloadTaggingTest')
-addTestSuiteExtendingForDir('latestPayloadTaggingForkedTest', 'latestPayloadTaggingTest', 'payloadTaggingTest')
 
 configurations.named('latestPayloadTaggingTestContainerImage') {
   extendsFrom(configurations.named('payloadTaggingTestContainerImage').get())

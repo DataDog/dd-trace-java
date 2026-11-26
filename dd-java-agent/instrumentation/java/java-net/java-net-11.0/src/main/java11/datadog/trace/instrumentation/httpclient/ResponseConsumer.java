@@ -3,10 +3,12 @@ package datadog.trace.instrumentation.httpclient;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.SkipCompletableFutureContextCapture;
 import java.net.http.HttpResponse;
 import java.util.function.BiConsumer;
 
-public class ResponseConsumer implements BiConsumer<HttpResponse<?>, Throwable> {
+public class ResponseConsumer
+    implements BiConsumer<HttpResponse<?>, Throwable>, SkipCompletableFutureContextCapture {
   private AgentSpan span;
 
   public ResponseConsumer(AgentSpan span) {

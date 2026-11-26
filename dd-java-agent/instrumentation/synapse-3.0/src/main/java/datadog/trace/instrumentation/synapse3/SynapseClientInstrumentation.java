@@ -28,6 +28,7 @@ import org.apache.axis2.context.MessageContext;
 import org.apache.http.HttpInetConnection;
 import org.apache.http.HttpResponse;
 import org.apache.http.nio.NHttpClientConnection;
+import org.apache.synapse.transport.passthru.ProtocolState;
 import org.apache.synapse.transport.passthru.TargetContext;
 
 @AutoService(InstrumenterModule.class)
@@ -67,6 +68,11 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginRequest(
         @Advice.Argument(0) final NHttpClientConnection connection) {
+      // HttpCore can invoke this callback while the connection has no pending request.
+      if (TargetContext.getState(connection) != ProtocolState.REQUEST_READY
+          || TargetContext.getRequest(connection) == null) {
+        return null;
+      }
 
       // check for parent span propagated by SynapsePassthruInstrumentation
       AgentSpan parentSpan = null;
@@ -99,6 +105,9 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
     public static void requestSubmitted(
         @Advice.Argument(0) final NHttpClientConnection connection,
         @Advice.Enter final ContextScope scope) {
+      if (scope == null) {
+        return;
+      }
       // populate span using details from the submitted HttpRequest (resolved URI, etc.)
       AgentSpan span = spanFromContext(scope.context());
       DECORATE.onRequest(span, TargetContext.getRequest(connection).getRequest());
@@ -117,6 +126,11 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
   public static final class ClientRequestContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) final NHttpClientConnection connection) {
+      // HttpCore can invoke this callback while the connection has no pending request.
+      if (TargetContext.getState(connection) != ProtocolState.REQUEST_READY
+          || TargetContext.getRequest(connection) == null) {
+        return;
+      }
       AgentSpan span = activeSpan();
       if (span == null) {
         return;

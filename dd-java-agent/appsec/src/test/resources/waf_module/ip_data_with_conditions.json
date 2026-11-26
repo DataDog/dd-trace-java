@@ -1,0 +1,36 @@
+{
+  "rules_data": [
+    {
+      "id": "ip_data",
+      "name": "IP data",
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "http.client_ip"
+              }
+            ],
+            "data": "blocked_users"
+          },
+          "operator": "exact_match"
+        }
+      ],
+      "tags": {
+        "type": "test",
+        "category": "test",
+        "confidence": "1"
+      },
+      "type": "ip_with_expiration",
+      "on_match": [
+        "block"
+      ],
+      "data": [
+        {
+          "value": "1.2.3.4",
+          "expiration": "0"
+        }
+      ]
+    }
+  ]
+}

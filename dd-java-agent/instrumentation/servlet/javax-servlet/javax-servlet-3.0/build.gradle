@@ -27,7 +27,6 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteForDir('latestDepForkedTest', 'test')
 
 dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')

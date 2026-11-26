@@ -64,7 +64,8 @@ public class MicronautDecorator
 
   @Override
   protected int status(HttpResponse mutableHttpResponse) {
-    return mutableHttpResponse.getStatus().getCode();
+    // getStatus() maps the code to the HttpStatus enum and throws for codes it doesn't know
+    return mutableHttpResponse.code();
   }
 
   @Override

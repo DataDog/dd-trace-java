@@ -49,7 +49,7 @@ class HttpUrlExtractorsTest {
     URI uri = URI.create("https://u:p@host/a?token=secret#fragment");
     OtelClientUrl.INSTANCE.extract(uri, span);
 
-    verify(span).setTag(eq(KnownTags.HTTP_URL_ID), (Object) urlCaptor.capture());
+    verify(span).setTag(eq(KnownTags.HTTP_URL), (Object) urlCaptor.capture());
     LazyUrl url = urlCaptor.getValue();
 
     // Reading the path must leave the full URL unrendered.
@@ -64,14 +64,14 @@ class HttpUrlExtractorsTest {
     assertEquals("/a", url.path());
     assertEquals("https://REDACTED:REDACTED@host/a#fragment", url.toString());
     assertEquals("https://REDACTED:REDACTED@host/a#fragment", url.get());
-    verify(span).setTag(KnownTags.URL_QUERY_ID, "token=secret");
+    verify(span).setTag(KnownTags.URL_QUERY, "token=secret");
   }
 
   @Test
   void otelClientSupportsConcurrentRenderingAndPathReads() throws Exception {
     ArgumentCaptor<LazyUrl> urlCaptor = ArgumentCaptor.forClass(LazyUrl.class);
     OtelClientUrl.INSTANCE.extract(URI.create("https://host/a%3Fb?token=secret#fragment"), span);
-    verify(span).setTag(eq(KnownTags.HTTP_URL_ID), (Object) urlCaptor.capture());
+    verify(span).setTag(eq(KnownTags.HTTP_URL), (Object) urlCaptor.capture());
     LazyUrl url = urlCaptor.getValue();
     ExecutorService executor = Executors.newFixedThreadPool(2);
     CyclicBarrier start = new CyclicBarrier(2);
@@ -115,7 +115,7 @@ class HttpUrlExtractorsTest {
     OtelClientUrl.INSTANCE.extract(URI.create(rawUrl), span);
 
     // The obfuscator matches literal parameter names, so the query it receives must be decoded.
-    verify(span).setTag(KnownTags.URL_QUERY_ID, expectedQuery);
+    verify(span).setTag(KnownTags.URL_QUERY, expectedQuery);
   }
 
   @TableTest({
@@ -132,8 +132,8 @@ class HttpUrlExtractorsTest {
     DatadogClientUrl.INSTANCE.extract(uri, datadog);
     OtelClientUrl.INSTANCE.extract(uri, span);
 
-    verify(datadog).setTag(KnownTags.HTTP_QUERY_STRING_ID, expectedQuery);
-    verify(span).setTag(KnownTags.URL_QUERY_ID, expectedQuery);
+    verify(datadog).setTag(KnownTags.HTTP_QUERY_STRING, expectedQuery);
+    verify(span).setTag(KnownTags.URL_QUERY, expectedQuery);
   }
 
   @TableTest({
@@ -153,55 +153,55 @@ class HttpUrlExtractorsTest {
     DatadogServerUrl.INSTANCE.extract(url, datadog);
     OtelServerUrl.INSTANCE.extract(url, span);
 
-    verify(datadog).setTag(KnownTags.HTTP_QUERY_STRING_ID, expectedQuery);
-    verify(span).setTag(KnownTags.URL_QUERY_ID, expectedQuery);
+    verify(datadog).setTag(KnownTags.HTTP_QUERY_STRING, expectedQuery);
+    verify(span).setTag(KnownTags.URL_QUERY, expectedQuery);
   }
 
   @Test
   void otelClientOmitsQueryTagWhenAbsent() {
     OtelClientUrl.INSTANCE.extract(URI.create("http://host/a"), span);
 
-    verify(span, never()).setTag(eq(KnownTags.URL_QUERY_ID), anyString());
+    verify(span, never()).setTag(eq(KnownTags.URL_QUERY), anyString());
   }
 
   @Test
   void extractServerUrlUsesRequestHostAndPort() {
     extractServerUrl(null, null, "http", "host", 8080);
 
-    verify(span).setTag(KnownTags.HTTP_HOSTNAME_ID, "host");
-    verify(span).setTag(KnownTags.Inbound.SERVER_PORT_ID, 8080);
+    verify(span).setTag(KnownTags.HTTP_HOSTNAME, "host");
+    verify(span).setTag(KnownTags.Inbound.SERVER_PORT, 8080);
   }
 
   @Test
   void extractServerUrlFallsBackToSchemeDefaultPort() {
     extractServerUrl(null, null, "https", "host", -1);
 
-    verify(span).setTag(KnownTags.HTTP_HOSTNAME_ID, "host");
-    verify(span).setTag(KnownTags.Inbound.SERVER_PORT_ID, 443);
+    verify(span).setTag(KnownTags.HTTP_HOSTNAME, "host");
+    verify(span).setTag(KnownTags.Inbound.SERVER_PORT, 443);
   }
 
   @Test
   void extractServerUrlOmitsTagsWhenNothingResolvable() {
     extractServerUrl(null, null, "ftp", null, -1);
 
-    verify(span, never()).setTag(eq(KnownTags.HTTP_HOSTNAME_ID), anyString());
-    verify(span, never()).setTag(eq(KnownTags.Inbound.SERVER_PORT_ID), anyInt());
+    verify(span, never()).setTag(eq(KnownTags.HTTP_HOSTNAME), anyString());
+    verify(span, never()).setTag(eq(KnownTags.Inbound.SERVER_PORT), anyInt());
   }
 
   @Test
   void extractServerUrlOmitsAddressWhenRequestHostIsEmpty() {
     extractServerUrl(null, null, "http", "", -1);
 
-    verify(span, never()).setTag(eq(KnownTags.HTTP_HOSTNAME_ID), anyString());
-    verify(span).setTag(KnownTags.Inbound.SERVER_PORT_ID, 80);
+    verify(span, never()).setTag(eq(KnownTags.HTTP_HOSTNAME), anyString());
+    verify(span).setTag(KnownTags.Inbound.SERVER_PORT, 80);
   }
 
   @Test
   void extractServerUrlPrefersForwardedPortHeader() {
     extractServerUrl("proxy:8443", "9443", "http", "host", 8080);
 
-    verify(span).setTag(KnownTags.HTTP_HOSTNAME_ID, "proxy");
-    verify(span).setTag(KnownTags.Inbound.SERVER_PORT_ID, 9443);
+    verify(span).setTag(KnownTags.HTTP_HOSTNAME, "proxy");
+    verify(span).setTag(KnownTags.Inbound.SERVER_PORT, 9443);
   }
 
   @TableTest({
@@ -215,7 +215,7 @@ class HttpUrlExtractorsTest {
       String forwardedHost, String forwardedPort, int expectedPort) {
     extractServerUrl(forwardedHost, forwardedPort, "http", "host", 8080);
 
-    verify(span).setTag(KnownTags.Inbound.SERVER_PORT_ID, expectedPort);
+    verify(span).setTag(KnownTags.Inbound.SERVER_PORT, expectedPort);
   }
 
   @TableTest({
@@ -233,9 +233,9 @@ class HttpUrlExtractorsTest {
       String forwardedHost, String expectedAddress, int expectedPort) {
     extractServerUrl(forwardedHost, null, "http", "host", 8080);
 
-    verify(span).setTag(KnownTags.HTTP_HOSTNAME_ID, expectedAddress);
+    verify(span).setTag(KnownTags.HTTP_HOSTNAME, expectedAddress);
     // A forwarded host suppresses the request port, so the scheme default applies instead.
-    verify(span).setTag(KnownTags.Inbound.SERVER_PORT_ID, expectedPort);
+    verify(span).setTag(KnownTags.Inbound.SERVER_PORT, expectedPort);
   }
 
   @Test
@@ -243,9 +243,9 @@ class HttpUrlExtractorsTest {
     DatadogClientUrl.INSTANCE.extract(URI.create("https://u:p@host:443/a?q=1#fragment"), span);
 
     ArgumentCaptor<CharSequence> url = ArgumentCaptor.forClass(CharSequence.class);
-    verify(span).setTag(eq(KnownTags.HTTP_URL_ID), url.capture());
+    verify(span).setTag(eq(KnownTags.HTTP_URL), url.capture());
     assertEquals("https://host/a", url.getValue().toString());
-    verify(span).setTag(KnownTags.HTTP_QUERY_STRING_ID, "q=1");
+    verify(span).setTag(KnownTags.HTTP_QUERY_STRING, "q=1");
     verify(span).setTag(DDTags.HTTP_FRAGMENT, "fragment");
   }
 
@@ -254,7 +254,7 @@ class HttpUrlExtractorsTest {
   void otelClientRespectsQueryOptOut() {
     OtelClientUrl.INSTANCE.extract(URI.create("http://host/a?token=secret"), span);
 
-    verify(span, never()).setTag(eq(KnownTags.URL_QUERY_ID), anyString());
+    verify(span, never()).setTag(eq(KnownTags.URL_QUERY), anyString());
   }
 
   @Test
@@ -262,7 +262,7 @@ class HttpUrlExtractorsTest {
   void datadogClientRespectsQueryOptOut() {
     DatadogClientUrl.INSTANCE.extract(URI.create("http://host/a?token=secret#fragment"), span);
 
-    verify(span, never()).setTag(eq(KnownTags.HTTP_QUERY_STRING_ID), anyString());
+    verify(span, never()).setTag(eq(KnownTags.HTTP_QUERY_STRING), anyString());
     verify(span, never()).setTag(eq(DDTags.HTTP_FRAGMENT), anyString());
   }
 
@@ -279,7 +279,7 @@ class HttpUrlExtractorsTest {
             new URIDefaultDataAdapter(URI.create("http://host")), path, null, null),
         span);
 
-    verify(span).setTag(KnownTags.URL_PATH_ID, expectedPath);
+    verify(span).setTag(KnownTags.URL_PATH, expectedPath);
   }
 
   @TableTest({
@@ -299,14 +299,14 @@ class HttpUrlExtractorsTest {
     OtelServerUrl.INSTANCE.extract(url, span);
 
     ArgumentCaptor<CharSequence> captured = ArgumentCaptor.forClass(CharSequence.class);
-    verify(datadog).setTag(eq(KnownTags.HTTP_URL_ID), captured.capture());
+    verify(datadog).setTag(eq(KnownTags.HTTP_URL), captured.capture());
     assertEquals(rawUrl, captured.getValue().toString());
-    verify(datadog, never()).setTag(eq(KnownTags.HTTP_QUERY_STRING_ID), anyString());
-    verify(span).setTag(KnownTags.URL_PATH_ID, expectedPath);
+    verify(datadog, never()).setTag(eq(KnownTags.HTTP_QUERY_STRING), anyString());
+    verify(span).setTag(KnownTags.URL_PATH, expectedPath);
     if (expectedQuery == null) {
-      verify(span, never()).setTag(eq(KnownTags.URL_QUERY_ID), anyString());
+      verify(span, never()).setTag(eq(KnownTags.URL_QUERY), anyString());
     } else {
-      verify(span).setTag(KnownTags.URL_QUERY_ID, expectedQuery);
+      verify(span).setTag(KnownTags.URL_QUERY, expectedQuery);
     }
   }
 
@@ -318,7 +318,7 @@ class HttpUrlExtractorsTest {
             new UnparseableURIDataAdapter("/bad%path?q=a%20b"), null, null, null),
         span);
 
-    verify(span).setTag(KnownTags.URL_QUERY_ID, "q=a%20b");
+    verify(span).setTag(KnownTags.URL_QUERY, "q=a%20b");
   }
 
   @Test
@@ -329,9 +329,9 @@ class HttpUrlExtractorsTest {
     DatadogServerUrl.INSTANCE.extract(url, span);
     OtelServerUrl.INSTANCE.extract(url, span);
 
-    verify(span, never()).setTag(eq(KnownTags.HTTP_URL_ID), anyString());
-    verify(span, never()).setTag(eq(KnownTags.URL_PATH_ID), anyString());
-    verify(span, never()).setTag(eq(KnownTags.URL_QUERY_ID), anyString());
+    verify(span, never()).setTag(eq(KnownTags.HTTP_URL), anyString());
+    verify(span, never()).setTag(eq(KnownTags.URL_PATH), anyString());
+    verify(span, never()).setTag(eq(KnownTags.URL_QUERY), anyString());
   }
 
   @Test
@@ -342,7 +342,7 @@ class HttpUrlExtractorsTest {
             new URIDefaultDataAdapter(URI.create("http://host/a?q=1#fragment")), "/a", null, null),
         span);
 
-    verify(span, never()).setTag(eq(KnownTags.HTTP_QUERY_STRING_ID), anyString());
+    verify(span, never()).setTag(eq(KnownTags.HTTP_QUERY_STRING), anyString());
     verify(span, never()).setTag(eq(DDTags.HTTP_FRAGMENT), anyString());
   }
 
@@ -357,10 +357,10 @@ class HttpUrlExtractorsTest {
         HttpServerUrl.fromRequest(new URIDefaultDataAdapter(uri), "/a", extracted, null), span);
 
     ArgumentCaptor<CharSequence> url = ArgumentCaptor.forClass(CharSequence.class);
-    verify(span).setTag(eq(KnownTags.HTTP_URL_ID), url.capture());
+    verify(span).setTag(eq(KnownTags.HTTP_URL), url.capture());
     assertEquals("http://internal:8080/a", url.getValue().toString());
-    verify(span).setTag(KnownTags.HTTP_HOSTNAME_ID, "public:8443, proxy");
-    verify(span).setTag(KnownTags.HTTP_QUERY_STRING_ID, "q=1");
+    verify(span).setTag(KnownTags.HTTP_HOSTNAME, "public:8443, proxy");
+    verify(span).setTag(KnownTags.HTTP_QUERY_STRING, "q=1");
     verify(span).setTag(DDTags.HTTP_FRAGMENT, "fragment");
     verify(extracted, never()).getXForwardedProto();
     verify(extracted, never()).getXForwardedPort();
@@ -381,10 +381,10 @@ class HttpUrlExtractorsTest {
     DatadogServerUrl.URL_ONLY.extract(url, datadog);
     OtelServerUrl.INSTANCE.extract(url, span);
 
-    verify(datadog).setTag(KnownTags.HTTP_URL_ID, (CharSequence) originalUrl);
-    verify(datadog, never()).setTag(eq(KnownTags.HTTP_HOSTNAME_ID), anyString());
-    verify(span).setTag(KnownTags.Inbound.SERVER_ADDRESS_ID, expectedHost);
-    verify(span).setTag(KnownTags.Inbound.SERVER_PORT_ID, expectedPort);
+    verify(datadog).setTag(KnownTags.HTTP_URL, (CharSequence) originalUrl);
+    verify(datadog, never()).setTag(eq(KnownTags.HTTP_HOSTNAME), anyString());
+    verify(span).setTag(KnownTags.Inbound.SERVER_ADDRESS, expectedHost);
+    verify(span).setTag(KnownTags.Inbound.SERVER_PORT, expectedPort);
   }
 
   @Test
@@ -392,9 +392,9 @@ class HttpUrlExtractorsTest {
     OtelServerUrl.INSTANCE.extract(
         HttpServerUrl.fromTransaction("https://host/a?token=secret", null, null), span);
 
-    verify(span).setTag(KnownTags.URL_SCHEME_ID, "https");
-    verify(span).setTag(KnownTags.URL_PATH_ID, "/a");
-    verify(span).setTag(KnownTags.URL_QUERY_ID, "token=secret");
+    verify(span).setTag(KnownTags.URL_SCHEME, "https");
+    verify(span).setTag(KnownTags.URL_PATH, "/a");
+    verify(span).setTag(KnownTags.URL_QUERY, "token=secret");
   }
 
   @Test
@@ -403,7 +403,7 @@ class HttpUrlExtractorsTest {
     OtelServerUrl.INSTANCE.extract(
         HttpServerUrl.fromTransaction("https://host/a?token=secret", null, null), span);
 
-    verify(span, never()).setTag(eq(KnownTags.URL_QUERY_ID), anyString());
+    verify(span, never()).setTag(eq(KnownTags.URL_QUERY), anyString());
   }
 
   @Test
@@ -414,11 +414,11 @@ class HttpUrlExtractorsTest {
     DatadogServerUrl.URL_ONLY.extract(url, datadog);
     OtelServerUrl.INSTANCE.extract(url, span);
 
-    verify(datadog).setTag(KnownTags.HTTP_URL_ID, (CharSequence) "https://api.host/a");
-    verify(span).setTag(KnownTags.URL_PATH_ID, "/a");
-    verify(span).setTag(KnownTags.URL_SCHEME_ID, "https");
-    verify(span).setTag(KnownTags.Inbound.SERVER_ADDRESS_ID, "api.host");
-    verify(span).setTag(KnownTags.Inbound.SERVER_PORT_ID, 443);
+    verify(datadog).setTag(KnownTags.HTTP_URL, (CharSequence) "https://api.host/a");
+    verify(span).setTag(KnownTags.URL_PATH, "/a");
+    verify(span).setTag(KnownTags.URL_SCHEME, "https");
+    verify(span).setTag(KnownTags.Inbound.SERVER_ADDRESS, "api.host");
+    verify(span).setTag(KnownTags.Inbound.SERVER_PORT, 443);
   }
 
   @ParameterizedTest
@@ -430,11 +430,11 @@ class HttpUrlExtractorsTest {
     DatadogServerUrl.URL_ONLY.extract(url, datadog);
     OtelServerUrl.INSTANCE.extract(url, span);
 
-    verify(datadog).setTag(KnownTags.HTTP_URL_ID, (CharSequence) "/a");
-    verify(span).setTag(KnownTags.URL_PATH_ID, "/a");
-    verify(span, never()).setTag(eq(KnownTags.URL_SCHEME_ID), anyString());
-    verify(span, never()).setTag(eq(KnownTags.Inbound.SERVER_ADDRESS_ID), anyString());
-    verify(span, never()).setTag(eq(KnownTags.Inbound.SERVER_PORT_ID), anyInt());
+    verify(datadog).setTag(KnownTags.HTTP_URL, (CharSequence) "/a");
+    verify(span).setTag(KnownTags.URL_PATH, "/a");
+    verify(span, never()).setTag(eq(KnownTags.URL_SCHEME), anyString());
+    verify(span, never()).setTag(eq(KnownTags.Inbound.SERVER_ADDRESS), anyString());
+    verify(span, never()).setTag(eq(KnownTags.Inbound.SERVER_PORT), anyInt());
   }
 
   private void extractServerUrl(

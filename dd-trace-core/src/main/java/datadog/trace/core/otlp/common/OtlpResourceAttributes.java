@@ -3,6 +3,7 @@ package datadog.trace.core.otlp.common;
 import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
 import static datadog.trace.api.DDTags.SDK_OTLP_EXPORT;
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptyMap;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
@@ -16,8 +17,22 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 
 /** Enumerates the resource attributes shared by the proto and JSON "resource.proto" encoders. */
-final class OtlpResourceAttributes {
+public final class OtlpResourceAttributes {
   private OtlpResourceAttributes() {}
+
+  /**
+   * Returns the vendor-neutral resource attributes that every OTLP export carries, before the
+   * signal-specific {@code datadog.*} and {@code _dd.*} attributes.
+   */
+  public static Map<String, String> resourceAttributes(Config config) {
+    Map<String, String> attributes = new LinkedHashMap<>();
+    visitResourceAttributes(
+        config,
+        config.getGlobalTags(),
+        emptyMap(),
+        (key, value) -> attributes.put(key, String.valueOf(value)));
+    return attributes;
+  }
 
   /** Prefix applied to {@code datadog.runtime_id} and process-tag resource attributes. */
   private static final String DATADOG_PREFIX = "datadog.";
