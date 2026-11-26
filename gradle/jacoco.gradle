@@ -4,23 +4,11 @@ jacoco {
   toolVersion = '0.8.16'
 }
 
-tasks.register('forkedTestJacocoData') {
-  dependsOn 'forkedTest'
-
-  doLast {
-    if (layout.buildDirectory.file('jacoco/forkedTest.exec').get().asFile.exists()) {
-      jacocoTestReport {
-        executionData(forkedTest)
-      }
-      jacocoTestCoverageVerification {
-        executionData(forkedTest)
-      }
-    }
-  }
-}
+def forkedTestTask = tasks.named('forkedTest', Test)
 
 tasks.named('jacocoTestReport') {
-  dependsOn('test', 'forkedTestJacocoData')
+  dependsOn('test', forkedTestTask)
+  executionData(forkedTestTask.get())
   reports {
     xml.required = true
     csv.required = false
@@ -53,6 +41,7 @@ afterEvaluate {
   }
 
   tasks.named("jacocoTestCoverageVerification", JacocoCoverageVerification) {
+    executionData(forkedTestTask.get())
     violationRules {
       rule {
         element = 'CLASS'
@@ -74,7 +63,8 @@ afterEvaluate {
     }
 
     // Disable verification if skipTests property was specified
-    onlyIf { !project.rootProject.hasProperty('skipTests') }
+    def skipTests = rootProject.providers.gradleProperty('skipTests').isPresent()
+    onlyIf { !skipTests }
   }
 
   tasks.named('jacocoTestCoverageVerification') {
