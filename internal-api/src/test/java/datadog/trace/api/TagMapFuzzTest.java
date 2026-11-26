@@ -1405,10 +1405,9 @@ public final class TagMapFuzzTest {
 
     @Override
     protected void _applyToExpectedMap(Map<String, Object> expectedMap) {
-      for (TagMap.EntryChange change : this.ledger) {
-        // ledgerOf - doesn't produce / removes, so this is safe
-        TagMap.Entry entry = (TagMap.Entry) change;
-        expectedMap.put(entry.tag(), entry.objectValue());
+      for (TagMap.EntryChangeReader change : this.ledger) {
+        // ledgerOf doesn't produce removals
+        expectedMap.put(change.tag(), change.objectValue());
       }
     }
 
