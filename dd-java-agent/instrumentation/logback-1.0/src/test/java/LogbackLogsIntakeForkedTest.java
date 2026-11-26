@@ -2,6 +2,7 @@ import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_EN
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.APP_LOGS_COLLECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_PATTERN_INJECT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
@@ -227,6 +228,9 @@ class LogbackLogsIntakeForkedTest extends AbstractLogbackLogsIntakeForkedTest {
 
 @WithConfig(key = AGENTLESS_LOG_SUBMISSION_ENABLED, value = "false")
 class LogbackNoSubmissionForkedTest extends AbstractLogbackLogsIntakeForkedTest {}
+
+@WithConfig(key = LOGS_PATTERN_INJECT, value = "true")
+class LogbackAgentlessPatternForkedTest extends AbstractLogbackLogsIntakeForkedTest {}
 
 @WithConfig(key = AGENTLESS_LOG_SUBMISSION_ENABLED, value = "false")
 @WithConfig(key = APP_LOGS_COLLECTION_ENABLED, value = "true")

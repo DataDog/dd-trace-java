@@ -43,7 +43,7 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
     // Helpers cannot be injected into the bootstrap class loader, where instrumentation tests load
     // Logback
     return Config.get().isLogPatternInject()
-            && !InstrumenterConfig.get().isAppLogsCollectionEnabled()
+            && !isLogsIntakeEnabled()
         ? any()
         : not(isBootstrapClassLoader());
   }
@@ -64,9 +64,15 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
     // Opt-in bootstrap Logback cannot receive app-classloader helpers. This helper is
     // referenced only by the logs-intake advice, which is disabled in this case.
     return Config.get().isLogPatternInject()
-            && !InstrumenterConfig.get().isAppLogsCollectionEnabled()
+            && !isLogsIntakeEnabled()
         ? new String[0]
         : new String[] {LogsIntakeHelper.class.getName()};
+  }
+
+  private static boolean isLogsIntakeEnabled() {
+    InstrumenterConfig config = InstrumenterConfig.get();
+    return config.isAppLogsCollectionEnabled()
+        || (config.isTraceEnabled() && config.isAgentlessLogSubmissionEnabled());
   }
 
   @Override
@@ -78,7 +84,7 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
             .and(takesArguments(1))
             .and(takesArgument(0, named("ch.qos.logback.classic.spi.ILoggingEvent"))),
         LogbackLoggerInstrumentation.class.getName() + "$CallAppendersAdvice");
-    if (InstrumenterConfig.get().isAppLogsCollectionEnabled()) {
+    if (isLogsIntakeEnabled()) {
       transformer.applyAdvice(
           isMethod()
               .and(isPublic())
