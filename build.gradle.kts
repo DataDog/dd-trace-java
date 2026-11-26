@@ -1,6 +1,8 @@
 import com.diffplug.gradle.spotless.GroovyExtension
 import datadog.gradle.plugin.HostPlatform
 import datadog.gradle.plugin.ci.testAggregate
+import org.gradle.api.configuration.BuildFeatures
+import javax.inject.Inject
 
 plugins {
   kotlin("jvm") version libs.versions.kotlin.plugin apply false
@@ -30,36 +32,41 @@ val isCI = providers.environmentVariable("CI")
 apply(from = rootDir.resolve("gradle/repositories.gradle"))
 apply(from = rootDir.resolve("gradle/ddprof-override.gradle"))
 
-spotlessPredeclare {
-  // these need to align with the types and versions in gradle/spotless.gradle
-  java {
-    removeUnusedImports()
-    forbidWildcardImports()
+abstract class SpotlessBuildFeatures @Inject constructor(val features: BuildFeatures)
 
-    googleJavaFormat()
-    tableTestFormatter(libs.versions.tabletest.formatter.get())
-  }
-  groovyGradle {
-    greclipse(libs.versions.greclipse.get())
-  }
-  groovy {
-    greclipse(libs.versions.greclipse.get())
-  }
-  // Predeclare the latest GrEclipse dependencies used by netty-3.8 because version 4.27
-  // cannot format one of its tests.
-  // TODO: Remove when the repository-wide 4.27 pin can be lifted:
-  // https://github.com/diffplug/spotless/issues/3013
-  format("groovyNetty38", GroovyExtension::class.java) {
-    greclipse()
-  }
-  kotlinGradle {
-    ktlint()
-  }
-  kotlin {
-    ktlint()
-  }
-  scala {
-    scalafmt()
+// Spotless 8.11.0 serializes formatter steps before the predeclared P2 dependencies are provisioned.
+if (!objects.newInstance<SpotlessBuildFeatures>().features.configurationCache.active.get()) {
+  spotlessPredeclare {
+    // these need to align with the types and versions in gradle/spotless.gradle
+    java {
+      removeUnusedImports()
+      forbidWildcardImports()
+
+      googleJavaFormat()
+      tableTestFormatter(libs.versions.tabletest.formatter.get())
+    }
+    groovyGradle {
+      greclipse(libs.versions.greclipse.get())
+    }
+    groovy {
+      greclipse(libs.versions.greclipse.get())
+    }
+    // Predeclare the latest GrEclipse dependencies used by netty-3.8 because version 4.27
+    // cannot format one of its tests.
+    // TODO: Remove when the repository-wide 4.27 pin can be lifted:
+    // https://github.com/diffplug/spotless/issues/3013
+    format("groovyNetty38", GroovyExtension::class.java) {
+      greclipse()
+    }
+    kotlinGradle {
+      ktlint()
+    }
+    kotlin {
+      ktlint()
+    }
+    scala {
+      scalafmt()
+    }
   }
 }
 apply(from = rootDir.resolve("gradle/spotless.gradle"))
