@@ -270,6 +270,11 @@ span_types:
       - { dd-name: bucket,                  type: string, required: optional }
       - { dd-name: couchbase.operation_id,  type: string, required: optional }
 
+  db.hazelcast:
+    extends: db.client
+    tags:
+      - { dd-name: hazelcast.instance, type: string, required: optional }
+
   db.redis:
     extends: db.client
     tags:

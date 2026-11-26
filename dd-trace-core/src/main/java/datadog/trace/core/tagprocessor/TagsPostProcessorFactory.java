@@ -54,6 +54,11 @@ public final class TagsPostProcessorFactory {
     }
   }
 
+  /** Whether {@link InternalTagsAdder} is in the chain, as {@link #withAddInternalTags} sets. */
+  public static boolean addsInternalTags() {
+    return addInternalTags;
+  }
+
   public static EagerTagsPostProcessor eagerProcessor() {
     return Lazy.eagerProcessor;
   }

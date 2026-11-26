@@ -2,6 +2,7 @@ package datadog.trace.core.tagprocessor;
 
 import static datadog.trace.api.DDTags.DD_INTEGRATION;
 
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.core.DDSpanContext;
@@ -10,6 +11,9 @@ public class IntegrationAdder extends TagsPostProcessor {
   @Override
   public void processTags(
       TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+    if (spanContext.derivesTag(KnownTags.DD_INTEGRATION)) {
+      return; // a base prototype formula produces it
+    }
     final CharSequence instrumentationName = spanContext.getIntegrationName();
     if (instrumentationName != null) {
       unsafeTags.set(DD_INTEGRATION, instrumentationName);

@@ -544,7 +544,11 @@ final class DenseIdStore extends IdStore {
           if (out == null) {
             out = new String[n];
           }
-          out[i] = value.toString();
+          String string = value.toString();
+          // every name with this id: a repeated name, or another spelling of the same tag
+          for (int k = i; k >= 0; k = lookup.nextSameId[k]) {
+            out[k] = string;
+          }
         }
       }
     }

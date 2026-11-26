@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import datadog.trace.api.TagLookup;
@@ -9,6 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.writer.ListWriter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 /** The span's bulk tag read agrees with reading each name through unsafeGetTag. */
@@ -97,6 +99,38 @@ class TagLookupSpanTest extends DDCoreJavaSpecification {
       span.setTag("http.url", "http://localhost:8080/owners?lastName=");
     }
     assertNull(((DDSpanContext) span.spanContext()).unsafeGetTagStrings(LOOKUP));
+    span.finish();
+  }
+
+  /**
+   * Both spellings of one tag get its value whatever the span holds: with few tags on the span the
+   * store scans its entries, and every name sharing the found id must be filled.
+   */
+  @Test
+  void bothSpellingsOfOneTagGetItsValue() {
+    // more known names than the span holds tags (about 9, mostly defaults), so the store scans
+    TagLookup lookup =
+        TagLookup.of(
+            "http.method",
+            "http.request.method",
+            "peer.service",
+            "db.instance",
+            "db.system",
+            "db.user",
+            "http.url",
+            "http.status_code",
+            "http.route",
+            "component",
+            "peer.hostname",
+            "rpc.service");
+    AgentSpan span = tracer.buildSpan("datadog", "op").start();
+    span.setTag("http.method", "GET");
+    DDSpanContext context = (DDSpanContext) span.spanContext();
+
+    String[] actual = context.unsafeGetTagStrings(lookup);
+    assertEquals("GET", context.unsafeGetTag("http.request.method"));
+    assertEquals("GET", actual[0]);
+    assertEquals("GET", actual[1]);
     span.finish();
   }
 }

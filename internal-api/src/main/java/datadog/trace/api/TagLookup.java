@@ -35,6 +35,13 @@ public final class TagLookup {
    */
   final short[] indexBySerial;
 
+  /**
+   * For each name, the next index whose name has the same known-tag id, or -1. Two spellings of one
+   * tag ({@code http.method}, {@code http.request.method}), or a repeated name, share an id; a scan
+   * that finds the id fills every one of them, following this chain from {@link #indexBySerial}.
+   */
+  final short[] nextSameId;
+
   /** The number of names that are known tags. */
   final int knownCount;
 
@@ -92,14 +99,20 @@ public final class TagLookup {
     this.ids = n == 0 ? NO_IDS : ids;
     short[] indexBySerial = new short[KnownTagCodec.serialLimit()];
     Arrays.fill(indexBySerial, (short) -1);
+    short[] nextSameId = new short[n];
     int knownCount = 0;
-    for (int i = 0; i < n; i++) {
+    // backwards, so each serial's chain runs in name order from its first index
+    for (int i = n - 1; i >= 0; i--) {
+      nextSameId[i] = -1;
       if (ids[i] != 0) {
-        indexBySerial[KnownTagCodec.serialNum(ids[i])] = (short) i;
+        int serial = KnownTagCodec.serialNum(ids[i]);
+        nextSameId[i] = indexBySerial[serial];
+        indexBySerial[serial] = (short) i;
         knownCount++;
       }
     }
     this.indexBySerial = indexBySerial;
+    this.nextSameId = nextSameId;
     this.knownCount = knownCount;
     this.serials = new char[n];
     this.bits = new long[n];
@@ -158,6 +171,11 @@ public final class TagLookup {
   /** The {@code i}th name. */
   public String name(int i) {
     return names[i];
+  }
+
+  /** The known-tag id of the {@code i}th name, or 0 when it is a custom tag. */
+  public long id(int i) {
+    return ids[i];
   }
 
   /** Whether any name is a custom tag, which can only be read by name. */

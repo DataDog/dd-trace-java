@@ -167,7 +167,11 @@ final class HashIdStore extends IdStore {
     if (out == null) {
       out = new String[lookup.size()];
     }
-    out[i] = entry.stringValue();
+    String string = entry.stringValue();
+    // every name with this id: a repeated name, or another spelling of the same tag
+    for (int k = i; k >= 0; k = lookup.nextSameId[k]) {
+      out[k] = string;
+    }
     return out;
   }
 

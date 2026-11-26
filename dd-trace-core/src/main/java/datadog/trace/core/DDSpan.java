@@ -52,6 +52,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -66,6 +67,10 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("resource")
 public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, SelfScopedContext {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
+
+  /** Formats {@code error.stack} when it is read; captures nothing, so it is shared. */
+  private static final Function<Throwable, String> ERROR_STACK_TEXT =
+      error -> StackTraces.getStackTrace(error, Config.get().getStackTraceLengthLimit());
 
   static DDSpan create(
       final String instrumentationName,
@@ -388,9 +393,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
         // or warming up - capturing the stack trace and keeping
         // the trace may exacerbate existing problems.
         setError(true, errorPriority);
-        setTag(
-            DDTags.ERROR_STACK,
-            StackTraces.getStackTrace(error, Config.get().getStackTraceLengthLimit()));
+        // Built when read, usually by the serializer: formatting a stack costs tens to hundreds of
+        // microseconds, more than throwing the exception did.
+        context.setDeferredTag(KnownTags.ERROR_STACK, error, ERROR_STACK_TEXT);
       }
 
       setTag(DDTags.ERROR_MSG, message);
@@ -733,7 +738,17 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
 
   @Override
   public String[] unsafeGetTagStrings(TagLookup lookup) {
-    return context.unsafeGetTagStrings(lookup);
+    return context.unsafeGetTagStrings(lookup, null);
+  }
+
+  @Override
+  public String[] unsafeGetTagStrings(TagLookup lookup, String[] out) {
+    return context.unsafeGetTagStrings(lookup, out);
+  }
+
+  @Override
+  public Object tagLock() {
+    return context.tagLock();
   }
 
   @Override

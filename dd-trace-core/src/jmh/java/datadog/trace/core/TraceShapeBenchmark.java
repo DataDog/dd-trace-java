@@ -3,11 +3,16 @@ package datadog.trace.core;
 import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
+import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.context.ContextScope;
+import datadog.trace.api.Config;
 import datadog.trace.api.KnownTags;
+import datadog.trace.api.naming.PeerServiceFormulas;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.TagsFormula;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Writer;
 import java.util.List;
@@ -69,6 +74,29 @@ public class TraceShapeBenchmark {
   @Param({"1", "5", "20"})
   int children;
 
+  /**
+   * {@code off}: no agent, so client-side stats never captures. {@code on}: an agent that supports
+   * stats, so every finished trace is published to the stats aggregator on the finishing thread, as
+   * in production.
+   */
+  @Param({"off"})
+  String stats;
+
+  /**
+   * CPU tokens burned per trace ({@link Blackhole#consumeCPU}), standing in for the request's own
+   * work, so background threads such as the stats aggregator keep up as they would in production. 0
+   * runs the trace shape flat out.
+   */
+  @Param({"0"})
+  long pace;
+
+  /**
+   * {@code drop}: the application thread's work only. {@code process}: plus the serializer's tag
+   * work (post-processors, derived tags, a walk of every tag), inline, without encoding.
+   */
+  @Param({"drop", "process"})
+  String writer;
+
   // server: HttpServerDecorator (tomcat)
   static final String SERVER_INSTRUMENTATION = "tomcat-server";
   static final CharSequence SERVER_OPERATION = UTF8BytesString.create("servlet.request");
@@ -116,8 +144,25 @@ public class TraceShapeBenchmark {
 
   @Setup
   public void setup(Blackhole blackhole, BenchmarkParams params) {
-    SizeRecordingWriter writer = new SizeRecordingWriter(blackhole);
-    this.tracer = CoreTracer.builder().writer(writer).build();
+    SizeRecordingWriter recorder =
+        new SizeRecordingWriter(
+            "process".equals(writer) ? new ProcessingWriter(blackhole) : new DropWriter(blackhole));
+    CoreTracer.CoreTracerBuilder builder = CoreTracer.builder().writer(recorder);
+    if ("on".equals(stats)) {
+      SharedCommunicationObjects sco = new SharedCommunicationObjects();
+      sco.setFeaturesDiscovery(new StatsOnFeaturesDiscovery());
+      builder.sharedCommunicationObjects(sco);
+    }
+    this.tracer = builder.build();
+    if ("on".equals(stats)) {
+      // The tracer starts its stats aggregator about a second after it's built. Traces published
+      // before then are refused at a full inbox, so wait for it rather than measure the refusals.
+      try {
+        Thread.sleep(3_000);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
     // the decorators' prototype chains: Base (type, component) -> Server / Client (kind, language)
     this.serverProto =
         SpanPrototype.builder()
@@ -128,14 +173,23 @@ public class TraceShapeBenchmark {
             .initKind(Tags.SPAN_KIND_SERVER)
             .initTag("language", "jvm")
             .build();
-    this.jdbcProto =
+    SpanPrototype.Builder jdbcBuilder =
         SpanPrototype.builder()
             .initInstrumentationName(JDBC_INSTRUMENTATION)
             .initOperationName(JDBC_OPERATION)
             .initSpanType(SQL)
             .initComponentAndIntegration(JAVA_JDBC)
-            .initKind(Tags.SPAN_KIND_CLIENT)
-            .build();
+            .initKind(Tags.SPAN_KIND_CLIENT);
+    // ClientDecorator's peer-service formula for its component; inert unless derived tags are on
+    TagsFormula peerService =
+        SpanNaming.instance()
+            .namingSchema()
+            .peerService()
+            .formula(JAVA_JDBC.toString(), Config.get().getPeerServiceMapping());
+    if (peerService != null) {
+      jdbcBuilder.initDerivedTags(PeerServiceFormulas.TARGETS, peerService);
+    }
+    this.jdbcProto = jdbcBuilder.build();
     this.traceProto =
         SpanPrototype.builder()
             .initInstrumentationName(TRACE_INSTRUMENTATION)
@@ -148,11 +202,11 @@ public class TraceShapeBenchmark {
     // Train only the arm this fork measures: the arms share operation names, so another arm's tags
     // would otherwise presize this one.
     Runnable arm = armFor(params);
-    writer.training = true;
+    recorder.training = true;
     for (int i = 0; i < 4; i++) {
       arm.run();
     }
-    writer.training = false;
+    recorder.training = false;
   }
 
   /** The benchmark method this fork runs, by the name JMH reports for it. */
@@ -166,6 +220,12 @@ public class TraceShapeBenchmark {
         return this::normal;
       case "newApi":
         return this::newApi;
+      case "newApiSpecialized":
+        return this::newApiSpecialized;
+      case "newApiFusedConservative":
+        return this::newApiFusedConservative;
+      case "newApiFused":
+        return this::newApiFused;
       default:
         throw new IllegalStateException("no training arm for " + benchmark);
     }
@@ -180,6 +240,7 @@ public class TraceShapeBenchmark {
 
   @Benchmark
   public void legacy() {
+    Blackhole.consumeCPU(pace);
     AgentSpan server = tracer.startSpan(SERVER_INSTRUMENTATION, SERVER_OPERATION);
     server.setSpanType(WEB);
     server.setTag(Tags.COMPONENT, SERVER_COMPONENT);
@@ -232,6 +293,7 @@ public class TraceShapeBenchmark {
 
   @Benchmark
   public void normal() {
+    Blackhole.consumeCPU(pace);
     // HttpServerDecorator: startSpan, afterStart, onRequest, then onResponseStatus at the end
     AgentSpan server = tracer.startSpan(SERVER_INSTRUMENTATION, SERVER_OPERATION);
     server.applyOverwriting(serverProto); // BaseDecorator.afterStart
@@ -275,6 +337,7 @@ public class TraceShapeBenchmark {
 
   @Benchmark
   public void newApi() {
+    Blackhole.consumeCPU(pace);
     AgentSpan server = tracer.startSpan(serverProto, SERVER_OPERATION);
     server.setTag(KnownTags.HTTP_USERAGENT, USER_AGENT);
     server.setTag(KnownTags.HTTP_METHOD, METHOD);
@@ -439,29 +502,32 @@ public class TraceShapeBenchmark {
   }
 
   /**
-   * {@link DropWriter}, except that while {@link #training} it runs each span's serialization-time
-   * tag processing, which records the span's full dense-store size, as publishing a trace does.
-   * {@code CoreTracer.write} records sizes before the writer too, but without the tags that
-   * serialization adds; training first keeps the measured traces off the serialization path.
+   * The measured {@code writer}, except that while {@link #training} it first runs each span's
+   * serialization-time tag processing, which records the span's full dense-store size, as
+   * publishing a trace does. {@code CoreTracer.write} records sizes before the writer too, but
+   * without the tags that serialization adds; training first keeps the measured traces off the
+   * serialization path. A {@link ProcessingWriter} already runs that processing itself.
    */
   static final class SizeRecordingWriter implements Writer {
-    private final Blackhole blackhole;
+    private final Writer delegate;
+    private final boolean delegateProcesses;
 
-    /** Set during setup only; the measured iterations just drop their traces. */
+    /** Set during setup only; the measured iterations go straight to the delegate. */
     volatile boolean training;
 
-    SizeRecordingWriter(Blackhole blackhole) {
-      this.blackhole = blackhole;
+    SizeRecordingWriter(Writer delegate) {
+      this.delegate = delegate;
+      this.delegateProcesses = delegate instanceof ProcessingWriter;
     }
 
     @Override
     public void write(List<DDSpan> trace) {
-      if (training) {
+      if (training && !delegateProcesses) {
         for (DDSpan span : trace) {
           span.processTagsAndBaggage(MetadataConsumer.NO_OP, OWN_PROPAGATION_TAGS);
         }
       }
-      blackhole.consume(trace);
+      delegate.write(trace);
     }
 
     @Override

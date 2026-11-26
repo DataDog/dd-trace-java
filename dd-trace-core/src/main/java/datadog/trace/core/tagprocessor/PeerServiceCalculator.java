@@ -36,6 +36,18 @@ public final class PeerServiceCalculator extends EagerTagsPostProcessor {
   @Override
   public void processTags(
       TagStore unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+    if (spanContext != null && spanContext.derivesTag(PEER_SERVICE)) {
+      // A formula computes the defaults and maps what it derives. Only an explicit value, which
+      // suppresses the formula, is left to map. Without a mapping there is nothing to do, and
+      // peer.service is computed only when something reads it.
+      if (canRemap) {
+        Object peerService = unsafeTags.load(PEER_SERVICE); // runs the formula if it hasn't run
+        if (peerService != null && !spanContext.isDerivedTag(PEER_SERVICE)) {
+          remapPeerService(unsafeTags, peerService);
+        }
+      }
+      return;
+    }
     Object peerService = unsafeTags.load(PEER_SERVICE);
     // the user set it
     if (peerService != null) {

@@ -80,6 +80,7 @@ import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.bootstrap.instrumentation.api.TagDerivations;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.interceptor.CiVisibilityApmProtocolInterceptor;
 import datadog.trace.civisibility.interceptor.CiVisibilityTelemetryInterceptor;
@@ -120,6 +121,7 @@ import datadog.trace.core.servicediscovery.ServiceDiscovery;
 import datadog.trace.core.servicediscovery.ServiceDiscoveryFactory;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
+import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
 import datadog.trace.core.traceinterceptor.LatencyTraceInterceptor;
 import datadog.trace.lambda.LambdaAppSecHandler;
 import datadog.trace.lambda.LambdaHandler;
@@ -389,6 +391,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     private boolean injectBaggageAsTags;
     private boolean injectLinksAsTags;
     private boolean flushOnClose;
+    private boolean derivedTags = Boolean.getBoolean("dd.trace.experimental.derived.tags.enabled");
 
     public CoreTracerBuilder serviceName(String serviceName) {
       this.serviceName = serviceName;
@@ -543,6 +546,15 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       return this;
     }
 
+    /**
+     * Experimental: spans compute the base prototype's derived tags (peer service, integration,
+     * service source) when read, instead of post-processors stamping them.
+     */
+    public CoreTracerBuilder derivedTags(boolean derivedTags) {
+      this.derivedTags = derivedTags;
+      return this;
+    }
+
     public CoreTracerBuilder() {
       // Apply the default values from config.
       config(Config.get());
@@ -579,36 +591,76 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
 
     public CoreTracer build() {
-      return new CoreTracer(
-          config,
-          serviceName,
-          sharedCommunicationObjects,
-          writer,
-          idGenerationStrategy,
-          sampler,
-          singleSpanSampler,
-          injector,
-          extractor,
-          localRootSpanTags,
-          defaultSpanTags,
-          serviceNameMappings,
-          taggedHeaders,
-          baggageMapping,
-          partialFlushMinSpans,
-          healthMetrics,
-          tagInterceptor,
-          strictTraceWrites,
-          instrumentationGateway,
-          serviceDiscoveryFactory,
-          timeSource,
-          dataStreamsMonitoring,
-          profilingContextIntegration,
-          reportInTracerFlare,
-          pollForTracingConfiguration,
-          injectBaggageAsTags,
-          injectLinksAsTags,
-          flushOnClose);
+      CoreTracer tracer =
+          new CoreTracer(
+              config,
+              serviceName,
+              sharedCommunicationObjects,
+              writer,
+              idGenerationStrategy,
+              sampler,
+              singleSpanSampler,
+              injector,
+              extractor,
+              localRootSpanTags,
+              defaultSpanTags,
+              serviceNameMappings,
+              taggedHeaders,
+              baggageMapping,
+              partialFlushMinSpans,
+              healthMetrics,
+              tagInterceptor,
+              strictTraceWrites,
+              instrumentationGateway,
+              serviceDiscoveryFactory,
+              timeSource,
+              dataStreamsMonitoring,
+              profilingContextIntegration,
+              reportInTracerFlare,
+              pollForTracingConfiguration,
+              injectBaggageAsTags,
+              injectLinksAsTags,
+              flushOnClose);
+      if (derivedTags) {
+        Config initial = tracer.initialConfig;
+        tracer.deferredTags = true;
+        tracer.baseDerivations =
+            BaseTagDerivations.create(
+                SpanNaming.instance().namingSchema().peerService(),
+                initial.getPeerServiceMapping(),
+                initial.isTraceResourceRenamingEnabled(),
+                initial.isTraceResourceRenamingAlwaysSimplifiedEndpoint(),
+                TagsPostProcessorFactory.addsInternalTags(),
+                initial.getServiceName(),
+                initial.getVersion());
+        // Formulas now cover every eager post-processor: peer-service defaults, http.endpoint and
+        // the internal tags. Only mapping an explicit peer.service is left, so with no mapping the
+        // eager chain has nothing to do and isn't walked at all.
+        tracer.skipEagerTagProcessing = initial.getPeerServiceMapping().isEmpty();
+      }
+      return tracer;
     }
+  }
+
+  /** The base prototype's formulas, which every span starts with; empty unless enabled. */
+  private volatile TagDerivations baseDerivations = TagDerivations.EMPTY;
+
+  TagDerivations baseDerivations() {
+    return baseDerivations;
+  }
+
+  /** Whether spans defer extracting expensive tag values; on with derived tags, for now. */
+  private volatile boolean deferredTags;
+
+  boolean deferredTagsEnabled() {
+    return deferredTags;
+  }
+
+  /** Whether formulas cover the eager post-processors, so spans skip that chain. */
+  private volatile boolean skipEagerTagProcessing;
+
+  boolean skipEagerTagProcessing() {
+    return skipEagerTagProcessing;
   }
 
   @Deprecated

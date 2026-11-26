@@ -32,6 +32,7 @@ import datadog.trace.core.SpanKindFilter;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.otlp.metrics.OtlpStatsMetricWriter;
 import datadog.trace.util.AgentTaskScheduler;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -40,11 +41,13 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class ClientStatsAggregator implements MetricsAggregator, EventListener {
+public final class ClientStatsAggregator
+    implements MetricsAggregator, EventListener, TraceCapture.Capturer {
 
   private static final Logger log = LoggerFactory.getLogger(ClientStatsAggregator.class);
 
@@ -79,6 +82,21 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private final Set<String> ignoredResources;
   private final Thread thread;
   private final MessagePassingQueue<InboxItem> inbox;
+
+  /**
+   * Experimental: the aggregator thread captures each counted span's stats fields, instead of the
+   * finishing thread building a {@link SpanSnapshot} per span. The finishing thread keeps only the
+   * error check that {@code forceKeep} needs. See {@link TraceCapture}.
+   */
+  private final boolean backgroundCapture =
+      Boolean.getBoolean("dd.trace.experimental.stats.background.capture");
+
+  /** Reused peer-tag values for background capture; touched only by the aggregator thread. */
+  private String[] peerTagValuesBuffer = new String[0];
+
+  /** Reused additional-tag values for background capture; aggregator thread only. */
+  private final String[] additionalTagValuesBuffer;
+
   private final Sink sink;
   private final MetricWriter metricWriter;
   private final Aggregator aggregator;
@@ -273,6 +291,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       boolean includeEndpointInMetrics) {
     this.ignoredResources = ignoredResources;
     this.additionalTagsSchema = additionalTagsSchema;
+    this.additionalTagValuesBuffer = new String[additionalTagsSchema.size()];
     this.includeEndpointInMetrics = includeEndpointInMetrics;
     this.otlpStatsExportEnabled = metricWriter instanceof OtlpStatsMetricWriter;
     this.inbox = Queues.mpscArrayQueue(queueSize);
@@ -289,7 +308,8 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             timeUnit,
             healthMetric,
             additionalTagsSchema,
-            this::resetCardinalityHandlers);
+            this::resetCardinalityHandlers,
+            this);
     this.thread = newAgentThread(METRICS_AGGREGATOR, aggregator);
     this.reportingInterval = reportingInterval;
     this.reportingIntervalTimeUnit = timeUnit;
@@ -408,23 +428,60 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       // ignoredResources is fixed for the lifetime of the aggregator and typically empty; hoist the
       // check so the common case skips both the lookup and the getResourceName() call per span.
       final boolean hasIgnoredResources = !ignoredResources.isEmpty();
-      for (CoreSpan<?> span : trace) {
+      int limit = trace.size();
+      for (int i = 0; i < limit; i++) {
+        CoreSpan<?> span = trace.get(i);
         boolean isTopLevel = span.isTopLevel();
         if (shouldComputeMetric(span, isTopLevel)) {
           if (hasIgnoredResources) {
             final CharSequence resourceName = span.getResourceName();
             if (resourceName != null && ignoredResources.contains(resourceName.toString())) {
               // skip publishing all children
+              limit = i;
               break;
             }
           }
           counted++;
-          forceKeep |= publish(span, isTopLevel, peerTagSchema);
+          if (backgroundCapture) {
+            // force keep keys if there are errors; the aggregator thread captures the rest
+            forceKeep |= span.getError() > 0;
+          } else {
+            forceKeep |= publish(span, isTopLevel, peerTagSchema);
+          }
         }
+      }
+      if (backgroundCapture && counted > 0) {
+        offerForCapture(trace, limit, peerTagSchema);
       }
       healthMetrics.onClientStatTraceComputed(counted, trace.size(), !forceKeep);
     }
     return forceKeep;
+  }
+
+  /** Posts a whole trace for the aggregator thread to capture; see {@link TraceCapture}. */
+  private void offerForCapture(
+      List<? extends CoreSpan<?>> trace, int limit, PeerTagSchema peerTagSchema) {
+    if (inbox.size() >= inbox.capacity()
+        || !inbox.offer(new TraceCapture(trace, limit, peerTagSchema))) {
+      healthMetrics.onStatsInboxFull();
+    }
+  }
+
+  // TraceCapture.Capturer: called only on the aggregator thread.
+
+  @Override
+  public boolean counts(CoreSpan<?> span, boolean isTopLevel) {
+    return shouldComputeMetric(span, isTopLevel);
+  }
+
+  @Override
+  public void capture(
+      CoreSpan<?> span, boolean isTopLevel, PeerTagSchema peerTagSchema, SpanSnapshot into) {
+    String[] peerBuffer = this.peerTagValuesBuffer;
+    if (peerBuffer.length < peerTagSchema.size()) {
+      this.peerTagValuesBuffer = peerBuffer = new String[peerTagSchema.size()];
+    }
+    fill(span, isTopLevel, peerTagSchema, into, peerBuffer, additionalTagValuesBuffer);
   }
 
   private boolean shouldComputeMetric(CoreSpan<?> span, boolean isTopLevel) {
@@ -441,6 +498,29 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       healthMetrics.onStatsInboxFull();
       return error;
     }
+    SpanSnapshot snapshot = new SpanSnapshot();
+    fill(span, isTopLevel, peerTagSchema, snapshot, null, null);
+    if (!inbox.offer(snapshot)) {
+      healthMetrics.onStatsInboxFull();
+    }
+    // force keep keys if there are errors
+    return error;
+  }
+
+  /**
+   * Captures a span's stats fields into {@code into}: on the producer for a posted snapshot, or on
+   * the aggregator thread for its reused one. With buffers, tag values are read into them instead
+   * of into arrays allocated on the first hit; a buffer with no values found canonicalizes the same
+   * as a null array.
+   */
+  private void fill(
+      CoreSpan<?> span,
+      boolean isTopLevel,
+      PeerTagSchema peerTagSchema,
+      SpanSnapshot into,
+      @Nullable String[] peerBuffer,
+      @Nullable String[] additionalBuffer) {
+    boolean error = span.getError() > 0;
     // Extract HTTP method and endpoint only if the feature is enabled
     String httpMethod = null;
     String httpEndpoint = null;
@@ -478,38 +558,35 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
 
     PeerTagSchema spanPeerTagSchema = peerTagSchemaFor(spanKind, peerTagSchema);
     String[] peerTagValues =
-        spanPeerTagSchema == null ? null : capturePeerTagValues(span, spanPeerTagSchema);
+        spanPeerTagSchema == null
+            ? null
+            : captureTagValues(span, spanPeerTagSchema.lookup, peerBuffer);
     if (peerTagValues == null) {
       // capture returned no non-null values -- drop the schema reference so the consumer doesn't
       // bother iterating an all-null array.
       spanPeerTagSchema = null;
     }
 
-    String[] additionalTagValues = captureAdditionalTagValues(span);
+    String[] additionalTagValues =
+        captureTagValues(span, additionalTagsSchema.lookup, additionalBuffer);
 
-    SpanSnapshot snapshot =
-        new SpanSnapshot(
-            span.getResourceName(),
-            span.getServiceName(),
-            span.getOperationName(),
-            span.getServiceNameSource(),
-            spanType,
-            span.getHttpStatusCode(),
-            isSynthetic(span),
-            span.getParentId() == 0,
-            spanKind,
-            spanPeerTagSchema,
-            peerTagValues,
-            httpMethod,
-            httpEndpoint,
-            grpcStatusCode,
-            additionalTagValues,
-            tagAndDuration);
-    if (!inbox.offer(snapshot)) {
-      healthMetrics.onStatsInboxFull();
-    }
-    // force keep keys if there are errors
-    return error;
+    into.set(
+        span.getResourceName(),
+        span.getServiceName(),
+        span.getOperationName(),
+        span.getServiceNameSource(),
+        spanType,
+        span.getHttpStatusCode(),
+        isSynthetic(span),
+        span.getParentId() == 0,
+        spanKind,
+        spanPeerTagSchema,
+        peerTagValues,
+        httpMethod,
+        httpEndpoint,
+        grpcStatusCode,
+        additionalTagValues,
+        tagAndDuration);
   }
 
   /** Returns the first non-null span tag among {@code keys}, in order, or {@code null} if none. */
@@ -521,16 +598,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       }
     }
     return null;
-  }
-
-  /**
-   * Captures the span's additional-metric-tag values into a {@code String[]} parallel to {@code
-   * additionalTagsSchema.names}. Returns {@code null} when no additional tags are configured or
-   * none of the configured keys are set on the span. Raw values only -- length cap and
-   * canonicalization run on the aggregator thread.
-   */
-  private String[] captureAdditionalTagValues(CoreSpan<?> span) {
-    return captureTagValues(span, additionalTagsSchema.lookup);
   }
 
   /**
@@ -650,20 +717,19 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   }
 
   /**
-   * Captures the span's peer tag values into a {@code String[]} parallel to {@code schema.names}.
-   * Returns {@code null} when none of the configured peer tags are set on the span.
+   * One bulk read per span over a schema's prebuilt lookup, instead of a lookup per name: the peer
+   * tags, or the additional metric tags (raw values only -- length cap and canonicalization run on
+   * the aggregator thread). Without a buffer, the values array is allocated only when a tag is
+   * found, so a span holding none of them allocates nothing, and null means none are set. With a
+   * buffer, it is cleared and filled, and returned whether or not anything was found.
    */
-  private static String[] capturePeerTagValues(CoreSpan<?> span, PeerTagSchema schema) {
-    return captureTagValues(span, schema.lookup);
-  }
-
-  /**
-   * One bulk read per span over the schema's prebuilt lookup, instead of a lookup per name. The
-   * values array is allocated only when a tag is found, so a span holding none of them allocates
-   * nothing. Returns null when none of the tags are set.
-   */
-  private static String[] captureTagValues(CoreSpan<?> span, TagLookup lookup) {
-    return span.unsafeGetTagStrings(lookup);
+  private static String[] captureTagValues(
+      CoreSpan<?> span, TagLookup lookup, @Nullable String[] buffer) {
+    if (buffer == null) {
+      return span.unsafeGetTagStrings(lookup);
+    }
+    Arrays.fill(buffer, null);
+    return span.unsafeGetTagStrings(lookup, buffer);
   }
 
   private static boolean isSynthetic(CoreSpan<?> span) {
