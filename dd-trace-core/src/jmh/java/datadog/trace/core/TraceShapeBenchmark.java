@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.core.CoreSpan.OWN_PROPAGATION_TAGS;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
 import datadog.context.ContextScope;
@@ -8,6 +9,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.common.writer.Writer;
+import java.util.List;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -21,6 +24,7 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.BenchmarkParams;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
@@ -50,7 +54,8 @@ import org.openjdk.jmh.infra.Blackhole;
  * outside {@code Integer}'s box cache, so primitive boxing shows up.
  *
  * <p>This copy: 1.68 snapshot (decorators apply a prototype in {@code afterStart}, #12037; peer
- * tags by id, #12715).
+ * tags by id, #12715), with the dense store's per-operation sizing hints, which the writer feeds as
+ * serialization would.
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 5)
@@ -110,8 +115,9 @@ public class TraceShapeBenchmark {
   SpanPrototype traceProto;
 
   @Setup
-  public void setup(Blackhole blackhole) {
-    this.tracer = CoreTracer.builder().writer(new DropWriter(blackhole)).build();
+  public void setup(Blackhole blackhole, BenchmarkParams params) {
+    SizeRecordingWriter writer = new SizeRecordingWriter(blackhole);
+    this.tracer = CoreTracer.builder().writer(writer).build();
     // the decorators' prototype chains: Base (type, component) -> Server / Client (kind, language)
     this.serverProto =
         SpanPrototype.builder()
@@ -136,6 +142,33 @@ public class TraceShapeBenchmark {
             .initOperationName(TRACE_OPERATION)
             .initComponentAndIntegration(TRACE_COMPONENT)
             .build();
+
+    // Train the sizing hints on the tags a published span ends up with: serialization adds some
+    // (such as _dd.integration), and recording only before it would presize every span too small.
+    // Train only the arm this fork measures: the arms share operation names, so another arm's tags
+    // would otherwise presize this one.
+    Runnable arm = armFor(params);
+    writer.training = true;
+    for (int i = 0; i < 4; i++) {
+      arm.run();
+    }
+    writer.training = false;
+  }
+
+  /** The benchmark method this fork runs, by the name JMH reports for it. */
+  private Runnable armFor(BenchmarkParams params) {
+    String benchmark = params.getBenchmark();
+    String method = benchmark.substring(benchmark.lastIndexOf('.') + 1);
+    switch (method) {
+      case "legacy":
+        return this::legacy;
+      case "normal":
+        return this::normal;
+      case "newApi":
+        return this::newApi;
+      default:
+        throw new IllegalStateException("no training arm for " + benchmark);
+    }
   }
 
   @TearDown
@@ -273,6 +306,47 @@ public class TraceShapeBenchmark {
     }
     server.setHttpStatusCode(STATUS);
     server.finish();
+  }
+
+  /**
+   * {@link DropWriter}, except that while {@link #training} it runs each span's serialization-time
+   * tag processing, which records the span's full dense-store size, as publishing a trace does.
+   * {@code CoreTracer.write} records sizes before the writer too, but without the tags that
+   * serialization adds; training first keeps the measured traces off the serialization path.
+   */
+  static final class SizeRecordingWriter implements Writer {
+    private final Blackhole blackhole;
+
+    /** Set during setup only; the measured iterations just drop their traces. */
+    volatile boolean training;
+
+    SizeRecordingWriter(Blackhole blackhole) {
+      this.blackhole = blackhole;
+    }
+
+    @Override
+    public void write(List<DDSpan> trace) {
+      if (training) {
+        for (DDSpan span : trace) {
+          span.processTagsAndBaggage(MetadataConsumer.NO_OP, OWN_PROPAGATION_TAGS);
+        }
+      }
+      blackhole.consume(trace);
+    }
+
+    @Override
+    public void start() {}
+
+    @Override
+    public boolean flush() {
+      return true;
+    }
+
+    @Override
+    public void close() {}
+
+    @Override
+    public void incrementDropCounts(int spanCount) {}
   }
 
   /** The advice's exit: activate around the call, then close and finish. */

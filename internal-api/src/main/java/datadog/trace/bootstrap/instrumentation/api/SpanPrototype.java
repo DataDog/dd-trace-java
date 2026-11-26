@@ -1,6 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.contract.Restricted;
+import datadog.trace.api.SizingHint;
 import datadog.trace.api.TagMap;
+import javax.annotation.Nullable;
 
 /**
  * A baked-once, frozen descriptor of a span's constant initial state — the per-decorator constants
@@ -30,6 +33,18 @@ public final class SpanPrototype {
   private final CharSequence integrationName;
   private final TagMap tags; // frozen
   private final SpanKind kind;
+
+  /**
+   * The dense-store sizing hints for spans that use this prototype's own operation name, in the
+   * entry-span and child-span lanes, resolved on first use so later spans skip the table lookup.
+   * Racy by design: two threads resolving a lane at once can get distinct hints if they both miss
+   * the table (see {@link datadog.trace.util.FlatHashtable.D1}), and prototypes for the same
+   * operation can each cache a different one for their lifetime. Such hints converge independently;
+   * a mismatch only mis-sizes arrays, never tag data.
+   */
+  private SizingHint entryHint;
+
+  private SizingHint childHint;
 
   private SpanPrototype(final Builder builder) {
     this.instrumentationName = builder.instrumentationName;
@@ -75,6 +90,40 @@ public final class SpanPrototype {
    */
   public SpanKind kind() {
     return kind;
+  }
+
+  /**
+   * The sizing hint for a span built from this prototype with {@code operationName}, in the
+   * entry-span or child-span lane; null with the dense store off. Hints are keyed by operation
+   * name, like {@link SizingHint#forOperation}: when the span uses the prototype's own operation
+   * name, the hint is resolved once per lane and cached here, so the span skips the table lookup; a
+   * span given a different operation name gets that name's hint from the table. Unlike operations
+   * get separate hints while the lane has budget; past it, they share the lane's capped overflow
+   * hint, which never grows.
+   */
+  @Restricted(allowedIn = {"datadog.trace.core"})
+  @Nullable
+  public SizingHint sizingHint(boolean entrySpan, @Nullable CharSequence operationName) {
+    CharSequence own = this.operationName;
+    if (own == null || !sameName(own, operationName)) {
+      return SizingHint.forOperation(operationName, entrySpan);
+    }
+    SizingHint hint = entrySpan ? this.entryHint : this.childHint;
+    if (hint == null) {
+      hint = SizingHint.forOperation(own, entrySpan);
+      if (entrySpan) {
+        this.entryHint = hint;
+      } else {
+        this.childHint = hint;
+      }
+    }
+    return hint;
+  }
+
+  /** Whether {@code name} is {@code own}: the same instance, or the same characters. */
+  private static boolean sameName(CharSequence own, @Nullable CharSequence name) {
+    // toString() is O(1) for the String and UTF8BytesString operation names we see
+    return own == name || (name != null && own.toString().equals(name.toString()));
   }
 
   public static final class Builder {
