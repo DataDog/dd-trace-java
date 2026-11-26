@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.Context;
 import datadog.context.ContextScope;
-import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.DDSpan;
 import java.util.List;
@@ -28,7 +27,7 @@ import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.support.DefaultExchange;
 import org.junit.jupiter.api.Test;
 
-class CamelTemplateTest extends AbstractInstrumentationTest {
+class CamelTemplateTest extends AbstractCamelTest {
   @Test
   void requestAndSendOverloadsAndFutureKeepTheirCallerParent() throws Exception {
     CountDownLatch entered = new CountDownLatch(1);
@@ -46,7 +45,7 @@ class CamelTemplateTest extends AbstractInstrumentationTest {
                     assertTrue(activeSpan() != null, "each template entry must activate its route");
                     if ("future".equals(exchange.getMessage().getBody())) {
                       entered.countDown();
-                      assertTrue(release.await(10, SECONDS));
+                      assertTrue(release.await(TIMEOUT_SECONDS, SECONDS));
                     }
                     exchange
                         .getMessage()
@@ -62,7 +61,7 @@ class CamelTemplateTest extends AbstractInstrumentationTest {
         Future<String> future =
             producer.asyncRequestBody("direct:template", "future", String.class);
         try {
-          assertTrue(entered.await(10, SECONDS));
+          assertTrue(entered.await(TIMEOUT_SECONDS, SECONDS));
           assertFalse(future.isDone(), "the future must await route completion");
           assertEquals("reply:body", producer.requestBody("direct:template", "body"));
           assertSame(caller, Context.current());
@@ -81,7 +80,7 @@ class CamelTemplateTest extends AbstractInstrumentationTest {
         } finally {
           release.countDown();
         }
-        assertEquals("reply:future", future.get(10, SECONDS));
+        assertEquals("reply:future", future.get(TIMEOUT_SECONDS, SECONDS));
         assertTrue(future.isDone());
         assertSame(parent, activeSpan());
         assertSame(caller, Context.current());

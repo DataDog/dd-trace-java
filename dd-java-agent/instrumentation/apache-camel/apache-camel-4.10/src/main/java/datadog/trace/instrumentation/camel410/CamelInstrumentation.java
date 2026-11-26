@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.camel;
+package datadog.trace.instrumentation.camel410;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;

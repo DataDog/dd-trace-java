@@ -91,8 +91,8 @@ class CamelRouteTest extends AbstractCamelTest {
     assertSame(outer.get(), after.get(), "the nested route must restore the outer route context");
     List<DDSpan> routes = routeSpans(2);
     assertEquals(2, routes.size());
-    DDSpan outerSpan = named(routes, "outer");
-    DDSpan innerSpan = named(routes, "inner");
+    DDSpan outerSpan = routeSpan(routes, "outer");
+    DDSpan innerSpan = routeSpan(routes, "inner");
     assertEquals(parent.getTraceId(), outerSpan.getTraceId());
     assertEquals(parent.getSpanId(), outerSpan.getParentId());
     assertEquals(outerSpan.getTraceId(), innerSpan.getTraceId());
@@ -133,8 +133,8 @@ class CamelRouteTest extends AbstractCamelTest {
       }
       List<DDSpan> routes = routeSpans(2);
       assertEquals(2, routes.size());
-      DDSpan sending = named(routes, "sending");
-      DDSpan receiving = named(routes, "queued");
+      DDSpan sending = routeSpan(routes, "sending");
+      DDSpan receiving = routeSpan(routes, "queued");
       assertEquals(parent.getSpanId(), sending.getParentId());
       assertEquals(sending.getTraceId(), receiving.getTraceId());
       assertEquals(sending.getSpanId(), receiving.getParentId());
@@ -169,7 +169,7 @@ class CamelRouteTest extends AbstractCamelTest {
       }
     }
     assertSame(original, Context.current());
-    DDSpan route = named(routeSpans(1), "failed");
+    DDSpan route = routeSpan(routeSpans(1), "failed");
     assertTrue(route.isError());
     assertEquals(IllegalStateException.class.getName(), route.getTag("error.type"));
     assertEquals("route failure", route.getTag("error.message"));
@@ -209,14 +209,7 @@ class CamelRouteTest extends AbstractCamelTest {
     assertSame(original, Context.current());
     List<DDSpan> routes = routeSpans(2);
     assertEquals(2, routes.size());
-    assertEquals(named(routes, "handled").getSpanId(), recovered.get().getSpanId());
-    assertFalse(named(routes, "stopped").isError());
-  }
-
-  private static DDSpan named(List<DDSpan> spans, String name) {
-    return spans.stream()
-        .filter(span -> name.contentEquals(span.getResourceName()))
-        .findFirst()
-        .orElseThrow(() -> new AssertionError("Missing route " + name));
+    assertEquals(routeSpan(routes, "handled").getSpanId(), recovered.get().getSpanId());
+    assertFalse(routeSpan(routes, "stopped").isError());
   }
 }

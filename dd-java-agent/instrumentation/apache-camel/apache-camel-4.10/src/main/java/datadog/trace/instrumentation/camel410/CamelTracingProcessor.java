@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.camel;
+package datadog.trace.instrumentation.camel410;
 
 import datadog.context.Context;
 import datadog.context.ContextScope;

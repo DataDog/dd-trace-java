@@ -81,7 +81,8 @@ class CamelMessagingTest extends AbstractCamelTest {
         try (ProducerTemplate producer = context.createProducerTemplate()) {
           assertNull(activeSpan());
           producer.sendBodyAndHeader("direct:send", "payload", "applicationHeader", "retained");
-          assertTrue(received.await(10, SECONDS), "the broker must deliver the message");
+          assertTrue(
+              received.await(TIMEOUT_SECONDS, SECONDS), "the broker must deliver the message");
           assertNull(failure.get(), "receiving route assertions must succeed");
           assertNull(activeSpan());
           // AUTO_ACKNOWLEDGE consumer spans finish on the next receive iteration.

@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.camel;
+package datadog.trace.instrumentation.camel410;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
@@ -6,8 +6,10 @@ import org.apache.camel.NamedNode;
 import org.apache.camel.Processor;
 import org.apache.camel.Route;
 import org.apache.camel.spi.CamelEvent;
+import org.apache.camel.spi.CamelInternalProcessorAdvice;
 import org.apache.camel.spi.CamelTracingService;
 import org.apache.camel.spi.InterceptStrategy;
+import org.apache.camel.spi.InternalProcessor;
 import org.apache.camel.spi.RoutePolicy;
 import org.apache.camel.spi.RoutePolicyFactory;
 import org.apache.camel.support.EventNotifierSupport;
@@ -81,11 +83,29 @@ public final class CamelTracingStrategy extends EventNotifierSupport
     }
   }
 
-  public static final class Policy extends RoutePolicySupport {
+  public static final class Policy extends RoutePolicySupport
+      implements CamelInternalProcessorAdvice<Object> {
     private final CamelTracingStrategy strategy;
+    private Route route;
+    private boolean completionRegistered;
 
     public Policy(CamelTracingStrategy strategy) {
       this.strategy = strategy;
+    }
+
+    @Override
+    public void onInit(Route route) {
+      this.route = route;
+      try {
+        Processor processor = route.getProcessor();
+        if (processor instanceof InternalProcessor) {
+          // Route-policy completion is skipped during shutdown; processor advice still runs.
+          ((InternalProcessor) processor).addAdvice(this);
+          completionRegistered = true;
+        }
+      } catch (Throwable ignored) {
+        // Keep route-policy completion if processor advice cannot be installed.
+      }
     }
 
     @Override
@@ -101,7 +121,24 @@ public final class CamelTracingStrategy extends EventNotifierSupport
 
     @Override
     public void onExchangeDone(Route route, Exchange exchange) {
+      if (!completionRegistered) {
+        CamelState.complete(route, exchange);
+      }
+    }
+
+    @Override
+    public Object before(Exchange exchange) {
+      return null;
+    }
+
+    @Override
+    public void after(Exchange exchange, Object state) {
       CamelState.complete(route, exchange);
+    }
+
+    @Override
+    public boolean hasState() {
+      return false;
     }
   }
 }

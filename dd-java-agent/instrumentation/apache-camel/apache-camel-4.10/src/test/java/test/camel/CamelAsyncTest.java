@@ -44,7 +44,7 @@ class CamelAsyncTest extends AbstractCamelTest {
             () -> {
               Context original = Context.current();
               try {
-                assertTrue(release.await(10, SECONDS));
+                assertTrue(release.await(TIMEOUT_SECONDS, SECONDS));
                 pending.get().getMessage().setBody("completed");
                 callback.get().done(false);
                 assertSame(
@@ -101,7 +101,7 @@ class CamelAsyncTest extends AbstractCamelTest {
                 "camel-request");
         caller.start();
         try {
-          assertTrue(entered.await(10, SECONDS));
+          assertTrue(entered.await(TIMEOUT_SECONDS, SECONDS));
           assertNotNull(before.get());
           assertEquals(
               0,
@@ -109,8 +109,8 @@ class CamelAsyncTest extends AbstractCamelTest {
               "an incomplete async route must remain open");
         } finally {
           release.countDown();
-          caller.join(10_000);
-          completion.join(10_000);
+          caller.join(SECONDS.toMillis(TIMEOUT_SECONDS));
+          completion.join(SECONDS.toMillis(TIMEOUT_SECONDS));
         }
         assertFalse(caller.isAlive(), "request must finish");
         assertFalse(completion.isAlive(), "callback must finish");
@@ -121,7 +121,7 @@ class CamelAsyncTest extends AbstractCamelTest {
       }
     } finally {
       release.countDown();
-      completion.join(10_000);
+      completion.join(SECONDS.toMillis(TIMEOUT_SECONDS));
       parent.finish();
     }
     assertNull(failure.get(), "application request and callback assertions must succeed");
@@ -165,7 +165,7 @@ class CamelAsyncTest extends AbstractCamelTest {
           }
         }
         producer.sendBody("seda:messages", "unparented");
-        assertTrue(processed.await(10, SECONDS));
+        assertTrue(processed.await(TIMEOUT_SECONDS, SECONDS));
       }
     }
     List<DDSpan> routes = routeSpans(7);

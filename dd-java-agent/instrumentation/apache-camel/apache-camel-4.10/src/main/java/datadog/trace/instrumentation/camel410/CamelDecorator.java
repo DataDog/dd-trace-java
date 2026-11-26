@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.camel;
+package datadog.trace.instrumentation.camel410;
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.CAMEL_ENDPOINT_SCHEME;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.CAMEL_ROUTE_ID;

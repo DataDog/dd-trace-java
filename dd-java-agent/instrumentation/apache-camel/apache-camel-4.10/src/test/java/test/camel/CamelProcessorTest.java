@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.context.Context;
-import datadog.trace.instrumentation.camel.CamelTracingProcessor;
+import datadog.trace.instrumentation.camel410.CamelTracingProcessor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.camel.AsyncCallback;

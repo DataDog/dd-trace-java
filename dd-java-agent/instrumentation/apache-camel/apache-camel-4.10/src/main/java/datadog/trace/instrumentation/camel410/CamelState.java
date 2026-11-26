@@ -1,12 +1,11 @@
-package datadog.trace.instrumentation.camel;
+package datadog.trace.instrumentation.camel410;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.camel.CamelDecorator.DECORATE;
-import static datadog.trace.instrumentation.camel.CamelDecorator.ROUTE;
+import static datadog.trace.instrumentation.camel410.CamelDecorator.DECORATE;
+import static datadog.trace.instrumentation.camel410.CamelDecorator.ROUTE;
 
 import datadog.context.Context;
-import datadog.context.ContextScope;
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -74,12 +73,10 @@ public final class CamelState extends SynchronizationAdapter implements SafeCopy
       }
       if (AgentSpan.fromContext(parent) == null) {
         parent =
-            defaultPropagator()
-                .extract(Context.root(), exchange.getIn().getHeaders(), Headers.INSTANCE);
+            defaultPropagator().extract(parent, exchange.getIn().getHeaders(), Headers.INSTANCE);
       }
-      try (ContextScope ignored = parent.attach()) {
-        span = startSpan("camel", ROUTE);
-      }
+      AgentSpan parentSpan = AgentSpan.fromContext(parent);
+      span = startSpan("camel", ROUTE, parentSpan == null ? null : parentSpan.spanContext());
       DECORATE.afterStart(span);
       DECORATE.onRoute(span, route);
       CamelState state = new CamelState(previous, route, span, parent);

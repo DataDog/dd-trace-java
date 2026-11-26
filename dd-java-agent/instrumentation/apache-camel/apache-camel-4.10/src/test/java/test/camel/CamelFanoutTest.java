@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.Context;
 import datadog.context.ContextScope;
-import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.DDSpan;
 import java.util.List;
@@ -28,7 +27,7 @@ import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.model.RouteDefinition;
 import org.tabletest.junit.TableTest;
 
-class CamelFanoutTest extends AbstractInstrumentationTest {
+class CamelFanoutTest extends AbstractCamelTest {
   @TableTest({
     "Scenario             | split | parallel",
     "sequential split     | true  | false   ",
@@ -77,7 +76,8 @@ class CamelFanoutTest extends AbstractInstrumentationTest {
                       threads.put(name, Thread.currentThread().getId());
                       branches.countDown();
                       if (parallel) {
-                        assertTrue(branches.await(10, SECONDS), "both branches must overlap");
+                        assertTrue(
+                            branches.await(TIMEOUT_SECONDS, SECONDS), "both branches must overlap");
                       }
                       assertEquals(
                           routeId,

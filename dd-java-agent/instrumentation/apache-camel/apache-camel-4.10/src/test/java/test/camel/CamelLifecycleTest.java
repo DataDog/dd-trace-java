@@ -1,6 +1,7 @@
 package test.camel;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -99,7 +100,7 @@ class CamelLifecycleTest extends AbstractCamelTest {
       context.start();
       try (ProducerTemplate producer = context.createProducerTemplate()) {
         producer.sendBody("seda:hop", ExchangePattern.InOnly, hops);
-        Exchange snapshot = copy.get(10, SECONDS);
+        Exchange snapshot = copy.get(TIMEOUT_SECONDS, SECONDS);
 
         assertNull(snapshot.getProperty(STATE_KEY));
         SafeCopyProperty parent = routeContext(snapshot);
@@ -185,9 +186,11 @@ class CamelLifecycleTest extends AbstractCamelTest {
   }
 
   @Test
-  void unitOfWorkFallbackFinishesOnceWhenStoppingGuardSkipsRoutePolicyCompletion()
-      throws Exception {
+  void nestedRouteCompletesAndRestoresItsParentWhileStopping() throws Exception {
     AtomicBoolean stopping = new AtomicBoolean();
+    AtomicReference<DDSpan> outer = new AtomicReference<>();
+    AtomicReference<DDSpan> inner = new AtomicReference<>();
+    AtomicReference<DDSpan> afterInner = new AtomicReference<>();
     AtomicReference<RecordingUnitOfWork> unitOfWork = new AtomicReference<>();
     AtomicInteger retainedAtUnitOfWorkCompletion = new AtomicInteger();
     try (DefaultCamelContext context =
@@ -217,7 +220,24 @@ class CamelLifecycleTest extends AbstractCamelTest {
           new RouteBuilder() {
             @Override
             public void configure() {
-              from("direct:stopping").routeId("stopping").process(exchange -> stopping.set(true));
+              from("direct:stopping")
+                  .routeId("stopping")
+                  .process(exchange -> outer.set((DDSpan) activeSpan()))
+                  .to("direct:inner")
+                  .process(exchange -> {
+                    assertTrue(inner.get().isFinished(), "the nested route has returned");
+                    assertFalse(outer.get().isFinished());
+                    assertSame(outer.get(), activeSpan());
+                    DDSpan span = (DDSpan) startSpan("test", "after-inner");
+                    afterInner.set(span);
+                    span.finish();
+                  });
+              from("direct:inner")
+                  .routeId("inner")
+                  .process(exchange -> {
+                    inner.set((DDSpan) activeSpan());
+                    stopping.set(true);
+                  });
             }
           });
       context.start();
@@ -230,19 +250,23 @@ class CamelLifecycleTest extends AbstractCamelTest {
           stopping.set(false);
         }
         assertNull(result.getException());
-        assertEquals(1, retainedAtUnitOfWorkCompletion.get(), "the UoW must execute the fallback");
+        assertEquals(0, retainedAtUnitOfWorkCompletion.get(), "both routes have already finished");
         assertTrue(unitOfWork.get().done);
-        assertEquals(1, unitOfWork.get().routeSynchronizations.size());
-        Synchronization fallback = unitOfWork.get().routeSynchronizations.get(0);
-        fallback.onComplete(result);
+        assertEquals(2, unitOfWork.get().routeSynchronizations.size());
         result.setException(new IllegalStateException("late duplicate failure"));
-        fallback.onFailure(result);
+        for (Synchronization fallback : unitOfWork.get().routeSynchronizations) {
+          fallback.onComplete(result);
+          fallback.onFailure(result);
+        }
       }
     }
-    List<DDSpan> routes = routeSpans(1);
-    assertEquals(1, routes.size(), "fallback and duplicate callbacks must finish one route span");
-    assertFalse(
-        routes.get(0).isError(), "a late duplicate failure must not alter the finished span");
+    List<DDSpan> routes = routeSpans(2);
+    assertEquals(2, routes.size(), "duplicate callbacks must not finish routes again");
+    assertEquals(outer.get().getSpanId(), inner.get().getParentId());
+    assertEquals(outer.get().getSpanId(), afterInner.get().getParentId());
+    for (DDSpan route : routes) {
+      assertFalse(route.isError(), "a late duplicate failure must not alter the finished span");
+    }
   }
 
   private static class RecordingUnitOfWork extends DefaultUnitOfWork {

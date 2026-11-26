@@ -1,13 +1,18 @@
 package test.camel;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.core.DDSpan;
 import java.util.HashMap;
 import java.util.Map;
@@ -19,9 +24,49 @@ import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.apache.camel.support.DefaultExchange;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 class CamelPropagationTest extends AbstractCamelTest {
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void preservesBaggageWithoutAnActiveSpan(boolean externalParent) throws Exception {
+    Context original = Context.current();
+    Baggage baggage = Baggage.empty();
+    baggage.addItem("business", "retained");
+    AtomicReference<Baggage> observed = new AtomicReference<>();
+    try (DefaultCamelContext context = new DefaultCamelContext()) {
+      context.addRoutes(
+          new RouteBuilder() {
+            @Override
+            public void configure() {
+              from("direct:baggage")
+                  .routeId("baggage")
+                  .process(exchange -> observed.set(Baggage.fromContext(Context.current())));
+            }
+          });
+      context.start();
+      try (ProducerTemplate producer = context.createProducerTemplate();
+          ContextScope ignored = original.with(baggage).attach()) {
+        assertNull(activeSpan());
+        Exchange incoming = new DefaultExchange(context);
+        if (externalParent) {
+          incoming.getMessage().setHeader("x-datadog-trace-id", "123456789");
+          incoming.getMessage().setHeader("x-datadog-parent-id", "987654321");
+        }
+        producer.send("direct:baggage", incoming);
+        assertNull(incoming.getException());
+        assertSame(baggage, observed.get());
+        assertSame(baggage, Baggage.fromContext(Context.current()));
+        assertNull(activeSpan());
+      }
+    }
+    assertSame(original, Context.current());
+    DDSpan route = routeSpans(1).get(0);
+    assertEquals(externalParent ? 987654321L : 0, route.getParentId());
+  }
+
   @Test
   void extractsAnExternalParentFromMessageHeadersOnly() throws Exception {
     AtomicReference<AgentSpan> observed = new AtomicReference<>();
@@ -132,7 +177,7 @@ class CamelPropagationTest extends AbstractCamelTest {
                 },
                 "camel-remote-receiver");
         receiver.start();
-        receiver.join(10_000);
+        receiver.join(SECONDS.toMillis(TIMEOUT_SECONDS));
         assertFalse(receiver.isAlive(), "the receiver must complete");
         assertNull(failure.get(), "header-only receiver assertions must succeed");
         assertNotNull(receiving.get());
