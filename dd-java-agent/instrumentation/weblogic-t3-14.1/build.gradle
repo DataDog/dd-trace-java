@@ -1,0 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+dependencies {
+  compileOnly project(':dd-java-agent:instrumentation:weblogic-t3-stubs')
+}
