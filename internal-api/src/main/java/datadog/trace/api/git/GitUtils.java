@@ -3,7 +3,6 @@ package datadog.trace.api.git;
 import static datadog.trace.api.git.RawParseUtils.decode;
 import static datadog.trace.api.git.RawParseUtils.nextLF;
 import static datadog.trace.util.Strings.isBlank;
-import static java.util.regex.Pattern.compile;
 
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
@@ -50,6 +49,10 @@ public class GitUtils {
   private static final Pattern PULL_REQUEST_MERGE_REF_PATTERN =
       Pattern.compile("refs/pull/[0-9]+/merge");
   private static final Pattern SHELL_METACHAR_PATTERN = Pattern.compile(".*[`$&|;<>\n\r#].*");
+  private static final Pattern REMOTE_HELPER_PREFIX_PATTERN =
+      Pattern.compile("[a-zA-Z0-9][a-zA-Z0-9+.-]*::");
+  private static final Pattern AUTHORITY_WITH_USER_INFO_PATTERN =
+      Pattern.compile("[^@]+@[\\p{L}\\p{N}._+~-]+(?::[0-9]+)?");
 
   private static final int SHORT_SHA_LENGTH = 7;
   private static final int FULL_SHA_LENGTH = 40;
@@ -157,7 +160,7 @@ public class GitUtils {
       return null;
     }
     // Git passes a remote helper's address separately from its transport prefix.
-    Matcher helper = compile("[a-zA-Z0-9][a-zA-Z0-9+.-]*::").matcher(urlStr);
+    Matcher helper = REMOTE_HELPER_PREFIX_PATTERN.matcher(urlStr);
     int addressStart = 0;
     while (helper.region(addressStart, urlStr.length()).lookingAt()) {
       addressStart = helper.end();
@@ -195,8 +198,7 @@ public class GitUtils {
         return null;
       }
       String userInfo = url.getRawUserInfo();
-      if (userInfo == null
-          && compile("[^@]+@[\\p{L}\\p{N}._+~-]+(?::[0-9]+)?").matcher(authority).matches()) {
+      if (userInfo == null && AUTHORITY_WITH_USER_INFO_PATTERN.matcher(authority).matches()) {
         // URI's DNS parser rejects valid SSH aliases such as underscores and tildes.
         userInfo = authority.substring(0, authority.indexOf('@'));
       }
