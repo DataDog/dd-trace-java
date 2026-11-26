@@ -77,6 +77,32 @@ class GitUtilsTest {
   }
 
   @TableTest({
+    "scenario      | sha                                                              | expectedResult                                                  ",
+    "null          |                                                                  |                                                                 ",
+    "abbreviated   | ABCDEF0                                                          |                                                                 ",
+    "41 characters | 1234567890123456789012345678901234ABCDEF0                        |                                                                 ",
+    "non-hex char  | 1234567890123456789012345678901234ABCDEX                         |                                                                 ",
+    "SHA-1         | 1234567890123456789012345678901234ABCDEF                         | 1234567890123456789012345678901234abcdef                        ",
+    "SHA-256       | 1234567890123456789012345678901234567890123456789012345678ABCDEF | 1234567890123456789012345678901234567890123456789012345678abcdef"
+  })
+  void testFullCommitShaNormalization(String sha, String expectedResult) {
+    assertEquals(expectedResult, GitUtils.normalizeFullCommitSha(sha));
+  }
+
+  @TableTest({
+    "scenario        | ref                  | expectedResult",
+    "null            |                      | false         ",
+    "merge ref       | refs/pull/42/merge   | true          ",
+    "head ref        | refs/pull/42/head    | false         ",
+    "branch          | refs/heads/main      | false         ",
+    "missing number  | refs/pull//merge     | false         ",
+    "trailing suffix | refs/pull/42/merge/x | false         "
+  })
+  void testPullRequestMergeRef(String ref, boolean expectedResult) {
+    assertEquals(expectedResult, GitUtils.isPullRequestMergeRef(ref));
+  }
+
+  @TableTest({
     "scenario                           | url                                                       | expectedResult                             ",
     "null                               |                                                           |                                            ",
     "empty                              | ''                                                        |                                            ",

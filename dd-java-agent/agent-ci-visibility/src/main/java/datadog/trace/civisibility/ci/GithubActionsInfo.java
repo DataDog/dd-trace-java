@@ -1,8 +1,10 @@
 package datadog.trace.civisibility.ci;
 
 import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
+import static datadog.trace.api.git.GitUtils.isPullRequestMergeRef;
 import static datadog.trace.api.git.GitUtils.isTagReference;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
+import static datadog.trace.api.git.GitUtils.normalizeFullCommitSha;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
 
@@ -77,7 +79,9 @@ class GithubActionsInfo implements CIProviderInfo {
 
   @Override
   public String getMergeCommitSha() {
-    return GitCheckoutInfo.mergeCommitSha(getProvider(), environment);
+    return isPullRequestMergeRef(environment.get(GHACTIONS_REF))
+        ? normalizeFullCommitSha(environment.get(GHACTIONS_SHA))
+        : null;
   }
 
   @Override

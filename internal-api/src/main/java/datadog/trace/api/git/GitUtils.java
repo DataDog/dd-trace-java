@@ -47,6 +47,8 @@ public class GitUtils {
               + "|/$" // ends with slash
           );
   private static final Pattern PATH_PATTERN = Pattern.compile("^[a-zA-Z0-9_./-]+$");
+  private static final Pattern PULL_REQUEST_MERGE_REF_PATTERN =
+      Pattern.compile("refs/pull/[0-9]+/merge");
   private static final Pattern SHELL_METACHAR_PATTERN = Pattern.compile(".*[`$&|;<>\n\r#].*");
 
   private static final int SHORT_SHA_LENGTH = 7;
@@ -334,6 +336,17 @@ public class GitUtils {
   /** Lowercases full object IDs; leaves invalid or abbreviated input unchanged. */
   public static String normalizeCommitSha(@Nullable String sha) {
     return isFullLengthCommitSha(sha) ? sha.toLowerCase(Locale.ROOT) : sha;
+  }
+
+  /** Lowercases full object IDs; returns null for invalid or abbreviated input. */
+  @Nullable
+  public static String normalizeFullCommitSha(@Nullable String sha) {
+    return isFullLengthCommitSha(sha) ? sha.toLowerCase(Locale.ROOT) : null;
+  }
+
+  /** Checks whether a ref is a pull request merge ref, such as {@code refs/pull/42/merge}. */
+  public static boolean isPullRequestMergeRef(@Nullable String ref) {
+    return ref != null && PULL_REQUEST_MERGE_REF_PATTERN.matcher(ref).matches();
   }
 
   private static boolean isValidCommitSha(final String commitSha, final int minLength) {

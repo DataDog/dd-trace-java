@@ -1,8 +1,10 @@
 package datadog.trace.civisibility.ci;
 
 import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
+import static datadog.trace.api.git.GitUtils.isPullRequestMergeRef;
 import static datadog.trace.api.git.GitUtils.isTagReference;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
+import static datadog.trace.api.git.GitUtils.normalizeFullCommitSha;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
 
@@ -43,6 +45,7 @@ class AzurePipelinesInfo implements CIProviderInfo {
   public static final String AZURE_BUILD_REQUESTED_FOR_EMAIL = "BUILD_REQUESTEDFOREMAIL";
   public static final String AZURE_PR_NUMBER = "SYSTEM_PULLREQUEST_PULLREQUESTNUMBER";
   public static final String AZURE_PR_TARGET_BRANCH = "SYSTEM_PULLREQUEST_TARGETBRANCH";
+  public static final String AZURE_BUILD_REASON = "BUILD_REASON";
 
   private final CiEnvironment environment;
 
@@ -52,7 +55,10 @@ class AzurePipelinesInfo implements CIProviderInfo {
 
   @Override
   public String getMergeCommitSha() {
-    return GitCheckoutInfo.mergeCommitSha(getProvider(), environment);
+    return "PullRequest".equals(environment.get(AZURE_BUILD_REASON))
+            && isPullRequestMergeRef(environment.get(AZURE_BUILD_SOURCEBRANCH))
+        ? normalizeFullCommitSha(environment.get(AZURE_BUILD_SOURCEVERSION))
+        : null;
   }
 
   @Override

@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.ci;
 
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
+import static datadog.trace.api.git.GitUtils.normalizeFullCommitSha;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
 
@@ -10,6 +11,7 @@ import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
 import datadog.trace.util.Strings;
+import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 
 class TravisInfo implements CIProviderInfo {
@@ -33,6 +35,8 @@ class TravisInfo implements CIProviderInfo {
   public static final String TRAVIS_PR_HEAD_SHA = "TRAVIS_PULL_REQUEST_SHA";
   public static final String TRAVIS_EVENT_TYPE = "TRAVIS_EVENT_TYPE";
 
+  private static final Pattern PR_NUMBER_PATTERN = Pattern.compile("[0-9]+");
+
   private final CiEnvironment environment;
 
   TravisInfo(CiEnvironment environment) {
@@ -41,7 +45,10 @@ class TravisInfo implements CIProviderInfo {
 
   @Override
   public String getMergeCommitSha() {
-    return GitCheckoutInfo.mergeCommitSha(getProvider(), environment);
+    String prNumber = environment.get(TRAVIS_PR_NUMBER);
+    return isPullRequest() && prNumber != null && PR_NUMBER_PATTERN.matcher(prNumber).matches()
+        ? normalizeFullCommitSha(environment.get(TRAVIS_GIT_COMMIT))
+        : null;
   }
 
   @Override
