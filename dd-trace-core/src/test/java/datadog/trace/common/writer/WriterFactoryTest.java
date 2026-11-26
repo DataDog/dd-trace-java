@@ -327,7 +327,12 @@ class WriterFactoryTest extends DDJavaSpecification {
           MetricsAggregatorFactory.createMetricsAggregator(config, comm, HealthMetrics.NO_OP);
       try (Writer writer =
           WriterFactory.createWriter(
-              config, comm, mock(Sampler.class), null, HealthMetrics.NO_OP, SpanBudget.unlimited())) {
+              config,
+              comm,
+              mock(Sampler.class),
+              null,
+              HealthMetrics.NO_OP,
+              SpanBudget.unlimited())) {
         if ("none".equals(statsWriter)) {
           assertInstanceOf(NoOpMetricsAggregator.class, aggregator);
         } else {

@@ -90,7 +90,9 @@ public class SetTagsFromBenchmark {
   @Setup
   public void setup(Blackhole blackhole) {
     tracer =
-        CoreTracer.builder().writer(new TraceShapeBenchmark.SizeRecordingWriter(blackhole)).build();
+        CoreTracer.builder()
+            .writer(new TraceShapeBenchmark.SizeRecordingWriter(new DropWriter(blackhole)))
+            .build();
     span = (DDSpan) tracer.startSpan("java-jdbc", "database.query");
   }
 

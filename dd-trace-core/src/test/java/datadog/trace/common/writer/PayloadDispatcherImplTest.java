@@ -1,9 +1,9 @@
 package datadog.trace.common.writer;
 
-import static datadog.trace.common.writer.PayloadDispatcherImpl.IDLE_TRIM_DELAY_NANOS;
 import static datadog.trace.api.ProtocolVersion.V0_4;
 import static datadog.trace.api.ProtocolVersion.V0_5;
 import static datadog.trace.api.ProtocolVersion.V1_0;
+import static datadog.trace.common.writer.PayloadDispatcherImpl.IDLE_TRIM_DELAY_NANOS;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -42,8 +42,8 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.lang.reflect.Constructor;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
