@@ -705,7 +705,7 @@ include(
   ":dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-4.0",
   ":dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-5.0",
   ":dd-java-agent:instrumentation:weaver-0.9",
-  ":dd-java-agent:instrumentation:weblogic-t3-14.1",
+  ":dd-java-agent:instrumentation:weblogic-t3-12.2",
   ":dd-java-agent:instrumentation:weblogic-t3-stubs",
   ":dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0",
   ":dd-java-agent:instrumentation:websocket:javax-websocket-1.0",

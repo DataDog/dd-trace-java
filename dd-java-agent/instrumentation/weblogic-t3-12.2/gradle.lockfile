@@ -1,7 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
-# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:weblogic-t3-14.1:dependencies --write-locks
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:weblogic-t3-12.2:dependencies --write-locks
 com.blogspot.mydailyjava:weak-lock-free:0.17=buildTimeInstrumentationPlugin,compileClasspath
 com.datadoghq:dd-instrument-java:0.0.7=buildTimeInstrumentationPlugin,compileClasspath
 com.datadoghq:dd-javac-plugin-client:0.2.2=buildTimeInstrumentationPlugin,compileClasspath

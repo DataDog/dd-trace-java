@@ -2,7 +2,11 @@
 set -euo pipefail
 
 wls=/u01/oracle/wlserver/server/lib
-ejb=/u01/oracle/oracle_common/modules/jakarta.ejb.jakarta.ejb-api.jar
+modules=/u01/oracle/oracle_common/modules
+ejb=$modules/jakarta.ejb.jakarta.ejb-api.jar
+if [[ ! -f "$ejb" ]]; then
+  ejb=$modules/javax.ejb.javax.ejb-api.jar
+fi
 security=/u01/oracle/properties/security.properties
 export PROBE_USER="$(sed -n 's/^username=//p' "$security")"
 export PROBE_PASS="$(sed -n 's/^password=//p' "$security")"
