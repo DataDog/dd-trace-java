@@ -75,7 +75,7 @@ public class NoOpGitClient implements GitClient {
   }
 
   @Override
-  public void fetchSelectedCommit(String commitReference) {}
+  public void fetchCommit(String commitReference) {}
 
   @Nonnull
   @Override

@@ -1,8 +1,5 @@
 package datadog.trace.civisibility.git.tree;
 
-import static datadog.trace.api.git.GitUtils.isValidCommitSha;
-import static java.util.Collections.emptyList;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -10,9 +7,7 @@ import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.civisibility.utils.FileUtils;
-import datadog.trace.civisibility.utils.ShellCommandExecutor.ShellCommandFailedException;
 import datadog.trace.util.AgentThreadFactory;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -95,32 +90,21 @@ public class GitDataUploaderImpl implements GitDataUploader {
     try {
       LOGGER.debug("Starting git data upload, {}", gitClient);
 
-      if (!config.isCiVisibilityGitUnshallowDefer()) {
-        gitRepoUnshallow.unshallow();
-      }
-
       GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
       String remoteUrl = gitInfo.getRepositoryURL();
       String selectedCommit = gitInfo.getCommit().getSha();
-      List<String> latestCommits;
-      try {
-        latestCommits = gitClient.getLatestCommits(selectedCommit);
-      } catch (ShellCommandFailedException e) {
-        if (!config.isCiVisibilityGitUnshallowEnabled()) {
-          throw e;
+
+      boolean unshallowed =
+          !config.isCiVisibilityGitUnshallowDefer() && gitRepoUnshallow.unshallow(selectedCommit);
+      List<String> latestCommits = gitClient.getLatestCommits(selectedCommit);
+      if (latestCommits.isEmpty() && !unshallowed && config.isCiVisibilityGitUnshallowEnabled()) {
+        // DD_GIT_COMMIT_SHA can select a revision that is not in the checkout
+        if (gitClient.isShallow()) {
+          unshallowed = gitRepoUnshallow.unshallow(selectedCommit);
+        } else {
+          gitClient.fetchCommit(selectedCommit);
         }
-        // A previous client's bounded fetch may have stored the tip without its parents.
-        LOGGER.debug("Could not read selected history; attempting configured recovery", e);
-        latestCommits = emptyList();
-      }
-      boolean unshallowed = false;
-      boolean recoveredSelected = false;
-      if (latestCommits.isEmpty() && config.isCiVisibilityGitUnshallowEnabled()) {
-        // HEAD/upstream recovery may not contain an explicitly selected revision.
-        gitClient.fetchSelectedCommit(selectedCommit);
-        recoveredSelected = true;
         latestCommits = gitClient.getLatestCommits(selectedCommit);
-        unshallowed = !gitClient.isShallow();
       }
       if (latestCommits.isEmpty()) {
         LOGGER.debug("No commits in the last month, skipping git data upload");
@@ -137,29 +121,9 @@ public class GitDataUploaderImpl implements GitDataUploader {
         return;
       }
 
-      boolean refreshed = false;
-      if (!recoveredSelected
-          && config.isCiVisibilityGitUnshallowEnabled()
-          && gitClient.isShallow()) {
-        try {
-          gitClient.fetchSelectedCommit(selectedCommit);
-          refreshed = true;
-        } catch (IOException | TimeoutException e) {
-          LOGGER.debug(
-              "Could not fetch local selected commit; continuing with upstream recovery", e);
-        }
-      }
-      if (config.isCiVisibilityGitUnshallowDefer() && !unshallowed) {
-        try {
-          refreshed |= gitRepoUnshallow.unshallow();
-        } catch (ShellCommandFailedException | TimeoutException e) {
-          if (!recoveredSelected && !refreshed) {
-            throw e;
-          }
-          LOGGER.debug("Could not recover upstream history; retaining selected revision", e);
-        }
-      }
-      if (refreshed) {
+      if (config.isCiVisibilityGitUnshallowDefer()
+          && !unshallowed
+          && gitRepoUnshallow.unshallow(selectedCommit)) {
         latestCommits = gitClient.getLatestCommits(selectedCommit);
         commitsToSkip = gitDataApi.searchCommits(remoteUrl, latestCommits);
       }
@@ -179,8 +143,7 @@ public class GitDataUploaderImpl implements GitDataUploader {
         return;
       }
 
-      String currentCommit =
-          isValidCommitSha(selectedCommit) ? latestCommits.get(0) : selectedCommit;
+      String currentCommit = latestCommits.get(0);
 
       Path packFilesDirectory = gitClient.createPackFiles(objectHashes);
       try {

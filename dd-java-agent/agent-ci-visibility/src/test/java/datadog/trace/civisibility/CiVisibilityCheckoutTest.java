@@ -157,7 +157,7 @@ class CiVisibilityCheckoutTest {
     GitClient git = mock(GitClient.class);
     doThrow(new ShellCommandFailedException(128, "not a git repository"))
         .when(git)
-        .fetchSelectedCommit(HEAD_SHA);
+        .fetchCommit(HEAD_SHA);
     GitClient.Factory clients = mock(GitClient.Factory.class);
     when(clients.create(anyString())).thenReturn(git);
     ProcessHierarchy hierarchy = mock(ProcessHierarchy.class);
@@ -169,7 +169,7 @@ class CiVisibilityCheckoutTest {
             createServices(config, environment, providers, clients, selected, hierarchy, indexes),
             checkout);
     assertNull(repository.gitDataUploader.startOrObserveGitDataUpload().get(5, TimeUnit.SECONDS));
-    verify(git, never()).fetchSelectedCommit(anyString());
+    verify(git, never()).fetchCommit(anyString());
     assertEquals(workspace, repository.repoRoot);
     assertEquals(workspace, repository.ciTags.get("ci.workspace_path"));
   }

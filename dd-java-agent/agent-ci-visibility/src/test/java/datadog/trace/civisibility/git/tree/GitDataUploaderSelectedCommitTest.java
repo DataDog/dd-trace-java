@@ -14,17 +14,13 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -34,15 +30,12 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InOrder;
 import org.tabletest.junit.TableTest;
@@ -84,7 +77,7 @@ class GitDataUploaderSelectedCommitTest {
 
     assertEquals(asList(selected, head, ancestor), client.getLatestCommits(selected));
     assertEquals(local ? selected : head, client.getSha(GitClient.HEAD));
-    verify(api, times(local ? 1 : 2)).searchCommits(URL, asList(selected, head, ancestor));
+    verify(api).searchCommits(URL, asList(selected, head, ancestor));
     verify(api).uploadPackFile(eq(URL), eq(selected), any());
   }
 
@@ -252,61 +245,6 @@ class GitDataUploaderSelectedCommitTest {
   }
 
   @TableTest({
-    "Scenario                 | deferred | recoveryEnabled | recentHead | backendKnown",
-    "deferred recovery        | true     | true            | true       | true        ",
-    "eager recovery           | false    | true            | true       | true        ",
-    "disabled deferred        | true     | false           | true       | true        ",
-    "disabled eager           | false    | false           | true       | true        ",
-    "all-old unknown revision | true     | true            | false      | false       "
-  })
-  void shallowCheckoutRecoversAnOldSelectedRevisionOnlyWhenEnabled(
-      boolean deferred, boolean recoveryEnabled, boolean recentHead, boolean backendKnown)
-      throws Exception {
-    Path origin = directory.resolve("origin");
-    ShellCommandExecutor command = fixture(origin);
-    String head =
-        recentHead
-            ? writeCommit(
-                command,
-                git(command, "rev-parse", "HEAD^{tree}"),
-                git(command, "rev-parse", "HEAD"),
-                "recent checkout")
-            : git(command, "rev-parse", "HEAD");
-    git(command, "update-ref", "HEAD", head);
-    Path checkout = shallowClone(command, origin);
-    List<String> originalShallow = Files.readAllLines(checkout.resolve(".git/shallow"));
-    ShellGitClient client = spy(client(checkout, "1 month ago"));
-    String selected = OLD_COMMIT_SHA;
-    assertTrue(client.getLatestCommits(selected).isEmpty());
-    when(config.isCiVisibilityGitUnshallowDefer()).thenReturn(deferred);
-    when(config.isCiVisibilityGitUnshallowEnabled()).thenReturn(recoveryEnabled);
-    when(api.searchCommits(URL, singletonList(selected)))
-        .thenReturn(backendKnown ? singletonList(selected) : emptyList());
-
-    uploader(client, new GitRepoUnshallow(config, client), selected, checkout.toString())
-        .startOrObserveGitDataUpload()
-        .get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS);
-
-    if (!backendKnown) {
-      verify(api).uploadPackFile(eq(URL), eq(selected), any());
-    }
-    assertEquals(head, client.getSha(GitClient.HEAD));
-    if (recoveryEnabled) {
-      assertEquals(singletonList(selected), client.getLatestCommits(selected));
-      if (deferred) {
-        verify(client).fetchSelectedCommit(selected);
-        assertEquals(originalShallow, Files.readAllLines(checkout.resolve(".git/shallow")));
-      } else {
-        verify(client, never()).fetchSelectedCommit(selected);
-      }
-      verify(api).searchCommits(URL, singletonList(selected));
-    } else {
-      assertTrue(client.getLatestCommits(selected).isEmpty());
-      verify(api, never()).searchCommits(any(), any());
-    }
-  }
-
-  @TableTest({
     "Scenario          | deferred | recoveryEnabled",
     "deferred          | true     | true           ",
     "not deferred      | false    | true           ",
@@ -329,15 +267,15 @@ class GitDataUploaderSelectedCommitTest {
     if (recoveryEnabled) {
       InOrder order = inOrder(client, unshallow, api);
       if (!deferred) {
-        order.verify(unshallow).unshallow();
+        order.verify(unshallow).unshallow(selected);
       }
       order.verify(client).getLatestCommits(selected);
-      order.verify(client).fetchSelectedCommit(selected);
+      order.verify(client).fetchCommit(selected);
       order.verify(client).getLatestCommits(selected);
       order.verify(api).searchCommits(URL, singletonList(selected));
     } else {
-      verify(client, never()).fetchSelectedCommit(any());
-      verify(unshallow, never()).unshallow();
+      verify(client, never()).fetchCommit(any());
+      verify(unshallow, never()).unshallow(any());
       verify(api, never()).searchCommits(any(), any());
     }
     verify(client, never()).getObjects(any(), any());
@@ -356,17 +294,11 @@ class GitDataUploaderSelectedCommitTest {
   }
 
   @TableTest({
-    "Scenario              | deferred | failure     ",
-    "deferred timeout      | true     | timeout     ",
-    "eager timeout         | false    | timeout     ",
-    "deferred command      | true     | command     ",
-    "eager command         | false    | command     ",
-    "deferred boundary IO  | true     | io          ",
-    "eager boundary IO     | false    | io          ",
-    "deferred interruption | true     | interruption",
-    "eager interruption    | false    | interruption"
+    "Scenario     | deferred",
+    "deferred     | true    ",
+    "not deferred | false   "
   })
-  void localSelectedFetchFailureFallsBackButInterruptionPropagates(boolean deferred, String failure)
+  void shallowCheckoutOfThePresentSelectedRevisionIsUnshallowedOnce(boolean deferred)
       throws Exception {
     String selected = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     GitClient client = mock(GitClient.class);
@@ -375,151 +307,20 @@ class GitDataUploaderSelectedCommitTest {
     when(config.isCiVisibilityGitUnshallowDefer()).thenReturn(deferred);
     when(config.isCiVisibilityGitUnshallowEnabled()).thenReturn(true);
     when(api.searchCommits(URL, singletonList(selected))).thenReturn(emptyList());
-    Exception exception =
-        "timeout".equals(failure)
-            ? new TimeoutException("selected fetch timeout")
-            : "interruption".equals(failure)
-                ? new InterruptedException("cancelled")
-                : "io".equals(failure)
-                    ? new IOException("Too many shallow boundaries in recovered Git history")
-                    : new ShellCommandExecutor.ShellCommandFailedException(
-                        128, "selected unavailable");
-    doThrow(exception).when(client).fetchSelectedCommit(selected);
     GitRepoUnshallow unshallow = mock(GitRepoUnshallow.class);
-    when(unshallow.unshallow()).thenReturn(true);
+    when(unshallow.unshallow(selected)).thenReturn(true);
     Path packs = Files.createDirectory(directory.resolve("packs"));
     Files.createFile(packs.resolve("selected.pack"));
     when(client.getObjects(any(), any())).thenReturn(singletonList(selected));
     when(client.createPackFiles(any())).thenReturn(packs);
-    Future<Void> upload =
-        uploader(client, unshallow, selected, "/checkout").startOrObserveGitDataUpload();
-    if ("interruption".equals(failure)) {
-      assertEquals(
-          exception,
-          assertThrows(
-                  ExecutionException.class, () -> upload.get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS))
-              .getCause());
-      verify(api, never()).uploadPackFile(any(), any(), any());
-      verify(unshallow, times(deferred ? 0 : 1)).unshallow();
-    } else {
-      upload.get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS);
-      verify(api).uploadPackFile(eq(URL), eq(selected), any());
-      verify(unshallow).unshallow();
-    }
-  }
 
-  @TableTest({
-    "Scenario                    | failure      | recovered | succeeds",
-    "selected timeout            | timeout      | true      | true    ",
-    "unrecovered timeout         | timeout      | false     | false   ",
-    "selected interruption       | interruption | true      | false   ",
-    "unrecovered interruption    | interruption | false     | false   ",
-    "selected command failure    | command      | true      | true    ",
-    "unrecovered command failure | command      | false     | false   "
-  })
-  void deferredFailureRetainsSelectedRecoveryButNeverSwallowsInterruption(
-      String failure, boolean recovered, boolean succeeds) throws Exception {
-    String selected = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    GitClient client = mock(GitClient.class);
-    when(client.getLatestCommits(selected))
-        .thenReturn(recovered ? emptyList() : singletonList(selected), singletonList(selected));
-    when(client.isShallow()).thenReturn(true);
-    when(config.isCiVisibilityGitUnshallowDefer()).thenReturn(true);
-    when(config.isCiVisibilityGitUnshallowEnabled()).thenReturn(recovered);
-    when(api.searchCommits(URL, singletonList(selected))).thenReturn(emptyList());
-    GitRepoUnshallow unshallow = mock(GitRepoUnshallow.class);
-    Exception exception =
-        "timeout".equals(failure)
-            ? new TimeoutException("upstream timeout")
-            : "interruption".equals(failure)
-                ? new InterruptedException("cancelled")
-                : new ShellCommandExecutor.ShellCommandFailedException(128, "upstream unavailable");
-    when(unshallow.unshallow()).thenThrow(exception);
-    Path packs = Files.createDirectory(directory.resolve("packs"));
-    Files.createFile(packs.resolve("selected.pack"));
-    when(client.getObjects(any(), any())).thenReturn(singletonList(selected));
-    when(client.createPackFiles(any())).thenReturn(packs);
-    Future<Void> upload =
-        uploader(client, unshallow, selected, "/checkout").startOrObserveGitDataUpload();
-    if (succeeds) {
-      upload.get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS);
-      verify(api).uploadPackFile(eq(URL), eq(selected), any());
-    } else {
-      assertEquals(
-          exception,
-          assertThrows(
-                  ExecutionException.class, () -> upload.get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS))
-              .getCause());
-      verify(api, never()).uploadPackFile(any(), any(), any());
-    }
-  }
+    uploader(client, unshallow, selected, "/checkout")
+        .startOrObserveGitDataUpload()
+        .get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS);
 
-  @TableTest({
-    "Scenario          | deferred | recoveryEnabled",
-    "deferred          | true     | true           ",
-    "eager             | false    | true           ",
-    "disabled deferred | true     | false          ",
-    "disabled eager    | false    | false          "
-  })
-  void aNewClientCanReusePrivatelyRecoveredHistory(boolean deferred, boolean recoveryEnabled)
-      throws Exception {
-    Path origin = directory.resolve("origin");
-    ShellCommandExecutor remote = fixture(origin);
-    Path checkout = directory.resolve("checkout");
-    git(remote, "clone", "--no-local", origin.toString(), checkout.toString());
-    String parent =
-        writeCommit(
-            remote,
-            git(remote, "rev-parse", "HEAD^{tree}"),
-            git(remote, "rev-parse", "HEAD"),
-            "missing parent");
-    String selected =
-        writeObject(
-            remote,
-            "tree "
-                + git(remote, "rev-parse", "HEAD^{tree}")
-                + "\nparent "
-                + parent
-                + "\nauthor Test <test@example.com> 1 +0000\ncommitter Test <test@example.com> 1 +0000\n\nold selected\n");
-    git(remote, "update-ref", "refs/heads/selected", selected);
-    ShellGitClient first =
-        new ShellGitClient(
-            mock(CiVisibilityMetricCollector.class),
-            checkout.toString(),
-            "1 month ago",
-            1,
-            GIT_COMMAND_TIMEOUT_MILLIS);
-    first.fetchSelectedCommit(selected);
-    assertEquals(singletonList(selected), first.getLatestCommits(selected));
-    assertThrows(
-        ShellCommandExecutor.ShellCommandFailedException.class,
-        () ->
-            git(
-                new ShellCommandExecutor(checkout.toFile(), GIT_COMMAND_TIMEOUT_MILLIS),
-                "cat-file",
-                "-e",
-                parent + "^{commit}"));
-    ShellGitClient next = spy(client(checkout, "1 month ago"));
-    when(config.isCiVisibilityGitUnshallowDefer()).thenReturn(deferred);
-    when(config.isCiVisibilityGitUnshallowEnabled()).thenReturn(recoveryEnabled);
-    when(api.searchCommits(URL, singletonList(selected))).thenReturn(emptyList());
-    Future<Void> upload =
-        uploader(next, new GitRepoUnshallow(config, next), selected, checkout.toString())
-            .startOrObserveGitDataUpload();
-    if (recoveryEnabled) {
-      upload.get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS);
-      verify(next).fetchSelectedCommit(selected);
-      verify(api).uploadPackFile(eq(URL), eq(selected), any());
-    } else {
-      assertInstanceOf(
-          ShellCommandExecutor.ShellCommandFailedException.class,
-          assertThrows(
-                  ExecutionException.class, () -> upload.get(UPLOAD_WAIT_SECONDS, TimeUnit.SECONDS))
-              .getCause());
-      verify(next, never()).fetchSelectedCommit(any());
-      verify(api, never()).uploadPackFile(any(), any(), any());
-    }
-    assertFalse(next.isShallow());
+    verify(unshallow).unshallow(selected);
+    verify(client, never()).fetchCommit(any());
+    verify(api).uploadPackFile(eq(URL), eq(selected), any());
   }
 
   private GitDataUploaderImpl uploader(
