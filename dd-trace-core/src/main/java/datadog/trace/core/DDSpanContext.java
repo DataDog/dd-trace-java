@@ -1780,8 +1780,19 @@ public class DDSpanContext
    */
   @Nullable
   public String[] unsafeGetTagStrings(TagLookup lookup) {
+    return unsafeGetTagStrings(lookup, null);
+  }
+
+  /**
+   * {@link #unsafeGetTagStrings(TagLookup)} into a caller's array, which a reader reuses across
+   * spans: found values are written at their indexes and the others are left as they were.
+   *
+   * @param out the array to fill, cleared by the caller, or null to allocate on the first hit
+   */
+  @Nullable
+  public String[] unsafeGetTagStrings(TagLookup lookup, @Nullable String[] out) {
     int n = lookup.size();
-    String[] out = knownTags.loadStrings(lookup, null);
+    out = knownTags.loadStrings(lookup, out);
     HashStore custom = customTags;
     if (custom != null && lookup.hasCustom()) {
       for (int k = 0, customs = lookup.customCount(); k < customs; k++) {
@@ -1816,6 +1827,11 @@ public class DDSpanContext
       }
     }
     return out;
+  }
+
+  /** The lock guarding this span's tags; see {@link CoreSpan#tagLock}. */
+  Object tagLock() {
+    return knownTags;
   }
 
   /**

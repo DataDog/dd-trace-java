@@ -85,6 +85,36 @@ public interface CoreSpan<T extends CoreSpan<T>> {
     return out;
   }
 
+  /**
+   * {@link #unsafeGetTagStrings(TagLookup)} into a caller's array, for a reader that reuses one
+   * array per lookup: values found are written at their indexes and the others are left as they
+   * were, so the caller clears it first. This default builds on the one-argument form, so it
+   * allocates; {@link DDSpan} fills {@code out} directly.
+   *
+   * @param out the array to fill, at least the lookup's size, or null to allocate on the first hit
+   * @return {@code out}, the allocated array, or null when {@code out} was null and none was found
+   */
+  default String[] unsafeGetTagStrings(TagLookup lookup, String[] out) {
+    String[] found = unsafeGetTagStrings(lookup);
+    if (out == null || found == null) {
+      return found == null ? out : found;
+    }
+    for (int i = 0; i < found.length; i++) {
+      if (found[i] != null) {
+        out[i] = found[i];
+      }
+    }
+    return out;
+  }
+
+  /**
+   * The lock that guards this span's tags. A reader on another thread that reads several tags holds
+   * it once around them, rather than relying on {@code unsafeGetTag}'s single-thread rule.
+   */
+  default Object tagLock() {
+    return this;
+  }
+
   boolean hasSamplingPriority();
 
   boolean isMeasured();

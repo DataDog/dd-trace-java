@@ -626,7 +626,17 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
 
   @Override
   public String[] unsafeGetTagStrings(TagLookup lookup) {
-    return context.unsafeGetTagStrings(lookup);
+    return context.unsafeGetTagStrings(lookup, null);
+  }
+
+  @Override
+  public String[] unsafeGetTagStrings(TagLookup lookup, String[] out) {
+    return context.unsafeGetTagStrings(lookup, out);
+  }
+
+  @Override
+  public Object tagLock() {
+    return context.tagLock();
   }
 
   @Override
