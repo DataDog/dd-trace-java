@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -23,7 +22,7 @@ public class ClassInstrumenterInstrumentation extends InstrumenterModule.CiVisib
 
   @Override
   public boolean isEnabled() {
-    return super.isEnabled() && Config.get().isCiVisibilityCoverageLinesEnabled();
+    return super.isEnabled() && LineCoverageHook.isEnabled();
   }
 
   @Override
