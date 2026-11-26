@@ -1215,6 +1215,7 @@ public class Config {
   private final boolean ciVisibilityJacocoPluginVersionProvided;
   private final List<String> ciVisibilityCodeCoverageIncludes;
   private final List<String> ciVisibilityCodeCoverageExcludes;
+  private final boolean ciVisibilityCodeCoverageExcludesProvided;
   private final String[] ciVisibilityCodeCoverageIncludedPackages;
   private final String[] ciVisibilityCodeCoverageExcludedPackages;
   private final List<String> ciVisibilityJacocoGradleSourceSets;
@@ -2904,6 +2905,8 @@ public class Config {
                 configProvider.getString(
                     CIVISIBILITY_CODE_COVERAGE_EXCLUDES,
                     DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES)));
+    ciVisibilityCodeCoverageExcludesProvided =
+        configProvider.getString(CIVISIBILITY_CODE_COVERAGE_EXCLUDES) != null;
     ciVisibilityCodeCoverageIncludedPackages =
         convertJacocoExclusionFormatToPackagePrefixes(ciVisibilityCodeCoverageIncludes);
     ciVisibilityCodeCoverageExcludedPackages =
@@ -4783,6 +4786,11 @@ public class Config {
 
   public List<String> getCiVisibilityCodeCoverageExcludes() {
     return ciVisibilityCodeCoverageExcludes;
+  }
+
+  /** Whether the user set the coverage excludes, which then replace the default ones. */
+  public boolean isCiVisibilityCodeCoverageExcludesProvided() {
+    return ciVisibilityCodeCoverageExcludesProvided;
   }
 
   public String[] getCiVisibilityCodeCoverageIncludedPackages() {

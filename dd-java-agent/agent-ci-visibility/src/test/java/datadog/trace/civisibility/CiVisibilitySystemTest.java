@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.civisibility.coverage.file.instrumentation.CoverageInstrumentationFilter;
+import datadog.trace.civisibility.coverage.probe.ProbeClassFilter;
 import org.junit.jupiter.api.Test;
 
 class CiVisibilitySystemTest {
@@ -14,9 +14,8 @@ class CiVisibilitySystemTest {
 
   @Test
   void lineProbesCoverEveryClassNotExcludedWithoutPackagesToCover() {
-    CoverageInstrumentationFilter filter =
-        new CoverageInstrumentationFilter(
-            getLineProbesIncludedPackages(new String[0]), EXCLUDED_PACKAGES);
+    ProbeClassFilter filter =
+        new ProbeClassFilter(getLineProbesIncludedPackages(new String[0]), EXCLUDED_PACKAGES, true);
 
     assertTrue(filter.test("com/example/Calc"));
     assertFalse(filter.test("org/mockito/Mockito"));
@@ -25,9 +24,9 @@ class CiVisibilitySystemTest {
   @Test
   void lineProbesReadAnEmptyPrefixAsNoPackagesToCover() {
     // a build system's empty list reaches the test JVM as an empty property
-    CoverageInstrumentationFilter filter =
-        new CoverageInstrumentationFilter(
-            getLineProbesIncludedPackages(new String[] {""}), EXCLUDED_PACKAGES);
+    ProbeClassFilter filter =
+        new ProbeClassFilter(
+            getLineProbesIncludedPackages(new String[] {""}), EXCLUDED_PACKAGES, true);
 
     assertTrue(filter.test("com/example/Calc"));
     assertFalse(filter.test("org/mockito/Mockito"));

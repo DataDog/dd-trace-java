@@ -26,6 +26,7 @@ import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.coverage.file.instrumentation.CoverageClassTransformer;
 import datadog.trace.civisibility.coverage.file.instrumentation.CoverageInstrumentationFilter;
+import datadog.trace.civisibility.coverage.probe.ProbeClassFilter;
 import datadog.trace.civisibility.coverage.probe.ProbeClassTransformer;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.decorator.TestDecoratorImpl;
@@ -157,7 +158,10 @@ public class CiVisibilitySystem {
     String[] includedPackages =
         getLineProbesIncludedPackages(getCoverageIncludedPackages(services, repoServices));
     String[] excludedPackages = services.config.getCiVisibilityCodeCoverageExcludedPackages();
-    return new CoverageInstrumentationFilter(includedPackages, excludedPackages);
+    return new ProbeClassFilter(
+        includedPackages,
+        excludedPackages,
+        !services.config.isCiVisibilityCodeCoverageExcludesProvided());
   }
 
   private static String[] getCoverageIncludedPackages(
