@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.camel410;
+package datadog.trace.instrumentation.camel42;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;

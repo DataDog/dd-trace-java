@@ -1,9 +1,9 @@
-package datadog.trace.instrumentation.camel410;
+package datadog.trace.instrumentation.camel42;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.camel410.CamelDecorator.DECORATE;
-import static datadog.trace.instrumentation.camel410.CamelDecorator.ROUTE;
+import static datadog.trace.instrumentation.camel42.CamelDecorator.DECORATE;
+import static datadog.trace.instrumentation.camel42.CamelDecorator.ROUTE;
 
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;

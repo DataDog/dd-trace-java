@@ -5244,12 +5244,12 @@
         "aliases": ["DD_TRACE_INTEGRATION_CAFFEINE_ENABLED", "DD_INTEGRATION_CAFFEINE_ENABLED"]
       }
     ],
-    "DD_TRACE_CAMEL_4_10_ENABLED": [
+    "DD_TRACE_CAMEL_4_2_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
         "default": "true",
-        "aliases": ["DD_TRACE_INTEGRATION_CAMEL_4_10_ENABLED", "DD_INTEGRATION_CAMEL_4_10_ENABLED"]
+        "aliases": ["DD_TRACE_INTEGRATION_CAMEL_4_2_ENABLED", "DD_INTEGRATION_CAMEL_4_2_ENABLED"]
       }
     ],
     "DD_TRACE_CAMEL_ANALYTICS_ENABLED": [

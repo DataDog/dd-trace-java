@@ -15,7 +15,7 @@ import org.apache.camel.SafeCopyProperty;
 
 abstract class AbstractCamelTest extends AbstractInstrumentationTest {
   static final long TIMEOUT_SECONDS = 10;
-  static final String STATE_KEY = "datadog.trace.instrumentation.camel410.CamelState";
+  static final String STATE_KEY = "datadog.trace.instrumentation.camel42.CamelState";
 
   static SafeCopyProperty routeContext(Exchange exchange) {
     return exchange.getExchangeExtension().getSafeCopyProperty(STATE_KEY, SafeCopyProperty.class);

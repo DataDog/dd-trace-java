@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.camel410;
+package datadog.trace.instrumentation.camel42;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -14,7 +14,7 @@ import org.apache.camel.CamelContext;
 public final class CamelInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public CamelInstrumentation() {
-    super("camel", "camel-4.10");
+    super("camel", "camel-4.2");
   }
 
   @Override
