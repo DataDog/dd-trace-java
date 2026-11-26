@@ -13,11 +13,16 @@ import datadog.trace.api.TagMap;
  * specific to it. Rides the existing {@code TagMap} API, so it's independent of any deeper TagMap
  * rework — the internal seed can get faster without changing this surface.
  *
- * <p>v1 carries identity + constant tags. Derivation / canonicalization / lifecycle hooks are
- * deliberately out — grown when the work that needs each arrives, not pre-slotted.
+ * <p>A prototype also carries derived-tag formulas ({@link Builder#initDerivedTag}, {@link
+ * Builder#initDerivedTags}): tags its spans compute from other tags when first read, instead of
+ * being stamped. Every prototype implicitly extends the tracer's base prototype, whose formulas
+ * replace post-processors; a formula here overrides a base formula with the same targets.
  */
 public final class SpanPrototype {
-  /** The empty prototype — for spans created without a decorator-provided prototype. */
+  /**
+   * The empty prototype, for spans created without a decorator-provided prototype. Such spans use
+   * the tracer's base formulas.
+   */
   public static final SpanPrototype NONE = builder().build();
 
   public static Builder builder() {
@@ -30,12 +35,27 @@ public final class SpanPrototype {
   private final CharSequence integrationName;
   private final TagMap tags; // frozen
   private final SpanKind kind;
+  private final TagDerivations derivations;
+
+  /** The last {@link #derivationsOver} result; replaced as a unit, so a benign race is safe. */
+  private volatile Layered layered;
+
+  private static final class Layered {
+    final TagDerivations base;
+    final TagDerivations result;
+
+    Layered(TagDerivations base, TagDerivations result) {
+      this.base = base;
+      this.result = result;
+    }
+  }
 
   private SpanPrototype(final Builder builder) {
     this.instrumentationName = builder.instrumentationName;
     this.operationName = builder.operationName;
     this.spanType = builder.spanType;
     this.integrationName = builder.integrationName;
+    this.derivations = builder.derivations.build();
     this.tags = builder.tags.immutableCopy();
     // From the final span.kind tag, so every way of setting it is covered: initKind with either
     // type, initTag, or a kind inherited through extends_.
@@ -77,6 +97,33 @@ public final class SpanPrototype {
     return kind;
   }
 
+  /** This prototype's own formulas, not including the base prototype's. */
+  public TagDerivations derivations() {
+    return derivations;
+  }
+
+  /**
+   * This prototype's formulas layered over the tracer's base formulas. The result is remembered for
+   * the most recent base, so a span pays for the layering only once per prototype.
+   *
+   * @param base the tracer's base formulas
+   * @return the formulas a span built from this prototype uses
+   */
+  public TagDerivations derivationsOver(TagDerivations base) {
+    if (base.isEmpty()) {
+      // Experimental gate: a tracer without base formulas has derived tags switched off, so a
+      // prototype's own formulas don't apply either.
+      return TagDerivations.EMPTY;
+    }
+    Layered last = this.layered;
+    if (last != null && last.base == base) {
+      return last.result;
+    }
+    TagDerivations result = derivations.over(base);
+    this.layered = new Layered(base, result);
+    return result;
+  }
+
   public static final class Builder {
     private String instrumentationName;
     private CharSequence operationName;
@@ -84,6 +131,7 @@ public final class SpanPrototype {
     private CharSequence integrationName;
     // Internal accumulator — never exposed; authors compose via the typed methods below.
     private final TagMap tags = TagMap.create();
+    private final TagDerivations.Builder derivations = TagDerivations.builder();
 
     private Builder() {}
 
@@ -106,7 +154,36 @@ public final class SpanPrototype {
           this.integrationName = base.integrationName;
         }
         this.tags.putAll(base.tags);
+        TagDerivations inherited = base.derivations;
+        for (int i = 0; i < inherited.size(); ++i) {
+          this.derivations.add(inherited.targets(i), inherited.formula(i));
+        }
       }
+      return this;
+    }
+
+    /**
+     * Declares a derived tag: computed from other tags when first read, unless the tag is set
+     * explicitly. Overrides an inherited formula for the same tag.
+     *
+     * @param target the {@code KnownTags} id of the tag it produces
+     * @param formula a cheap, pure function of the span's tags
+     */
+    public Builder initDerivedTag(final long target, final TagFormula formula) {
+      this.derivations.add(target, formula);
+      return this;
+    }
+
+    /**
+     * Declares derived tags that belong together, computed by one formula, all or nothing: an
+     * explicit write to any target suppresses the formula. Overrides an inherited formula with
+     * exactly the same targets.
+     *
+     * @param targets the {@code KnownTags} ids of the tags it produces
+     * @param formula a cheap, pure function of the span's tags
+     */
+    public Builder initDerivedTags(final long[] targets, final TagsFormula formula) {
+      this.derivations.add(targets, formula);
       return this;
     }
 

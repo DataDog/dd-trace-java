@@ -90,12 +90,6 @@ tasks.named("check") {
   dependsOn "oldPostgresTest"
 }
 
-tasks.named("latestDepJava11Test", Test) {
-  if (!providers.gradleProperty('testJvm').isPresent()) {
-    javaLauncher = getJavaLauncherFor(11)
-  }
-}
-
 tasks.withType(GroovyCompile).configureEach {
   configureCompiler(
     it,

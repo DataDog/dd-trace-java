@@ -1,6 +1,8 @@
 package datadog.trace.api.naming;
 
 import datadog.trace.api.TagStore;
+import datadog.trace.bootstrap.instrumentation.api.TagsFormula;
+import java.util.Map;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -233,6 +235,23 @@ public interface NamingSchema {
      */
     @Nonnull
     void tags(@Nonnull TagStore unsafeTags);
+
+    /**
+     * The same calculation as {@link #tags}, as a derived-tag formula producing {@code
+     * peer.service}, {@code _dd.peer.service.source} and {@code _dd.peer.service.remapped_from}
+     * (see {@link PeerServiceFormulas#TARGETS}). It also applies the peer-service mapping to the
+     * value it derives; an explicit {@code peer.service} suppresses it, so mapping an explicit
+     * value stays with the caller.
+     *
+     * @param component the component of the spans it serves, resolved once; null to read the {@code
+     *     component} tag per span
+     * @param mapping the configured peer-service mapping
+     * @return the formula, or null if the schema computes no peer service
+     */
+    @Nullable
+    default TagsFormula formula(@Nullable String component, Map<String, String> mapping) {
+      return null;
+    }
   }
 
   interface ForServer {

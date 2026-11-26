@@ -43,6 +43,7 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.SpanKind;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
+import datadog.trace.bootstrap.instrumentation.api.TagDerivations;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.propagation.PropagationTags;
@@ -180,6 +181,21 @@ public class DDSpanContext
   /** This span's view of its tag stores for its internal readers; see {@link #tagView()}. */
   @GuardedBy("knownTags")
   private TagMap tagView;
+
+  /**
+   * The derived-tag formulas this span uses: its prototype's, layered over the tracer's base. A
+   * read that misses {@link #knownTags} checks {@link TagDerivations#mayProduce} with one AND.
+   */
+  @GuardedBy("knownTags")
+  private TagDerivations derivations = TagDerivations.EMPTY;
+
+  /** What the formulas have run and produced; null until a formula first runs. */
+  @GuardedBy("knownTags")
+  private DerivedTagState derivedState;
+
+  /** Tags whose values are extracted when first read; null until one is set. */
+  @GuardedBy("knownTags")
+  private DeferredTags deferredTags;
 
   /** The service name is required, otherwise the span are dropped by the agent */
   private volatile String serviceName;
@@ -499,6 +515,7 @@ public class DDSpanContext
     this.knownTags = IdStore.create(parentTags);
     this.customTags = HashStore.inheritedFrom(parentTags);
     this.customTagsBorrowed = this.customTags != null;
+    this.derivations = baseDerivations();
 
     // must set this before setting the service and resource names below
     this.profilingContextIntegration = profilingContextIntegration;
@@ -587,6 +604,7 @@ public class DDSpanContext
   private void internalSetServiceName(String serviceName) {
     this.serviceName = traceCollector.mapServiceName(serviceName);
     this.topLevel = isTopLevel(parentServiceName, this.serviceName);
+    afterFieldWrite();
   }
 
   public void setServiceName(final String serviceName) {
@@ -604,6 +622,7 @@ public class DDSpanContext
 
   public void setServiceNameSource(final CharSequence serviceNameSource) {
     this.serviceNameSource = serviceNameSource;
+    afterFieldWrite();
   }
 
   // TODO this logic is inconsistent with hasResourceName
@@ -708,6 +727,7 @@ public class DDSpanContext
    * prechecked by the interceptor, identical to the per-tag calls this replaces.
    */
   public void apply(@Nonnull final SpanPrototype prototype) {
+    useDerivationsOf(prototype);
     if (this.spanType == null) {
       final CharSequence spanType = prototype.spanType();
       if (spanType != null) {
@@ -734,6 +754,7 @@ public class DDSpanContext
    * why it needs different precedence than {@link #apply}.
    */
   public void applyOverwriting(@Nonnull final SpanPrototype prototype) {
+    useDerivationsOf(prototype);
     final CharSequence spanType = prototype.spanType();
     if (spanType != null) {
       setSpanType(spanType);
@@ -1042,14 +1063,334 @@ public class DDSpanContext
    * the snapshot copy. Post-processors write through the view, never through the span's setters.
    * {@link #customTagsForWrite} drops it when the span creates its own custom store. Call under the
    * {@code knownTags} lock.
+   *
+   * <p>Every bulk reader enumerates, so this first runs any derived-tag formulas that haven't run:
+   * the stores then hold every derived tag, and counts, types and repeated walks agree.
    */
   private TagMap tagView() {
+    resolveDerivedTags();
+    return storedTagView();
+  }
+
+  /** {@link #tagView} without running pending formulas: what is stored right now. */
+  private TagMap storedTagView() {
     TagMap view = this.tagView;
     if (view == null) {
       // a view handed to the post-processor chain escapes, so allocate it once per span
       this.tagView = view = TagMap.viewOf(knownTags, customTags, customTagsBorrowed);
     }
     return view;
+  }
+
+  /*
+   * Derived tags. The formulas come from the span's prototype layered over the tracer's base; the
+   * known-tag store doubles as their cache (see DerivedTagState). Every write to knownTags goes
+   * through the knownStore/knownRemove/knownPut wrappers below, so an explicit write or a change to
+   * a formula's input undoes what the formulas produced.
+   */
+
+  /** The tracer's base formulas, which every span starts with. */
+  private TagDerivations baseDerivations() {
+    CoreTracer tracer = getTracer();
+    TagDerivations base = tracer == null ? null : tracer.baseDerivations();
+    return base == null ? TagDerivations.EMPTY : base; // null from a mocked tracer
+  }
+
+  /** Switches to a prototype's formulas, layered over the base. */
+  private void useDerivationsOf(SpanPrototype prototype) {
+    TagDerivations next = prototype.derivationsOver(baseDerivations());
+    synchronized (knownTags) {
+      if (next == this.derivations) {
+        return;
+      }
+      this.derivations = next;
+      DerivedTagState state = this.derivedState;
+      if (state != null) {
+        state.reset(next);
+      }
+    }
+  }
+
+  /**
+   * Sets a known tag whose value is extracted from {@code source} only when something reads it, or
+   * when the span's tags are enumerated, typically by the serializer on its own thread. For values
+   * that are expensive to build and rarely read on the application thread, such as a stack trace.
+   *
+   * <p>{@code source} must be value-like: not pooled, recycled or mutated afterwards, since it is
+   * read later and possibly on another thread. The span keeps it reachable until then. {@code
+   * extractor} should capture nothing, so passing it allocates nothing.
+   *
+   * <p>Extracts immediately for an intercepted tag, or when deferred tags are off.
+   */
+  public <T> void setDeferredTag(
+      final long tagId, final T source, final Function<? super T, ?> extractor) {
+    if (!KnownTagCodec.isKnown(tagId)) {
+      return;
+    }
+    if (source == null) {
+      removeTag(tagId);
+      return;
+    }
+    CoreTracer tracer = getTracer();
+    if (tracer == null || !tracer.deferredTagsEnabled() || tagInterceptor.needsIntercept(tagId)) {
+      setTag(tagId, extractor.apply(source));
+      return;
+    }
+    synchronized (knownTags) {
+      knownRemove(tagId); // replaces an explicit value, and counts as a write for formulas
+      DeferredTags pending = this.deferredTags;
+      if (pending == null) {
+        this.deferredTags = pending = new DeferredTags();
+      }
+      pending.put(tagId, source, extractor);
+    }
+  }
+
+  /** Extracts one pending deferred tag into the store. Call under the {@code knownTags} lock. */
+  private Object extractDeferred(long tagId) {
+    DeferredTags pending = this.deferredTags;
+    Object value = pending == null ? null : pending.extract(tagId);
+    if (value != null) {
+      knownStore(tagId, value); // an explicit value, late: formulas reading it are invalidated
+    }
+    return value;
+  }
+
+  /** Extracts every pending deferred tag. Call under the {@code knownTags} lock. */
+  private void extractAllDeferred() {
+    DeferredTags pending = this.deferredTags;
+    if (pending == null) {
+      return;
+    }
+    while (!pending.isEmpty()) {
+      extractDeferred(pending.anyId());
+    }
+  }
+
+  /** Runs every pending formula. Call under the {@code knownTags} lock. */
+  private void resolveDerivedTags() {
+    extractAllDeferred(); // formulas may read deferred tags
+    if (!derivations.isEmpty()) {
+      derivedState().evaluateAll();
+    }
+  }
+
+  /**
+   * {@link #resolveDerivedTags} for the serializer. The span is finished, so if no formula has run
+   * yet there is nothing to invalidate later: the thread's reusable final pass runs them all
+   * without allocating any per-span state. Call under the {@code knownTags} lock.
+   */
+  private void resolveDerivedTagsForSerialization() {
+    extractAllDeferred(); // here, on the serializer's thread, is where deferred values belong
+    if (derivations.isEmpty()) {
+      return;
+    }
+    DerivedTagState state = this.derivedState;
+    if (state != null) {
+      state.evaluateAll();
+      return;
+    }
+    SpanFinalPass pass = FINAL_PASS.get();
+    pass.span = this;
+    try {
+      pass.run(derivations);
+    } finally {
+      pass.span = null;
+    }
+  }
+
+  private static final ThreadLocal<SpanFinalPass> FINAL_PASS =
+      ThreadLocal.withInitial(SpanFinalPass::new);
+
+  /** A thread's final pass, bound to one span at a time. */
+  private static final class SpanFinalPass extends DerivedTagState.FinalPass {
+    DDSpanContext span;
+
+    @Override
+    Object storedValue(long tagId) {
+      return span.knownTags.load(tagId);
+    }
+
+    @Override
+    void storeDerived(long tagId, Object value) {
+      span.knownTags.store(tagId, value);
+    }
+
+    @Override
+    String ownerServiceName() {
+      return span.serviceName;
+    }
+
+    @Override
+    CharSequence ownerIntegrationName() {
+      return span.integrationName;
+    }
+
+    @Override
+    CharSequence ownerServiceNameSource() {
+      return span.serviceNameSource;
+    }
+  }
+
+  /**
+   * Whether a known tag's stored value came from a formula, not an explicit write. For the
+   * post-processors that formulas are replacing, which must leave derived values alone.
+   */
+  public boolean isDerivedTag(long tagId) {
+    synchronized (knownTags) {
+      DerivedTagState state = this.derivedState;
+      return state != null && state.isDerived(tagId);
+    }
+  }
+
+  /** Whether one of this span's formulas produces a tag. */
+  public boolean derivesTag(long tagId) {
+    synchronized (knownTags) {
+      return derivations.mayProduce(tagId) && derivations.indexOf(tagId) >= 0;
+    }
+  }
+
+  private DerivedTagState derivedState() {
+    DerivedTagState state = this.derivedState;
+    if (state == null) {
+      this.derivedState = state = new SpanDerivedTagState(derivations);
+    }
+    return state;
+  }
+
+  /** A known tag's value: stored, else computed by a formula. The read path's one extra step. */
+  private Object loadKnown(long tagId) {
+    Object value = knownTags.load(tagId);
+    if (value != null) {
+      return value;
+    }
+    DeferredTags pending = this.deferredTags;
+    boolean mayBeDeferred = pending != null && pending.mayHold(tagId);
+    if (!mayBeDeferred && !derivations.mayProduce(tagId)) {
+      return null;
+    }
+    synchronized (knownTags) { // reentrant: most readers already hold it
+      if (mayBeDeferred) {
+        value = extractDeferred(tagId);
+        if (value != null) {
+          return value;
+        }
+      }
+      if (derivations.mayProduce(tagId)) {
+        derivedState().evaluateFor(tagId);
+        value = knownTags.load(tagId);
+      }
+      return value;
+    }
+  }
+
+  private void afterKnownWrite(long tagId) {
+    DeferredTags pending = this.deferredTags;
+    if (pending != null) {
+      pending.remove(tagId); // an explicit write or removal replaces a pending value
+    }
+    DerivedTagState state = this.derivedState;
+    if (state != null) {
+      state.onWrite(tagId);
+    }
+  }
+
+  private void afterFieldWrite() {
+    DerivedTagState state = this.derivedState;
+    if (state == null) {
+      return; // no formula has run: nothing to undo
+    }
+    synchronized (knownTags) {
+      state.onFieldWrite();
+    }
+  }
+
+  private void knownStore(long tagId, Object value) {
+    knownTags.store(tagId, value);
+    afterKnownWrite(tagId);
+  }
+
+  private void knownStore(long tagId, CharSequence value) {
+    knownTags.store(tagId, value);
+    afterKnownWrite(tagId);
+  }
+
+  private void knownStore(long tagId, boolean value) {
+    knownTags.store(tagId, value);
+    afterKnownWrite(tagId);
+  }
+
+  private void knownStore(long tagId, int value) {
+    knownTags.store(tagId, value);
+    afterKnownWrite(tagId);
+  }
+
+  private void knownStore(long tagId, long value) {
+    knownTags.store(tagId, value);
+    afterKnownWrite(tagId);
+  }
+
+  private void knownStore(long tagId, float value) {
+    knownTags.store(tagId, value);
+    afterKnownWrite(tagId);
+  }
+
+  private void knownStore(long tagId, double value) {
+    knownTags.store(tagId, value);
+    afterKnownWrite(tagId);
+  }
+
+  private void knownRemove(long tagId) {
+    knownTags.remove(tagId);
+    afterKnownWrite(tagId);
+  }
+
+  private void knownPut(TagMap.EntryReader entryReader) {
+    long tagId = entryReader.tagId();
+    knownTags.put(entryReader);
+    afterKnownWrite(tagId);
+  }
+
+  /** The derived-tag state, reading and writing this span's store and fields directly. */
+  private final class SpanDerivedTagState extends DerivedTagState {
+    SpanDerivedTagState(TagDerivations table) {
+      super(table);
+    }
+
+    @Override
+    Object storedValue(long tagId) {
+      return knownTags.load(tagId);
+    }
+
+    @Override
+    Object visibleValue(long tagId) {
+      return loadKnown(tagId);
+    }
+
+    @Override
+    void storeDerived(long tagId, Object value) {
+      knownTags.store(tagId, value);
+    }
+
+    @Override
+    void removeDerived(long tagId) {
+      knownTags.remove(tagId);
+    }
+
+    @Override
+    String ownerServiceName() {
+      return DDSpanContext.this.serviceName;
+    }
+
+    @Override
+    CharSequence ownerIntegrationName() {
+      return DDSpanContext.this.integrationName;
+    }
+
+    @Override
+    CharSequence ownerServiceNameSource() {
+      return DDSpanContext.this.serviceNameSource;
+    }
   }
 
   /** Adopts any custom store the view created. Call under the {@code knownTags} lock. */
@@ -1102,7 +1443,7 @@ public class DDSpanContext
 
   private void routeRemoval(long key, String tag) {
     if (key != 0) {
-      knownTags.remove(key);
+      knownRemove(key);
     } else {
       removeCustomTag(tag);
     }
@@ -1121,7 +1462,7 @@ public class DDSpanContext
     if (value == null) {
       routeRemoval(key, tag);
     } else if (key != 0) {
-      knownTags.store(key, value);
+      knownStore(key, value);
     } else {
       customTagsForWrite().store(tag, value);
     }
@@ -1132,7 +1473,7 @@ public class DDSpanContext
     if (value == null) {
       routeRemoval(key, tag);
     } else if (key != 0) {
-      knownTags.store(key, value);
+      knownStore(key, value);
     } else {
       customTagsForWrite().store(tag, value);
     }
@@ -1140,7 +1481,7 @@ public class DDSpanContext
 
   private void routeSet(long key, String tag, int value) {
     if (key != 0) {
-      knownTags.store(key, value);
+      knownStore(key, value);
     } else {
       customTagsForWrite().store(tag, value);
     }
@@ -1148,7 +1489,7 @@ public class DDSpanContext
 
   private void routeSet(long key, String tag, long value) {
     if (key != 0) {
-      knownTags.store(key, value);
+      knownStore(key, value);
     } else {
       customTagsForWrite().store(tag, value);
     }
@@ -1156,7 +1497,7 @@ public class DDSpanContext
 
   private void routeSet(long key, String tag, float value) {
     if (key != 0) {
-      knownTags.store(key, value);
+      knownStore(key, value);
     } else {
       customTagsForWrite().store(tag, value);
     }
@@ -1164,7 +1505,7 @@ public class DDSpanContext
 
   private void routeSet(long key, String tag, double value) {
     if (key != 0) {
-      knownTags.store(key, value);
+      knownStore(key, value);
     } else {
       customTagsForWrite().store(tag, value);
     }
@@ -1283,7 +1624,7 @@ public class DDSpanContext
   /** Stores {@code entry}, sharing its Entry where the store keeps Entry objects. */
   private void routePut(TagMap.EntryReader entryReader) {
     if (entryReader.tagId() != 0) {
-      knownTags.put(entryReader); // no Entry built for a dense store, or for a flyweight from one
+      knownPut(entryReader); // no Entry built for a dense store, or for a flyweight from one
     } else {
       TagMap.Entry entry = entryReader.entry();
       if (entry != null) { // a reader with no entry is a no-op, as for TagMap.set
@@ -1316,7 +1657,7 @@ public class DDSpanContext
       spanKindOrdinal = SPAN_KIND_UNSET;
     }
     synchronized (knownTags) {
-      knownTags.remove(tagId);
+      knownRemove(tagId);
     }
   }
 
@@ -1389,7 +1730,7 @@ public class DDSpanContext
     }
     if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (knownTags) {
-        knownTags.store(tagId, value);
+        knownStore(tagId, value);
       }
     }
   }
@@ -1404,7 +1745,7 @@ public class DDSpanContext
     }
     if (!tagInterceptor.needsIntercept(tagId) || !tagInterceptor.interceptTag(this, tagId, value)) {
       synchronized (knownTags) {
-        knownTags.store(tagId, value);
+        knownStore(tagId, value);
       }
     }
   }
@@ -1417,7 +1758,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (knownTags) {
-        knownTags.store(tagId, value);
+        knownStore(tagId, value);
       }
     }
   }
@@ -1430,7 +1771,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (knownTags) {
-        knownTags.store(tagId, value);
+        knownStore(tagId, value);
       }
     }
   }
@@ -1443,7 +1784,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (knownTags) {
-        knownTags.store(tagId, value);
+        knownStore(tagId, value);
       }
     }
   }
@@ -1456,7 +1797,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (knownTags) {
-        knownTags.store(tagId, value);
+        knownStore(tagId, value);
       }
     }
   }
@@ -1469,7 +1810,7 @@ public class DDSpanContext
       this.setBox(tagId, value);
     } else {
       synchronized (knownTags) {
-        knownTags.store(tagId, value);
+        knownStore(tagId, value);
       }
     }
   }
@@ -1502,7 +1843,7 @@ public class DDSpanContext
   private void setBox(long tagId, Object box) {
     if (!tagInterceptor.interceptTag(this, tagId, box)) {
       synchronized (knownTags) {
-        knownTags.store(tagId, box);
+        knownStore(tagId, box);
       }
     }
   }
@@ -1706,7 +2047,7 @@ public class DDSpanContext
   public Object load(String tag) {
     long key = KnownTagCodec.keyOf(tag);
     if (key != 0) {
-      return knownTags.load(key);
+      return loadKnown(key);
     }
     HashStore custom = customTags;
     TagMap.Entry entry = custom == null ? null : custom.getEntry(tag);
@@ -1717,7 +2058,7 @@ public class DDSpanContext
   public String loadString(String tag) {
     long key = KnownTagCodec.keyOf(tag);
     if (key != 0) {
-      return knownTags.loadString(key);
+      return loadString(key);
     }
     HashStore custom = customTags;
     TagMap.Entry entry = custom == null ? null : custom.getEntry(tag);
@@ -1726,12 +2067,21 @@ public class DDSpanContext
 
   @Override
   public Object load(long tagId) {
-    return knownTags.load(tagId);
+    return loadKnown(tagId);
   }
 
   @Override
   public String loadString(long tagId) {
-    return knownTags.loadString(tagId);
+    String value = knownTags.loadString(tagId);
+    if (value != null) {
+      return value;
+    }
+    DeferredTags pending = this.deferredTags;
+    if (!derivations.mayProduce(tagId) && (pending == null || !pending.mayHold(tagId))) {
+      return null;
+    }
+    Object derived = loadKnown(tagId);
+    return derived == null ? null : derived.toString();
   }
 
   @Override
@@ -1746,9 +2096,9 @@ public class DDSpanContext
   @Override
   public void store(long tagId, Object value) {
     if (value == null) {
-      knownTags.remove(tagId);
+      knownRemove(tagId);
     } else {
-      knownTags.store(tagId, value);
+      knownStore(tagId, value);
     }
   }
 
@@ -1872,8 +2222,16 @@ public class DDSpanContext
 
   @Deprecated
   public TagMap getTags() {
+    return getTags(true);
+  }
+
+  /**
+   * @param resolveDerived whether to run pending formulas first; false for diagnostics such as
+   *     {@link #toString}, which must not change when formulas run
+   */
+  private TagMap getTags(boolean resolveDerived) {
     synchronized (knownTags) {
-      TagMap tags = tagView().copy();
+      TagMap tags = (resolveDerived ? tagView() : storedTagView()).copy();
 
       tags.put(DDTags.THREAD_ID, threadId);
       // maintain previously observable type of the thread name :|
@@ -1925,6 +2283,10 @@ public class DDSpanContext
   }
 
   void earlyProcessTags(AppendableSpanLinks links) {
+    CoreTracer tracer = getTracer();
+    if (tracer != null && tracer.skipEagerTagProcessing()) {
+      return; // formulas produce these tags when something reads them
+    }
     synchronized (knownTags) {
       TagsPostProcessorFactory.eagerProcessor().processTags(this, this, links);
     }
@@ -1956,7 +2318,8 @@ public class DDSpanContext
     // - creating an extra wrapper object that would create significant allocation
     // - implementing an interface to read the spans that require making the read method public
     synchronized (knownTags) {
-      TagMap tags = tagView();
+      resolveDerivedTagsForSerialization();
+      TagMap tags = storedTagView();
 
       // Tags
       TagsPostProcessorFactory.lazyProcessor().processTags(tags, this, restrictedSpan);
@@ -2136,6 +2499,7 @@ public class DDSpanContext
   @Override
   public void setIntegrationName(CharSequence integrationName) {
     this.integrationName = integrationName;
+    afterFieldWrite();
   }
 
   @Override
@@ -2167,7 +2531,7 @@ public class DDSpanContext
     }
 
     synchronized (knownTags) {
-      s.append(" tags=").append(new TreeMap<>(getTags()));
+      s.append(" tags=").append(new TreeMap<>(getTags(false)));
     }
     return s.toString();
   }

@@ -141,6 +141,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_B3_PADDING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RDS_TAGS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES;
@@ -637,6 +638,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HT
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_INCLUDE_ROUTINGKEY_IN_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RDS_TAGS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESILIENCE4J_MEASURED_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESILIENCE4J_TAG_METRICS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
@@ -981,6 +983,7 @@ public class Config {
   private final boolean dbClientSplitByInstance;
   private final boolean dbClientSplitByInstanceTypeSuffix;
   private final boolean dbClientSplitByHost;
+  private final boolean rdsTagsEnabled;
   private final Set<String> splitByTags;
   private final Set<String> traceStatsAdditionalTags;
   private final boolean jeeSplitByDeployment;
@@ -1918,6 +1921,7 @@ public class Config {
     dbClientSplitByHost =
         configProvider.getBoolean(
             DB_CLIENT_HOST_SPLIT_BY_HOST, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST);
+    rdsTagsEnabled = configProvider.getBoolean(RDS_TAGS_ENABLED, DEFAULT_RDS_TAGS_ENABLED);
 
     dbmPropagationMode =
         configProvider.getString(
@@ -3000,9 +3004,13 @@ public class Config {
     testOptimizationPayloadsInFiles =
         configProvider.getBoolean(TEST_OPTIMIZATION_PAYLOADS_IN_FILES, false);
 
+    // Off by default in AWS Lambda: the Datadog Lambda extension serves no Remote Configuration.
+    // Must be kept in sync with Agent.isRemoteConfigEnabled().
     remoteConfigEnabled =
         configProvider.getBoolean(
-            REMOTE_CONFIGURATION_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED, REMOTE_CONFIG_ENABLED);
+            REMOTE_CONFIGURATION_ENABLED,
+            DEFAULT_REMOTE_CONFIG_ENABLED && !awsServerless,
+            REMOTE_CONFIG_ENABLED);
     remoteConfigIntegrityCheckEnabled =
         configProvider.getBoolean(
             REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED, DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED);
@@ -3907,6 +3915,10 @@ public class Config {
 
   public boolean isDbClientSplitByHost() {
     return dbClientSplitByHost;
+  }
+
+  public boolean isRdsTagsEnabled() {
+    return rdsTagsEnabled;
   }
 
   public boolean isDbMetadataFetchingOnQueryEnabled() {
@@ -6880,6 +6892,8 @@ public class Config {
         + dbClientSplitByInstanceTypeSuffix
         + ", dbClientSplitByHost="
         + dbClientSplitByHost
+        + ", rdsTagsEnabled="
+        + rdsTagsEnabled
         + ", dbMetadataFetchingEnabled="
         + dbMetadataFetchingOnQuery
         + ", dbMetadataFetchingOnConnect="

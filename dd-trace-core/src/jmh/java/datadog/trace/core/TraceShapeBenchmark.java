@@ -4,10 +4,14 @@ import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.context.ContextScope;
+import datadog.trace.api.Config;
 import datadog.trace.api.KnownTags;
+import datadog.trace.api.naming.PeerServiceFormulas;
+import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.TagsFormula;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -81,6 +85,13 @@ public class TraceShapeBenchmark {
   @Param({"0"})
   long pace;
 
+  /**
+   * {@code drop}: the application thread's work only. {@code process}: plus the serializer's tag
+   * work (post-processors, derived tags, a walk of every tag), inline, without encoding.
+   */
+  @Param({"drop", "process"})
+  String writer;
+
   // server: HttpServerDecorator (tomcat)
   static final String SERVER_INSTRUMENTATION = "tomcat-server";
   static final CharSequence SERVER_OPERATION = UTF8BytesString.create("servlet.request");
@@ -128,7 +139,12 @@ public class TraceShapeBenchmark {
 
   @Setup
   public void setup(Blackhole blackhole) {
-    CoreTracer.CoreTracerBuilder builder = CoreTracer.builder().writer(new DropWriter(blackhole));
+    CoreTracer.CoreTracerBuilder builder =
+        CoreTracer.builder()
+            .writer(
+                "process".equals(writer)
+                    ? new ProcessingWriter(blackhole)
+                    : new DropWriter(blackhole));
     if ("on".equals(stats)) {
       SharedCommunicationObjects sco = new SharedCommunicationObjects();
       sco.setFeaturesDiscovery(new StatsOnFeaturesDiscovery());
@@ -154,14 +170,23 @@ public class TraceShapeBenchmark {
             .initKind(Tags.SPAN_KIND_SERVER)
             .initTag("language", "jvm")
             .build();
-    this.jdbcProto =
+    SpanPrototype.Builder jdbcBuilder =
         SpanPrototype.builder()
             .initInstrumentationName(JDBC_INSTRUMENTATION)
             .initOperationName(JDBC_OPERATION)
             .initSpanType(SQL)
             .initComponentAndIntegration(JAVA_JDBC)
-            .initKind(Tags.SPAN_KIND_CLIENT)
-            .build();
+            .initKind(Tags.SPAN_KIND_CLIENT);
+    // ClientDecorator's peer-service formula for its component; inert unless derived tags are on
+    TagsFormula peerService =
+        SpanNaming.instance()
+            .namingSchema()
+            .peerService()
+            .formula(JAVA_JDBC.toString(), Config.get().getPeerServiceMapping());
+    if (peerService != null) {
+      jdbcBuilder.initDerivedTags(PeerServiceFormulas.TARGETS, peerService);
+    }
+    this.jdbcProto = jdbcBuilder.build();
     this.traceProto =
         SpanPrototype.builder()
             .initInstrumentationName(TRACE_INSTRUMENTATION)

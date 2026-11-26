@@ -130,6 +130,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGA
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_METADATA_FETCHING_ON_CONNECT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_METADATA_FETCHING_ON_QUERY;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RDS_TAGS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
@@ -1767,6 +1768,34 @@ class ConfigTest {
     Config config = newConfig();
 
     assertEquals(expectedPort, config.getAgentPort());
+  }
+
+  /** The Datadog Lambda wrapper sets the legacy {@code DD_REMOTE_CONFIG_ENABLED} to false. */
+  @TableTest({
+    "scenario                         | functionName  | enabled | legacyEnabled | expected",
+    "outside Lambda                   |               |         |               | true    ",
+    "outside Lambda, disabled         |               | 'false' |               | false   ",
+    "empty function name              | ''            |         |               | true    ",
+    "Lambda                           | 'my-function' |         |               | false   ",
+    "Lambda, enabled                  | 'my-function' | 'true'  |               | true    ",
+    "Lambda, enabled with legacy key  | 'my-function' |         | 'true'        | true    ",
+    "Lambda, disabled with legacy key | 'my-function' |         | 'false'       | false   ",
+    "Lambda, key wins over legacy key | 'my-function' | 'true'  | 'false'       | true    "
+  })
+  void remoteConfigIsOffByDefaultInAwsLambda(
+      String functionName, String enabled, String legacyEnabled, boolean expected)
+      throws Exception {
+    if (functionName != null) {
+      setEnv("AWS_LAMBDA_FUNCTION_NAME", functionName);
+    }
+    if (enabled != null) {
+      setEnv("DD_REMOTE_CONFIGURATION_ENABLED", enabled);
+    }
+    if (legacyEnabled != null) {
+      setEnv("DD_REMOTE_CONFIG_ENABLED", legacyEnabled);
+    }
+
+    assertEquals(expected, newConfig().isRemoteConfigEnabled());
   }
 
   // FIXME: this seems to be a repeated test
@@ -3968,6 +3997,27 @@ class ConfigTest {
     Config config = newConfig();
 
     assertEquals(expected, config.isDbMetadataFetchingOnConnectEnabled());
+  }
+
+  @TableTest({
+    "scenario                                 | sys   | env   | expected",
+    "default is true                          |       |       | true    ",
+    "env true                                 |       | true  | true    ",
+    "env false                                |       | false | false   ",
+    "sys true                                 | true  |       | true    ",
+    "sys false                                | false |       | false   ",
+    "sys prop takes precedence over env false | true  | false | true    ",
+    "sys prop takes precedence over env true  | false | true  | false   "
+  })
+  void rdsTagsEnabledWithSysEnv(String sys, String env, boolean expected) throws Exception {
+    if (sys != null) {
+      System.setProperty(PREFIX + RDS_TAGS_ENABLED, sys);
+    }
+    if (env != null) {
+      setEnv("DD_TRACE_RDS_TAGS_ENABLED", env);
+    }
+
+    assertEquals(expected, newConfig().isRdsTagsEnabled());
   }
 
   @TableTest({

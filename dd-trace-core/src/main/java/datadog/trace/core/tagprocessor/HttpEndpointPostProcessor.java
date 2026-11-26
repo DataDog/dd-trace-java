@@ -1,5 +1,6 @@
 package datadog.trace.core.tagprocessor;
 
+import static datadog.trace.api.KnownTags.HTTP_ENDPOINT;
 import static datadog.trace.api.KnownTags.HTTP_METHOD;
 import static datadog.trace.api.KnownTags.HTTP_ROUTE;
 import static datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics.urlOrPath;
@@ -56,6 +57,9 @@ public class HttpEndpointPostProcessor extends EagerTagsPostProcessor {
   @Override
   public void processTags(
       TagStore unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+    if (spanContext != null && spanContext.derivesTag(HTTP_ENDPOINT)) {
+      return; // a base prototype formula infers it when something reads it
+    }
     if (!endpointResolver.isEnabled()) {
       log.debug("EndpointResolver is not enabled, skipping HTTP endpoint post processing");
       return;

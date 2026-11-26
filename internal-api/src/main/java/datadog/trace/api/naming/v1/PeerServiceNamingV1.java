@@ -7,9 +7,14 @@ import static datadog.trace.api.KnownTags.SPAN_KIND;
 
 import datadog.trace.api.TagStore;
 import datadog.trace.api.naming.NamingSchema;
+import datadog.trace.api.naming.PeerServiceFormulas;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.TagReader;
+import datadog.trace.bootstrap.instrumentation.api.TagWriter;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.TagsFormula;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -111,5 +116,74 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
       // we can calculate the peer service now
       resolve(unsafeTags);
     }
+  }
+
+  @Override
+  public TagsFormula formula(@Nullable final String component, final Map<String, String> mapping) {
+    if (component == null) {
+      return (in, out) -> resolveAtRuntime(in, out, mapping);
+    }
+    // Resolve the component's branch of resolve() once, for spans of a known component.
+    final String override = overridesByComponent.get(component);
+    final String[] names =
+        override != null
+            ? null
+            : SPECIFIC_PRECURSORS_BY_COMPONENT.getOrDefault(component, DEFAULT_PRECURSORS);
+    final long[] ids = names == null ? null : PeerServiceFormulas.idsOf(names);
+    return (in, out) -> {
+      if (!eligible(in)) {
+        return;
+      }
+      if (!component.equals(String.valueOf(in.get(COMPONENT)))) {
+        // the span's component changed after it started: fall back to the general case
+        resolveAtRuntime(in, out, mapping);
+      } else if (override != null) {
+        PeerServiceFormulas.write(out, override, "_component_override", mapping);
+      } else {
+        PeerServiceFormulas.resolveBy(in, out, ids, names, mapping);
+      }
+    };
+  }
+
+  private void resolveAtRuntime(TagReader in, TagWriter out, Map<String, String> mapping) {
+    if (!eligible(in)) {
+      return;
+    }
+    final Object component = in.get(COMPONENT);
+    final String componentString = component == null ? null : component.toString();
+    final String override = overridesByComponent.get(componentString);
+    if (override != null) {
+      PeerServiceFormulas.write(out, override, "_component_override", mapping);
+      return;
+    }
+    String[] names = SPECIFIC_PRECURSORS_BY_COMPONENT.get(componentString);
+    if (names == null) {
+      names = DEFAULT_PRECURSORS;
+    }
+    PeerServiceFormulas.resolveBy(in, out, idsFor(names), names, mapping);
+  }
+
+  /** The {@code tags} span-kind check: client and producer spans only. */
+  private static boolean eligible(TagReader in) {
+    final Object kind = in.get(SPAN_KIND);
+    return Tags.SPAN_KIND_CLIENT.equals(kind) || Tags.SPAN_KIND_PRODUCER.equals(kind);
+  }
+
+  /** The ids of every precursor list in this class's tables, resolved on first use. */
+  private static final class PrecursorIds {
+    static final Map<String[], long[]> BY_LIST = init();
+
+    private static Map<String[], long[]> init() {
+      Map<String[], long[]> ids = new IdentityHashMap<>();
+      ids.put(DEFAULT_PRECURSORS, PeerServiceFormulas.idsOf(DEFAULT_PRECURSORS));
+      for (String[] names : SPECIFIC_PRECURSORS_BY_COMPONENT.values()) {
+        ids.put(names, PeerServiceFormulas.idsOf(names));
+      }
+      return ids;
+    }
+  }
+
+  private static long[] idsFor(String[] names) {
+    return PrecursorIds.BY_LIST.get(names);
   }
 }
