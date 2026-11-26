@@ -7,10 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.gateway.RequestContext;
-import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -36,6 +32,8 @@ public class AppSecHttpEngineInstrumentation extends InstrumenterModule.AppSec
   }
 
   public static class SendRequestAdvice {
+    // no suppress: a BlockingException must reach the caller to block the redirect
+    @SuppressWarnings("bytebuddy-exception-suppression")
     @Advice.OnMethodEnter
     public static void onSendRequest(
         @Advice.FieldValue("priorResponse") final Response priorResponse,
@@ -44,19 +42,7 @@ public class AppSecHttpEngineInstrumentation extends InstrumenterModule.AppSec
       if (priorResponse == null || priorResponse.code() < 300 || priorResponse.code() >= 400) {
         return;
       }
-      final AgentSpan span = AgentTracer.activeSpan();
-      final RequestContext ctx = span.getRequestContext();
-      if (ctx == null) {
-        return;
-      }
-      if (ctx.getData(RequestContextSlot.APPSEC) == null) {
-        return;
-      }
-
-      // increment the number of downstream requests but do not include request/response body
-      AppSecInterceptor.sampleRequest(ctx, span.getSpanId());
-      AppSecInterceptor.onResponse(span, false, priorResponse);
-      AppSecInterceptor.onRequest(span, false, userRequest.url().toString(), userRequest);
+      AppSecInterceptor.onRedirect(priorResponse, userRequest);
     }
   }
 }

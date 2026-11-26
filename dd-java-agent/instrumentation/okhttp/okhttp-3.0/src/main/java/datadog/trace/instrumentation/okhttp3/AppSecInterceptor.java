@@ -21,6 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -76,6 +77,57 @@ public class AppSecInterceptor implements Interceptor {
     } catch (final Exception e) {
       LOGGER.debug("Failed to run AppSec response hooks", e);
       return response;
+    }
+  }
+
+  /**
+   * Reports a redirect followed by OkHttp as a separate downstream request: the redirect response
+   * and the follow-up request, without bodies. Only a {@link BlockingException} reaches the caller.
+   */
+  public static void onRedirect(final Response redirect, final Request followUp) {
+    final AgentSpan span = AgentTracer.activeSpan();
+    final RequestContext ctx = span == null ? null : span.getRequestContext();
+    if (ctx == null || ctx.getData(RequestContextSlot.APPSEC) == null) {
+      return;
+    }
+    try {
+      // increment the number of downstream requests but do not include request/response body
+      sampleRequest(ctx, span.getSpanId());
+      onResponse(span, false, redirect);
+      onRequest(span, false, followUp.url().toString(), followUp);
+    } catch (final BlockingException e) {
+      throw e;
+    } catch (final Exception e) {
+      LOGGER.debug("Failed to run AppSec redirect hooks", e);
+    }
+  }
+
+  /**
+   * Releases what OkHttp would have released if the blocked redirect had not thrown from {@code
+   * RetryAndFollowUpInterceptor.followUpRequest}: the redirect response body and, on OkHttp
+   * 3.4-3.13, the {@code StreamAllocation} (it is only released there on {@link IOException}).
+   * Never throws, so the {@link BlockingException} being propagated is not replaced.
+   */
+  public static void onBlockedRedirect(final Object interceptor, final Response redirect) {
+    try {
+      final ResponseBody body = redirect.body();
+      if (body != null) {
+        body.close();
+      }
+    } catch (final Exception e) {
+      LOGGER.debug("Failed to close the blocked redirect response", e);
+    }
+    try {
+      // OkHttp 3.4-3.13 only; 3.14+ releases its Transmitter/Exchange on any exception
+      final Method streamAllocation = interceptor.getClass().getMethod("streamAllocation");
+      final Object allocation = streamAllocation.invoke(interceptor);
+      if (allocation != null) {
+        allocation.getClass().getMethod("release").invoke(allocation);
+      }
+    } catch (final NoSuchMethodException e) {
+      // nothing to release on this OkHttp version
+    } catch (final Exception e) {
+      LOGGER.debug("Failed to release the blocked redirect connection", e);
     }
   }
 
