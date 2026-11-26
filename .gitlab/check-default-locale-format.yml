@@ -1,0 +1,18 @@
+# Reviewers ask for an explicit Locale on String.format in tests and benchmarks, since the default locale changes
+# numeric output on some machines. forbiddenApis only covers main sources, so only the lines a pull request adds
+# are checked, never existing code.
+# Reproduce locally: python3 tooling/check_default_locale_format.py "$(git merge-base origin/master HEAD)" HEAD
+check-default-locale-format:
+  # Same image as check-codeowners: Python 3 and Git are enough, the check only reads the git diff.
+  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
+  stage: tests
+  needs: []
+  script:
+    - python3 -m unittest discover -s tooling/tests -p 'test_check_default_locale_format.py'
+    # Only pull request branches have a base ref: master, release and merge queue branches are skipped.
+    - |
+      if ! base_ref=$(.gitlab/find-gh-base-ref.sh); then
+        echo "No pull request base ref found, skipping."
+        exit 0
+      fi
+      python3 tooling/check_default_locale_format.py "$(git merge-base "origin/${base_ref}" HEAD)" HEAD
