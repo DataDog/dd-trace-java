@@ -1,3 +1,5 @@
+package datadog.trace.instrumentation.graphqljava;
+
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -16,7 +18,6 @@ import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.scopediag.ScopeDiagnostics;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.DDSpan;
-import datadog.trace.instrumentation.graphqljava.InstrumentedDataFetcher;
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters;
 import graphql.language.Field;
 import graphql.schema.DataFetcher;
@@ -30,14 +31,14 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import org.tabletest.junit.TableTest;
 
-class GraphQLCallbackExclusionTest extends AbstractInstrumentationTest {
+public abstract class AbstractGraphQLCallbackExclusionTest extends AbstractInstrumentationTest {
   @TableTest({
     "scenario                 | completed     | outcome",
     "successful resolver      | {false, true} | success",
     "wrapped resolver failure | {false, true} | failure",
     "cancelled resolver       | {false, true} | cancel "
   })
-  void fieldFinisherSkipsCapture(boolean completed, String outcome) throws Exception {
+  protected void fieldFinisherSkipsCapture(boolean completed, String outcome) throws Exception {
     CompletableFuture<String> source = new CompletableFuture<>();
     IllegalArgumentException cause = new IllegalArgumentException("resolver failed");
     Throwable failure = outcome.equals("failure") ? new CompletionException(cause) : null;
