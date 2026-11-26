@@ -22,6 +22,57 @@ include:
     file: '.gitlab/ci-java-post-pr-comment.yml'
     ref: *apm_sdks_benchmarks_sha
   - local: ".gitlab/java-benchmark-configs.yml"
+  # Manual, allowed-to-fail Speedlab macrobenchmarks measuring this pipeline's build.
+  - project: 'DataDog/apm-reliability/speedlab'
+    file: '.gitlab/ci-sdk-java-load-petclinic.yml'
+    ref: &speedlab_ref 'fayssal/sdk-ci-dd-trace-java'
+    inputs: &speedlab_inputs
+      stage: benchmarks
+      speedlab_ref: *speedlab_ref
+  - project: 'DataDog/apm-reliability/speedlab'
+    file: '.gitlab/ci-sdk-java-load-petclinic-sca.yml'
+    ref: *speedlab_ref
+    inputs: *speedlab_inputs
+  - project: 'DataDog/apm-reliability/speedlab'
+    file: '.gitlab/ci-sdk-java-load-insecure-bank.yml'
+    ref: *speedlab_ref
+    inputs: *speedlab_inputs
+  - project: 'DataDog/apm-reliability/speedlab'
+    file: '.gitlab/ci-sdk-java-startup-petclinic.yml'
+    ref: *speedlab_ref
+    inputs: *speedlab_inputs
+  - project: 'DataDog/apm-reliability/speedlab'
+    file: '.gitlab/ci-sdk-java-startup-insecure-bank.yml'
+    ref: *speedlab_ref
+    inputs: *speedlab_inputs
+  - project: 'DataDog/apm-reliability/speedlab'
+    file: '.gitlab/ci-sdk-java-dacapo-tomcat-tracing.yml'
+    ref: *speedlab_ref
+    inputs: *speedlab_inputs
+  - project: 'DataDog/apm-reliability/speedlab'
+    file: '.gitlab/ci-sdk-java-dacapo-tomcat-appsec.yml'
+    ref: *speedlab_ref
+    inputs: *speedlab_inputs
+  - project: 'DataDog/apm-reliability/speedlab'
+    file: '.gitlab/ci-sdk-java-dacapo-biojava-tracing.yml'
+    ref: *speedlab_ref
+    inputs: *speedlab_inputs
+  - project: 'DataDog/apm-reliability/speedlab'
+    file: '.gitlab/ci-sdk-java-dacapo-biojava-appsec.yml'
+    ref: *speedlab_ref
+    inputs: *speedlab_inputs
+  - project: 'DataDog/apm-reliability/speedlab'
+    file: '.gitlab/ci-sdk-spring-petclinic-tracing.yml'
+    ref: *speedlab_ref
+    inputs: *speedlab_inputs
+  - project: 'DataDog/apm-reliability/speedlab'
+    file: '.gitlab/ci-sdk-java-kafka-producer.yml'
+    ref: *speedlab_ref
+    inputs: *speedlab_inputs
+  - project: 'DataDog/apm-reliability/speedlab'
+    file: '.gitlab/ci-sdk-java-kafka-consumer.yml'
+    ref: *speedlab_ref
+    inputs: *speedlab_inputs
 
 stages:
   - build
