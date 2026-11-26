@@ -72,11 +72,24 @@ public abstract class CoverageWindow {
       if (otherThreads == null) {
         return false;
       }
-      if (!otherThreads.contains(other)) {
+      if (!containsThread(otherThreads, other)) {
         otherThreads.add(other);
       }
       return true;
     }
+  }
+
+  /**
+   * Compares by identity rather than with {@code equals}, which a mocking library can advise with
+   * code that takes probe arrays, under this window's lock.
+   */
+  private static boolean containsThread(List<ThreadProbes> threads, ThreadProbes threadProbes) {
+    for (int i = 0, size = threads.size(); i < size; i++) {
+      if (threads.get(i) == threadProbes) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**

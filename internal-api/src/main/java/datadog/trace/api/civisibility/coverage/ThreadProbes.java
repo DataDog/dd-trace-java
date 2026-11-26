@@ -36,6 +36,13 @@ final class ThreadProbes {
   final Thread thread;
 
   /**
+   * Whether the thread is finding the owner from its context. Probes in the code that the lookup
+   * runs, such as a mocking library's advice in JDK classes, take arrays without a second lookup,
+   * so that they cannot call the lookup again without end.
+   */
+  private boolean findingOwner;
+
+  /**
    * The arrays handed out since the last change, by class id. The thread reads it without the lock:
    * an entry it reads after another thread cleared it is an array that is read again at the next
    * changes.
@@ -89,11 +96,8 @@ final class ThreadProbes {
 
   /** The thread's array for a class. Called by the thread at method entry. */
   boolean[] take(int classId) {
-    if (innermost == null) {
-      CoverageWindow window = contextOrHandedWindow();
-      if (window != owner) {
-        followContext(window);
-      }
+    if (innermost == null && !findingOwner) {
+      findOwner();
     }
     boolean[][] handedOut = table;
     if (classId < handedOut.length) {
@@ -103,6 +107,22 @@ final class ThreadProbes {
       }
     }
     return handOut(classId);
+  }
+
+  /**
+   * With no window open on the thread, makes the owner follow the context. Code that this runs
+   * takes the arrays of the owner from before.
+   */
+  private void findOwner() {
+    findingOwner = true;
+    try {
+      CoverageWindow window = contextOrHandedWindow();
+      if (window != owner) {
+        followContext(window);
+      }
+    } finally {
+      findingOwner = false;
+    }
   }
 
   /**
