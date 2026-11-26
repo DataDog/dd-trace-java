@@ -9,9 +9,9 @@ import javax.annotation.Nullable;
 
 /**
  * The probe arrays of one thread, and the owner of the code the thread runs: the innermost window
- * open on the thread; with none open, the open window of the test whose context the thread carries,
- * or else the window the thread was handed when it was created, while that window is open; else
- * Shared. A new thread is handed the window that owns the code of the thread that creates it,
+ * open on the thread; with none open, the open window of the test whose trace the thread's context
+ * is in, or else the window the thread was handed when it was created, while that window is open;
+ * else Shared. A new thread is handed the window that owns the code of the thread that creates it,
  * unless it is the worker thread of a pool. While a scope whose context carries another test is
  * active on a thread with a window open, the owner is that test's window, or Shared once that
  * window has closed.
@@ -137,8 +137,8 @@ final class ThreadProbes {
   }
 
   /**
-   * With no window open on the thread: the open window of the test whose context the thread
-   * carries, or else the window the thread was handed, while it is open.
+   * With no window open on the thread: the open window of the test whose trace the thread's context
+   * is in, or else the window the thread was handed, while it is open.
    */
   @Nullable
   private CoverageWindow contextOrHandedWindow() {

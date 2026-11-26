@@ -17,6 +17,13 @@ public interface CoverageStore extends TestReportHolder {
   default void discard() {}
 
   /**
+   * Tells the store the id of its test's trace, once the test's span exists. A store that follows
+   * the code each thread runs credits the test with the code that runs under any span of that
+   * trace.
+   */
+  default void setTestTraceId(DDTraceId testTraceId) {}
+
+  /**
    * Whether {@link #report} is also called for a skipped test, so that a test that skipped itself
    * after it started reports the lines it ran.
    */

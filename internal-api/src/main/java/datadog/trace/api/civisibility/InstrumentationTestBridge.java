@@ -21,7 +21,15 @@ public abstract class InstrumentationTestBridge {
 
   @Nullable
   public static TestContext getCurrentTestContext() {
-    AgentSpan span = activeSpan();
+    return getTestContext(activeSpan());
+  }
+
+  /**
+   * The context of the test whose span is the local root of {@code span}'s trace in this process,
+   * if there is one.
+   */
+  @Nullable
+  public static TestContext getTestContext(@Nullable AgentSpan span) {
     if (span == null) {
       return null;
     }

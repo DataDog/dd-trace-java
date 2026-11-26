@@ -104,6 +104,11 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
   }
 
   @Override
+  public void setTestTraceId(DDTraceId testTraceId) {
+    bindTrace(testTraceId);
+  }
+
+  @Override
   public void discard() {
     List<ClassHits> closedHits = close();
     synchronized (reportLock) {

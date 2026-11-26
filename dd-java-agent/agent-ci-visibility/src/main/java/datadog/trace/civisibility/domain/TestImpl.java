@@ -124,6 +124,7 @@ public class TestImpl implements DDTest {
     }
 
     span = spanBuilder.start();
+    coverageStore.setTestTraceId(span.getTraceId());
 
     activateSpanWithoutScope(span);
 

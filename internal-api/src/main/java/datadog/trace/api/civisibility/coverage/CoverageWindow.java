@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility.coverage;
 
+import datadog.trace.api.DDTraceId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -10,15 +11,19 @@ import javax.annotation.Nullable;
  *
  * <p>A window opens on the thread that creates it and closes in {@link #close()}. While it is the
  * innermost window open on that thread, it owns the code the thread starts. It also owns the code
- * other threads start while they carry the context of the test whose coverage store it is. A thread
- * moves what it hit to the window when its owner changes (see {@link ThreadProbes}); closing the
- * window ends what every thread runs for it and collects what they moved.
+ * other threads start while they carry the context of the test whose coverage store it is, or a
+ * context of that test's trace (see {@link #bindTrace}). A thread moves what it hit to the window
+ * when its owner changes (see {@link ThreadProbes}); closing the window ends what every thread runs
+ * for it and collects what they moved.
  */
 public abstract class CoverageWindow {
 
   private final ThreadProbes threadProbes;
   @Nullable private final CoverageWindow outer;
   private volatile boolean closed;
+
+  /** The id of the test's trace, once bound. */
+  @Nullable private volatile DDTraceId traceId;
 
   private final Object lock = new Object();
 
@@ -60,6 +65,23 @@ public abstract class CoverageWindow {
 
   public final boolean isClosed() {
     return closed;
+  }
+
+  /**
+   * Makes the window, while it is open, the owner of the code that runs under any span of its
+   * test's trace, as under the test's own context. A span can be in the test's trace without the
+   * test's span as its local root: an in-process server that the test calls through an instrumented
+   * client runs its handler under a server span whose remote parent is the client's span.
+   */
+  protected final void bindTrace(DDTraceId testTraceId) {
+    if (traceId == null && !closed) {
+      traceId = testTraceId;
+      ProbeRecorder.bindTrace(testTraceId, this);
+      if (closed) {
+        // closing may have read no id
+        ProbeRecorder.unbindTrace(testTraceId, this);
+      }
+    }
   }
 
   /**
@@ -115,6 +137,10 @@ public abstract class CoverageWindow {
    */
   protected final List<ClassHits> close() {
     closed = true;
+    DDTraceId bound = traceId;
+    if (bound != null) {
+      ProbeRecorder.unbindTrace(bound, this);
+    }
     List<ThreadProbes> others;
     synchronized (lock) {
       others = otherThreads;

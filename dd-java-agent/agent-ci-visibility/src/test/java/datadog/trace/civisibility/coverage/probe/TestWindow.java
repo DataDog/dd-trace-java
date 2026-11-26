@@ -44,6 +44,11 @@ final class TestWindow extends CoverageWindow implements CoverageStore {
     return null;
   }
 
+  @Override
+  public void setTestTraceId(DDTraceId testTraceId) {
+    bindTrace(testTraceId);
+  }
+
   /** Closes the window: the lines it collected, by source path. */
   Map<String, BitSet> closeAndCollect() {
     return lines(close());

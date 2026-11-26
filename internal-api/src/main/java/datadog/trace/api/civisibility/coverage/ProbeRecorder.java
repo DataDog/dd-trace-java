@@ -1,11 +1,16 @@
 package datadog.trace.api.civisibility.coverage;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.api.civisibility.domain.TestContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -103,6 +108,10 @@ public final class ProbeRecorder {
    * threads do not create any.
    */
   private static final ThreadLocal<ThreadProbes> WINDOW_THREAD_PROBES = new ThreadLocal<>();
+
+  /** The open windows of tests, by the id of their test's trace (see {@link #testWindow}). */
+  private static final ConcurrentHashMap<DDTraceId, CoverageWindow> TRACE_WINDOWS =
+      new ConcurrentHashMap<>();
 
   private static final Object LOCK = new Object();
 
@@ -255,8 +264,8 @@ public final class ProbeRecorder {
   }
 
   /**
-   * The window of the test whose context the current thread carries, if the test has one and it is
-   * open.
+   * The window of the test whose trace the current thread's context is in, if the test has one and
+   * it is open.
    */
   @Nullable
   static CoverageWindow contextWindow() {
@@ -310,17 +319,33 @@ public final class ProbeRecorder {
     return false;
   }
 
-  /** The window of the test whose context the current thread carries, open or closed. */
+  /**
+   * The window of the test whose trace the active span is in: open or closed if the test's span is
+   * the span's local root; while it is open, if the span is under another local root, such as the
+   * span of an in-process server that the test calls through an instrumented client.
+   */
   @Nullable
   private static CoverageWindow testWindow() {
-    TestContext test = InstrumentationTestBridge.getCurrentTestContext();
+    AgentSpan span = activeSpan();
+    if (span == null) {
+      return null;
+    }
+    TestContext test = InstrumentationTestBridge.getTestContext(span);
     if (test != null) {
       CoverageStore store = test.getCoverageStore();
-      if (store instanceof CoverageWindow) {
-        return (CoverageWindow) store;
-      }
+      return store instanceof CoverageWindow ? (CoverageWindow) store : null;
     }
-    return null;
+    return TRACE_WINDOWS.get(span.getTraceId());
+  }
+
+  /** Makes {@code window} the window of the test whose trace has the id {@code traceId}. */
+  static void bindTrace(DDTraceId traceId, CoverageWindow window) {
+    TRACE_WINDOWS.put(traceId, window);
+  }
+
+  /** Called when {@code window} closes. */
+  static void unbindTrace(DDTraceId traceId, CoverageWindow window) {
+    TRACE_WINDOWS.remove(traceId, window);
   }
 
   /**
