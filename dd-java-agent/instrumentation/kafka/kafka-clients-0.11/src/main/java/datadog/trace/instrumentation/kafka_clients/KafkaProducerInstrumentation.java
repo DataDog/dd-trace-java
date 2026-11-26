@@ -294,6 +294,9 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
      */
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(value = 0) int estimatedPayloadSize) {
+      if (Config.get().isDataStreamsLiteEnabled()) {
+        return;
+      }
       StatsPoint saved = activeSpan().spanContext().getPathwayContext().getSavedStats();
       if (saved != null) {
         // create new stats including the payload size

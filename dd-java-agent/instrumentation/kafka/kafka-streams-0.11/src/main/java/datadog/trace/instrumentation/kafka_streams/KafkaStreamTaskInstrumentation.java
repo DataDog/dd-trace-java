@@ -301,7 +301,9 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       DataStreamsTags tags = createWithGroup("kafka", INBOUND, record.topic(), applicationId);
 
       final long payloadSize =
-          traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(record.value) : 0;
+          traceConfig().isDataStreamsEnabled() && !Config.get().isDataStreamsLiteEnabled()
+              ? computePayloadSizeBytes(record.value)
+              : 0;
       if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())) {
         AgentTracer.get()
             .getDataStreamsMonitoring()

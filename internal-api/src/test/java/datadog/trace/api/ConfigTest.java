@@ -48,6 +48,12 @@ import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABL
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_DSM_TAG_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_PATHWAY_HASH_TAG;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_POLL_SPANS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_REFRESH_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.ENV;
 import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED;
@@ -2156,6 +2162,85 @@ class ConfigTest {
     assertEquals(emptyMap(), config.getServiceMapping());
     assertEquals(emptyMap(), spanTags(config));
     assertEquals(emptyMap(), config.getRequestHeaderTags());
+  }
+
+  @TableTest({
+    "scenario                | enabled | lite  | expectEnabled | expectLite",
+    "default                 |         |       | false         | false     ",
+    "full                    | true    |       | true          | false     ",
+    "lite alone turns DSM on |         | true  | true          | true      ",
+    "lite with DSM on        | true    | true  | true          | true      ",
+    "explicit off wins       | false   | true  | false         | false     ",
+    "lite off                | true    | false | true          | false     "
+  })
+  void dataStreamsLiteMode(String enabled, String lite, boolean expectEnabled, boolean expectLite)
+      throws Exception {
+    if (enabled != null) {
+      System.setProperty(PREFIX + DATA_STREAMS_ENABLED, enabled);
+    }
+    if (lite != null) {
+      System.setProperty(PREFIX + DATA_STREAMS_LITE_ENABLED, lite);
+    }
+
+    Config config = newConfig();
+
+    assertEquals(expectEnabled, config.isDataStreamsEnabled());
+    assertEquals(expectLite, config.isDataStreamsLiteEnabled());
+  }
+
+  @TableTest({
+    "scenario      | value | expected",
+    "default       |       | 600     ",
+    "valid         | 60    | 60      ",
+    "minimum       | 30    | 30      ",
+    "below minimum | 5     | 30      ",
+    "zero          | 0     | 600     ",
+    "negative      | -1    | 600     "
+  })
+  void dataStreamsLiteRefreshSecondsIsClamped(String value, int expected) throws Exception {
+    if (value != null) {
+      System.setProperty(PREFIX + DATA_STREAMS_LITE_REFRESH_SECONDS, value);
+    }
+
+    assertEquals(expected, newConfig().getDataStreamsLiteRefreshSeconds());
+  }
+
+  @TableTest({
+    "scenario             | lite | pollSpans | dsmTag | hashTag | expectPoll | expectTag | expectSampled",
+    "full mode            |      | false     | false  | sampled | true       | true      | false        ",
+    "lite defaults        | true |           |        |         | false      | false     | true         ",
+    "lite, all re-enabled | true | true      | true   | all     | true       | true      | false        ",
+    "lite, bad hash value | true |           |        | some    | false      | false     | true         "
+  })
+  void dataStreamsLiteOptimisationFlags(
+      String lite,
+      String pollSpans,
+      String dsmTag,
+      String hashTag,
+      boolean expectPoll,
+      boolean expectTag,
+      boolean expectSampled)
+      throws Exception {
+    if (lite != null) {
+      System.setProperty(PREFIX + DATA_STREAMS_LITE_ENABLED, lite);
+    } else {
+      System.setProperty(PREFIX + DATA_STREAMS_ENABLED, "true");
+    }
+    if (pollSpans != null) {
+      System.setProperty(PREFIX + DATA_STREAMS_LITE_POLL_SPANS_ENABLED, pollSpans);
+    }
+    if (dsmTag != null) {
+      System.setProperty(PREFIX + DATA_STREAMS_LITE_DSM_TAG_ENABLED, dsmTag);
+    }
+    if (hashTag != null) {
+      System.setProperty(PREFIX + DATA_STREAMS_LITE_PATHWAY_HASH_TAG, hashTag);
+    }
+
+    Config config = newConfig();
+
+    assertEquals(expectPoll, config.isDataStreamsKafkaPollSpanEnabled());
+    assertEquals(expectTag, config.isDataStreamsSpanTagEnabled());
+    assertEquals(expectSampled, config.isDataStreamsPathwayHashTagSampledOnly());
   }
 
   @Test

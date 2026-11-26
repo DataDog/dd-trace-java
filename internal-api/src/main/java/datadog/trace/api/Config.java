@@ -54,6 +54,12 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_OPENLINEAGE_TIM
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_PARSE_SPARK_PLAN_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_BUCKET_DURATION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_LITE_DSM_TAG_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_LITE_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_LITE_ORIGIN_CAP_PER_SECOND;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_LITE_PATHWAY_HASH_TAG;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_LITE_POLL_SPANS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_LITE_REFRESH_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
@@ -396,6 +402,12 @@ import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_TIMEO
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_PARSE_SPARK_PLAN_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATION_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_DSM_TAG_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_ORIGIN_CAP_PER_SECOND;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_PATHWAY_HASH_TAG;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_POLL_SPANS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_REFRESH_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_TRANSACTION_EXTRACTORS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_HOST;
@@ -859,6 +871,7 @@ public class Config {
 
   private static final Logger log = LoggerFactory.getLogger(Config.class);
   private static final int MAX_CODE_COVERAGE_FLAGS = 32;
+  static final int MIN_DATA_STREAMS_LITE_REFRESH_SECONDS = 30;
   private static final int DYNAMIC_ATR_BUCKET_COUNT = 5;
   private static final int MAX_DYNAMIC_ATR_RETRIES_PER_BUCKET = 20;
 
@@ -1404,6 +1417,12 @@ public class Config {
   private final boolean dataJobsExperimentalFeaturesEnabled;
 
   private final boolean dataStreamsEnabled;
+  private final boolean dataStreamsLiteEnabled;
+  private final int dataStreamsLiteRefreshSeconds;
+  private final boolean dataStreamsKafkaPollSpanEnabled;
+  private final boolean dataStreamsSpanTagEnabled;
+  private final boolean dataStreamsPathwayHashTagSampledOnly;
+  private final int dataStreamsLiteOriginCapPerSecond;
   private final float dataStreamsBucketDurationSeconds;
   private final String dataStreamsTransactionExtractors;
 
@@ -3296,8 +3315,63 @@ public class Config {
             DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED,
             DEFAULT_DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED);
 
+    boolean dataStreamsLiteRequested =
+        configProvider.getBoolean(DATA_STREAMS_LITE_ENABLED, DEFAULT_DATA_STREAMS_LITE_ENABLED);
+    // Lite turns Data Streams on unless DD_DATA_STREAMS_ENABLED is explicitly false
     dataStreamsEnabled =
-        configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
+        configProvider.getBoolean(
+            DATA_STREAMS_ENABLED, dataStreamsLiteRequested || DEFAULT_DATA_STREAMS_ENABLED);
+    dataStreamsLiteEnabled = dataStreamsLiteRequested && dataStreamsEnabled;
+    if (dataStreamsLiteRequested && !dataStreamsEnabled) {
+      log.warn(
+          "{} is ignored because {} is false", DATA_STREAMS_LITE_ENABLED, DATA_STREAMS_ENABLED);
+    }
+    int liteRefreshSeconds =
+        configProvider.getInteger(
+            DATA_STREAMS_LITE_REFRESH_SECONDS, DEFAULT_DATA_STREAMS_LITE_REFRESH_SECONDS);
+    if (liteRefreshSeconds <= 0) {
+      log.warn(
+          "{} must be positive, using the default of {} seconds",
+          DATA_STREAMS_LITE_REFRESH_SECONDS,
+          DEFAULT_DATA_STREAMS_LITE_REFRESH_SECONDS);
+      liteRefreshSeconds = DEFAULT_DATA_STREAMS_LITE_REFRESH_SECONDS;
+    } else if (liteRefreshSeconds < MIN_DATA_STREAMS_LITE_REFRESH_SECONDS) {
+      log.warn(
+          "{} raised from {} to the minimum of {} seconds",
+          DATA_STREAMS_LITE_REFRESH_SECONDS,
+          liteRefreshSeconds,
+          MIN_DATA_STREAMS_LITE_REFRESH_SECONDS);
+      liteRefreshSeconds = MIN_DATA_STREAMS_LITE_REFRESH_SECONDS;
+    }
+    dataStreamsLiteRefreshSeconds = liteRefreshSeconds;
+    dataStreamsKafkaPollSpanEnabled =
+        !dataStreamsLiteEnabled
+            || configProvider.getBoolean(
+                DATA_STREAMS_LITE_POLL_SPANS_ENABLED, DEFAULT_DATA_STREAMS_LITE_POLL_SPANS_ENABLED);
+    dataStreamsSpanTagEnabled =
+        !dataStreamsLiteEnabled
+            || configProvider.getBoolean(
+                DATA_STREAMS_LITE_DSM_TAG_ENABLED, DEFAULT_DATA_STREAMS_LITE_DSM_TAG_ENABLED);
+    String pathwayHashTag =
+        configProvider.getString(
+            DATA_STREAMS_LITE_PATHWAY_HASH_TAG, DEFAULT_DATA_STREAMS_LITE_PATHWAY_HASH_TAG);
+    if (!"sampled".equalsIgnoreCase(pathwayHashTag) && !"all".equalsIgnoreCase(pathwayHashTag)) {
+      log.warn(
+          "{} must be 'all' or 'sampled', using '{}'",
+          DATA_STREAMS_LITE_PATHWAY_HASH_TAG,
+          DEFAULT_DATA_STREAMS_LITE_PATHWAY_HASH_TAG);
+      pathwayHashTag = DEFAULT_DATA_STREAMS_LITE_PATHWAY_HASH_TAG;
+    }
+    dataStreamsPathwayHashTagSampledOnly =
+        dataStreamsLiteEnabled && "sampled".equalsIgnoreCase(pathwayHashTag);
+    dataStreamsLiteOriginCapPerSecond =
+        dataStreamsLiteEnabled
+            ? Math.max(
+                0,
+                configProvider.getInteger(
+                    DATA_STREAMS_LITE_ORIGIN_CAP_PER_SECOND,
+                    DEFAULT_DATA_STREAMS_LITE_ORIGIN_CAP_PER_SECOND))
+            : 0;
     dataStreamsBucketDurationSeconds =
         configProvider.getFloat(
             DATA_STREAMS_BUCKET_DURATION_SECONDS, DEFAULT_DATA_STREAMS_BUCKET_DURATION);
@@ -5380,6 +5454,37 @@ public class Config {
 
   public boolean isDataStreamsEnabled() {
     return dataStreamsEnabled;
+  }
+
+  public boolean isDataStreamsLiteEnabled() {
+    return dataStreamsLiteEnabled;
+  }
+
+  public int getDataStreamsLiteRefreshSeconds() {
+    return dataStreamsLiteRefreshSeconds;
+  }
+
+  /** False only in lite mode with {@code dd.data.streams.lite.poll.spans.enabled=false}. */
+  public boolean isDataStreamsKafkaPollSpanEnabled() {
+    return dataStreamsKafkaPollSpanEnabled;
+  }
+
+  /** Whether spans carry {@code _dd.dsm.enabled}; lite drops it unless re-enabled. */
+  public boolean isDataStreamsSpanTagEnabled() {
+    return dataStreamsSpanTagEnabled;
+  }
+
+  /** In lite, {@code pathway.hash} goes only on spans whose trace is not already dropped. */
+  public boolean isDataStreamsPathwayHashTagSampledOnly() {
+    return dataStreamsPathwayHashTagSampledOnly;
+  }
+
+  /**
+   * In lite, the most messages per second, across the whole process, that get a pathway header when
+   * they start a pathway (no incoming context). 0 when lite is off or the cap is disabled.
+   */
+  public int getDataStreamsLiteOriginCapPerSecond() {
+    return dataStreamsLiteOriginCapPerSecond;
   }
 
   public float getDataStreamsBucketDurationSeconds() {

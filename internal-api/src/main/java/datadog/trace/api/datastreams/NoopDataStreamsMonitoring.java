@@ -28,7 +28,9 @@ public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
   }
 
   @Override
-  public void add(StatsPoint statsPoint) {}
+  public boolean add(StatsPoint statsPoint) {
+    return false;
+  }
 
   @Override
   public void setProduceCheckpoint(String type, String target) {}

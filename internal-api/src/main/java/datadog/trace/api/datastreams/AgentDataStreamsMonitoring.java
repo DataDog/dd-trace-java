@@ -55,7 +55,12 @@ public interface AgentDataStreamsMonitoring
 
   PathwayContext newPathwayContext();
 
-  void add(StatsPoint statsPoint);
+  /**
+   * Hands a point to the Data Streams thread.
+   *
+   * @return whether the point was queued
+   */
+  boolean add(StatsPoint statsPoint);
 
   void setProduceCheckpoint(String type, String target);
 

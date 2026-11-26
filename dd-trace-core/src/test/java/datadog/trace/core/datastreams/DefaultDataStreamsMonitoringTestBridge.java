@@ -6,6 +6,7 @@ import org.jctools.queues.MessagePassingQueue;
 final class DefaultDataStreamsMonitoringTestBridge {
   private static final Field INBOX_FIELD;
   private static final Field THREAD_FIELD;
+  private static final Field SEEN_SET_FIELD;
 
   static {
     try {
@@ -13,6 +14,8 @@ final class DefaultDataStreamsMonitoringTestBridge {
       INBOX_FIELD.setAccessible(true);
       THREAD_FIELD = DefaultDataStreamsMonitoring.class.getDeclaredField("thread");
       THREAD_FIELD.setAccessible(true);
+      SEEN_SET_FIELD = DefaultDataStreamsMonitoring.class.getDeclaredField("seenSet");
+      SEEN_SET_FIELD.setAccessible(true);
     } catch (NoSuchFieldException e) {
       throw new IllegalStateException(e);
     }
@@ -24,6 +27,14 @@ final class DefaultDataStreamsMonitoringTestBridge {
     try {
       MessagePassingQueue<?> inbox = (MessagePassingQueue<?>) INBOX_FIELD.get(monitoring);
       return inbox.isEmpty();
+    } catch (IllegalAccessException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  static PathwaySeenSet getSeenSet(DefaultDataStreamsMonitoring monitoring) {
+    try {
+      return (PathwaySeenSet) SEEN_SET_FIELD.get(monitoring);
     } catch (IllegalAccessException e) {
       throw new IllegalStateException(e);
     }

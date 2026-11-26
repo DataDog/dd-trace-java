@@ -1,7 +1,10 @@
 package datadog.trace.core.datastreams;
 
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_LITE_ORIGIN_CAP_PER_SECOND;
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -11,11 +14,13 @@ import static org.mockito.Mockito.when;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.OkHttpUtils;
+import datadog.metrics.api.Histogram;
 import datadog.trace.agent.test.server.http.JavaTestHttpServer;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.time.ControllableTimeSource;
@@ -24,6 +29,7 @@ import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -260,6 +266,103 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
       WithConfigExtension.injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true");
       ProcessTags.reset(Config.get());
     }
+  }
+
+  @Test
+  void liteWritesEmptySketchesAndTheLiteProductBit() throws InterruptedException, IOException {
+    WithConfigExtension.injectSysConfig(DATA_STREAMS_LITE_ENABLED, "true");
+    // Checkpoints straight on a span's pathway context, which the origin cap replaces
+    WithConfigExtension.injectSysConfig(DATA_STREAMS_LITE_ORIGIN_CAP_PER_SECOND, "0");
+    try {
+      WellKnownTags wellKnownTags =
+          new WellKnownTags(
+              "runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java");
+      Config fakeConfig = mock(Config.class);
+      when(fakeConfig.getAgentUrl()).thenReturn(serverAddress.toString());
+      when(fakeConfig.getWellKnownTags()).thenReturn(wellKnownTags);
+      when(fakeConfig.getPrimaryTag()).thenReturn("region-1");
+
+      OkHttpClient testOkhttpClient = OkHttpUtils.buildHttpClient(serverAddress, 5000L);
+      DDAgentFeaturesDiscovery features = mock(DDAgentFeaturesDiscovery.class);
+      when(features.supportsDataStreams()).thenReturn(true);
+      SharedCommunicationObjects sharedCommObjects = new SharedCommunicationObjects();
+      sharedCommObjects.setFeaturesDiscovery(features);
+      sharedCommObjects.agentHttpClient = testOkhttpClient;
+      sharedCommObjects.createRemaining(fakeConfig);
+
+      ControllableTimeSource timeSource = new ControllableTimeSource();
+      TraceConfig traceConfig = mock(TraceConfig.class);
+      when(traceConfig.isDataStreamsEnabled()).thenReturn(true);
+
+      DefaultDataStreamsMonitoring dataStreams =
+          new DefaultDataStreamsMonitoring(
+              fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
+      dataStreams.start();
+      dataStreams
+          .newPathwayContext()
+          .setCheckpoint(
+              DataStreamsContext.create(
+                  DataStreamsTags.create(
+                      "kafka", DataStreamsTags.Direction.INBOUND, "testTopic", "testGroup", null),
+                  0,
+                  1234),
+              dataStreams::add);
+      timeSource.advance(defaultBucketDurationNanos);
+      dataStreams.close();
+
+      awaitOneRequestBody();
+      validateLiteMessage(requestBodies.get(0));
+    } finally {
+      WithConfigExtension.injectSysConfig(DATA_STREAMS_LITE_ENABLED, "false");
+    }
+  }
+
+  private static void validateLiteMessage(byte[] message) throws IOException {
+    byte[] emptySketch = toBytes(Histogram.newLogHistogram().serialize());
+    GzipSource gzipSource = new GzipSource(Okio.source(new ByteArrayInputStream(message)));
+    MessageUnpacker unpacker =
+        MessagePack.newDefaultUnpacker(Okio.buffer(gzipSource).inputStream());
+
+    int fields = unpacker.unpackMapHeader();
+    for (int field = 0; field < fields; field++) {
+      String key = unpacker.unpackString();
+      if ("Stats".equals(key)) {
+        assertEquals(1, unpacker.unpackArrayHeader());
+        // a bucket holds only Start, Duration and Stats in lite mode
+        assertEquals(3, unpacker.unpackMapHeader());
+        assertEquals("Start", unpacker.unpackString());
+        unpacker.skipValue();
+        assertEquals("Duration", unpacker.unpackString());
+        unpacker.skipValue();
+        assertEquals("Stats", unpacker.unpackString());
+        assertEquals(1, unpacker.unpackArrayHeader());
+        assertEquals(6, unpacker.unpackMapHeader());
+        for (String sketch : new String[] {"PathwayLatency", "EdgeLatency", "PayloadSize"}) {
+          assertEquals(sketch, unpacker.unpackString());
+          byte[] value = new byte[unpacker.unpackBinaryHeader()];
+          unpacker.readPayload(value);
+          assertArrayEquals(emptySketch, value, sketch);
+        }
+        assertEquals("Hash", unpacker.unpackString());
+        unpacker.skipValue();
+        assertEquals("ParentHash", unpacker.unpackString());
+        assertEquals(0L, unpacker.unpackLong());
+        assertEquals("EdgeTags", unpacker.unpackString());
+        unpacker.skipValue();
+      } else if ("ProductMask".equals(key)) {
+        long productMask = unpacker.unpackLong();
+        assertEquals(2L, productMask & 2L, "DSM bit");
+        assertEquals(16L, productMask & 16L, "DSM lite bit");
+      } else {
+        unpacker.skipValue();
+      }
+    }
+  }
+
+  private static byte[] toBytes(ByteBuffer buffer) {
+    byte[] bytes = new byte[buffer.remaining()];
+    buffer.get(bytes);
+    return bytes;
   }
 
   @Test

@@ -44,6 +44,7 @@ import datadog.trace.bootstrap.instrumentation.api.SpanKind;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.core.datastreams.UnsampledPathwayContext;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
@@ -1000,7 +1001,13 @@ public class DDSpanContext
     // This is purposely not thread safe
     // The code randomly chooses between the two PathwayContexts.
     // If there is a race, then that's okay
-    if (this.pathwayContext.isStarted()) {
+    PathwayContext current = this.pathwayContext;
+    if (pathwayContext == UnsampledPathwayContext.INSTANCE) {
+      // a batch with any sampled message continues that message's pathway
+      if (!current.isStarted()) {
+        this.pathwayContext = pathwayContext;
+      }
+    } else if (current.isStarted() && current != UnsampledPathwayContext.INSTANCE) {
       // Randomly select between keeping the current context (0) or replacing (1)
       if (ThreadLocalRandom.current().nextInt(2) == 1) {
         this.pathwayContext = pathwayContext;

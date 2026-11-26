@@ -1,6 +1,7 @@
 package datadog.trace.api.datastreams;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.function.Consumer;
 
 public interface PathwayContext {
@@ -18,4 +19,10 @@ public interface PathwayContext {
   StatsPoint getSavedStats();
 
   String encode() throws IOException;
+
+  /** The same value as {@link #encode()}, as ASCII bytes. */
+  default byte[] encodeBytes() throws IOException {
+    String encoded = encode();
+    return encoded != null ? encoded.getBytes(StandardCharsets.ISO_8859_1) : null;
+  }
 }

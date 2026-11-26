@@ -2724,12 +2724,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       if (config.isDataJobsEnabled()) {
         result.set(DJM_ENABLED, 1);
       }
-      if (config.isDataStreamsEnabled()) {
+      if (config.isDataStreamsEnabled() && config.isDataStreamsSpanTagEnabled()) {
         result.set(DSM_ENABLED, 1);
       }
     }
     if (null != traceConfig) { // dynamic
-      if (traceConfig.isDataStreamsEnabled()) {
+      if (traceConfig.isDataStreamsEnabled()
+          && (config == null || config.isDataStreamsSpanTagEnabled())) {
         result.set(DSM_ENABLED, 1);
       } else {
         result.remove(DSM_ENABLED);

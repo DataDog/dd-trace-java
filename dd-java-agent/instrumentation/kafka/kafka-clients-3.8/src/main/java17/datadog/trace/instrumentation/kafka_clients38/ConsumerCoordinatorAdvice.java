@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.kafka_clients38;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -24,8 +25,10 @@ public class ConsumerCoordinatorAdvice {
     if (requestFuture == null || requestFuture.failed()) {
       return;
     }
-    // Only Data Streams tracks committed offsets
-    if (offsets == null || !traceConfig().isDataStreamsEnabled()) {
+    // Only full Data Streams tracks committed offsets
+    if (offsets == null
+        || !traceConfig().isDataStreamsEnabled()
+        || Config.get().isDataStreamsLiteEnabled()) {
       return;
     }
     KafkaConsumerInfo kafkaConsumerInfo =

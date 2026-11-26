@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
 
 import datadog.context.ContextScope;
+import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -49,11 +50,12 @@ public class KafkaProducerCallback implements Callback {
         callback.onCompletion(metadata, exception);
       }
     }
-    // trackBacklog is a no-op with DSM off, so skip building its tags.
+    // trackBacklog is a no-op with DSM off or in lite mode, so skip building its tags.
     if (metadata == null
         || exception != null
         || metadata.partition() < 0
-        || !traceConfig().isDataStreamsEnabled()) {
+        || !traceConfig().isDataStreamsEnabled()
+        || Config.get().isDataStreamsLiteEnabled()) {
       return;
     }
 

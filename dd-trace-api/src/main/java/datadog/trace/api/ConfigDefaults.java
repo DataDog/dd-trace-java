@@ -286,6 +286,12 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED = false;
 
   static final boolean DEFAULT_DATA_STREAMS_ENABLED = false;
+  static final boolean DEFAULT_DATA_STREAMS_LITE_ENABLED = false;
+  static final int DEFAULT_DATA_STREAMS_LITE_REFRESH_SECONDS = 600;
+  static final boolean DEFAULT_DATA_STREAMS_LITE_POLL_SPANS_ENABLED = false;
+  static final boolean DEFAULT_DATA_STREAMS_LITE_DSM_TAG_ENABLED = false;
+  static final String DEFAULT_DATA_STREAMS_LITE_PATHWAY_HASH_TAG = "sampled";
+  static final int DEFAULT_DATA_STREAMS_LITE_ORIGIN_CAP_PER_SECOND = 500;
   static final int DEFAULT_DATA_STREAMS_BUCKET_DURATION = 10; // seconds
 
   static final int DEFAULT_RESOLVER_RESET_INTERVAL = 300; // seconds
