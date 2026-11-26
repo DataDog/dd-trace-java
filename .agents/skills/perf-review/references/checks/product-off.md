@@ -26,4 +26,4 @@ Check J14.
   - **Do flag** work added to a product's entry points that app threads call whether or not it's
     on. With DSM off, `DefaultDataStreamsMonitoring.trackBacklog`,
     `trackTransaction(String, String)` and `mergePathwayContextIntoSpan` still run unchecked.
-  - **flag-with-confidence** — SEV-2 on messaging per-message paths, SEV-3 elsewhere.
+  - **flag-with-confidence** — P2 on messaging per-message paths, P3 elsewhere.

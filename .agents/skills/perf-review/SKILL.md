@@ -103,8 +103,8 @@ using `references/hotness.md`.
 
 **Unchanged code is in scope if the diff changes what it costs** — it now runs more often,
 under a new lock, or on the application thread. Flag it as *carried in by this change*
-(see `references/hotness.md`). **Propagation and header paths: bump severity one notch**
-(see `references/hotness.md` § Hot-path map).
+(see `references/hotness.md`). Propagation and header paths are on the per-span core, so the
+core raise in `references/posture.md` § Severity applies to them.
 
 ### Step 3 — Apply the checks
 
@@ -146,7 +146,7 @@ When providing suggestions as code review comments, prefix the comments with "pe
 - **Confidence:** flag-with-confidence | flag-as-measure
 - **Reachability:** <hot from X via A→B→C, no guard on that path>
 - **Rubric check:** <#N / JN>
-- **Severity:** SEV-<n>
+- **Severity:** P<n>
 - **Fix / verify-with:** <the actionable fix, or "verify with an allocation profiler">
 
 ## Correctly suppressed (not flagged)
@@ -158,7 +158,7 @@ but at class-init (cold), not per-call — and why the posture suppresses them>
 crossing (#6/J3)", "string-literal tag keys are JVM-interned — no per-call alloc">
 
 ## Summary
-<count + severity spread; e.g. "4 confirmed hot-path findings, all SEV-2/3
+<count + severity spread; e.g. "4 confirmed hot-path findings, all P3
 (allocation/CPU); 1 cold-path lookalike correctly suppressed">
 ```
 
