@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jacoco;
 
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_ENABLED;
+import static java.lang.reflect.Modifier.isPublic;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -12,6 +13,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 @ExtendWith(WithConfigExtension.class)
 class LineCoverageHookTest {
+
+  /** Tests share one class loader, so only these modifiers show the agent's loader split works. */
+  @Test
+  void hookIsReachableFromAnotherClassLoader() throws NoSuchMethodException {
+    assertTrue(isPublic(LineCoverageHook.class.getModifiers()));
+    assertTrue(isPublic(LineCoverageHook.class.getDeclaredMethod("isEnabled").getModifiers()));
+  }
 
   @Test
   void hookIsOffWithoutLineCoverage() {
