@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility.coverage;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -33,7 +34,11 @@ final class ThreadProbes {
   /** Retired arrays beyond which a change of the owner for a scope also counts against them. */
   private static final int RETIRED_ARRAYS_KEPT_ACROSS_SCOPES = 256;
 
-  final Thread thread;
+  /**
+   * Held weakly: the recorder keeps a thread's probes after the thread dies, and a dead thread
+   * still references its task, which can hold what a test waits to be collected.
+   */
+  private final WeakReference<Thread> thread;
 
   /**
    * Whether the thread is finding the owner from its context. Probes in the code that the lookup
@@ -80,8 +85,14 @@ final class ThreadProbes {
   private int retiredCount;
 
   ThreadProbes(Thread thread, @Nullable CoverageWindow handed) {
-    this.thread = thread;
+    this.thread = new WeakReference<>(thread);
     this.handed = handed;
+  }
+
+  /** Whether the thread is alive. A thread that was collected is not. */
+  boolean isThreadAlive() {
+    Thread current = thread.get();
+    return current != null && current.isAlive();
   }
 
   /**
@@ -174,7 +185,7 @@ final class ThreadProbes {
     table = primaryTable;
     primary = true;
     if (innermost != null) {
-      ProbeRecorder.primaryThread = thread;
+      ProbeRecorder.primaryThread = Thread.currentThread();
     }
   }
 
@@ -267,7 +278,7 @@ final class ThreadProbes {
     innermost = window;
     ownerFromScope = false;
     if (primary) {
-      ProbeRecorder.primaryThread = thread;
+      ProbeRecorder.primaryThread = Thread.currentThread();
     }
     return outer;
   }

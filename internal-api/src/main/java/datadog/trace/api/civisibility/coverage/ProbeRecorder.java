@@ -373,7 +373,7 @@ public final class ProbeRecorder {
         int kept = 0;
         for (int i = 0; i < registeredCount; i++) {
           ThreadProbes candidate = registered[i];
-          if (candidate.thread.isAlive()) {
+          if (candidate.isThreadAlive()) {
             registered[kept++] = candidate;
           } else {
             if (dead == null) {
