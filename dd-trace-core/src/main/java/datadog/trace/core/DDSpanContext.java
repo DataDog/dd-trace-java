@@ -2143,6 +2143,26 @@ public class DDSpanContext
   public String[] unsafeGetTagStrings(TagLookup lookup, @Nullable String[] out) {
     int n = lookup.size();
     out = knownTags.loadStrings(lookup, out);
+    if (!derivations.isEmpty() || deferredTags != null) {
+      // A tag the store doesn't hold may still be derived or deferred: produce just the ones the
+      // lookup asks for, so a reader such as client-side stats triggers only what it needs.
+      DeferredTags pending = this.deferredTags;
+      for (int i = 0; i < n; i++) {
+        long tagId = lookup.id(i);
+        if (tagId == 0 || (out != null && out[i] != null)) {
+          continue;
+        }
+        if (derivations.mayProduce(tagId) || (pending != null && pending.mayHold(tagId))) {
+          Object value = loadKnown(tagId);
+          if (value != null) {
+            if (out == null) {
+              out = new String[n];
+            }
+            out[i] = value.toString();
+          }
+        }
+      }
+    }
     HashStore custom = customTags;
     if (custom != null && lookup.hasCustom()) {
       for (int k = 0, customs = lookup.customCount(); k < customs; k++) {

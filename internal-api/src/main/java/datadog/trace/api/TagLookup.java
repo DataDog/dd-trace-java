@@ -173,6 +173,11 @@ public final class TagLookup {
     return names[i];
   }
 
+  /** The known-tag id of the {@code i}th name, or 0 when it is a custom tag. */
+  public long id(int i) {
+    return ids[i];
+  }
+
   /** Whether any name is a custom tag, which can only be read by name. */
   public boolean hasCustom() {
     return customIndexes.length != 0;

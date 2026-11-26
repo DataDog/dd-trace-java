@@ -20,6 +20,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
+import datadog.trace.api.TagLookup;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
@@ -235,6 +236,36 @@ class DerivedTagsForkedTest extends DDCoreJavaSpecification {
     assertEquals("orders", get(span, PEER_SERVICE));
     assertEquals(Tags.DB_INSTANCE, get(span, DD_PEER_SERVICE_SOURCE));
     assertTrue(span.spanContext().isDerivedTag(PEER_SERVICE));
+    span.finish();
+  }
+
+  // --- the bulk read client-side stats uses ---
+
+  @Test
+  void bulkReadProducesOnlyTheDerivedAndDeferredTagsItAsksFor() {
+    AtomicInteger stackCalls = new AtomicInteger();
+    DDSpan span = (DDSpan) derivedTracer().buildSpan("test", "op").start();
+    span.setTag(SPAN_KIND, Tags.SPAN_KIND_CLIENT);
+    span.setTag(DB_INSTANCE, "orders");
+    span.spanContext()
+        .setDeferredTag(
+            KnownTags.ERROR_STACK,
+            "source",
+            s -> {
+              stackCalls.incrementAndGet();
+              return "stack";
+            });
+
+    String[] values =
+        span.unsafeGetTagStrings(TagLookup.of("peer.service", "db.instance", "peer.hostname"));
+    assertEquals("orders", values[0], "derived on demand");
+    assertEquals("orders", values[1]);
+    assertNull(values[2]);
+    assertEquals(0, stackCalls.get(), "a tag the lookup didn't ask for isn't produced");
+
+    String[] stack = span.unsafeGetTagStrings(TagLookup.of("error.stack"));
+    assertEquals("stack", stack[0], "deferred, extracted on demand");
+    assertEquals(1, stackCalls.get());
     span.finish();
   }
 
