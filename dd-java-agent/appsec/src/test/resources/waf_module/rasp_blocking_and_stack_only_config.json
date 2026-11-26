@@ -1,0 +1,36 @@
+{
+  "version": "2.1",
+  "metadata": {"rules_version": "1.2.7"},
+  "rules": [
+    {
+      "id": "rasp-blocking-rule",
+      "name": "RASP blocking rule",
+      "tags": {"type": "sql_injection", "category": "exploit_attempt"},
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [{"address": "server.request.headers.no_cookies", "key_path": ["user-agent"]}],
+            "regex": "^RaspBlocking"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "on_match": ["block"]
+    },
+    {
+      "id": "rasp-stack-only-rule",
+      "name": "RASP stack-generation-only rule",
+      "tags": {"type": "sql_injection", "category": "exploit_attempt"},
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [{"address": "server.request.headers.no_cookies", "key_path": ["user-agent"]}],
+            "regex": "^RaspStackOnly"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "on_match": ["stack_trace"]
+    }
+  ]
+}

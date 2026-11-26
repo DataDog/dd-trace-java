@@ -213,7 +213,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED = false;
   static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.2.5";
-  static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION = "0.8.15";
+  static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION = "0.8.16";
   static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES =
       "datadog.trace.*:org.apache.commons.*:org.mockito.*";
   static final boolean DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED = true;

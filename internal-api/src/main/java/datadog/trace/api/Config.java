@@ -3009,9 +3009,13 @@ public class Config {
     testOptimizationPayloadsInFiles =
         configProvider.getBoolean(TEST_OPTIMIZATION_PAYLOADS_IN_FILES, false);
 
+    // Off by default in AWS Lambda: the Datadog Lambda extension serves no Remote Configuration.
+    // Must be kept in sync with Agent.isRemoteConfigEnabled().
     remoteConfigEnabled =
         configProvider.getBoolean(
-            REMOTE_CONFIGURATION_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED, REMOTE_CONFIG_ENABLED);
+            REMOTE_CONFIGURATION_ENABLED,
+            DEFAULT_REMOTE_CONFIG_ENABLED && !awsServerless,
+            REMOTE_CONFIG_ENABLED);
     remoteConfigIntegrityCheckEnabled =
         configProvider.getBoolean(
             REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED, DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED);

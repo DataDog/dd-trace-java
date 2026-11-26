@@ -1770,6 +1770,34 @@ class ConfigTest {
     assertEquals(expectedPort, config.getAgentPort());
   }
 
+  /** The Datadog Lambda wrapper sets the legacy {@code DD_REMOTE_CONFIG_ENABLED} to false. */
+  @TableTest({
+    "scenario                         | functionName  | enabled | legacyEnabled | expected",
+    "outside Lambda                   |               |         |               | true    ",
+    "outside Lambda, disabled         |               | 'false' |               | false   ",
+    "empty function name              | ''            |         |               | true    ",
+    "Lambda                           | 'my-function' |         |               | false   ",
+    "Lambda, enabled                  | 'my-function' | 'true'  |               | true    ",
+    "Lambda, enabled with legacy key  | 'my-function' |         | 'true'        | true    ",
+    "Lambda, disabled with legacy key | 'my-function' |         | 'false'       | false   ",
+    "Lambda, key wins over legacy key | 'my-function' | 'true'  | 'false'       | true    "
+  })
+  void remoteConfigIsOffByDefaultInAwsLambda(
+      String functionName, String enabled, String legacyEnabled, boolean expected)
+      throws Exception {
+    if (functionName != null) {
+      setEnv("AWS_LAMBDA_FUNCTION_NAME", functionName);
+    }
+    if (enabled != null) {
+      setEnv("DD_REMOTE_CONFIGURATION_ENABLED", enabled);
+    }
+    if (legacyEnabled != null) {
+      setEnv("DD_REMOTE_CONFIG_ENABLED", legacyEnabled);
+    }
+
+    assertEquals(expected, newConfig().isRemoteConfigEnabled());
+  }
+
   // FIXME: this seems to be a repeated test
   @Test
   void sysPropsOverrideProperties() {

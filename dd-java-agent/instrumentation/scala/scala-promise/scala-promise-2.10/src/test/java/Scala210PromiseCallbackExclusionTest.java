@@ -1,0 +1,1 @@
+class Scala210PromiseCallbackExclusionTest extends ScalaPromiseCallbackExclusionTestBase {}

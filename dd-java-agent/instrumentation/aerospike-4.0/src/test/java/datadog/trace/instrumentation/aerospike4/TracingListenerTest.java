@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.aerospike4;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -126,12 +125,12 @@ class TracingListenerTest extends AbstractInstrumentationTest {
 
   @ParameterizedTest
   @ValueSource(ints = {0, 1, 2})
-  void disabledAsyncPropagationPreservesCallbackContext(int callback) {
+  void callbackContextPreservedWithoutCapturing(int callback) {
     NoopFixture fixture = new NoopFixture();
     AtomicInteger calls = new AtomicInteger();
     RuntimeException failure = new IllegalStateException("delegate failure");
     try {
-      fixture.captureWithAsyncPropagationDisabled();
+      fixture.assertContextIsNotCaptured();
       Object delegate =
           Proxy.newProxyInstance(
               getClass().getClassLoader(),
@@ -180,9 +179,9 @@ class TracingListenerTest extends AbstractInstrumentationTest {
     private final Context foreign = Context.root().with(foreignSpan).with(markerKey, "foreign");
     private ContextContinuation continuation;
 
-    private void captureWithAsyncPropagationDisabled() {
+    private void assertContextIsNotCaptured() {
       try (ContextScope ignored = operation.with(markerKey, "operation").attach()) {
-        setAsyncPropagationEnabled(false);
+        Context.setCaptureEnabled(false);
         continuation = operation.captureWithContext();
         assertSame(NoopContinuation.INSTANCE, continuation);
       }

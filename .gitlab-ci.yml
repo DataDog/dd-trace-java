@@ -115,6 +115,7 @@ workflow:
       - "17"
       - "21"
       - "25"
+      - "28" # TODO(JDK-28-EA): remove after GA (tip will move to 28)
       - "oracle8"
       - "zulu8"
       - "semeru8"
@@ -813,7 +814,8 @@ muzzle-dep-report:
     CONTINUE_ON_FAILURE: "false"
     TEST_JVM_ARGS: ""
     TESTCONTAINERS_CHECKS_DISABLE: "true"
-    TESTCONTAINERS_RYUK_DISABLED: "true"
+    # Set the disable flag to false so Ryuk handles cleanup without competing Docker prune requests.
+    TESTCONTAINERS_RYUK_DISABLED: "false"
     TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: "registry.ddbuild.io/images/mirror/"
     # CI pull policy: allow slow image fetching without overriding local file-based settings.
     TESTCONTAINERS_PULL_TIMEOUT: "240"
@@ -1079,7 +1081,7 @@ test_inst_latest:
     CACHE_TYPE: "latestdep"
   parallel:
     matrix:
-      - testJvm: ["8", "17", "21", "25", "tip"]
+      - testJvm: ["8", "17", "21", "25", "28", "tip"] # TODO(JDK-28-EA): remove 28 after GA (tip will move to 28)
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
@@ -1092,7 +1094,7 @@ test_inst_latest_arm64:
     CACHE_TYPE: "latestdep"
   parallel:
     matrix:
-      - testJvm: ["17", "21", "25", "tip"]
+      - testJvm: ["17", "21", "25", "28", "tip"] # TODO(JDK-28-EA): remove 28 after GA (tip will move to 28)
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
