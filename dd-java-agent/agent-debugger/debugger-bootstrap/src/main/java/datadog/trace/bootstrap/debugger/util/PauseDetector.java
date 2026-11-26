@@ -3,6 +3,8 @@ package datadog.trace.bootstrap.debugger.util;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.DEBUGGER_PAUSE_DETECTOR;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 /**
  * Detects hiccups of the process, mainly JVM stop-the-world events like GCs, and accumulates their
  * duration.
@@ -24,8 +26,7 @@ public final class PauseDetector {
   }
 
   private final Sleeper sleeper;
-  // single writer: the detector thread
-  private volatile long totalPauseMs;
+  private final AtomicLong totalPauseMs = new AtomicLong();
 
   PauseDetector() {
     this(Thread::sleep);
@@ -42,14 +43,14 @@ public final class PauseDetector {
 
   /** Returns the accumulated pause time in milliseconds since the detector started. */
   public long getTotalPauseMs() {
-    return totalPauseMs;
+    return totalPauseMs.get();
   }
 
   /** Records one measured sleep, accumulating its skew when it is a hiccup. */
   void onSleep(long elapsedMs) {
     long skew = elapsedMs - SLEEP_MS;
     if (skew >= SKEW_THRESHOLD_MS) {
-      totalPauseMs += skew;
+      totalPauseMs.addAndGet(skew);
     }
   }
 
