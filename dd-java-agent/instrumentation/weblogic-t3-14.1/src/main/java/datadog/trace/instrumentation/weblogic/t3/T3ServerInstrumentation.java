@@ -54,6 +54,7 @@ public final class T3ServerInstrumentation extends InstrumenterModule.ContextTra
   public static class InvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onEnter(@Advice.Argument(1) Object request) throws Exception {
+      // MsgAbbrevInputStream can also represent a same-JVM call. Only extract across JVMs.
       if (!(request instanceof MsgAbbrevInputStream)
           || ((MsgAbbrevInputStream) request).isCollocated()) {
         return null;

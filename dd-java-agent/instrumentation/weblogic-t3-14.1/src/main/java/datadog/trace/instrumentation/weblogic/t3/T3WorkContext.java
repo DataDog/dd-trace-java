@@ -1,18 +1,19 @@
 package datadog.trace.instrumentation.weblogic.t3;
 
+import static datadog.context.Context.current;
+import static datadog.context.Context.root;
 import static datadog.context.propagation.Propagators.defaultPropagator;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
+import static weblogic.workarea.PrimitiveContextFactory.create;
+import static weblogic.workarea.PropagationMode.ONEWAY;
+import static weblogic.workarea.PropagationMode.RMI;
+import static weblogic.workarea.WorkContextHelper.getWorkContextHelper;
 
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import weblogic.workarea.PrimitiveContextFactory;
-import weblogic.workarea.PropagationMode;
 import weblogic.workarea.StringWorkContext;
 import weblogic.workarea.WorkContext;
-import weblogic.workarea.WorkContextHelper;
 import weblogic.workarea.WorkContextMap;
 
 public final class T3WorkContext {
@@ -20,9 +21,9 @@ public final class T3WorkContext {
 
   private T3WorkContext() {}
 
-  public static WorkContextMap inject() throws Exception {
-    Context context = currentContext();
-    if (context == rootContext()) {
+  public static AutoCloseable inject() throws Exception {
+    Context context = current();
+    if (context == root()) {
       return null;
     }
     Map<String, String> fields = new LinkedHashMap<>();
@@ -31,17 +32,14 @@ public final class T3WorkContext {
     if (encoded == null) {
       return null;
     }
-    WorkContextMap map = WorkContextHelper.getWorkContextHelper().getWorkContextMap();
-    if (map.get(KEY) != null) {
-      return null;
-    }
-    map.put(
-        KEY, PrimitiveContextFactory.create(encoded), PropagationMode.RMI | PropagationMode.ONEWAY);
-    return map;
+    WorkContextMap map = getWorkContextHelper().getWorkContextMap();
+    int previousMode = map.getPropagationMode(KEY);
+    WorkContext previous = map.put(KEY, create(encoded), RMI | ONEWAY);
+    return previous == null ? () -> map.remove(KEY) : () -> map.put(KEY, previous, previousMode);
   }
 
   public static ContextScope extract() throws Exception {
-    WorkContextMap map = WorkContextHelper.getWorkContextHelper().getWorkContextMap();
+    WorkContextMap map = getWorkContextHelper().getWorkContextMap();
     WorkContext item = map.get(KEY);
     if (!(item instanceof StringWorkContext)) {
       return null;
@@ -53,7 +51,7 @@ public final class T3WorkContext {
     if (fields.isEmpty()) {
       return null;
     }
-    Context root = rootContext();
+    Context root = root();
     Context context = defaultPropagator().extract(root, fields, Map::forEach);
     return context == root ? null : context.attach();
   }

@@ -8,7 +8,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import net.bytebuddy.asm.Advice;
-import weblogic.workarea.WorkContextMap;
 
 @AutoService(InstrumenterModule.class)
 public final class T3ClientInstrumentation extends InstrumenterModule.ContextTracking
@@ -36,14 +35,14 @@ public final class T3ClientInstrumentation extends InstrumenterModule.ContextTra
 
   public static class TransferAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static WorkContextMap onEnter() throws Exception {
+    public static AutoCloseable onEnter() throws Exception {
       return T3WorkContext.inject();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(@Advice.Enter WorkContextMap map) throws Exception {
-      if (map != null) {
-        map.remove(T3WorkContext.KEY);
+    public static void onExit(@Advice.Enter AutoCloseable workArea) throws Exception {
+      if (workArea != null) {
+        workArea.close();
       }
     }
   }
