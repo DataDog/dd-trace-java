@@ -6,9 +6,12 @@ import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.metrics.StatsMetrics;
 import datadog.trace.common.metrics.SignalItem.ClearSignal;
 import datadog.trace.common.metrics.SignalItem.StopSignal;
+import datadog.trace.core.CoreSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +42,9 @@ final class Aggregator implements Runnable {
    */
   private final Runnable onReportCycle;
 
+  /** Reads posted traces for background capture; null when only snapshots are posted. */
+  @Nullable private final TraceCapture.Capturer capturer;
+
   @SuppressFBWarnings(
       value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
       justification = "the field is confined to the agent thread running the Aggregator")
@@ -52,7 +58,8 @@ final class Aggregator implements Runnable {
       TimeUnit reportingIntervalTimeUnit,
       HealthMetrics healthMetrics,
       AdditionalTagsSchema additionalTagsSchema,
-      Runnable onReportCycle) {
+      Runnable onReportCycle,
+      @Nullable TraceCapture.Capturer capturer) {
     this(
         writer,
         inbox,
@@ -62,7 +69,8 @@ final class Aggregator implements Runnable {
         DEFAULT_SLEEP_MILLIS,
         healthMetrics,
         additionalTagsSchema,
-        onReportCycle);
+        onReportCycle,
+        capturer);
   }
 
   Aggregator(
@@ -74,7 +82,9 @@ final class Aggregator implements Runnable {
       long sleepMillis,
       HealthMetrics healthMetrics,
       AdditionalTagsSchema additionalTagsSchema,
-      Runnable onReportCycle) {
+      Runnable onReportCycle,
+      @Nullable TraceCapture.Capturer capturer) {
+    this.capturer = capturer;
     this.writer = writer;
     this.inbox = inbox;
     this.aggregates = new AggregateTable(maxAggregates, additionalTagsSchema);
@@ -117,6 +127,9 @@ final class Aggregator implements Runnable {
 
     boolean stopped = false;
 
+    /** The snapshot background capture refills per span; findOrInsert only reads it. */
+    private final SpanSnapshot scratch = new SpanSnapshot();
+
     @Override
     public void accept(InboxItem item) {
       if (item == ClearSignal.CLEAR) {
@@ -155,16 +168,41 @@ final class Aggregator implements Runnable {
           signal.ignore();
         }
       } else if (item instanceof SpanSnapshot && !stopped) {
-        SpanSnapshot snapshot = (SpanSnapshot) item;
-        AggregateEntry entry = aggregates.findOrInsert(snapshot);
-        if (entry != null) {
-          entry.recordOneDuration(snapshot.tagAndDuration);
-          dirty = true;
-        } else {
-          // table at cap with no stale entry available to evict
-          healthMetrics.onStatsAggregateDropped();
-          StatsMetrics.getInstance().onWholeKeyCollapse();
+        aggregate((SpanSnapshot) item);
+      } else if (item instanceof TraceCapture && !stopped && capturer != null) {
+        captureAndAggregate((TraceCapture) item);
+      }
+    }
+
+    /**
+     * Captures each counted span of a posted trace into the one reused snapshot and aggregates it:
+     * the capture the finishing thread used to do, done here instead, allocating nothing per span.
+     */
+    private void captureAndAggregate(TraceCapture item) {
+      List<? extends CoreSpan<?>> trace = item.trace;
+      for (int i = 0; i < item.limit; i++) {
+        CoreSpan<?> span = trace.get(i);
+        boolean isTopLevel = span.isTopLevel();
+        if (!capturer.counts(span, isTopLevel)) {
+          continue;
         }
+        Object lock = span.tagLock();
+        synchronized (lock != null ? lock : span) { // a mocked span has no lock
+          capturer.capture(span, isTopLevel, item.peerTagSchema, scratch);
+        }
+        aggregate(scratch);
+      }
+    }
+
+    private void aggregate(SpanSnapshot snapshot) {
+      AggregateEntry entry = aggregates.findOrInsert(snapshot);
+      if (entry != null) {
+        entry.recordOneDuration(snapshot.tagAndDuration);
+        dirty = true;
+      } else {
+        // table at cap with no stale entry available to evict
+        healthMetrics.onStatsAggregateDropped();
+        StatsMetrics.getInstance().onWholeKeyCollapse();
       }
     }
   }
