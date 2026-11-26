@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEX
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.grpc.client.GrpcInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -100,11 +101,11 @@ public final class ClientCallImplInstrumentation
   public static final class StartContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void before(@Advice.Argument(1) Metadata headers) {
-      AgentSpan span = activeSpan();
-      if (span == null) {
+      if (activeSpan() == null) {
         return;
       }
-      DECORATE.injectContext(span, headers, SETTER);
+      // Inject the full current context so non-span elements (e.g. W3C baggage) propagate too
+      DECORATE.injectContext(currentContext(), headers, SETTER);
     }
   }
 
