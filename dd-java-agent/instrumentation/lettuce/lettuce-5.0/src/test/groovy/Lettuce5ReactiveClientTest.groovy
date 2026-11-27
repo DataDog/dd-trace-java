@@ -242,6 +242,7 @@ abstract class Lettuce5ReactiveClientTest extends Lettuce5ClientTestBase {
 
   def "debug segfault command (returns mono void) with no argument should produce span"() {
 
+    redisServerStopsDuringTest()
     reactiveCommands.debugSegfault().subscribe()
 
     expect:
@@ -271,6 +272,7 @@ abstract class Lettuce5ReactiveClientTest extends Lettuce5ClientTestBase {
 
   def "shutdown command (returns void) with argument should produce span"() {
 
+    redisServerStopsDuringTest()
     reactiveCommands.shutdown(false).subscribe()
 
     expect:

@@ -21,7 +21,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
@@ -35,14 +37,18 @@ class Lettuce5ClusterTest extends AbstractInstrumentationTest {
   private static final int CLUSTER_BUS_PORT_OFFSET = 10000;
   private static final int MAX_CLUSTER_DATA_PORT = MAX_TCP_PORT - CLUSTER_BUS_PORT_OFFSET;
 
-  private GenericContainer<?> redisCluster;
-  private RedisClusterClient redisClient;
-  private StatefulRedisClusterConnection<String, String> connection;
-  private int redisClusterMasterPort;
-  private int redisClusterReplicaPort;
+  // One cluster and one client per class: building the cluster per test cost ~4s each, and each
+  // client shutdown waits a 1s quiet period. The tests only write one key and set the read
+  // preference on their own connection, so they can share both.
+  private static GenericContainer<?> redisCluster;
+  private static int redisClusterMasterPort;
+  private static int redisClusterReplicaPort;
+  private static RedisClusterClient redisClient;
 
-  @BeforeEach
-  void setUpRedis() throws Exception {
+  private StatefulRedisClusterConnection<String, String> connection;
+
+  @BeforeAll
+  static void startRedisCluster() {
     redisClusterMasterPort = randomClusterPort(MAX_CLUSTER_DATA_PORT);
     redisClusterReplicaPort = randomClusterPort(MAX_CLUSTER_DATA_PORT);
     while (redisClusterMasterPort == redisClusterReplicaPort
@@ -71,6 +77,26 @@ class Lettuce5ClusterTest extends AbstractInstrumentationTest {
         RedisURI.Builder.redis(redisCluster.getHost(), redisClusterMasterPort).build();
     redisClient = RedisClusterClient.create(redisURI);
     redisClient.setOptions(ClusterClientOptions.builder().build());
+  }
+
+  @AfterAll
+  static void stopRedisCluster() throws Exception {
+    try {
+      if (redisClient != null) {
+        // Lettuce 5.1 needs its executor alive to deliver pending channel-close notifications.
+        redisClient.shutdownAsync(1, 10, TimeUnit.SECONDS).get(15, TimeUnit.SECONDS);
+        redisClient = null;
+      }
+    } finally {
+      if (redisCluster != null) {
+        redisCluster.close();
+        redisCluster = null;
+      }
+    }
+  }
+
+  @BeforeEach
+  void setUpRedis() throws Exception {
     connection = redisClient.connect();
     new PollingConditions(30)
         .delay(0.5)
@@ -85,20 +111,9 @@ class Lettuce5ClusterTest extends AbstractInstrumentationTest {
   }
 
   @AfterEach
-  void cleanUpRedis() throws Exception {
-    try {
-      if (connection != null) {
-        connection.close();
-      }
-
-      if (redisClient != null) {
-        // Lettuce 5.1 needs its executor alive to deliver pending channel-close notifications.
-        redisClient.shutdownAsync(1, 10, TimeUnit.SECONDS).get(15, TimeUnit.SECONDS);
-      }
-    } finally {
-      if (redisCluster != null) {
-        redisCluster.close();
-      }
+  void cleanUpRedis() {
+    if (connection != null) {
+      connection.close();
     }
   }
 
@@ -129,13 +144,15 @@ class Lettuce5ClusterTest extends AbstractInstrumentationTest {
 
   @Test
   void clusterReadCommandSpanUsesReplicaPeerWithReadFromReplica() throws Exception {
-    assertEquals("OK", connection.sync().set(TEST_SET_KEY, TEST_SET_VALUE));
+    // Use a distinct value so the readiness check waits for this test's write to replicate.
+    String replicaValue = "REPLICA_TEST_VALUE";
+    assertEquals("OK", connection.sync().set(TEST_SET_KEY, replicaValue));
     connection.setReadFrom(ReadFrom.SLAVE);
     new PollingConditions(30)
         .delay(0.5)
         .eventually(() -> {
           redisClient.reloadPartitions();
-          assertEquals(TEST_SET_VALUE, connection.sync().get(TEST_SET_KEY));
+          assertEquals(replicaValue, connection.sync().get(TEST_SET_KEY));
         });
 
     blockUntilTracesMatch(traces -> !findCommandSpans(traces, "GET").isEmpty());
@@ -144,7 +161,7 @@ class Lettuce5ClusterTest extends AbstractInstrumentationTest {
 
     String result = connection.sync().get(TEST_SET_KEY);
 
-    assertEquals(TEST_SET_VALUE, result);
+    assertEquals(replicaValue, result);
     assertGetSpanHasReplicaPeer();
   }
 
