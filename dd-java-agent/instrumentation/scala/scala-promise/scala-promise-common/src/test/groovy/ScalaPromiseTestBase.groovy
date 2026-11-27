@@ -1,3 +1,4 @@
+import datadog.context.Context
 import datadog.trace.agent.test.base.AbstractPromiseTest
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -7,7 +8,6 @@ import spock.lang.Shared
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
 
 abstract class ScalaPromiseTestBase extends AbstractPromiseTest<Promise<Boolean>, Future<String>> {
 
@@ -46,7 +46,7 @@ abstract class ScalaPromiseTestBase extends AbstractPromiseTest<Promise<Boolean>
     return true
   }
 
-  def "doesn't propagate non async completing scope"() {
+  def "callbacks run without the completing scope"() {
     setup:
     def promise = newPromise()
 
@@ -61,7 +61,7 @@ abstract class ScalaPromiseTestBase extends AbstractPromiseTest<Promise<Boolean>
     }
 
     runUnderTrace("other") {
-      setAsyncPropagationEnabled(false)
+      Context.setCaptureEnabled(false)
       complete(promise, value)
     }
 

@@ -1,6 +1,7 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
   id 'scala'
+  id 'dd-trace-java.jmh-conventions'
 }
 
 muzzle {
@@ -39,6 +40,11 @@ addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'forkedTest'
 addTestSuite('scala21317Test')
 
 sourceSets {
+  test.java.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.java
+  test.java.srcDir 'src/forkedTest/java'
+  latestDepTest.java.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.java
+  latestDepForkedTest.java.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.java
+
   latestDepTest.java.srcDir 'src/scala21317Test/java'
 
   test.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.groovy
@@ -75,7 +81,13 @@ tasks.withType(ScalaCompile).configureEach {
   configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Scala compilers here do not run on modern JDKs")
 }
 
+jmh {
+  jmhVersion = libs.versions.jmh
+  includeTests = false
+}
+
 dependencies {
+  jmh 'org.scala-lang:scala-library:2.13.0'
   compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.13.0'
   implementation project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common')
 

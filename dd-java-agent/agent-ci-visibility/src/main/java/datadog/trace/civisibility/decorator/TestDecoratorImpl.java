@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.decorator;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -15,12 +16,14 @@ public class TestDecoratorImpl implements TestDecorator {
   private final String component;
   private final String sessionName;
   private final Map<String, String> ciTags;
+  private final Map<String, String> runtimeTags;
   private final int cpuCount;
 
   public TestDecoratorImpl(
       String component, String sessionName, String testCommand, Map<String, String> ciTags) {
     this.component = component;
     this.ciTags = ciTags;
+    this.runtimeTags = Config.get().getTestOptimizationRuntimeTags();
     if (Strings.isNotBlank(sessionName)) {
       this.sessionName = sessionName;
     } else {
@@ -56,6 +59,11 @@ public class TestDecoratorImpl implements TestDecorator {
 
     for (final Map.Entry<String, String> ciTag : ciTags.entrySet()) {
       span.setTag(ciTag.getKey(), ciTag.getValue());
+    }
+    // The span already carries the DD_TAGS values, which the runtime tag overrides take precedence
+    // over
+    for (final Map.Entry<String, String> runtimeTag : runtimeTags.entrySet()) {
+      span.setTag(runtimeTag.getKey(), runtimeTag.getValue());
     }
 
     return span;

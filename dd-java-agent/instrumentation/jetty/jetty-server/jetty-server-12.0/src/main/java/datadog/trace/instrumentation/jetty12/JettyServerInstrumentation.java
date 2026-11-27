@@ -40,7 +40,8 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
       packageName + ".JettyBlockResponseHelper",
       packageName + ".RequestURIDataAdapter",
       packageName + ".JettyRunnableWrapper",
-      packageName + ".JettyStreamFailureWrapper"
+      packageName + ".JettyStreamFailureWrapper",
+      packageName + ".JettyBlockingExceptions"
     };
   }
 

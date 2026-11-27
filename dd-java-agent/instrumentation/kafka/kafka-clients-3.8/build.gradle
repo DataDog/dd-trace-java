@@ -27,35 +27,13 @@ sourceSets.named('latestDepTest') {
   java.srcDir 'src/latestDepTest/java'
 }
 
-def latestKafkaDependencyScope = configurations.dependencyScope('latestKafkaDependencies')
-def latestKafka = configurations.resolvable('latestKafka') {
-  extendsFrom(latestKafkaDependencyScope.get())
-  attributes {
-    attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_RUNTIME))
-    attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, Category.LIBRARY))
-    attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements, LibraryElements.JAR))
-  }
-}
-def latestKafkaVersion = latestKafka.map { configuration ->
-  configuration.incoming.resolutionResult.allComponents.find {
-    it.moduleVersion?.group == 'org.apache.kafka' && it.moduleVersion?.name == 'kafka-clients'
-  }.moduleVersion.version
-}
-
-configurations.matching { it.name == 'latestKafka' || it.name.startsWith('latestDepTest') }.configureEach {
-  resolutionStrategy.componentSelection.all { ComponentSelection selection ->
-    if (selection.candidate.group in ['org.apache.kafka', 'org.springframework.kafka'] &&
-      !selection.candidate.version.matches('\\d+\\.\\d+\\.\\d+')) {
-      selection.reject('Only stable upstream releases are tested')
-    }
-  }
-}
-
-configurations.matching { it.name.startsWith('latestDepTest') }.configureEach {
-  resolutionStrategy.eachDependency {
-    if (requested.group == 'org.apache.kafka') {
-      useVersion(latestKafkaVersion.get())
-      because('The embedded broker and test fixtures must match the Kafka client under test')
+['latestDepTestCompileClasspath', 'latestDepTestRuntimeClasspath'].each { name ->
+  configurations.named(name) {
+    resolutionStrategy.componentSelection.all { ComponentSelection selection ->
+      if (selection.candidate.group in ['org.apache.kafka', 'org.springframework.kafka'] &&
+        !selection.candidate.version.matches('\\d+\\.\\d+\\.\\d+')) {
+        selection.reject('Only stable upstream releases are tested')
+      }
     }
   }
 }
@@ -77,26 +55,9 @@ tasks.withType(GroovyCompile).configureEach {
 }
 
 dependencies {
-  components.withModule('org.apache.kafka:kafka-clients') {
-    // Kafka 4.4.0 publishes the fixture jar without its requested Gradle capability.
-    if (id.version == '4.4.0') {
-      ['compile', 'runtime'].each { base ->
-        addVariant("testFixtures${base.capitalize()}", base) {
-          withCapabilities {
-            removeCapability('org.apache.kafka', 'kafka-clients')
-            addCapability('org.apache.kafka', 'kafka-clients-test-fixtures', '4.4.0')
-          }
-          withFiles {
-            removeAllFiles()
-            addFile('kafka-clients-4.4.0-test-fixtures.jar')
-          }
-          if (base == 'runtime') {
-            withDependencies {
-              add('org.bouncycastle:bcpkix-jdk18on:1.86')
-            }
-          }
-        }
-      }
+  components.all {
+    if (id.group == 'org.apache.kafka') {
+      belongsTo("org.apache.kafka:kafka-virtual-platform:${id.version}")
     }
   }
 
@@ -125,9 +86,13 @@ dependencies {
   testImplementation group: 'org.mockito', name: 'mockito-core', version: '2.19.0'
   testRuntimeOnly project(':dd-java-agent:instrumentation:spring:spring-scheduling-3.1')
 
-  latestKafkaDependencies 'org.apache.kafka:kafka-clients:+'
   latestDepTestImplementation 'org.apache.kafka:kafka-clients:+'
-  latestDepTestImplementation 'org.apache.kafka:kafka-test-common-runtime:+'
+  latestDepTestImplementation('org.apache.kafka:kafka-test-common-runtime:+') {
+    // Supply the fixture classifier directly: Kafka publishes no matching fixture capability.
+    exclude group: 'org.apache.kafka', module: 'kafka-clients'
+  }
+  latestDepTestRuntimeOnly 'org.apache.kafka:kafka-clients:+:test-fixtures'
+  latestDepTestRuntimeOnly 'org.bouncycastle:bcpkix-jdk18on:1.86'
   latestDepTestImplementation('org.springframework.kafka:spring-kafka:+') {
     exclude group: 'org.apache.kafka'
   }

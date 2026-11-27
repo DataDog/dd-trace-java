@@ -56,12 +56,17 @@ public class StreamingTraceCollector extends TraceCollector {
   @Override
   void registerSpan(DDSpan span) {
     ROOT_SPAN.compareAndSet(this, null, span);
-    healthMetrics.onCreateSpan();
+    healthMetrics.onCreateSpan(span);
   }
 
   @Override
   DDSpan getRootSpan() {
     return rootSpan;
+  }
+
+  @Override
+  void onEnd() {
+    healthMetrics.onEndSpan();
   }
 
   @Override

@@ -20,8 +20,7 @@ public class ExcludeFilter {
     RUNNABLE,
     FORK_JOIN_TASK,
     RUNNABLE_FUTURE,
-    EXECUTOR,
-    COMPLETABLE_FUTURE_CALLBACK;
+    EXECUTOR;
 
     public static ExcludeType fromFieldType(String typeName) {
       switch (typeName) {

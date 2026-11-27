@@ -142,16 +142,24 @@ tasks.named("check") {
   dependsOn(japicmpPublicApi)
 }
 
-// These suites read shared fixtures directly from the smoke-test resources.
+// The shared FFE fixtures live outside any source set, so Gradle neither copies nor packages them:
+// the tests and benchmarks read them from disk, and the smoke tests copy the files they need.
+val fixtures = layout.projectDirectory.dir("src/test/fixtures")
+
 tasks.withType<Test>().configureEach {
-  inputs.dir(
-    rootProject.layout.projectDirectory.dir(
-      "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data"
-    )
-  ).withPathSensitivity(PathSensitivity.RELATIVE)
-  inputs.dir(
-    rootProject.layout.projectDirectory.dir(
-      "dd-smoke-tests/openfeature/src/test/resources/experimentation-opt-out"
-    )
-  ).withPathSensitivity(PathSensitivity.RELATIVE)
+  inputs.dir(fixtures).withPropertyName("fixtures").withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
+// ScaleSuiteTest checks the case files that ScaleSuiteBenchmark lists in its @Param. It reads the
+// annotation by reflection, as the test source set cannot compile against the jmh one.
+tasks.named<Test>("test") {
+  classpath += sourceSets["jmh"].output + configurations["jmhRuntimeClasspath"]
+}
+
+// The scale benchmarks read the fixtures from disk at run time, so a fixture change reruns them. A
+// file tree rather than a directory: the suites are missing when the submodule is not initialized.
+tasks.named("jmh") {
+  inputs.files(
+    fixtures.dir("ffe-system-test-data").asFileTree.matching { include("evaluation-suites/**") }
+  ).withPropertyName("scaleSuites").withPathSensitivity(PathSensitivity.RELATIVE)
 }

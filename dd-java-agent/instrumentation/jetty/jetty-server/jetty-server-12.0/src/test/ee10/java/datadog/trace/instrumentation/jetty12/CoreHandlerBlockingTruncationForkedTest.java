@@ -2,18 +2,19 @@ package datadog.trace.instrumentation.jetty12;
 
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static datadog.trace.instrumentation.jetty12.JettyRawHttp.contentLength;
+import static datadog.trace.instrumentation.jetty12.JettyRawHttp.largeHtmlTemplate;
+import static datadog.trace.instrumentation.jetty12.JettyRawHttp.readBody;
+import static datadog.trace.instrumentation.jetty12.JettyRawHttp.readHeaders;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.removeSysConfig;
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.US_ASCII;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
@@ -29,7 +30,6 @@ import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.core.DDSpan;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -39,7 +39,6 @@ import java.net.SocketTimeoutException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Supplier;
 import org.eclipse.jetty.server.Handler;
@@ -70,7 +69,6 @@ import org.junit.jupiter.api.io.TempDir;
 class CoreHandlerBlockingTruncationForkedTest extends AbstractInstrumentationTest {
   private static final String BLOCK_PATH = "/mid-handler-block";
   private static final String UNHANDLED_BLOCK_PATH = "/mid-handler-block-unhandled";
-  private static final int TEMPLATE_SIZE = 400 * 1024;
   private static final int SMALL_BUFFER_SIZE = 4 * 1024;
   private static final int TIMEOUT_SECONDS = 10;
 
@@ -221,69 +219,6 @@ class CoreHandlerBlockingTruncationForkedTest extends AbstractInstrumentationTes
     }
     assertNotNull(root, "server span");
     return root;
-  }
-
-  private static byte[] largeHtmlTemplate() {
-    String head = "<!DOCTYPE html><html><head><title>Blocked</title></head><body>\n";
-    String tail = "</body></html>\n";
-    StringBuilder sb = new StringBuilder(TEMPLATE_SIZE).append(head);
-    int line = 0;
-    while (sb.length() + tail.length() < TEMPLATE_SIZE) {
-      sb.append(String.format(Locale.ROOT, "<p>blocked line %08d</p>\n", line++));
-    }
-    sb.setLength(TEMPLATE_SIZE - tail.length());
-    return sb.append(tail).toString().getBytes(UTF_8);
-  }
-
-  private static String readHeaders(InputStream in) throws IOException {
-    ByteArrayOutputStream headers = new ByteArrayOutputStream();
-    int matched = 0;
-    while (matched < 4) {
-      int b = in.read();
-      if (b < 0) {
-        fail("connection closed while reading headers: " + headers.toString("ISO-8859-1"));
-      }
-      headers.write(b);
-      matched = (b == "\r\n\r\n".charAt(matched)) ? matched + 1 : (b == '\r' ? 1 : 0);
-    }
-    return new String(headers.toByteArray(), ISO_8859_1);
-  }
-
-  private static int contentLength(String headers) {
-    for (String line : headers.split("\r\n")) {
-      int colon = line.indexOf(':');
-      if (colon > 0 && line.substring(0, colon).trim().equalsIgnoreCase("Content-Length")) {
-        return Integer.parseInt(line.substring(colon + 1).trim());
-      }
-    }
-    return fail("no Content-Length in response headers: " + headers);
-  }
-
-  /** Reads exactly {@code length} bytes, failing with the received count on EOF or reset. */
-  private static byte[] readBody(InputStream in, int length) {
-    byte[] body = new byte[length];
-    int received = 0;
-    try {
-      while (received < length) {
-        int n = in.read(body, received, length - received);
-        if (n < 0) {
-          fail(truncated(received, length, "EOF"));
-        }
-        received += n;
-      }
-    } catch (IOException e) {
-      fail(truncated(received, length, e.toString()), e);
-    }
-    return body;
-  }
-
-  private static String truncated(int received, int length, String reason) {
-    return "blocking page truncated: received "
-        + received
-        + " of "
-        + length
-        + " body bytes before "
-        + reason;
   }
 
   /**

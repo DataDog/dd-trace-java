@@ -1,11 +1,10 @@
 package datadog.trace.instrumentation.aws.v1.sqs;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
-
 import com.amazonaws.services.sqs.model.Message;
 import datadog.context.Context;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.ListIterator;
 
 public class TracingListIterator extends TracingIterator<ListIterator<Message>>
@@ -21,7 +20,7 @@ public class TracingListIterator extends TracingIterator<ListIterator<Message>>
     if (!moreMessages) {
       // no more messages, use this as a signal to close the last iteration scope
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-        closePrevious(true);
+        AgentTracer.get().closePrevious(true);
       } else {
         final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
         if (previousSpan != null) {

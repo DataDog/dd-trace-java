@@ -8,6 +8,7 @@ import static datadog.trace.instrumentation.springwebflux.server.AdviceUtils.con
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DECORATE;
 
 import datadog.context.ContextScope;
+import datadog.trace.api.appsec.route.NormalizedRouteHelper;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
@@ -59,6 +60,9 @@ public class HandlerAdapterAdvice {
       final HttpMethod method = exchange.getRequest().getMethod();
       HTTP_RESOURCE_DECORATOR.withRoute(
           parentSpan, method != null ? method.name() : null, bestPattern.getPatternString());
+      if (NormalizedRouteHelper.isEnabled()) {
+        WebfluxNormalizedRoute.tagAnnotated(parentSpan, exchange, bestPattern, handler);
+      }
     }
 
     return scope;

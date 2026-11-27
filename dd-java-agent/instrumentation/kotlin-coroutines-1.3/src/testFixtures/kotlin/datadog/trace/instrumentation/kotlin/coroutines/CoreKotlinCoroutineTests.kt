@@ -5,7 +5,6 @@ import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
@@ -51,7 +50,7 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
 
   @Trace
   open fun scopedSpanSurvivesSuspension(mdc: Boolean, differentDispatcher: Boolean): Int {
-    setAsyncPropagationEnabled(true)
+    Context.setCaptureEnabled(true)
     val outer = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
     val inner = if (differentDispatcher) Executors.newSingleThreadExecutor().asCoroutineDispatcher() else outer
     try {
@@ -634,8 +633,8 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
     }
   }
 
-  protected fun <T> runTest(asyncPropagation: Boolean = true, block: suspend CoroutineScope.() -> T): T {
-    setAsyncPropagationEnabled(asyncPropagation)
+  protected fun <T> runTest(captureEnabled: Boolean = true, block: suspend CoroutineScope.() -> T): T {
+    Context.setCaptureEnabled(captureEnabled)
     return runBlocking(jobName("test") + dispatcher, block = block)
   }
 

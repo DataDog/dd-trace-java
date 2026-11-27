@@ -133,6 +133,7 @@ span_types:
       - { dd-name: url.path,          type: string, required: conditional }  # OTel-only; server replacement for http.url
       - { dd-name: url.scheme,        type: string, required: conditional }  # OTel-only; server replacement for http.url
       - { dd-name: http.query.string, type: string, required: recommended }
+      - { dd-name: _dd.appsec.normalized_route, type: string, required: optional }  # API Security route template (RFC-1125), when AppSec and API Security are enabled
       - { dd-name: url.query,         type: string, required: conditional }  # OTel-only; kept separate from http.query.string
       - { dd-name: http.client_ip,    type: string, required: recommended, otel-name: client.address, span-kind-neutral: true }
       # Inbound only: the client's socket address. Server spans also carry that address in peer.ipv4 /
@@ -197,6 +198,7 @@ span_types:
     tags:
       - { dd-name: aws.table.name, type: string, required: optional }
       - { dd-name: tablename,      type: string, required: optional }
+      - { dd-name: aws.table.arn,  type: string, required: optional }  # when the table is named by ARN
       # Span pointer input, removed before serialization (SpanPointersProcessor).
       - { dd-name: dynamodb.primary_key_1,       type: string, required: optional }
       - { dd-name: dynamodb.primary_key_1_value, type: string, required: optional }
@@ -229,13 +231,23 @@ span_types:
       - { dd-name: db.command.cancelled,     type: boolean, required: optional }
       - { dd-name: db.command.results.count, type: int,     required: optional }
 
-  # Relational databases (JDBC, R2DBC).
+  # Relational databases (JDBC, R2DBC, Vert.x SQL).
   db.sql:
     extends: db.client
     tags:
       - { dd-name: db.pool.name, type: string, required: optional }
       - { dd-name: db.schema,    type: string, required: optional }
       - { dd-name: db.warehouse, type: string, required: optional }
+      # Identity encoded in an Amazon RDS endpoint hostname. The identifier goes under
+      # dbinstanceidentifier (instance endpoints) or dbclusteridentifier (cluster, cluster reader and
+      # Aurora Limitless endpoints), the dimension tags on the aws.rds.* integration metrics, so a
+      # span and the RDS integration join on the same keys. Other endpoint types use
+      # aws.rds.identifier.
+      - { dd-name: aws.region,            type: string, required: optional }
+      - { dd-name: aws.rds.identifier,    type: string, required: optional }
+      - { dd-name: aws.rds.endpoint_type, type: string, required: optional }
+      - { dd-name: dbinstanceidentifier,  type: string, required: optional }
+      - { dd-name: dbclusteridentifier,   type: string, required: optional }
 
   db.cassandra:
     extends: db.client
@@ -621,6 +633,14 @@ mixins:
       - { dd-name: offset,                            type: long,    required: optional }
       - { dd-name: tombstone,                         type: boolean, required: optional }     # a null record value
       - { dd-name: processor.name,                    type: string,  required: optional }     # Kafka Streams
+
+  # google_pubsub — Google Cloud Pub/Sub producer and consumer spans: the full paths of the known
+  # resources, each with its own project.
+  google_pubsub:
+    applies: [ messaging.producer, messaging.consumer ]
+    tags:
+      - { dd-name: gcp.pubsub.topic.name,        type: string, required: optional }  # projects/<project>/topics/<topic>, when known
+      - { dd-name: gcp.pubsub.subscription.name, type: string, required: optional }  # projects/<project>/subscriptions/<subscription>, on consumer spans
 
   # amqp — RabbitMQ (AMQP) spans: publish, consume, other commands, and time in queue.
   amqp:

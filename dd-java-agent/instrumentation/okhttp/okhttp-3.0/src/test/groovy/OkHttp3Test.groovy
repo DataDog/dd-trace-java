@@ -1,6 +1,9 @@
+import datadog.appsec.api.blocking.BlockingException
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
+import datadog.trace.api.gateway.RequestContextSlot
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.instrumentation.okhttp3.OkHttpClientDecorator
 import okhttp3.*
 import okhttp3.internal.http.HttpMethod
@@ -62,6 +65,37 @@ abstract class OkHttp3Test extends HttpClientTest {
 
   boolean testRedirects() {
     false
+  }
+
+  // uses a synchronous call: an async OkHttp 3 call does not report the BlockingException (APPSEC-72004)
+  def "test appsec client redirect blocking"() {
+    given:
+    final client = getClient()
+    final request = new Request.Builder()
+      .url(server.address.resolve('/redirect').toURL())
+      .headers(Headers.of(['X-AppSec-Test': 'true', 'Location': '/json']))
+      .build()
+
+    when:
+    def (ctx, blocked) = runUnderAppSecTrace {
+      final appSec = AgentTracer.activeSpan().requestContext.getData(RequestContextSlot.APPSEC) as IGCallbacks.Context
+      appSec.blockRequestUrlSuffix = '/json'
+      try {
+        client.newCall(request).execute()
+        return null
+      } catch (final BlockingException e) {
+        return e
+      }
+    }
+
+    then:
+    blocked instanceof BlockingException
+    ctx.requests.size() == 2
+    ctx.requests[1].url.endsWith('/json')
+    ctx.responses.size() == 1
+    ctx.responses[0].status == 302
+    // the blocked redirect must not keep its connection allocated
+    client.connectionPool().connectionCount() == client.connectionPool().idleConnectionCount()
   }
 
   def "request to agent not traced"() {

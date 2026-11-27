@@ -26,6 +26,7 @@ excludedClassesCoverage += [
   'datadog.trace.core.StreamingTraceCollector',
   // covered with CI Visibility smoke tests
   'datadog.trace.core.StreamingTraceCollector.Factory',
+  'datadog.trace.core.scopemanager.ContinuableScopeManager.ScopeCheckpoint',
   'datadog.trace.core.scopemanager.ContinuableScopeManager.ScopeStackThreadLocal',
   'datadog.trace.core.scopemanager.SingleContinuation',
   // FIXME: more test coverage needed
@@ -93,7 +94,8 @@ dependencies {
   implementation project(':utils:logging-utils')
   implementation project(':utils:queue-utils')
   // for OTLP support
-  compileOnly project(':dd-java-agent:agent-otel:otel-bootstrap')
+  // shadow: the OTel API is already relocated to datadog.trace.bootstrap.otel.api, as in agent-jmxfetch
+  compileOnly project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
   // for span exception debugging
   compileOnly project(':dd-java-agent:agent-debugger:debugger-bootstrap')
 
