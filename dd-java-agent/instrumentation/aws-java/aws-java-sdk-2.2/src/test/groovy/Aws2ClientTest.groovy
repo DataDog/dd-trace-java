@@ -328,7 +328,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
   }
 
 
-  def "DynamoDB table ARN is tagged only for #scenario"() {
+  def "DynamoDB table ARN and account are tagged only for #scenario"() {
     setup:
     def client = DynamoDbClient.builder()
       .endpointOverride(server.address)
@@ -347,14 +347,18 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
     // the table name tag keeps the request value
     spans[0].getTag("aws.table.name") == tableName
     spans[0].getTag("aws.table.arn") == expectedArn
+    // these credentials carry no account, so a bare name is not tagged either
+    spans[0].getTag("aws_account") == expectedAccount
 
     cleanup:
     client.close()
 
     where:
-    scenario      | tableName                                                 | expectedArn
-    "a table ARN" | "arn:aws:dynamodb:us-east-1:123456789012:table/sometable" | "arn:aws:dynamodb:us-east-1:123456789012:table/sometable"
-    "a name"      | "sometable"                                               | null
+    scenario               | tableName                                                  | expectedArn                                               | expectedAccount
+    "a table ARN"          | "arn:aws:dynamodb:us-east-1:123456789012:table/sometable"  | "arn:aws:dynamodb:us-east-1:123456789012:table/sometable" | "123456789012"
+    "a name"               | "sometable"                                                | null                                                      | null
+    "a non-table ARN"      | "arn:aws:dynamodb:us-east-1:123456789012:backup/sometable" | null                                                      | null
+    "a malformed ARN"      | "arn:aws:dynamodb:us-east-1:12345:table/sometable"         | null                                                      | null
   }
 
   def "Lambda resource tags normalize #scenario (async=#async)"() {

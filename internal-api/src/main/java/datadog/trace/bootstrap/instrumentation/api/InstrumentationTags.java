@@ -44,6 +44,10 @@ public class InstrumentationTags {
   public static final String AWS_EXECUTION_ARN = "aws.execution.arn";
   public static final String AWS_FUNCTION_NAME = "aws.function.name";
   public static final String AWS_FUNCTION_ARN = "aws.function.arn";
+
+  // Owning account of the addressed resource. aws_account matches the tag dd-trace-py sets and the
+  // dimension tag on the AWS integration metrics.
+  public static final String AWS_ACCOUNT = "aws_account";
   public static final String AWS_TABLE_ARN = "aws.table.arn";
 
   // These are temporary keys used for span pointer hash calculation
