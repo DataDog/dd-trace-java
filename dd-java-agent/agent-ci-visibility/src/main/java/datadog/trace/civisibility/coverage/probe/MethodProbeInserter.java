@@ -338,7 +338,7 @@ final class MethodProbeInserter {
         List<Object> locals = frame.local; // a full frame's own list, see expandFrames
         int slots = 0;
         for (Object type : locals) {
-          slots += type == Opcodes.LONG || type == Opcodes.DOUBLE ? 2 : 1;
+          slots += Opcodes.LONG.equals(type) || Opcodes.DOUBLE.equals(type) ? 2 : 1;
         }
         while (slots < local) {
           locals.add(Opcodes.TOP);
@@ -711,7 +711,9 @@ final class MethodProbeInserter {
         continue;
       }
       if (depths[i] >= 0) {
-        monitorsBalanced &= depths[i] == depth;
+        if (depths[i] != depth) {
+          monitorsBalanced = false;
+        }
         continue;
       }
       depths[i] = depth;
@@ -726,16 +728,22 @@ final class MethodProbeInserter {
             caught = handlerCatchesAll[h];
           }
         }
-        monitorsBalanced &= caught || depth == 0;
+        if (!caught && depth != 0) {
+          monitorsBalanced = false;
+        }
       }
       int after = depth;
       if (opcode == MONITORENTER) {
         after = depth + 1;
       } else if (opcode == MONITOREXIT) {
-        monitorsBalanced &= depth > 0;
+        if (depth <= 0) {
+          monitorsBalanced = false;
+        }
         after = Math.max(depth - 1, 0);
       } else if (isReturn(opcode)) {
-        monitorsBalanced &= depth == 0;
+        if (depth != 0) {
+          monitorsBalanced = false;
+        }
       }
       int handlerTargets = next.length;
       if (insn instanceof JumpInsnNode) {
@@ -1089,9 +1097,9 @@ final class MethodProbeInserter {
     for (int slot = 0; slot < required.size(); slot++) {
       Object type = required.get(slot);
       Object found = slot < present.size() ? present.get(slot) : Opcodes.TOP;
-      if (type != Opcodes.TOP
+      if (!Opcodes.TOP.equals(type)
           && !type.equals(found)
-          && !(found == Opcodes.NULL && type instanceof String)) {
+          && !(Opcodes.NULL.equals(found) && type instanceof String)) {
         return false;
       }
     }
@@ -1104,7 +1112,7 @@ final class MethodProbeInserter {
     if (types != null) {
       for (Object type : types) {
         slots.add(type);
-        if (type == Opcodes.LONG || type == Opcodes.DOUBLE) {
+        if (Opcodes.LONG.equals(type) || Opcodes.DOUBLE.equals(type)) {
           slots.add(Opcodes.TOP);
         }
       }

@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.coverage.probe;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -151,6 +152,28 @@ class SmapParserTest {
     assertNull(SmapParser.parse(null, "a/"));
     assertNull(SmapParser.parse("not a source map", "a/"));
     assertNull(SmapParser.parse("SMAP\nFoo.java\nJava\n*E\n", "a/"));
+  }
+
+  @Test
+  void splitsLinesAtLineFeedsWithOrWithoutCarriageReturn() {
+    assertArrayEquals(new String[] {"a", "b", "c"}, SmapParser.lines("a\nb\r\nc"));
+    assertArrayEquals(new String[] {"a", "", "b"}, SmapParser.lines("a\n\r\nb\n\n\r\n"));
+    assertArrayEquals(
+        new String[] {"a\r", "\rb"}, SmapParser.lines("a\r\r\n\rb\n"), "a lone \\r stays");
+    assertArrayEquals(new String[] {"", "a"}, SmapParser.lines("\na"));
+    assertArrayEquals(new String[] {"a\r"}, SmapParser.lines("a\r"));
+    assertArrayEquals(new String[] {""}, SmapParser.lines(""));
+    assertArrayEquals(new String[0], SmapParser.lines("\n\r\n"));
+  }
+
+  @Test
+  void readsMapsWithCarriageReturns() {
+    SourceMap map =
+        parse(KOTLIN.replace("\n", "\r\n"), "datadog/trace/civisibility/coverage/probe/fixtures/");
+    assertEquals(3, map.fileCount());
+    assertEquals("kotlin/collections/_Collections.kt", map.file(1));
+    assertMaps(map, 303, 0, 224);
+    assertMaps(map, 292, 1, 1547);
   }
 
   private static SourceMap parse(String smap, String packageDirectory) {

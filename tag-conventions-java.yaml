@@ -374,6 +374,12 @@ mixins:
       - { dd-name: databricks_job_run_id,  type: string, required: optional }
       - { dd-name: databricks_task_run_id, type: string, required: optional }
 
+  # The per-test code coverage collector, on a test span when an experimental one collects its lines.
+  code_coverage_collector:
+    applies: [ test ]
+    tags:
+      - { dd-name: _dd.ci.code_coverage.collector, type: string, required: optional }
+
 tags:
   - { dd-name: resource.name,     type: string }
   - { dd-name: span.type,         type: string }

@@ -35,7 +35,7 @@ final class SmapParser {
     if (smap == null || !smap.startsWith("SMAP")) {
       return null;
     }
-    String[] lines = smap.split("\r?\n");
+    String[] lines = lines(smap);
     if (lines.length < 3) {
       return null;
     }
@@ -44,6 +44,28 @@ final class SmapParser {
       return null;
     }
     return new SmapParser().read(lines, stratum, packageDirectory);
+  }
+
+  /** The lines of a text split at {@code \n} or {@code \r\n}, without the trailing empty ones. */
+  static String[] lines(String text) {
+    int newline = text.indexOf('\n');
+    if (newline < 0) {
+      return new String[] {text};
+    }
+    List<String> lines = new ArrayList<>();
+    int start = 0;
+    while (newline >= 0) {
+      int end = newline > start && text.charAt(newline - 1) == '\r' ? newline - 1 : newline;
+      lines.add(text.substring(start, end));
+      start = newline + 1;
+      newline = text.indexOf('\n', start);
+    }
+    lines.add(text.substring(start));
+    int size = lines.size();
+    while (size > 0 && lines.get(size - 1).isEmpty()) {
+      size--;
+    }
+    return lines.subList(0, size).toArray(new String[0]);
   }
 
   /** The stratum the header names, or the first one when the header names none of the map's. */

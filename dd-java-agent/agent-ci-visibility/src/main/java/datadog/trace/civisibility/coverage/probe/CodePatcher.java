@@ -508,7 +508,9 @@ final class CodePatcher {
         continue;
       }
       if (depths[i] >= 0) {
-        monitorsBalanced &= depths[i] == depth;
+        if (depths[i] != depth) {
+          monitorsBalanced = false;
+        }
         continue;
       }
       depths[i] = depth;
@@ -522,16 +524,22 @@ final class CodePatcher {
             caught = catchesAll(h);
           }
         }
-        monitorsBalanced &= caught || depth == 0;
+        if (!caught && depth != 0) {
+          monitorsBalanced = false;
+        }
       }
       int depthAfter = depth;
       if (opcode == MONITORENTER) {
         depthAfter = depth + 1;
       } else if (opcode == MONITOREXIT) {
-        monitorsBalanced &= depth > 0;
+        if (depth <= 0) {
+          monitorsBalanced = false;
+        }
         depthAfter = Math.max(depth - 1, 0);
       } else if (isReturn(opcode)) {
-        monitorsBalanced &= depth == 0;
+        if (depth != 0) {
+          monitorsBalanced = false;
+        }
       }
       int handlerTargets = nextCount;
       if (code.target[i] >= 0) {

@@ -49,7 +49,7 @@ final class SourceFiles {
       return addLines(instrumentedClass, classLines, linesBySourcePath);
     }
     String sourcePath = ownSourcePath(instrumentedClass);
-    if (sourcePath == NOT_IN_REPOSITORY) {
+    if (NOT_IN_REPOSITORY.equals(sourcePath)) {
       return false;
     }
     BitSet lines = linesBySourcePath.computeIfAbsent(sourcePath, path -> new BitSet());
@@ -70,7 +70,7 @@ final class SourceFiles {
     SourceMap sourceMap = instrumentedClass.sourceMap();
     if (sourceMap == null) {
       String sourcePath = ownSourcePath(instrumentedClass);
-      if (sourcePath == NOT_IN_REPOSITORY) {
+      if (NOT_IN_REPOSITORY.equals(sourcePath)) {
         return false;
       }
       linesBySourcePath.computeIfAbsent(sourcePath, path -> new BitSet()).or(classLines);
@@ -83,7 +83,7 @@ final class SourceFiles {
         continue;
       }
       String sourcePath = mappedFiles.sourcePaths[(int) (sourceLine >>> 32)];
-      if (sourcePath != NOT_IN_REPOSITORY) {
+      if (!NOT_IN_REPOSITORY.equals(sourcePath)) {
         linesBySourcePath.computeIfAbsent(sourcePath, path -> new BitSet()).set((int) sourceLine);
       }
     }
@@ -109,7 +109,7 @@ final class SourceFiles {
         String file = sourceMap.file(i);
         if (file.equals(ownFile)) {
           sourcePaths[i] = resolveOwnFile(instrumentedClass, file);
-          ownFileInRepository = sourcePaths[i] != NOT_IN_REPOSITORY;
+          ownFileInRepository = !NOT_IN_REPOSITORY.equals(sourcePaths[i]);
         } else {
           sourcePaths[i] = resolveFile(file);
         }
@@ -131,7 +131,7 @@ final class SourceFiles {
 
   private String resolveOwnSourcePath(InstrumentedClass instrumentedClass) {
     String sourcePath = resolveOwnFile(instrumentedClass, ownFile(instrumentedClass));
-    if (sourcePath == NOT_IN_REPOSITORY) {
+    if (NOT_IN_REPOSITORY.equals(sourcePath)) {
       log.debug(
           "Skipping coverage reporting for {} because source path could not be determined",
           instrumentedClass.name());
