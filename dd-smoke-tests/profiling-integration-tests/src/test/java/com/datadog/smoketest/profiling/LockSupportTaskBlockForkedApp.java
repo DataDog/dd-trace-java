@@ -1,10 +1,7 @@
 // Copyright 2026 Datadog, Inc.
 package com.datadog.smoketest.profiling;
 
-import io.opentracing.Scope;
-import io.opentracing.Span;
-import io.opentracing.Tracer;
-import io.opentracing.util.GlobalTracer;
+import datadog.trace.api.Trace;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.concurrent.CountDownLatch;
@@ -37,15 +34,14 @@ public final class LockSupportTaskBlockForkedApp {
     printBlocker(SPANLESS_BLOCKER_MARKER, SPANLESS_BLOCKER);
     printBlocker(ACTIVE_BLOCKER_MARKER, ACTIVE_BLOCKER);
     printBlocker(VIRTUAL_BLOCKER_MARKER, VIRTUAL_BLOCKER);
-    Tracer tracer = GlobalTracer.get();
     Thread.sleep(PROFILING_STARTUP_DELAY_MILLIS);
-    runSpanlessPlatformWorker(tracer);
-    runActivePlatformWorker(tracer);
+    runSpanlessPlatformWorker();
+    runActivePlatformWorker();
     runVirtualWorker();
     Thread.sleep(1500L);
   }
 
-  private static void runSpanlessPlatformWorker(Tracer tracer) throws Exception {
+  private static void runSpanlessPlatformWorker() throws Exception {
     CountDownLatch[] ready = new CountDownLatch[ATTRIBUTED_PARK_ITERATIONS];
     CountDownLatch[] finished = new CountDownLatch[ATTRIBUTED_PARK_ITERATIONS];
     for (int i = 0; i < ATTRIBUTED_PARK_ITERATIONS; i++) {
@@ -69,12 +65,7 @@ public final class LockSupportTaskBlockForkedApp {
       }
       awaitParked(worker, i);
       Thread.sleep(ATTRIBUTED_UNPARK_DELAY_MILLIS);
-      Span span = tracer.buildSpan("locksupport.unparker").start();
-      try (Scope ignored = tracer.activateSpan(span)) {
-        LockSupport.unpark(worker);
-      } finally {
-        span.finish();
-      }
+      unparkWithTrace(worker);
       if (!finished[i].await(5, TimeUnit.SECONDS)) {
         throw new IllegalStateException("Spanless platform worker did not finish park " + i);
       }
@@ -82,22 +73,23 @@ public final class LockSupportTaskBlockForkedApp {
     join(worker);
   }
 
-  private static void runActivePlatformWorker(Tracer tracer) throws Exception {
+  private static void runActivePlatformWorker() throws Exception {
     Thread worker =
-        new Thread(
-            () -> {
-              Span span = tracer.buildSpan("locksupport.active").start();
-              try (Scope ignored = tracer.activateSpan(span)) {
-                for (int i = 0; i < PARK_ITERATIONS; i++) {
-                  LockSupport.parkNanos(ACTIVE_BLOCKER, PARK_NANOS);
-                }
-              } finally {
-                span.finish();
-              }
-            },
-            ACTIVE_PLATFORM_THREAD);
+        new Thread(LockSupportTaskBlockForkedApp::parkRepeatedlyWithTrace, ACTIVE_PLATFORM_THREAD);
     worker.start();
     join(worker);
+  }
+
+  @Trace
+  private static void parkRepeatedlyWithTrace() {
+    for (int i = 0; i < PARK_ITERATIONS; i++) {
+      LockSupport.parkNanos(ACTIVE_BLOCKER, PARK_NANOS);
+    }
+  }
+
+  @Trace
+  private static void unparkWithTrace(Thread worker) {
+    LockSupport.unpark(worker);
   }
 
   private static void runVirtualWorker() throws Exception {
