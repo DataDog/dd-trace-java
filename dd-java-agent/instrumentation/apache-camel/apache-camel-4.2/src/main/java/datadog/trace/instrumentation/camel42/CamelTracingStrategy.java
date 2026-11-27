@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.camel42;
 
 import org.apache.camel.CamelContext;
+import org.apache.camel.Component;
+import org.apache.camel.Endpoint;
 import org.apache.camel.Exchange;
 import org.apache.camel.NamedNode;
 import org.apache.camel.Processor;
@@ -83,7 +85,16 @@ public final class CamelTracingStrategy extends EventNotifierSupport
 
   @Override
   public boolean isEnabled(CamelEvent event) {
-    return event instanceof CamelEvent.ExchangeSendingEvent && !nativeTracingPresent();
+    if (!(event instanceof CamelEvent.ExchangeSendingEvent)) {
+      return false;
+    }
+    Endpoint endpoint = ((CamelEvent.ExchangeSendingEvent) event).getEndpoint();
+    Component component = endpoint == null ? null : endpoint.getComponent();
+    String name = component == null ? null : component.getDefaultName();
+    if ("direct".equals(name) || "bean".equals(name) || "log".equals(name)) {
+      return false;
+    }
+    return !nativeTracingPresent();
   }
 
   @Override
