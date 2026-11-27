@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Benchmarks log at WARN unless -DTEST_LOG_LEVEL says otherwise. The jmh jar also carries the test
+  logback.xml, which defaults to DEBUG; logback reads logback-test.xml first, so this one wins. At
+  DEBUG, per-span logging dominates a benchmark's time and allocation.
+-->
+<configuration>
+
+  <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+    <layout class="ch.qos.logback.classic.PatternLayout">
+      <Pattern>
+        %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
+      </Pattern>
+    </layout>
+  </appender>
+
+  <root level="${TEST_LOG_LEVEL:-warn}">
+    <appender-ref ref="console" />
+  </root>
+
+</configuration>
