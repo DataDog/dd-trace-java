@@ -53,10 +53,16 @@ final class PatcherStats {
         writer.write(entry.getValue().get() + "\t" + entry.getKey() + "\n");
       }
       writer.write(
-          ProbeRecorder.getDroppedEntryCount() + "\tprobes: methods started inside a move\n");
+          ProbeRecorder.getDroppedEntryCount()
+              + "\tprobes: methods started inside the recorder's own work, whose hits were dropped\n");
       writer.write(
           ProbeRecorder.getNoWindowEntryCount()
               + "\tprobes: methods started with no window open\n");
+      writer.write(
+          ProbeRecorder.getCreatedThreadProbesCount() + "\tprobes: threads given probe arrays\n");
+      writer.write(
+          ProbeRecorder.getRegisteredThreadProbesCount()
+              + "\tprobes: threads registered at exit\n");
     } catch (IOException e) {
       // nothing to report to
     }

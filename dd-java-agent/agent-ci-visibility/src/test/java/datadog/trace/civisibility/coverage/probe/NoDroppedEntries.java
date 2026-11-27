@@ -8,8 +8,8 @@ import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**
- * Fails a test in which a method started inside a move of hits, whose hits the recorder drops: no
- * code of an exact test runs inside a move.
+ * Fails a test in which a method started inside the recorder's own work, such as a move of hits,
+ * whose hits the recorder drops: no code of an exact test runs inside that work.
  */
 final class NoDroppedEntries implements BeforeEachCallback, AfterEachCallback {
 
@@ -25,6 +25,6 @@ final class NoDroppedEntries implements BeforeEachCallback, AfterEachCallback {
     assertEquals(
         droppedBefore,
         ProbeRecorder.getDroppedEntryCount(),
-        "methods started inside a move of hits");
+        "methods started inside the recorder's own work");
   }
 }

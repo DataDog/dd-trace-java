@@ -31,6 +31,12 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
 
   private static final ClassLoader AGENT_CLASSLOADER = ProbeClassTransformer.class.getClassLoader();
 
+  /**
+   * The package of the recorder that probes call. Its classes never get probes, whatever loader
+   * defines them and whatever the filter accepts: a probe in them would call the recorder again.
+   */
+  private static final String RECORDER_PACKAGE = "datadog/trace/api/civisibility/coverage/";
+
   /** Sends every class through ASM, to compare it with the class file patcher. */
   private static final boolean ASM_ONLY =
       Boolean.getBoolean("dd.civisibility.experiment.asm.transformer");
@@ -54,6 +60,7 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
         || className == null
         || classBeingRedefined != null
         || className.contains("$$Lambda")
+        || className.startsWith(RECORDER_PACKAGE)
         || !instrumentationFilter.test(className)) {
       return null;
     }

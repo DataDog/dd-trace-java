@@ -85,8 +85,8 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
 
   /** Holds {@link #reportLock}. */
   private boolean hasLines() {
-    // setup hits are linked only when they are not empty
-    return !hits.isEmpty() || suiteSetupHits != null;
+    // setup hits are linked only when they are not empty; the hits are released once reported
+    return report != null || !hits.isEmpty() || suiteSetupHits != null;
   }
 
   /**
@@ -125,6 +125,8 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
     synchronized (reportLock) {
       if (report == null && testSessionId != null && hasLines()) {
         report = buildReport();
+        // the report holds the lines, and the store lives until the test's span is written
+        hits = Collections.emptyList();
       }
       return report;
     }

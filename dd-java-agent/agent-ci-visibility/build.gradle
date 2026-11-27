@@ -41,6 +41,11 @@ dependencies {
   testImplementation libs.bundles.mockito
 }
 
+tasks.withType(Test).configureEach {
+  // the line probes' recorder reads thread ids through the JDK's internal Unsafe
+  conditionalJvmArgs(it, JavaVersion.VERSION_1_9, ['--add-exports', 'java.base/jdk.internal.misc=ALL-UNNAMED'])
+}
+
 tasks.named("shadowJar", ShadowJar) {
   dependencies deps.excludeShared
 }

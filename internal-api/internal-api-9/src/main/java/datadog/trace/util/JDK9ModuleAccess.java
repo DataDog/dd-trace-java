@@ -49,15 +49,32 @@ public final class JDK9ModuleAccess {
     if (!optModule.isPresent()) {
       return;
     }
-    java.lang.Module module = optModule.get();
-    java.lang.Module unnamedModule = targetClassLoader.getUnnamedModule();
+    exportModule(inst, optModule.get(), packageNames, targetClassLoader.getUnnamedModule());
+  }
 
-    Set<java.lang.Module> target = Collections.singleton(unnamedModule);
+  /**
+   * Exports specific packages of a named module to the module of a class, such as the unnamed
+   * module of the bootstrap class loader.
+   */
+  public static void exportModuleToModuleOf(
+      Instrumentation inst, String moduleName, String[] packageNames, Class<?> targetClass) {
+    java.util.Optional<java.lang.Module> optModule =
+        java.lang.ModuleLayer.boot().findModule(moduleName);
+    if (optModule.isPresent()) {
+      exportModule(inst, optModule.get(), packageNames, targetClass.getModule());
+    }
+  }
+
+  private static void exportModule(
+      Instrumentation inst,
+      java.lang.Module module,
+      String[] packageNames,
+      java.lang.Module targetModule) {
+    Set<java.lang.Module> target = Collections.singleton(targetModule);
     Map<String, Set<java.lang.Module>> extraExports = new HashMap<>();
     for (String packageName : packageNames) {
       extraExports.put(packageName, target);
     }
-
     inst.redefineModule(module, emptySet(), extraExports, emptyMap(), emptySet(), emptyMap());
   }
 }

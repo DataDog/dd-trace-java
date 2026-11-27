@@ -2,6 +2,7 @@ package datadog.trace.civisibility;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.ddagent.TracerVersion;
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.civisibility.CIVisibility;
@@ -10,6 +11,7 @@ import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
+import datadog.trace.api.civisibility.coverage.ProbeRecorder;
 import datadog.trace.api.civisibility.coverage.ProbeScopeListener;
 import datadog.trace.api.civisibility.coverage.TestPreparationWindow;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
@@ -44,6 +46,7 @@ import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl;
 import datadog.trace.civisibility.test.ExecutionStrategy;
 import datadog.trace.civisibility.utils.StrongMapContextStore;
+import datadog.trace.util.JDK9ModuleAccess;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.lang.instrument.Instrumentation;
 import java.nio.file.Path;
@@ -103,7 +106,7 @@ public class CiVisibilitySystem {
           repoServices.executionSettingsFactory.create(
               JvmInfo.CURRENT_JVM, repoServices.moduleName);
       if (executionSettings.isCodeCoverageEnabled()) {
-        if (config.isCiVisibilityCoverageLineProbesEnabled()) {
+        if (config.isCiVisibilityCoverageLineProbesEnabled() && startProbeRecorder(inst)) {
           Predicate<String> instrumentationFilter =
               createLineProbesInstrumentationFilter(services, repoServices);
           inst.addTransformer(new ProbeClassTransformer(instrumentationFilter));
@@ -135,6 +138,29 @@ public class CiVisibilitySystem {
     } else {
       InstrumentationBridge.registerTestEventsHandlerFactory(new NoOpTestEventsHandler.Factory());
     }
+  }
+
+  /**
+   * Lets the line probes' recorder read thread ids, which on JDK 9 and later it does through the
+   * JDK's internal Unsafe.
+   *
+   * @return {@code false} if it cannot, in which case the stock collector is used
+   */
+  private static boolean startProbeRecorder(Instrumentation inst) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
+      try {
+        JDK9ModuleAccess.exportModuleToModuleOf(
+            inst, "java.base", new String[] {"jdk.internal.misc"}, ProbeRecorder.class);
+      } catch (Throwable e) {
+        LOGGER.debug("Could not export jdk.internal.misc to the line probes' recorder", e);
+      }
+    }
+    if (ProbeRecorder.isAvailable()) {
+      return true;
+    }
+    LOGGER.warn(
+        "Line probes cannot read thread ids on this JVM, so the stock coverage collector is used");
+    return false;
   }
 
   private static Path getCurrentPath() {

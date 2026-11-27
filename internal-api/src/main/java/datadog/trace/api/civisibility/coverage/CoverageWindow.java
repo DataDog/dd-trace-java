@@ -30,8 +30,17 @@ public abstract class CoverageWindow {
   /** Threads that ran code for the window through its test's context; null once it closed. */
   private List<ThreadProbes> otherThreads = new ArrayList<>(); // guarded by lock
 
-  /** What threads moved to the window; null once collected. */
+  /** What threads moved to the window, one record per class; null once collected. */
   private List<ClassHits> hits = new ArrayList<>(); // guarded by lock
+
+  /**
+   * The position in {@link #hits} of the record of each class, with linear probing: a slot holds
+   * the class id plus one, or zero while it is free. At most half the slots are used. Guarded by
+   * lock.
+   */
+  private int[] recordClassIds = new int[16];
+
+  private int[] recordPositions = new int[16];
 
   protected CoverageWindow() {
     this(null);
@@ -53,7 +62,7 @@ public abstract class CoverageWindow {
     if (replaced != null) {
       List<ClassHits> replacedHits = replaced.close();
       synchronized (lock) {
-        hits.addAll(replacedHits);
+        merge(replacedHits);
       }
     }
   }
@@ -122,7 +131,7 @@ public abstract class CoverageWindow {
   final boolean addHits(List<ClassHits> moved) {
     synchronized (lock) {
       if (hits != null) {
-        hits.addAll(moved);
+        merge(moved);
         return true;
       }
     }
@@ -131,9 +140,62 @@ public abstract class CoverageWindow {
   }
 
   /**
+   * Adds each moved record to the record of its class. The first record of a class becomes the
+   * window's: the threads that move hits hand over records that nothing else reads. Holds lock.
+   */
+  private void merge(List<ClassHits> moved) {
+    for (int i = 0, count = moved.size(); i < count; i++) {
+      merge(moved.get(i));
+    }
+  }
+
+  private void merge(ClassHits moved) {
+    int[] classIds = recordClassIds;
+    int mask = classIds.length - 1;
+    int key = moved.classId + 1;
+    int index = spread(key) & mask;
+    for (int slot = classIds[index]; slot != 0; slot = classIds[index]) {
+      if (slot == key) {
+        hits.get(recordPositions[index]).add(moved.probes);
+        return;
+      }
+      index = (index + 1) & mask;
+    }
+    classIds[index] = key;
+    recordPositions[index] = hits.size();
+    hits.add(moved);
+    if (hits.size() > classIds.length / 2) {
+      growRecordTable();
+    }
+  }
+
+  private void growRecordTable() {
+    int length = recordClassIds.length * 2;
+    int[] classIds = new int[length];
+    int[] positions = new int[length];
+    int mask = length - 1;
+    for (int position = 0, count = hits.size(); position < count; position++) {
+      int key = hits.get(position).classId + 1;
+      int index = spread(key) & mask;
+      while (classIds[index] != 0) {
+        index = (index + 1) & mask;
+      }
+      classIds[index] = key;
+      positions[index] = position;
+    }
+    recordClassIds = classIds;
+    recordPositions = positions;
+  }
+
+  private static int spread(int key) {
+    int hash = key * 0x9E3779B9;
+    return hash ^ (hash >>> 16);
+  }
+
+  /**
    * Closes the window. Must be called once.
    *
-   * @return the probes hit by the code the window owned, possibly several entries per class
+   * @return the probes hit by the code the window owned, one entry per class
    */
   protected final List<ClassHits> close() {
     closed = true;
@@ -170,6 +232,14 @@ public abstract class CoverageWindow {
       this.classId = classId;
       this.instrumentedClass = instrumentedClass;
       this.probes = probes;
+    }
+
+    /** Adds the hits of another record of the class. */
+    void add(long[] other) {
+      long[] words = probes;
+      for (int word = 0; word < words.length && word < other.length; word++) {
+        words[word] |= other[word];
+      }
     }
   }
 }

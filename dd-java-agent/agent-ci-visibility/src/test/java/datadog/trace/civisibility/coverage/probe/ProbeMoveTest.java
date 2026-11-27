@@ -21,7 +21,6 @@ import datadog.trace.core.CoreTracer;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
@@ -130,12 +129,12 @@ class ProbeMoveTest {
     }
 
     @Override
-    public boolean addAll(Collection<? extends CoverageWindow.ClassHits> moved) {
+    public boolean add(CoverageWindow.ClassHits moved) {
       if (!ran) {
         ran = true;
         code.run();
       }
-      return super.addAll(moved);
+      return super.add(moved);
     }
   }
 

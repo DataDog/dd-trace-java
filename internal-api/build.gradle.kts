@@ -19,6 +19,13 @@ tasks.withType<JavaCompile>().configureEach {
   configureCompiler(8, JavaVersion.VERSION_1_8, "Need access to sun.misc.SharedSecrets")
 }
 
+// Compile-time stand-ins for JDK 9+ classes that the JDK 8 toolchain lacks; never packaged
+val jdkStubs by sourceSets.creating
+
+dependencies {
+  compileOnly(jdkStubs.output)
+}
+
 tasks.named<CheckForbiddenApis>("forbiddenApisMain") {
   // sun.* are accessible in JDK8, but maybe not accessible when this task is running
   failOnMissingClasses = false

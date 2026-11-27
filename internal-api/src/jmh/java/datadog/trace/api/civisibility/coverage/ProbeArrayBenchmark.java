@@ -23,7 +23,13 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @Warmup(iterations = 5, time = 1)
 @Measurement(iterations = 5, time = 1)
-@Fork(3)
+@Fork(
+    value = 3,
+    jvmArgsAppend = {
+      // lets the recorder read thread ids on JDK 9 and later; JDK 8 ignores it
+      "-XX:+IgnoreUnrecognizedVMOptions",
+      "--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED"
+    })
 public class ProbeArrayBenchmark {
 
   private static final int CLASS_ID = registerClass();

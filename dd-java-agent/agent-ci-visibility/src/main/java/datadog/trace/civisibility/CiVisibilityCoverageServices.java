@@ -5,6 +5,7 @@ import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.civisibility.coverage.CoveragePercentageBridge;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.coverage.NoOpCoverageStore;
+import datadog.trace.api.civisibility.coverage.ProbeRecorder;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.coverage.SkippableAwareCoverageStoreFactory;
@@ -77,7 +78,8 @@ public class CiVisibilityCoverageServices {
       CoverageStore.Factory factory;
       if (!services.config.isCiVisibilityCodeCoverageEnabled()) {
         factory = new NoOpCoverageStore.Factory();
-      } else if (services.config.isCiVisibilityCoverageLineProbesEnabled()) {
+      } else if (services.config.isCiVisibilityCoverageLineProbesEnabled()
+          && ProbeRecorder.isAvailable()) {
         // every test that runs is covered, so the factory is not skippable-aware; every test also
         // needs its own window, since a window resets the probes its test hit
         return new ProbeCoverageStore.Factory(

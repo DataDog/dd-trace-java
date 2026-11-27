@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility.coverage;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,7 +30,8 @@ import javax.annotation.Nullable;
  * <p>Code that runs inside a move on the moving thread, such as a mocking library's advice in the
  * JDK collections the move uses, does not change the owner. A method it starts takes the array
  * handed out for its class if the move has not reached it yet, and otherwise an array that nothing
- * reads: those hits are dropped, and counted.
+ * reads: those hits are dropped, and counted. So are the hits of code that runs while the thread is
+ * busy with other work of the recorder, such as registering these arrays.
  */
 final class ThreadProbes {
 
@@ -39,17 +41,38 @@ final class ThreadProbes {
   /** Retired arrays beyond which a change of the owner for a scope also counts against them. */
   private static final int RETIRED_ARRAYS_KEPT_ACROSS_SCOPES = 256;
 
+  private static final String ONE_PRIMARY_THREAD =
+      "only the arrays of the one primary thread write ProbeRecorder.primaryThread, under their lock";
+
   /**
    * Held weakly: the recorder keeps a thread's probes after the thread dies, and a dead thread
-   * still references its task, which can hold what a test waits to be collected.
+   * still references its task, which can hold what a test waits to be collected. Null until the
+   * thread attaches it, once these arrays are registered.
    */
-  private final WeakReference<Thread> thread;
+  @Nullable private volatile WeakReference<Thread> thread;
+
+  /** The id of the thread, by which the recorder finds these arrays. */
+  final long threadId;
+
+  /**
+   * Whether the thread runs work of the recorder that JDK methods are part of. Methods that start
+   * meanwhile, such as a mocking library's advice in those JDK methods, get an array that nothing
+   * reads, so that they cannot start that work again. Set until the arrays are ready. Used by the
+   * thread only.
+   */
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification = "read and written by the thread only")
+  private boolean busy = true;
 
   /**
    * Whether the thread is finding the owner from its context. Probes in the code that the lookup
    * runs, such as a mocking library's advice in JDK classes, take arrays without a second lookup,
-   * so that they cannot call the lookup again without end.
+   * so that they cannot call the lookup again without end. Used by the thread only.
    */
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification = "read and written by the thread only")
   private boolean findingOwner;
 
   /**
@@ -59,15 +82,21 @@ final class ThreadProbes {
   private boolean moving;
 
   /**
-   * Methods started inside a move that got an array nothing reads. Written under the lock, read
-   * without it at exit.
+   * Methods started inside a move, or while the thread was busy, that got an array nothing reads.
+   * Written by the thread, read by others without its lock at exit.
    */
+  @SuppressFBWarnings(
+      value = "AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE",
+      justification = "written by the thread only; a count read at exit can miss the last entries")
   private long droppedEntries;
 
   /**
    * Methods started with no window open, when {@link ProbeRecorder#COUNTING_ENTRIES}. Written by
    * the thread, read without the lock at exit.
    */
+  @SuppressFBWarnings(
+      value = "AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE",
+      justification = "written by the thread only; a count read at exit can miss the last entries")
   private long noWindowEntries;
 
   /**
@@ -75,6 +104,9 @@ final class ThreadProbes {
    * an entry it reads after another thread cleared it is an array that is read again at the next
    * changes.
    */
+  @SuppressFBWarnings(
+      value = "IS2_INCONSISTENT_SYNC",
+      justification = "method entry reads it without the lock, which a stale table only delays")
   private boolean[][] table = new boolean[16][];
 
   private boolean primary;
@@ -90,9 +122,9 @@ final class ThreadProbes {
 
   /**
    * Whether the owner comes from the context of the active scope rather than from the innermost
-   * window. Written under the lock.
+   * window. Written under the lock, read by the thread without it when a scope starts or ends.
    */
-  private boolean ownerFromScope;
+  private volatile boolean ownerFromScope;
 
   // guarded by this: the arrays handed out since the last change
   private int[] handedClassIds = new int[16];
@@ -107,15 +139,50 @@ final class ThreadProbes {
   private boolean[] retiredStoredLate = new boolean[16];
   private int retiredCount;
 
-  ThreadProbes(Thread thread, @Nullable CoverageWindow handed) {
-    this.thread = new WeakReference<>(thread);
-    this.handed = handed;
+  /** New arrays of a thread, busy until the thread calls {@link #exit}. */
+  ThreadProbes(long threadId) {
+    this.threadId = threadId;
   }
 
-  /** Whether the thread is alive. A thread that was collected is not. */
+  /** Called by the thread once these arrays are registered, while it is busy. */
+  void attach(Thread thread, @Nullable CoverageWindow handed) {
+    this.handed = handed;
+    this.thread = new WeakReference<>(thread);
+  }
+
+  /** Whether {@link #attach} completed. */
+  boolean isAttached() {
+    return thread != null;
+  }
+
+  /** Whether the thread is alive. A thread that was collected is not; one registering is. */
   boolean isThreadAlive() {
-    Thread current = thread.get();
+    WeakReference<Thread> reference = thread;
+    if (reference == null) {
+      return true;
+    }
+    Thread current = reference.get();
     return current != null && current.isAlive();
+  }
+
+  /**
+   * Marks the thread busy with work of the recorder. Called by the thread.
+   *
+   * @return whether it already was, to pass to {@link #exit}
+   */
+  boolean enter() {
+    boolean wasBusy = busy;
+    busy = true;
+    return wasBusy;
+  }
+
+  /** Ends work of the recorder that {@link #enter} returned {@code wasBusy} for. */
+  void exit(boolean wasBusy) {
+    busy = wasBusy;
+  }
+
+  boolean isBusy() {
+    return busy;
   }
 
   /**
@@ -128,8 +195,16 @@ final class ThreadProbes {
     return innermost != null ? owner : contextOrHandedWindow();
   }
 
-  /** The thread's array for a class. Called by the thread at method entry. */
+  /**
+   * The thread's array for a class. Called by the thread at method entry. Until the busy check, and
+   * outside the owner lookup and moves, only bytecode and native methods run: a JDK method could
+   * run probed code, which would call this again.
+   */
   boolean[] take(int classId) {
+    if (busy) {
+      droppedEntries++;
+      return ProbeRecorder.PROBES[classId];
+    }
     if (innermost == null && !findingOwner) {
       if (ProbeRecorder.COUNTING_ENTRIES) {
         noWindowEntries++;
@@ -156,6 +231,9 @@ final class ThreadProbes {
       CoverageWindow window = contextOrHandedWindow();
       if (window != owner) {
         followContext(window);
+        if (owner != null) {
+          ProbeRecorder.keepCreatorEntry();
+        }
       }
     } finally {
       findingOwner = false;
@@ -189,9 +267,13 @@ final class ThreadProbes {
       droppedEntries++;
       return ProbeRecorder.PROBES[classId];
     }
+    // no JDK method that has a body runs until the array is handed out: see take
     boolean[][] handedOut = table;
     if (classId >= handedOut.length) {
-      handedOut = Arrays.copyOf(handedOut, Math.max(classId + 1, handedOut.length * 2));
+      int length = handedOut.length * 2;
+      boolean[][] grown = new boolean[length > classId ? length : classId + 1][];
+      System.arraycopy(handedOut, 0, grown, 0, handedOut.length);
+      handedOut = grown;
       table = handedOut;
     }
     boolean[] probes = handedOut[classId];
@@ -199,8 +281,12 @@ final class ThreadProbes {
       probes = ProbeRecorder.newProbes(classId);
       handedOut[classId] = probes;
       if (handedCount == handedArrays.length) {
-        handedClassIds = Arrays.copyOf(handedClassIds, handedCount * 2);
-        handedArrays = Arrays.copyOf(handedArrays, handedCount * 2);
+        int[] classIds = new int[handedCount * 2];
+        System.arraycopy(handedClassIds, 0, classIds, 0, handedCount);
+        handedClassIds = classIds;
+        boolean[][] arrays = new boolean[handedCount * 2][];
+        System.arraycopy(handedArrays, 0, arrays, 0, handedCount);
+        handedArrays = arrays;
       }
       handedClassIds[handedCount] = classId;
       handedArrays[handedCount++] = probes;
@@ -209,6 +295,9 @@ final class ThreadProbes {
   }
 
   /** Makes {@code primaryTable} the thread's table. Called by the thread. */
+  @SuppressFBWarnings(
+      value = "SSD_DO_NOT_USE_INSTANCE_LOCK_ON_SHARED_STATIC_DATA",
+      justification = ONE_PRIMARY_THREAD)
   synchronized void usePrimaryTable(boolean[][] primaryTable) {
     for (int i = 0; i < handedCount; i++) {
       primaryTable[handedClassIds[i]] = handedArrays[i];
@@ -311,6 +400,9 @@ final class ThreadProbes {
    * @return the window that was innermost
    */
   @Nullable
+  @SuppressFBWarnings(
+      value = "SSD_DO_NOT_USE_INSTANCE_LOCK_ON_SHARED_STATIC_DATA",
+      justification = ONE_PRIMARY_THREAD)
   synchronized CoverageWindow open(CoverageWindow window) {
     CoverageWindow outer = innermost;
     changeOwner(window);
@@ -346,6 +438,9 @@ final class ThreadProbes {
   }
 
   /** A window that opened on this thread closes. */
+  @SuppressFBWarnings(
+      value = "SSD_DO_NOT_USE_INSTANCE_LOCK_ON_SHARED_STATIC_DATA",
+      justification = ONE_PRIMARY_THREAD)
   synchronized void close(CoverageWindow window) {
     if (innermost != window) {
       // closed out of order: the thread's owner does not change

@@ -54,6 +54,11 @@ final class TestWindow extends CoverageWindow implements CoverageStore {
     return lines(close());
   }
 
+  /** Closes the window: the records of hits it collected. */
+  List<CoverageWindow.ClassHits> closeAndTakeRecords() {
+    return close();
+  }
+
   static Map<String, BitSet> lines(List<CoverageWindow.ClassHits> classHits) {
     Map<String, BitSet> lines = new HashMap<>();
     for (CoverageWindow.ClassHits hits : classHits) {

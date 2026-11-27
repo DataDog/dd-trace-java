@@ -8,7 +8,7 @@ import datadog.trace.api.civisibility.InstrumentationTestBridge;
 import datadog.trace.api.civisibility.domain.TestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.util.stacktrace.StackWalkerFactory;
-import java.util.Arrays;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.BitSet;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,6 +33,12 @@ import javax.annotation.Nullable;
  *
  * <p>Class initializers store into {@link #PROBES} directly: their slots are never reset and need
  * no owner.
+ *
+ * <p>A thread finds its arrays by its id, which {@link ThreadIds} reads without calling a JDK
+ * method that has a body, and the recorder registers them until the thread dies. Code that JDK
+ * methods run, such as a mocking library's advice in an instrumented JDK class, has probes too, so
+ * between a probe's call and the point where the recorder refuses to enter itself again only
+ * bytecode and native methods run: see {@link #register} and {@link ThreadProbes#take}.
  */
 public final class ProbeRecorder {
 
@@ -47,6 +53,9 @@ public final class ProbeRecorder {
   static final boolean COUNTING_ENTRIES = SystemProperties.get(STATS_DIRECTORY_PROPERTY) != null;
 
   /** Probe arrays of class initializers, indexed by class id. */
+  @SuppressFBWarnings(
+      value = "PA_PUBLIC_ARRAY_ATTRIBUTE",
+      justification = "the class initializers of instrumented classes read it with getstatic")
   public static final boolean[][] PROBES = new boolean[MAX_CLASSES][];
 
   static final InstrumentedClass[] CLASSES = new InstrumentedClass[MAX_CLASSES];
@@ -67,8 +76,8 @@ public final class ProbeRecorder {
 
   /**
    * Hands a new thread the window that owns the code of the thread that creates it. The value is
-   * the thread's {@link ThreadProbes} once it has them, and before that the window the thread was
-   * handed, or null.
+   * the window the thread was handed until it registers its arrays, which then hold that window,
+   * and null after.
    */
   private static final InheritableThreadLocal<Object> CREATOR =
       new InheritableThreadLocal<Object>() {
@@ -97,26 +106,6 @@ public final class ProbeRecorder {
     {"org.apache.tomcat.util.threads.ThreadPoolExecutor", "addWorker"},
   };
 
-  private static final ThreadLocal<ThreadProbes> THREAD_PROBES =
-      new ThreadLocal<ThreadProbes>() {
-        @Override
-        protected ThreadProbes initialValue() {
-          Object handed = CREATOR.get();
-          ThreadProbes threadProbes =
-              new ThreadProbes(
-                  Thread.currentThread(),
-                  handed instanceof CoverageWindow ? (CoverageWindow) handed : null);
-          CREATOR.set(threadProbes);
-          return register(threadProbes);
-        }
-      };
-
-  /**
-   * The probe arrays of the current thread if it opened a window, so that scope changes on other
-   * threads do not create any.
-   */
-  private static final ThreadLocal<ThreadProbes> WINDOW_THREAD_PROBES = new ThreadLocal<>();
-
   /** The open windows of tests, by the id of their test's trace (see {@link #testWindow}). */
   private static final ConcurrentHashMap<DDTraceId, CoverageWindow> TRACE_WINDOWS =
       new ConcurrentHashMap<>();
@@ -125,8 +114,18 @@ public final class ProbeRecorder {
 
   // guarded by LOCK
   private static ThreadProbes primary;
-  private static ThreadProbes[] registered = new ThreadProbes[64];
+
+  /**
+   * The arrays of each thread, by the thread's id, with linear probing. Threads read it without a
+   * lock. It is written under LOCK, only by putting arrays in a free slot or by replacing the table
+   * with a new one, and at most half its slots are used.
+   */
+  private static volatile ThreadProbes[] registered = new ThreadProbes[128];
+
+  // guarded by LOCK
   private static int registeredCount;
+  private static int pruneAt = 64;
+  private static long createdThreadProbes;
   private static long droppedEntriesOfRemovedThreads;
   private static long noWindowEntriesOfRemovedThreads;
 
@@ -161,14 +160,16 @@ public final class ProbeRecorder {
   }
 
   /**
-   * Methods that code inside a thread's move of its hits started, and whose hits were dropped (see
-   * {@link ThreadProbes}). Exact for threads that are not running.
+   * Methods that started inside the recorder's own work on a thread, such as a move of its hits,
+   * and whose hits were dropped (see {@link ThreadProbes}). Exact for threads that are not running.
    */
   public static long getDroppedEntryCount() {
     synchronized (LOCK) {
       long count = droppedEntriesOfRemovedThreads;
-      for (int i = 0; i < registeredCount; i++) {
-        count += registered[i].droppedEntries();
+      for (ThreadProbes threadProbes : registered) {
+        if (threadProbes != null) {
+          count += threadProbes.droppedEntries();
+        }
       }
       return count;
     }
@@ -181,10 +182,26 @@ public final class ProbeRecorder {
   public static long getNoWindowEntryCount() {
     synchronized (LOCK) {
       long count = noWindowEntriesOfRemovedThreads;
-      for (int i = 0; i < registeredCount; i++) {
-        count += registered[i].noWindowEntries();
+      for (ThreadProbes threadProbes : registered) {
+        if (threadProbes != null) {
+          count += threadProbes.noWindowEntries();
+        }
       }
       return count;
+    }
+  }
+
+  /** Threads that got probe arrays of their own. */
+  public static long getCreatedThreadProbesCount() {
+    synchronized (LOCK) {
+      return createdThreadProbes;
+    }
+  }
+
+  /** Threads whose probe arrays are registered, counting those that died since the last prune. */
+  public static int getRegisteredThreadProbesCount() {
+    synchronized (LOCK) {
+      return registeredCount;
     }
   }
 
@@ -193,18 +210,24 @@ public final class ProbeRecorder {
    * 0 is stored into by exception handlers that ran before any probe and is never read.
    */
   public static boolean[] probes(int classId) {
-    if (Thread.currentThread() == primaryThread) {
+    Thread thread = Thread.currentThread();
+    if (thread == primaryThread) {
       boolean[] probes = PRIMARY[classId];
       if (probes != null) {
         return probes;
       }
     }
-    return threadProbes(classId);
+    return threadProbes(thread, classId);
   }
 
-  private static boolean[] threadProbes(int classId) {
+  private static boolean[] threadProbes(Thread thread, int classId) {
     try {
-      return THREAD_PROBES.get().take(classId);
+      long threadId = ThreadIds.of(thread);
+      ThreadProbes threadProbes = registeredFor(threadId);
+      if (threadProbes == null) {
+        threadProbes = register(thread, threadId);
+      }
+      return threadProbes.take(classId);
     } catch (Throwable e) {
       // instrumented code must never see an exception from the recorder; nothing reads the method
       // probes of this array
@@ -219,7 +242,13 @@ public final class ProbeRecorder {
   public static void flushShared() {
     ThreadProbes[] all;
     synchronized (LOCK) {
-      all = Arrays.copyOf(registered, registeredCount);
+      all = new ThreadProbes[registeredCount];
+      int count = 0;
+      for (ThreadProbes threadProbes : registered) {
+        if (threadProbes != null) {
+          all[count++] = threadProbes;
+        }
+      }
     }
     for (ThreadProbes threadProbes : all) {
       threadProbes.flushShared();
@@ -296,9 +325,29 @@ public final class ProbeRecorder {
     return new boolean[CLASSES[classId].probeCount()];
   }
 
+  /**
+   * Whether the recorder can find the arrays of threads, which it does by thread id. On JDK 9 and
+   * later, call it only once {@code java.base} exports {@code jdk.internal.misc} to this class: the
+   * answer does not change after the first call.
+   */
+  public static boolean isAvailable() {
+    return ThreadIds.AVAILABLE;
+  }
+
   /** The probe arrays of the current thread. */
   static ThreadProbes threadProbes() {
-    return THREAD_PROBES.get();
+    Thread thread = Thread.currentThread();
+    long threadId = ThreadIds.of(thread);
+    ThreadProbes threadProbes = registeredFor(threadId);
+    return threadProbes != null ? threadProbes : register(thread, threadId);
+  }
+
+  /**
+   * Restores the entry of {@link #CREATOR} on the current thread, which hands threads it creates
+   * their window, once the JDK erased its thread locals, as it does to some pool workers.
+   */
+  static void keepCreatorEntry() {
+    CREATOR.get();
   }
 
   /**
@@ -320,17 +369,25 @@ public final class ProbeRecorder {
   @Nullable
   private static CoverageWindow windowForNewThread(@Nullable Object creator) {
     try {
-      CoverageWindow window;
-      if (creator instanceof ThreadProbes) {
-        window = ((ThreadProbes) creator).currentOwner();
-      } else {
-        // the current thread has run no instrumented code, so no window is open on it
-        window = contextWindow();
-        if (window == null) {
-          window = (CoverageWindow) creator;
+      ThreadProbes threadProbes = registeredFor(ThreadIds.of(Thread.currentThread()));
+      boolean wasBusy = threadProbes != null && threadProbes.enter();
+      try {
+        CoverageWindow window;
+        if (threadProbes != null) {
+          window = threadProbes.currentOwner();
+        } else {
+          // the current thread has run no instrumented code, so no window is open on it
+          window = contextWindow();
+          if (window == null && creator instanceof CoverageWindow) {
+            window = (CoverageWindow) creator;
+          }
+        }
+        return window != null && !window.isClosed() && !createsPoolWorker() ? window : null;
+      } finally {
+        if (threadProbes != null) {
+          threadProbes.exit(wasBusy);
         }
       }
-      return window != null && !window.isClosed() && !createsPoolWorker() ? window : null;
     } catch (Throwable e) {
       // creating a thread must never fail because of the recorder
       return null;
@@ -392,8 +449,8 @@ public final class ProbeRecorder {
    * open, and to Shared after it closed. A scope that carries no test leaves the owner as it is.
    */
   static void scopeActivated() {
-    ThreadProbes threadProbes = WINDOW_THREAD_PROBES.get();
-    if (threadProbes != null && threadProbes.hasOpenWindow()) {
+    ThreadProbes threadProbes = registeredFor(ThreadIds.of(Thread.currentThread()));
+    if (threadProbes != null && threadProbes.hasOpenWindow() && !threadProbes.isBusy()) {
       CoverageWindow window = testWindow();
       if (window != null) {
         threadProbes.scopeActivated(window);
@@ -403,8 +460,8 @@ public final class ProbeRecorder {
 
   /** Called after a scope closes on the current thread. */
   static void scopeClosed() {
-    ThreadProbes threadProbes = WINDOW_THREAD_PROBES.get();
-    if (threadProbes != null) {
+    ThreadProbes threadProbes = registeredFor(ThreadIds.of(Thread.currentThread()));
+    if (threadProbes != null && !threadProbes.isBusy()) {
       threadProbes.scopeClosed();
     }
   }
@@ -416,7 +473,6 @@ public final class ProbeRecorder {
    */
   @Nullable
   static CoverageWindow openWindow(ThreadProbes threadProbes, CoverageWindow window) {
-    WINDOW_THREAD_PROBES.set(threadProbes);
     if (!threadProbes.isPrimary()) {
       synchronized (LOCK) {
         if (primary == null) {
@@ -428,36 +484,159 @@ public final class ProbeRecorder {
     return threadProbes.open(window);
   }
 
-  private static ThreadProbes register(ThreadProbes threadProbes) {
+  /**
+   * Registers new arrays for the current thread, handed the window that {@link #CREATOR} holds.
+   * Until they are in the table, only bytecode runs, so that code a JDK method runs meanwhile, such
+   * as a mocking library's advice, finds them rather than registering again. From then on, the
+   * thread is busy until they are ready, which drops the hits of such code. If a JDK method throws
+   * before they are attached to the thread, they are removed, so that the thread registers again at
+   * its next method entry, with the window it was handed.
+   */
+  private static ThreadProbes register(Thread thread, long threadId) {
+    ThreadProbes threadProbes = new ThreadProbes(threadId);
     ThreadProbes[] dead = null;
-    int deadCount = 0;
-    synchronized (LOCK) {
-      if (registeredCount == registered.length) {
-        int kept = 0;
-        for (int i = 0; i < registeredCount; i++) {
-          ThreadProbes candidate = registered[i];
-          if (candidate.isThreadAlive()) {
-            registered[kept++] = candidate;
-          } else {
-            droppedEntriesOfRemovedThreads += candidate.droppedEntries();
-            noWindowEntriesOfRemovedThreads += candidate.noWindowEntries();
-            if (dead == null) {
-              dead = new ThreadProbes[registeredCount];
-            }
-            dead[deadCount++] = candidate;
-          }
+    try {
+      synchronized (LOCK) {
+        ThreadProbes[] table = registered;
+        if (registeredCount >= table.length / 2) {
+          table = rehashed(table, table.length * 2);
+          registered = table;
         }
-        Arrays.fill(registered, kept, registeredCount, null);
-        registeredCount = kept;
-        if (kept > registered.length / 2) {
-          registered = Arrays.copyOf(registered, registered.length * 2);
+        insert(table, threadProbes);
+        registeredCount++;
+        createdThreadProbes++;
+        if (registeredCount >= pruneAt) {
+          dead = prune();
         }
       }
-      registered[registeredCount++] = threadProbes;
-    }
-    for (int i = 0; i < deadCount; i++) {
-      dead[i].flushDead();
+      Object handed = CREATOR.get();
+      threadProbes.attach(
+          thread, handed instanceof CoverageWindow ? (CoverageWindow) handed : null);
+      CREATOR.set(null);
+    } finally {
+      try {
+        if (dead != null) {
+          flushDead(dead);
+        }
+      } finally {
+        if (!threadProbes.isAttached()) {
+          unregister(threadProbes);
+        }
+        threadProbes.exit(false);
+      }
     }
     return threadProbes;
+  }
+
+  /** Moves the hits of the arrays that a prune removed, which are followed by nulls. */
+  private static void flushDead(ThreadProbes[] dead) {
+    for (ThreadProbes deadThreadProbes : dead) {
+      if (deadThreadProbes == null) {
+        break;
+      }
+      deadThreadProbes.flushDead();
+    }
+  }
+
+  /** Removes arrays from the table, if they are in it. Only bytecode runs. */
+  private static void unregister(ThreadProbes threadProbes) {
+    synchronized (LOCK) {
+      ThreadProbes[] table = registered;
+      ThreadProbes[] rebuilt = new ThreadProbes[table.length];
+      boolean found = false;
+      for (ThreadProbes candidate : table) {
+        if (candidate == threadProbes) {
+          found = true;
+        } else if (candidate != null) {
+          insert(rebuilt, candidate);
+        }
+      }
+      if (found) {
+        registered = rebuilt;
+        registeredCount--;
+        droppedEntriesOfRemovedThreads += threadProbes.droppedEntries();
+      }
+    }
+  }
+
+  /** The arrays registered for the thread with the given id, or null. */
+  @Nullable
+  private static ThreadProbes registeredFor(long threadId) {
+    ThreadProbes[] table = registered;
+    int mask = table.length - 1;
+    for (int index = spread(threadId) & mask; ; index = (index + 1) & mask) {
+      ThreadProbes candidate = table[index];
+      if (candidate == null || candidate.threadId == threadId) {
+        return candidate;
+      }
+    }
+  }
+
+  /** Puts arrays in a free slot of a table. Holds {@link #LOCK}. */
+  private static void insert(ThreadProbes[] table, ThreadProbes threadProbes) {
+    int mask = table.length - 1;
+    int index = spread(threadProbes.threadId) & mask;
+    while (table[index] != null) {
+      index = (index + 1) & mask;
+    }
+    table[index] = threadProbes;
+  }
+
+  /** The arrays of a table in a new table with {@code length} slots. Holds {@link #LOCK}. */
+  private static ThreadProbes[] rehashed(ThreadProbes[] table, int length) {
+    ThreadProbes[] rehashed = new ThreadProbes[length];
+    for (ThreadProbes threadProbes : table) {
+      if (threadProbes != null) {
+        insert(rehashed, threadProbes);
+      }
+    }
+    return rehashed;
+  }
+
+  private static int spread(long threadId) {
+    int hash = (int) (threadId ^ (threadId >>> 32)) * 0x9E3779B9;
+    return hash ^ (hash >>> 16);
+  }
+
+  /**
+   * Removes the arrays of the threads that died, which keeps the table bounded by the threads that
+   * live, and leaves at least a quarter of it to fill before the next prune. Holds {@link #LOCK},
+   * and is called by a registering thread once its arrays are in the table.
+   *
+   * @return the removed arrays, followed by nulls, to flush once the lock is released; or null
+   */
+  @Nullable
+  private static ThreadProbes[] prune() {
+    ThreadProbes[] alive = new ThreadProbes[registeredCount];
+    int aliveCount = 0;
+    ThreadProbes[] dead = null;
+    int deadCount = 0;
+    for (ThreadProbes candidate : registered) {
+      if (candidate == null) {
+        continue;
+      }
+      if (candidate.isThreadAlive()) {
+        alive[aliveCount++] = candidate;
+      } else {
+        droppedEntriesOfRemovedThreads += candidate.droppedEntries();
+        noWindowEntriesOfRemovedThreads += candidate.noWindowEntries();
+        if (dead == null) {
+          dead = new ThreadProbes[registeredCount];
+        }
+        dead[deadCount++] = candidate;
+      }
+    }
+    int length = registered.length;
+    while (aliveCount > length / 4) {
+      length *= 2;
+    }
+    ThreadProbes[] table = new ThreadProbes[length];
+    for (int i = 0; i < aliveCount; i++) {
+      insert(table, alive[i]);
+    }
+    registered = table;
+    registeredCount = aliveCount;
+    pruneAt = length / 2;
+    return dead;
   }
 }
