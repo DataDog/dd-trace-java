@@ -49,6 +49,8 @@ class MetricsReliabilityTest extends DDCoreJavaSpecification {
       assertTrue(state.latch.await(10, SECONDS));
       assertTrue(featuresDiscovery.supportsMetrics());
 
+      awaitMetricsAggregator(tracer);
+
       // a span is published
       tracer.startSpan("test", "test").finish();
       tracer.flush();
