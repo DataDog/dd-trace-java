@@ -20,6 +20,7 @@ import datadog.trace.api.IdStore;
 import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.TagLookup;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TagStore;
 import datadog.trace.api.cache.DDCache;
@@ -61,6 +62,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1767,6 +1769,53 @@ public class DDSpanContext
   public Object unsafeGetTag(final String tag) {
     Object value = load(tag);
     return value != null ? value : unsafeGetDirectionScopedTag(tag);
+  }
+
+  /**
+   * Bulk {@link #unsafeGetTag} over a prebuilt {@link TagLookup}: the string form of each of its
+   * tags this span holds, in an array parallel to the lookup's names, or null when it holds none of
+   * them -- the array is allocated on the first hit, so a span holding none of the tags costs no
+   * allocation. Same resolution as {@code unsafeGetTag}: known tags by id, custom tags by name,
+   * then the direction-scoped fallback for this span's kind. Unlocked, like {@code unsafeGetTag}.
+   */
+  @Nullable
+  public String[] unsafeGetTagStrings(TagLookup lookup) {
+    int n = lookup.size();
+    String[] out = knownTags.loadStrings(lookup, null);
+    HashStore custom = customTags;
+    if (custom != null && lookup.hasCustom()) {
+      for (int k = 0, customs = lookup.customCount(); k < customs; k++) {
+        int i = lookup.customIndex(k);
+        TagMap.Entry entry = custom.getEntry(lookup.name(i));
+        if (entry != null) {
+          if (out == null) {
+            out = new String[n];
+          }
+          out[i] = entry.stringValue();
+        }
+      }
+    }
+    if (lookup.hasDirectional()) {
+      int direction = directionOfKind(spanKindOrdinal);
+      if (direction != KnownTagCodec.DIRECTION_UNKNOWN) {
+        for (int k = 0, directionals = lookup.directionalCount(); k < directionals; k++) {
+          int i = lookup.directionalIndex(k);
+          if (out == null || out[i] == null) {
+            long tagId = lookup.directionalId(i, direction);
+            if (tagId != 0) {
+              Object value = knownTags.load(tagId);
+              if (value != null) {
+                if (out == null) {
+                  out = new String[n];
+                }
+                out[i] = value.toString();
+              }
+            }
+          }
+        }
+      }
+    }
+    return out;
   }
 
   /**

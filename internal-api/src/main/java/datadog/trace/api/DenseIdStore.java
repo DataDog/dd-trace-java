@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import javax.annotation.Nullable;
 
 /**
  * The dense {@link IdStore}: known tags in two parallel arrays -- each tag's 16-bit serial and its
@@ -318,6 +319,100 @@ final class DenseIdStore extends IdStore {
       throw notKnown(tagId);
     }
     return this.getVisible((char) KnownTagCodec.serialNum(tagId), slotBit(tagId), levelOf(tagId));
+  }
+
+  /**
+   * Two mask tests per level against the lookup's folded slot bits: a store whose live, local or
+   * inherited, slots share no bit with any of the lookup's tags holds none of them.
+   */
+  @Override
+  boolean mayHoldAny(TagLookup lookup) {
+    long span = lookup.spanMask;
+    long trace = lookup.traceMask;
+    return (this.spanOccupancy & span) != 0L
+        || (this.traceOccupancy & trace) != 0L
+        || ((this.inheritedLevels & SPAN_LEVEL) != 0 && (this.inheritedMask & span) != 0L)
+        || ((this.inheritedLevels & TRACE_LEVEL) != 0 && (this.inheritedMask & trace) != 0L);
+  }
+
+  /**
+   * The bulk read without name resolution or per-call key decoding: the lookup carries each tag's
+   * serial, slot bit and level. A store that can't hold any of the tags exits on a mask test, and a
+   * tag whose slot this store can't hold, locally or through its parent, costs two bit tests. The
+   * array is allocated on the first hit.
+   */
+  @Override
+  @Nullable
+  public String[] loadStrings(TagLookup lookup, @Nullable String[] out) {
+    if (!this.mayHoldAny(lookup)) {
+      return out;
+    }
+    int entries = 0;
+    for (DenseIdStore level = this; level != null; level = level.parent) {
+      entries += level.used;
+    }
+    if (lookup.scanBeats(entries)) {
+      return this.scanStrings(lookup, out);
+    }
+    long[] ids = lookup.ids;
+    char[] serials = lookup.serials;
+    long[] bits = lookup.bits;
+    int[] levels = lookup.levels;
+    for (int i = 0; i < ids.length; i++) {
+      if (ids[i] == 0) {
+        continue;
+      }
+      long bit = bits[i];
+      int level = levels[i];
+      if (!this.mayHaveLocal(bit, level) && !this.mayInherit(bit, level)) {
+        continue;
+      }
+      Object value = this.getVisible(serials[i], bit, level);
+      if (value != null) {
+        if (out == null) {
+          out = new String[ids.length];
+        }
+        out[i] = value.toString();
+      }
+    }
+    return out;
+  }
+
+  /**
+   * The bulk read driven by this store's entries rather than by the lookup's names: each level's
+   * serials, nearest first, index straight into the lookup ({@link TagLookup#indexBySerial}), so
+   * the cost follows the span's tag count, not the lookup's size. A position resolved at a nearer
+   * level (a value, or a tombstone hiding an inherited one) isn't overridden by an ancestor, as
+   * {@link #getVisible} would have it.
+   */
+  private String[] scanStrings(TagLookup lookup, @Nullable String[] out) {
+    short[] indexBySerial = lookup.indexBySerial;
+    int n = lookup.size();
+    long resolved = 0L;
+    for (DenseIdStore level = this; level != null; level = level.parent) {
+      char[] serials = level.serials;
+      Object[] values = level.values;
+      for (int e = 0, used = level.used; e < used; e++) {
+        int serial = serials[e];
+        int i = serial < indexBySerial.length ? indexBySerial[serial] : -1;
+        if (i < 0 || (resolved & (1L << i)) != 0L) {
+          continue;
+        }
+        resolved |= 1L << i;
+        Object value = values[e];
+        if (value != TOMBSTONE) {
+          if (out == null) {
+            out = new String[n];
+          }
+          String string = value.toString();
+          // every name with this id: a repeated name, or another spelling of the same tag
+          for (int k = i; k >= 0; k = lookup.nextSameId[k]) {
+            out[k] = string;
+          }
+        }
+      }
+    }
+    return out;
   }
 
   @Override

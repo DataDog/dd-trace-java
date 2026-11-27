@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TagLookup;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Map;
 
@@ -63,6 +64,26 @@ public interface CoreSpan<T extends CoreSpan<T>> {
   <U> U unsafeGetTag(CharSequence name, U defaultValue);
 
   <U> U unsafeGetTag(CharSequence name);
+
+  /**
+   * Bulk {@link #unsafeGetTag}: the string form of each of {@code lookup}'s tags this span holds,
+   * in an array parallel to the lookup's names, or null when it holds none of them (the array is
+   * allocated on the first hit). This default reads them one by one; {@link DDSpan} reads them in
+   * bulk.
+   */
+  default String[] unsafeGetTagStrings(TagLookup lookup) {
+    String[] out = null;
+    for (int i = 0, n = lookup.size(); i < n; i++) {
+      Object value = unsafeGetTag(lookup.name(i));
+      if (value != null) {
+        if (out == null) {
+          out = new String[n];
+        }
+        out[i] = value.toString();
+      }
+    }
+    return out;
+  }
 
   boolean hasSamplingPriority();
 

@@ -117,6 +117,64 @@ final class HashIdStore extends IdStore {
     return entry == null ? null : entry.objectValue();
   }
 
+  /**
+   * The bulk read, scanning this store's entries against the lookup when the span holds fewer tags
+   * than the lookup has known names: each entry's id indexes straight into the lookup ({@link
+   * TagLookup#indexBySerial}), so the cost follows the span's tag count. An ancestor's entry counts
+   * only when no nearer level holds that id, as the cursor has it.
+   */
+  @Override
+  public String[] loadStrings(TagLookup lookup, String[] out) {
+    int entries = 0;
+    for (HashIdStore level = this; level != null; level = level.parent) {
+      entries += level.count;
+    }
+    if (!lookup.scanBeats(entries)) {
+      return super.loadStrings(lookup, out);
+    }
+    for (HashIdStore level = this; level != null; level = level.parent) {
+      Object[] buckets = level.buckets;
+      for (int b = 0; b < buckets.length; ++b) {
+        Object bucket = buckets[b];
+        if (bucket instanceof Entry) {
+          out = this.scatter((Entry) bucket, level, lookup, out);
+        } else if (bucket instanceof BucketGroup) {
+          for (BucketGroup group = (BucketGroup) bucket; group != null; group = group.prev) {
+            for (int j = 0; j < BucketGroup.LEN; ++j) {
+              Entry entry = group._entryAt(j);
+              if (entry != null) {
+                out = this.scatter(entry, level, lookup, out);
+              }
+            }
+          }
+        }
+      }
+    }
+    return out;
+  }
+
+  /** Writes {@code entry} to its lookup position if the lookup wants it and it's visible here. */
+  private String[] scatter(Entry entry, HashIdStore level, TagLookup lookup, String[] out) {
+    if (entry.tombstone) {
+      return out;
+    }
+    int serial = KnownTagCodec.serialNum(entry.tagHash);
+    short[] indexBySerial = lookup.indexBySerial;
+    int i = serial < indexBySerial.length ? indexBySerial[serial] : -1;
+    if (i < 0 || (level != this && !this.parentEntryVisible(entry, level))) {
+      return out;
+    }
+    if (out == null) {
+      out = new String[lookup.size()];
+    }
+    String string = entry.stringValue();
+    // every name with this id: a repeated name, or another spelling of the same tag
+    for (int k = i; k >= 0; k = lookup.nextSameId[k]) {
+      out[k] = string;
+    }
+    return out;
+  }
+
   @Override
   public String loadString(long tagId) {
     Entry entry = this.getEntry(tagId);
