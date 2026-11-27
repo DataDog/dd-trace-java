@@ -60,7 +60,8 @@
         "filepath": "/usr/lib/jvm/java-1.5-openjdk-amd64/jre/bin/java",
         "args": [
             "java",
-            "--version"
+            "-jar",
+            "app.jar"
         ],
         "envars": [],
         "host": {
@@ -74,7 +75,8 @@
         "filepath": "/usr/lib/jvm/java-1.6-openjdk-amd64/jre/bin/java",
         "args": [
             "java",
-            "--version"
+            "-jar",
+            "app.jar"
         ],
         "envars": [],
         "host": {
@@ -88,7 +90,8 @@
         "filepath": "/usr/lib/jvm/java-6-openjdk-amd64/jre/bin/java",
         "args": [
             "java",
-            "--version"
+            "-jar",
+            "app.jar"
         ],
         "envars": [],
         "host": {
@@ -102,7 +105,8 @@
         "filepath": "/usr/lib/jvm/java-7-openjdk-amd64/jre/bin/java",
         "args": [
             "java",
-            "--version"
+            "-jar",
+            "app.jar"
         ],
         "envars": [],
         "host": {
@@ -165,7 +169,6 @@
             "-XX:+CrashOnOutOfMemoryError ",
             "-XX:ErrorFile=/var/lib/solr-9.6.1/server/logs/jvm_crash_%p.log",
             "-Djetty.home=/var/lib/solr-9.6.1/server ",
-            "-Dsolr.solr.home=/var/lib/solr-9.6.1/server/solr",
             "-Dsolr.install.dir=/var/lib/solr-9.6.1",
             "-Dsolr.install.symDir=/var/lib/solr-9.6.1",
             "-Dsolr.default.confdir=/var/lib/solr-9.6.1/server/solr/configsets/_default/conf",
@@ -184,13 +187,7 @@
             "--module=gzip"
         ],
         "envars": [
-            "SOLR_INCLUDE=bin/solr.in.sh",
-            "SOLR_PORT=8984",
-            "SOLR_SCRIPT=bin/solr",
-            "SOLR_TIP=/var/lib/solr-9.6.1",
-            "SOLR_TIP_SYM=/var/lib/solr-9.6.1",
-            "SOLR_TOOL_HOST=localhost",
-            "SOLR_URL_SCHEME=http"
+            "SOLR_PORT=8983"
         ],
         "host": {
             "os": "linux",
@@ -231,6 +228,97 @@
             "4096",
             "--jmxfetch_telemetry",
             "collect"
+        ],
+        "envars": [],
+        "host": {
+            "os": "linux",
+            "arch": "x64",
+            "libc": "glibc:2.17"
+        }
+    },
+    {
+        "name": "should block -version args after JVM options",
+        "filepath": "/usr/lib/jvm/java-17-openjdk-amd64/bin/java",
+        "args": [
+            "java",
+            "-Xmx1g",
+            "-version"
+        ],
+        "envars": [],
+        "host": {
+            "os": "linux",
+            "arch": "x64",
+            "libc": "glibc:2.17"
+        }
+    },
+    {
+        "name": "should block CDS archive dump",
+        "filepath": "/usr/lib/jvm/java-17-openjdk-amd64/bin/java",
+        "args": [
+            "java",
+            "-Xshare:dump"
+        ],
+        "envars": [],
+        "host": {
+            "os": "linux",
+            "arch": "x64",
+            "libc": "glibc:2.17"
+        }
+    },
+    {
+        "name": "should block ca-certificates-java utility",
+        "filepath": "/usr/lib/jvm/java-17-openjdk-amd64/bin/java",
+        "args": [
+            "java",
+            "-jar",
+            "/usr/share/ca-certificates-java/ca-certificates-java.jar"
+        ],
+        "envars": [],
+        "host": {
+            "os": "linux",
+            "arch": "x64",
+            "libc": "glibc:2.17"
+        }
+    },
+    {
+        "name": "should block -version as application parameter",
+        "filepath": "/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java",
+        "args": [
+            "java",
+            "-jar",
+            "app.jar",
+            "-version"
+        ],
+        "envars": [],
+        "host": {
+            "os": "linux",
+            "arch": "x64",
+            "libc": "glibc:2.17"
+        }
+    },
+    {
+        "name": "should block --version as application parameter",
+        "filepath": "/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java",
+        "args": [
+            "java",
+            "-jar",
+            "app.jar",
+            "--version"
+        ],
+        "envars": [],
+        "host": {
+            "os": "linux",
+            "arch": "x64",
+            "libc": "glibc:2.17"
+        }
+    },
+    {
+        "name": "should block old java versions",
+        "filepath": "/usr/lib/jvm/java-1.7.0-openjdk-1.7.0.261.x86_64/jre/bin/java",
+        "args": [
+            "java",
+            "-jar",
+            "app.jar"
         ],
         "envars": [],
         "host": {
