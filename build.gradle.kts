@@ -157,11 +157,12 @@ nexusPublishing {
 
 val writeMainVersionFileTask = tasks.register("writeMainVersionFile") {
   val versionFile = rootProject.layout.buildDirectory.file("main.version")
-  inputs.property("version", project.version)
+  val version = project.version.toString()
+  inputs.property("version", version)
   outputs.file(versionFile)
   doFirst {
     require(versionFile.get().asFile.parentFile.mkdirs() || versionFile.get().asFile.parentFile.isDirectory)
-    versionFile.get().asFile.writeText(project.version.toString())
+    versionFile.get().asFile.writeText(version)
   }
 }
 
