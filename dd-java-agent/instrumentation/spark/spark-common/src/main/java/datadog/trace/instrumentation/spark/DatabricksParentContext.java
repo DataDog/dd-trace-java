@@ -15,11 +15,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * In the case of databricks, spark jobs are linked to the databricks task that launched them.
+ * Deterministic context for the Databricks task that launched Spark work.
  *
  * <p>Databricks spark spans are generated from this spark instrumentation, while databricks
  * workflow task spans are generated from the databricks API. The traceId/spanId is computed using
- * the same hash on both sides to link everything in the same trace
+ * the same hash on both sides. The legacy Spark topology uses this as an actual parent; the
+ * independent application-trace topology uses it as an external span-link target.
  */
 public class DatabricksParentContext implements AgentSpanContext {
   private static final Logger log = LoggerFactory.getLogger(DatabricksParentContext.class);

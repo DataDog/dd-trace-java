@@ -1,0 +1,4 @@
+import datadog.trace.instrumentation.spark.AbstractSparkInstrumentationDisabledTest;
+
+class SparkSpanLinksInstrumentationDisabledForkedTest
+    extends AbstractSparkInstrumentationDisabledTest {}

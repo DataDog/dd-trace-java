@@ -48,6 +48,7 @@ import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABL
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE;
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_SPARK_SPAN_LINKS;
 import static datadog.trace.api.config.GeneralConfig.ENV;
 import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED;
@@ -275,6 +276,7 @@ class ConfigTest {
   private static final String DD_LLMOBS_ENABLED_ENV = "DD_LLMOBS_ENABLED";
   private static final String DD_LLMOBS_ML_APP_ENV = "DD_LLMOBS_ML_APP";
   private static final String DD_LLMOBS_AGENTLESS_ENABLED_ENV = "DD_LLMOBS_AGENTLESS_ENABLED";
+  private static final String DD_DATA_JOBS_SPARK_SPAN_LINKS_ENV = "DD_DATA_JOBS_SPARK_SPAN_LINKS";
   private static final String DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING_ENV =
       "DD_TRACE_CLOUD_REQUEST_PAYLOAD_TAGGING";
   private static final String DD_TRACE_CLOUD_RESPONSE_PAYLOAD_TAGGING_ENV =
@@ -4173,6 +4175,27 @@ class ConfigTest {
 
     assertEquals(expectedEnabled, config.isFeatureFlaggingProviderEnabled());
     assertEquals(expectedSource, config.getFeatureFlaggingConfigurationSource());
+  }
+
+  @TableTest({
+    "scenario                            | sys   | env   | expected",
+    "unset defaults to false             |       |       | false   ",
+    "environment true                    |       | true  | true    ",
+    "environment false                   |       | false | false   ",
+    "system property true                | true  |       | true    ",
+    "system property false               | false |       | false   ",
+    "system property wins over env false | true  | false | true    ",
+    "system property wins over env true  | false | true  | false   "
+  })
+  void dataJobsSparkSpanLinksFlag(String sys, String env, boolean expected) throws Exception {
+    if (sys != null) {
+      System.setProperty(PREFIX + DATA_JOBS_SPARK_SPAN_LINKS, sys);
+    }
+    if (env != null) {
+      setEnv(DD_DATA_JOBS_SPARK_SPAN_LINKS_ENV, env);
+    }
+
+    assertEquals(expected, newConfig().isDataJobsSparkSpanLinksEnabled());
   }
 
   /** Reads a private {@link Config} field that has no getter. */

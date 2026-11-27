@@ -1,9 +1,14 @@
 package datadog.trace.instrumentation.spark
 
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_SPARK_SPAN_LINKS
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpanLink.SAMPLED_FLAG
+
 import com.datadoghq.sketch.ddsketch.DDSketchProtoBinding
 import com.datadoghq.sketch.ddsketch.proto.DDSketch
 import com.datadoghq.sketch.ddsketch.store.CollapsingLowestDenseStore
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.ProcessTags
 import org.apache.spark.SparkConf
@@ -503,6 +508,144 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
     }
   }
 
+  def "span links mode creates an independent application trace linked to OpenLineage"() {
+    setup:
+    injectSysConfig(DATA_JOBS_SPARK_SPAN_LINKS, "true")
+    def conf = new SparkConf()
+    conf.set("spark.openlineage.parentRunId", "ad3b6baa-8d88-3b38-8dbe-f06232249a84")
+    conf.set("spark.openlineage.parentJobNamespace", "default")
+    conf.set("spark.openlineage.parentJobName", "dag-push-to-s3-spark.upload_to_s3")
+    conf.set("spark.openlineage.rootParentRunId", "01964820-5280-7674-b04e-82fbed085f39")
+    conf.set("spark.openlineage.rootParentJobNamespace", "default")
+    conf.set("spark.openlineage.rootParentJobName", "dag-push-to-s3-spark")
+    def externalContext = OpenlineageParentContext.from(conf).get()
+    def listener = getTestDatadogSparkListener(conf)
+    listener.openLineageSparkListener = Mock(SparkListenerInterface)
+    listener.openLineageSparkConf = new SparkConf()
+
+    when:
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onApplicationEnd(applicationEndEvent(2000L))
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          parent()
+          assert span.context.traceId != externalContext.traceId
+          links({
+            link(externalContext.traceId, externalContext.spanId, SAMPLED_FLAG)
+          })
+          assert span.tags["openlineage_parent_run_id"] == externalContext.parentRunId
+          assert listener.openLineageSparkConf
+          .get("spark.openlineage.run.tags")
+          .split(";")
+          .contains("_dd.trace_id:" + span.context.traceId)
+        }
+      }
+    }
+  }
+
+  def "span links mode ignores incomplete OpenLineage link metadata"() {
+    setup:
+    injectSysConfig(DATA_JOBS_SPARK_SPAN_LINKS, "true")
+    def conf = new SparkConf()
+      .set("spark.openlineage.parentRunId", "ad3b6baa-8d88-3b38-8dbe-f06232249a84")
+      .set("spark.openlineage.parentJobNamespace", "default")
+      .set("spark.openlineage.parentJobName", "parent")
+      .set("spark.openlineage.rootParentRunId", "01964820-5280-7674-b04e-82fbed085f39")
+      .set("spark.openlineage.rootParentJobName", "root")
+    def listener = getTestDatadogSparkListener(conf)
+
+    when:
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onApplicationEnd(applicationEndEvent(2000L))
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          parent()
+          assert !span.tags.containsKey(DDTags.SPAN_LINKS)
+        }
+      }
+    }
+  }
+
+  def "span links mode ignores an ambient active span"() {
+    setup:
+    injectSysConfig(DATA_JOBS_SPARK_SPAN_LINKS, "true")
+    def listener = getTestDatadogSparkListener()
+
+    when:
+    runUnderTrace("ambient") {
+      listener.onApplicationStart(applicationStartEvent(1000L))
+      listener.onApplicationEnd(applicationEndEvent(2000L))
+    }
+
+    then:
+    assertTraces(2, SORT_TRACES_BY_NAMES) {
+      trace(1) {
+        span {
+          operationName "ambient"
+          parent()
+        }
+      }
+      trace(1) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          parent()
+        }
+      }
+    }
+  }
+
+  def "span links mode preserves callback-driven descendant finalization"() {
+    setup:
+    injectSysConfig(DATA_JOBS_SPARK_SPAN_LINKS, "true")
+    def listener = getTestDatadogSparkListener()
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onJobStart(jobStartEvent(1, 1200L, [1]))
+    listener.onStageSubmitted(stageSubmittedEvent(1, 1300L))
+
+    when:
+    listener.onApplicationEnd(applicationEndEvent(2000L))
+
+    then:
+    TEST_WRITER.empty
+
+    when:
+    listener.onStageCompleted(stageCompletedEvent(1, 2200L))
+    listener.onJobEnd(jobEndEvent(1, 2300L))
+
+    then:
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          parent()
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(1))
+        }
+      }
+    }
+  }
+
   def "test lastJobFailed is not set when job is cancelled"() {
     setup:
     def listener = getTestDatadogSparkListener()
@@ -625,6 +768,31 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
           assert span.tags["error.type"] == "Spark SQL Failed"
           assert span.tags["error.message"] == "[TABLE_OR_VIEW_NOT_FOUND] The table or view `missing_table` cannot be found."
           assert span.tags["error.stack"] != null
+        }
+      }
+    }
+  }
+
+  def "test SQL analysis failure after application end is ignored"() {
+    setup:
+    def listener = getTestDatadogSparkListener()
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onApplicationEnd(applicationEndEvent(2000L))
+    def lastSqlFailedField = AbstractDatadogSparkListener.getDeclaredField("lastSqlFailed")
+    lastSqlFailedField.setAccessible(true)
+
+    when:
+    listener.onSqlFailure(new RuntimeException("late SQL error"))
+
+    then:
+    !lastSqlFailedField.getBoolean(listener)
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          errored false
+          parent()
         }
       }
     }

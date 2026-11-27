@@ -52,6 +52,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_EXPERIMENTAL_FE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_OPENLINEAGE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_PARSE_SPARK_PLAN_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_SPARK_SPAN_LINKS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_BUCKET_DURATION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST;
@@ -396,6 +397,7 @@ import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_EXPERIMENTAL_FEAT
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_PARSE_SPARK_PLAN_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_SPARK_SPAN_LINKS;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATION_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_TRANSACTION_EXTRACTORS;
@@ -1418,6 +1420,7 @@ public class Config {
   private final boolean dataJobsOpenLineageTimeoutEnabled;
   private final boolean dataJobsParseSparkPlanEnabled;
   private final boolean dataJobsExperimentalFeaturesEnabled;
+  private final boolean dataJobsSparkSpanLinksEnabled;
 
   private final boolean dataStreamsEnabled;
   private final float dataStreamsBucketDurationSeconds;
@@ -3318,6 +3321,8 @@ public class Config {
         configProvider.getBoolean(
             DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED,
             DEFAULT_DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED);
+    dataJobsSparkSpanLinksEnabled =
+        configProvider.getBoolean(DATA_JOBS_SPARK_SPAN_LINKS, DEFAULT_DATA_JOBS_SPARK_SPAN_LINKS);
 
     dataStreamsEnabled =
         configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
@@ -5552,6 +5557,10 @@ public class Config {
     return dataJobsExperimentalFeaturesEnabled;
   }
 
+  public boolean isDataJobsSparkSpanLinksEnabled() {
+    return dataJobsSparkSpanLinksEnabled;
+  }
+
   public boolean isApmTracingEnabled() {
     return apmTracingEnabled;
   }
@@ -7373,6 +7382,8 @@ public class Config {
         + dataJobsParseSparkPlanEnabled
         + ", dataJobsExperimentalFeaturesEnabled="
         + dataJobsExperimentalFeaturesEnabled
+        + ", dataJobsSparkSpanLinksEnabled="
+        + dataJobsSparkSpanLinksEnabled
         + ", apmTracingEnabled="
         + apmTracingEnabled
         + ", jdkSocketEnabled="

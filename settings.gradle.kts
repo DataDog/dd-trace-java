@@ -275,6 +275,7 @@ include(
   ":dd-smoke-tests:quarkus",
   ":dd-smoke-tests:quarkus-native",
   ":dd-smoke-tests:sample-trace",
+  ":dd-smoke-tests:spark",
   ":dd-smoke-tests:ratpack-1.5",
   ":dd-smoke-tests:resteasy",
   ":dd-smoke-tests:rum",

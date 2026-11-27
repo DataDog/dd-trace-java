@@ -1156,6 +1156,14 @@
         "aliases": []
       }
     ],
+    "DD_DATA_JOBS_SPARK_SPAN_LINKS": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_DATA_JOBS_OPENLINEAGE_ENABLED": [
       {
         "version": "A",
