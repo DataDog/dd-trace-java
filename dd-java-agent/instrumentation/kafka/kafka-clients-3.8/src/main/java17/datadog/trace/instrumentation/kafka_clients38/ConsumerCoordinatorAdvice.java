@@ -2,9 +2,7 @@ package datadog.trace.instrumentation.kafka_clients38;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 
-import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.kafka_common.MetadataState;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -25,7 +23,7 @@ public class ConsumerCoordinatorAdvice {
       return;
     }
     // Only Data Streams tracks committed offsets
-    if (offsets == null || !traceConfig().isDataStreamsEnabled()) {
+    if (offsets == null || offsets.isEmpty() || !traceConfig().isDataStreamsEnabled()) {
       return;
     }
     KafkaConsumerInfo kafkaConsumerInfo =
@@ -36,7 +34,7 @@ public class ConsumerCoordinatorAdvice {
       return;
     }
 
-    String consumerGroup = kafkaConsumerInfo.getConsumerGroup().orElse(null);
+    String consumerGroup = kafkaConsumerInfo.getConsumerGroup().orElse("");
     Metadata consumerMetadata = kafkaConsumerInfo.getmetadata().orElse(null);
     String clusterId = null;
     if (consumerMetadata != null) {
@@ -45,22 +43,7 @@ public class ConsumerCoordinatorAdvice {
       clusterId = metadataState != null ? metadataState.clusterId : null;
     }
 
-    for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : offsets.entrySet()) {
-      if (consumerGroup == null) {
-        consumerGroup = "";
-      }
-      if (entry.getKey() == null || entry.getValue() == null) {
-        continue;
-      }
-      DataStreamsTags tags =
-          DataStreamsTags.createWithPartition(
-              "kafka_commit",
-              entry.getKey().topic(),
-              String.valueOf(entry.getKey().partition()),
-              clusterId,
-              consumerGroup);
-      AgentTracer.get().getDataStreamsMonitoring().trackBacklog(tags, entry.getValue().offset());
-    }
+    requestFuture.addListener(new OffsetCommitBacklogListener(offsets, clusterId, consumerGroup));
   }
 
   public static void muzzleCheck(ConsumerRecord record) {
