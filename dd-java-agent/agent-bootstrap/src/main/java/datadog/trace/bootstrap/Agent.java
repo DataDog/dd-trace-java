@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap;
 
 import static datadog.environment.JavaVirtualMachine.isHotspot;
+import static datadog.environment.JavaVirtualMachine.isIbm8;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
 import static datadog.trace.api.Config.isExplicitlyDisabled;
@@ -73,6 +74,9 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.CodeSource;
 import java.util.EnumSet;
+import java.util.GregorianCalendar;
+import java.util.Locale;
+import java.util.SimpleTimeZone;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.PatternSyntaxException;
@@ -257,6 +261,12 @@ public class Agent {
     // Halt agent start if DJM is enabled and is not successfully configure
     if (!configureDataJobsMonitoring()) {
       return;
+    }
+
+    if (isIbm8()) {
+      // Signed JAR verification can look up calendar data while holding the SignerInfo lock.
+      // Initialize the locale provider lookup before an agent thread can lock a provider JAR.
+      new GregorianCalendar(new SimpleTimeZone(0, "GMT"), Locale.ROOT);
     }
 
     if (!isSupportedAppSecArch()) {
