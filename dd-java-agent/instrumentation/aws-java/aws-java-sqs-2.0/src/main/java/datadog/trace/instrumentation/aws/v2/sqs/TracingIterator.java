@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Iterator;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.sqs.model.Message;
@@ -36,6 +37,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
   private final String queueName;
   private final String requestId;
   private AgentSpanContext batchContext;
+  private boolean batchContextFromEventBridge;
 
   public TracingIterator(L delegate, String queueUrl, String requestId) {
     this.delegate = delegate;
@@ -80,38 +82,37 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
       }
       if (message != null) {
         AgentSpan queueSpan = null;
-        if (batchContext == null) {
-          // first grab any incoming distributed context
-          AgentSpanContext spanContext =
-              Config.get().isSqsPropagationEnabled()
-                  ? extractContextAndGetSpanContext(message, GETTER)
-                  : null;
-          // next add a time-in-queue span for non-legacy SQS traces
-          if (TIME_IN_QUEUE_ENABLED) {
-            long timeInQueueStart = GETTER.extractTimeInQueueStart(message);
-            if (timeInQueueStart > 0) {
-              queueSpan =
-                  startSpan(
-                      COMPONENT_NAME.toString(),
-                      SQS_TIME_IN_QUEUE_OPERATION,
-                      spanContext,
-                      MILLISECONDS.toMicros(timeInQueueStart));
-              BROKER_DECORATE.afterStart(queueSpan);
-              BROKER_DECORATE.onTimeInQueue(queueSpan, queueUrl, queueName, requestId);
-              spanContext = queueSpan.spanContext();
-              // The queueSpan will be finished after inner span has been activated to ensure that
-              // spans are written out together by TraceStructureWriter when running in strict mode
-            }
-          }
-          // re-use this context for any other messages received in this batch
-          batchContext = spanContext;
+        EventBridgeMessage eventBridgeMessage = null;
+        boolean dataStreamsEnabled = traceConfig().isDataStreamsEnabled();
+        boolean sqsPropagationEnabled = Config.get().isSqsPropagationEnabled();
+        if (dataStreamsEnabled || (batchContext == null && sqsPropagationEnabled)) {
+          eventBridgeMessage = EventBridgeMessage.tryParseFrom(message);
         }
-        AgentSpan span = startSpan(COMPONENT_NAME.toString(), SQS_INBOUND_OPERATION, batchContext);
+        AgentSpanContext spanContext = batchContext;
+        boolean firstInBatch = spanContext == null;
+        boolean needsOwnContext =
+            eventBridgeMessage != null || (dataStreamsEnabled && batchContextFromEventBridge);
+        if (firstInBatch || (needsOwnContext && sqsPropagationEnabled)) {
+          spanContext =
+              sqsPropagationEnabled ? extractMessageContext(message, eventBridgeMessage) : null;
+          queueSpan = startTimeInQueueSpan(message, spanContext);
+          if (queueSpan != null) {
+            spanContext = queueSpan.spanContext();
+          }
+          if (firstInBatch) {
+            batchContext = spanContext;
+            batchContextFromEventBridge = eventBridgeMessage != null;
+          }
+        }
+        AgentSpan span = startSpan(COMPONENT_NAME.toString(), SQS_INBOUND_OPERATION, spanContext);
 
         // Only build the DSM tags and context when DSM is on: with it off the checkpoint is a
         // no-op, but the arguments were still built for every message.
         if (traceConfig().isDataStreamsEnabled()) {
-          DataStreamsTags tags = create("sqs", INBOUND, queueName);
+          DataStreamsTags tags =
+              eventBridgeMessage != null
+                  ? eventBridgeMessage.consumeTags()
+                  : create("sqs", INBOUND, queueName);
           AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, create(tags, 0, 0));
         }
 
@@ -138,5 +139,40 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
   @Override
   public void remove() {
     delegate.remove();
+  }
+
+  private AgentSpan startTimeInQueueSpan(Message message, AgentSpanContext parent) {
+    if (!TIME_IN_QUEUE_ENABLED) {
+      return null;
+    }
+    long timeInQueueStart = GETTER.extractTimeInQueueStart(message);
+    if (timeInQueueStart <= 0) {
+      return null;
+    }
+    // Finished after the consumer span is activated so TraceStructureWriter writes them together
+    // in strict mode.
+    AgentSpan queueSpan =
+        startSpan(
+            COMPONENT_NAME.toString(),
+            SQS_TIME_IN_QUEUE_OPERATION,
+            parent,
+            MILLISECONDS.toMicros(timeInQueueStart));
+    BROKER_DECORATE.afterStart(queueSpan);
+    BROKER_DECORATE.onTimeInQueue(queueSpan, queueUrl, queueName, requestId);
+    return queueSpan;
+  }
+
+  private static AgentSpanContext extractMessageContext(
+      Message message, EventBridgeMessage eventBridgeMessage) {
+    if (null == eventBridgeMessage) {
+      return extractContextAndGetSpanContext(message, GETTER);
+    }
+    Map<String, ?> datadogAttributes = eventBridgeMessage.datadogAttributes();
+    return extractContextAndGetSpanContext(
+        message,
+        (carrier, classifier) -> {
+          GETTER.forEachKey(carrier, classifier);
+          DatadogAttributesExtractAdapter.GETTER.forEachKey(datadogAttributes, classifier);
+        });
   }
 }

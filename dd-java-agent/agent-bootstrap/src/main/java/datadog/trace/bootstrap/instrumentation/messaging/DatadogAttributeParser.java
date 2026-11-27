@@ -1,11 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.messaging;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.nio.ByteBuffer;
 import java.util.Base64;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,6 +18,10 @@ public final class DatadogAttributeParser {
 
   private static final String TAGS_KEY = "x-datadog-tags";
   private static final String LLMOBS_TAG_PREFIX = "_dd.p.llmobs_";
+  private static final String TRACE_ID_KEY = "x-datadog-trace-id";
+  private static final String PARENT_ID_KEY = "x-datadog-parent-id";
+  private static final String SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";
+  private static final String PATHWAY_CONTEXT_KEY = "dd-pathway-ctx-base64";
 
   /** Parses trace context properties from the given JSON and passes them to the classifier. */
   public static void forEachProperty(AgentPropagation.KeyClassifier classifier, String json) {
@@ -24,13 +29,33 @@ public final class DatadogAttributeParser {
       return;
     }
     try {
-      if (acceptJsonProperty(classifier, json, "x-datadog-trace-id")) {
-        acceptJsonProperty(classifier, json, "x-datadog-parent-id");
-        acceptJsonProperty(classifier, json, "x-datadog-sampling-priority");
+      if (acceptJsonProperty(classifier, json, TRACE_ID_KEY)) {
+        acceptJsonProperty(classifier, json, PARENT_ID_KEY);
+        acceptJsonProperty(classifier, json, SAMPLING_PRIORITY_KEY);
         acceptLlmObsPropagationTags(classifier, json);
       }
-      if (Config.get().isDataStreamsEnabled()) {
-        acceptJsonProperty(classifier, json, "dd-pathway-ctx-base64");
+      if (traceConfig().isDataStreamsEnabled()) {
+        acceptJsonProperty(classifier, json, PATHWAY_CONTEXT_KEY);
+      }
+    } catch (Exception e) {
+      log.debug("Problem extracting _datadog context", e);
+    }
+  }
+
+  /** Parses trace context properties from the given map and passes them to the classifier. */
+  public static void forEachProperty(
+      AgentPropagation.KeyClassifier classifier, Map<String, ?> properties) {
+    if (null == properties || properties.isEmpty()) {
+      return;
+    }
+    try {
+      if (acceptMapProperty(classifier, properties, TRACE_ID_KEY)) {
+        acceptMapProperty(classifier, properties, PARENT_ID_KEY);
+        acceptMapProperty(classifier, properties, SAMPLING_PRIORITY_KEY);
+        acceptLlmObsPropagationTags(classifier, properties);
+      }
+      if (traceConfig().isDataStreamsEnabled()) {
+        acceptMapProperty(classifier, properties, PATHWAY_CONTEXT_KEY);
       }
     } catch (Exception e) {
       log.debug("Problem extracting _datadog context", e);
@@ -66,7 +91,18 @@ public final class DatadogAttributeParser {
    */
   private static void acceptLlmObsPropagationTags(
       AgentPropagation.KeyClassifier classifier, String json) {
-    String tags = jsonPropertyValue(json, TAGS_KEY);
+    forwardLlmObsTags(classifier, jsonPropertyValue(json, TAGS_KEY));
+  }
+
+  private static void acceptLlmObsPropagationTags(
+      AgentPropagation.KeyClassifier classifier, Map<String, ?> properties) {
+    Object tags = properties.get(TAGS_KEY);
+    if (tags instanceof String) {
+      forwardLlmObsTags(classifier, (String) tags);
+    }
+  }
+
+  private static void forwardLlmObsTags(AgentPropagation.KeyClassifier classifier, String tags) {
     // Nothing to forward is the common case, and it costs a scan rather than a parse.
     if (null == tags || !tags.contains(LLMOBS_TAG_PREFIX)) {
       return;
@@ -97,6 +133,12 @@ public final class DatadogAttributeParser {
       AgentPropagation.KeyClassifier classifier, String json, String key) {
     String value = jsonPropertyValue(json, key);
     return null != value && classifier.accept(key, value);
+  }
+
+  private static boolean acceptMapProperty(
+      AgentPropagation.KeyClassifier classifier, Map<String, ?> properties, String key) {
+    Object value = properties.get(key);
+    return null != value && classifier.accept(key, value.toString());
   }
 
   // Simple parser that assumes values are JSON strings that don't contain escaped quotes
