@@ -49,6 +49,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.jctools.queues.MessagePassingQueue;
@@ -434,7 +435,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
             continue;
           }
 
-          if (payload == REPORT) {
+          if (payload instanceof ClearRequest) {
+            timeToBucket.clear();
+            ((ClearRequest) payload).countDown();
+          } else if (payload == REPORT) {
             checkDynamicConfig();
 
             if (supportsDataStreams) {
@@ -527,8 +531,33 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
+  @VisibleForTesting
   public void clear() {
-    timeToBucket.clear();
+    if (!thread.isAlive() || Thread.currentThread() == thread) {
+      timeToBucket.clear();
+      return;
+    }
+
+    // Keep bucket mutations on the consumer, and wait for earlier writes before resetting the
+    // writer.
+    ClearRequest request = new ClearRequest();
+    if (!inbox.offer(request)) {
+      throw new IllegalStateException("Data streams inbox is full during reset");
+    }
+    try {
+      if (!request.await(5, TimeUnit.SECONDS)) {
+        throw new IllegalStateException("Timed out resetting data streams monitoring");
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Interrupted resetting data streams monitoring", e);
+    }
+  }
+
+  private static final class ClearRequest extends CountDownLatch implements InboxItem {
+    private ClearRequest() {
+      super(1);
+    }
   }
 
   @VisibleForTesting

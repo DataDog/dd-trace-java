@@ -87,7 +87,7 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
     waitFor(count, timeout, this.@schemaRegistryUsages)
   }
 
-  private static void waitFor(int count, long timeout, Collection collection) {
+  private void waitFor(int count, long timeout, Collection collection) {
     long deadline = System.currentTimeMillis() + timeout
     while (System.currentTimeMillis() < deadline) {
       synchronized (this) {
