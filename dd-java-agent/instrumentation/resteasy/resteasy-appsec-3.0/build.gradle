@@ -48,11 +48,18 @@ dependencies {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
 
+  // Normalized route tests: HttpServletDispatcher on Jetty, server span from jetty-server-7.6
+  def jettyVersion = '8.2.0.v20160908'
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: jettyVersion
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: jettyVersion
+  testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.6')
+  testImplementation project(':dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2.0')
+  testImplementation libs.bundles.mockito
+
   nettyTestImplementation group: 'io.netty', name: 'netty', version: '3.8.0.Final' // upgrade netty to a version we support
   nettyTestImplementation group: 'org.jboss.resteasy', name: 'resteasy-netty', version :'3.0.0.Final'
   nettyTestImplementation project(':dd-java-agent:instrumentation:netty:netty-3.8')
 
-  def jettyVersion = '8.2.0.v20160908'
   jettyAsyncTestImplementation group: 'org.jboss.resteasy', name: 'async-http-servlet-3.0', version :'3.0.0.Final'
   jettyAsyncTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: jettyVersion
   jettyAsyncTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: jettyVersion

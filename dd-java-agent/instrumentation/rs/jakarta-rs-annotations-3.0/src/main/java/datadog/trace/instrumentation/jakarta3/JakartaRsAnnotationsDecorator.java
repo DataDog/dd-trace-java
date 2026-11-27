@@ -1,11 +1,18 @@
 package datadog.trace.instrumentation.jakarta3;
 
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.bootstrap.ContextStores.getContextStore;
 import static datadog.trace.bootstrap.ContextStores.getContextStoreId;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.api.GenericClassValue;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.Pair;
+import datadog.trace.api.appsec.route.JaxRsRequestMatch;
+import datadog.trace.api.appsec.route.JaxRsRouteParser;
+import datadog.trace.api.appsec.route.NormalizedRouteHelper;
+import datadog.trace.api.appsec.route.RouteTemplate;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.ClassHierarchyIterable;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -19,8 +26,11 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class JakartaRsAnnotationsDecorator extends BaseDecorator {
+  private static final Logger log = LoggerFactory.getLogger(JakartaRsAnnotationsDecorator.class);
 
   public static final CharSequence JAKARTA_RS_REQUEST_ABORT =
       UTF8BytesString.create("jakarta-rs.request.abort");
@@ -47,6 +57,11 @@ public class JakartaRsAnnotationsDecorator extends BaseDecorator {
 
   private static final ContextStore<Object, Object> ROUTE_STATES =
       getContextStore(getContextStoreId(AgentSpan.class.getName(), RouteState.class.getName()));
+
+  /** Filled by the Jersey AppSec capture advice, keyed by the local root span. */
+  private static final ContextStore<Object, Object> REQUEST_MATCHES =
+      getContextStore(
+          getContextStoreId(AgentSpan.class.getName(), JaxRsRequestMatch.class.getName()));
 
   @Override
   protected String[] instrumentationNames() {
@@ -75,14 +90,17 @@ public class JakartaRsAnnotationsDecorator extends BaseDecorator {
     if (isRootScope) {
       HTTP_RESOURCE_DECORATOR.withRoute(
           span, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
+      // No normalized route: without a server span, no capture advice stored a match for it.
     } else {
       span.setResourceName(DECORATE.spanNameForMethod(target, method));
 
       final AgentSpan localRoot = parent.getLocalRootSpan();
       if (parent == localRoot) {
         parent.setTag(Tags.COMPONENT, "jakarta-rs");
+        markSubResourceLocator(parent, httpMethodAndRoute);
         HTTP_RESOURCE_DECORATOR.withRoute(
             parent, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
+        tagNormalizedRoute(parent, httpMethodAndRoute.getRight());
       } else if (localRoot != null
           && Tags.SPAN_KIND_SERVER.equals(parent.getTag(Tags.SPAN_KIND))
           && "/".equals(localRoot.getTag(Tags.HTTP_ROUTE))
@@ -91,13 +109,66 @@ public class JakartaRsAnnotationsDecorator extends BaseDecorator {
           // A locator returns before its subresource is dispatched. Its prefix is unavailable
           // when decorating that subresource, so keep the fallback route for this request.
           ROUTE_STATES.put(localRoot, RouteState.SUBRESOURCE);
+          markSubResourceLocator(localRoot, httpMethodAndRoute);
         } else if (ROUTE_STATES.get(localRoot) == null) {
           // Refine a server handler's catch-all route, but not from a nested resource call.
           HTTP_RESOURCE_DECORATOR.withRoute(
               localRoot, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
+          tagNormalizedRoute(localRoot, httpMethodAndRoute.getRight());
         }
       }
     }
+  }
+
+  /**
+   * Marks the request of {@code localRoot} as handled by a sub-resource locator (an annotated
+   * method with a route but no http method): the route of its sub-resource methods is truncated, so
+   * they set no normalized route. Only called where the locator decides {@code http.route}; runs
+   * before the capture advice, which keeps the mark. Never throws.
+   */
+  private static void markSubResourceLocator(
+      final AgentSpan localRoot, final Pair<CharSequence, CharSequence> httpMethodAndRoute) {
+    if (localRoot == null
+        || httpMethodAndRoute.hasLeft()
+        || !httpMethodAndRoute.hasRight()
+        || httpMethodAndRoute.getRight().length() == 0
+        || !NormalizedRouteHelper.isEnabled()) {
+      return;
+    }
+    try {
+      REQUEST_MATCHES.put(localRoot, JaxRsRequestMatch.SUBRESOURCE);
+    } catch (Throwable t) {
+      log.debug(EXCLUDE_TELEMETRY, "Failed to mark a Jakarta RS sub-resource locator", t);
+    }
+  }
+
+  /**
+   * Sets {@code _dd.appsec.normalized_route} on {@code span}, the span that just received {@code
+   * route} as {@code http.route} (the local root), from the request match a capture advice stored
+   * for it. A previous value is cleared first, so the last writer of {@code http.route} owns the
+   * tag (e.g. over Vert.x on Quarkus). No match (prefix unknown) or a sub-resource locator means no
+   * tag. Never throws.
+   */
+  private static void tagNormalizedRoute(final AgentSpan span, final CharSequence route) {
+    if (!NormalizedRouteHelper.isEnabled()) {
+      return;
+    }
+    try {
+      tagNormalizedRoute(span, route, (JaxRsRequestMatch) REQUEST_MATCHES.get(span));
+    } catch (Throwable t) {
+      log.debug(EXCLUDE_TELEMETRY, "Failed to set the Jakarta RS normalized route", t);
+    }
+  }
+
+  @VisibleForTesting
+  static void tagNormalizedRoute(
+      final AgentSpan span, final CharSequence route, final JaxRsRequestMatch match) {
+    span.setTag(KnownTags.DD_APPSEC_NORMALIZED_ROUTE, (String) null);
+    if (match == null || match == JaxRsRequestMatch.SUBRESOURCE || route == null) {
+      return;
+    }
+    final RouteTemplate template = JaxRsRouteParser.cached(route.toString());
+    NormalizedRouteHelper.tag(span, template, match.prefix(), match.presenceFor(template));
   }
 
   /**
