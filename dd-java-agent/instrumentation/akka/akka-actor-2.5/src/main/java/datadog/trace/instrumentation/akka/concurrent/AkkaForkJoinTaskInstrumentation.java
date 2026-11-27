@@ -10,6 +10,7 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -81,6 +82,13 @@ public final class AkkaForkJoinTaskInstrumentation extends InstrumenterModule.Co
         new EnumMap<>(ExcludeFilter.ExcludeType.class);
     exclude.put(
         FORK_JOIN_TASK,
+        Arrays.asList(
+            "akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask",
+            "akka.dispatch.Dispatcher$$anon$1"));
+    // Mailbox envelopes carry their own context. Avoid capturing the context of the mailbox task
+    // itself, which would otherwise leak it to later messages processed in the same mailbox run.
+    exclude.put(
+        RUNNABLE,
         Arrays.asList(
             "akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask",
             "akka.dispatch.Dispatcher$$anon$1"));
