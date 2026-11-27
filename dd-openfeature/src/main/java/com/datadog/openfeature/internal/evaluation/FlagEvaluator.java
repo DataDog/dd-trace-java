@@ -44,6 +44,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,6 +64,8 @@ public final class FlagEvaluator {
   private final ExposureLookup exposureLookup;
   private final ExperimentationOptOutMode experimentationOptOutMode;
   private final boolean exposuresEnabled;
+  @Nullable private final EvaluationMetadataTable metadataTable;
+  private final int metadataTimeBucketMs;
 
   /**
    * Creates an evaluator.
@@ -82,6 +85,28 @@ public final class FlagEvaluator {
   }
 
   /**
+   * Creates an evaluator with the default evaluation metadata table.
+   *
+   * @param spanEnrichmentEnabled whether span enrichment is enabled.
+   * @param exposureLookup the lookup telling whether an exposure was already recorded.
+   * @param experimentationOptOutMode the resolved experimentation opt-out mode.
+   * @param exposuresEnabled whether evaluations of allocations logging exposures are exposures.
+   */
+  public FlagEvaluator(
+      final boolean spanEnrichmentEnabled,
+      final ExposureLookup exposureLookup,
+      final ExperimentationOptOutMode experimentationOptOutMode,
+      final boolean exposuresEnabled) {
+    this(
+        spanEnrichmentEnabled,
+        exposureLookup,
+        experimentationOptOutMode,
+        exposuresEnabled,
+        EvaluationMetadataTable.DEFAULT_SIZE,
+        EvaluationMetadataTable.DEFAULT_TIME_BUCKET_MS);
+  }
+
+  /**
    * Creates an evaluator.
    *
    * @param spanEnrichmentEnabled whether span enrichment is enabled.
@@ -90,16 +115,43 @@ public final class FlagEvaluator {
    * @param exposuresEnabled whether evaluations of allocations logging exposures are exposures.
    *     When false, every evaluation is reported as not logging exposures, so no exposure is
    *     recorded, deduplicated, sent, or reported to exposure hooks, and assignment is unchanged.
+   * @param metadataTableSize the number of slots of the table sharing the metadata of evaluations
+   *     that resolve the same split in the same time bucket, rounded up to a power of two, or 0 to
+   *     build the metadata of each evaluation.
+   * @param metadataTimeBucketMs the width, in milliseconds, of the time bucket in which evaluations
+   *     of a split share their metadata and its {@code __dd_eval_timestamp_ms}, at most {@link
+   *     EvaluationMetadataTable#MAX_TIME_BUCKET_MS}; or 0 to leave the timestamp out of the
+   *     metadata, so the hooks read their own clock.
    */
   public FlagEvaluator(
       final boolean spanEnrichmentEnabled,
       final ExposureLookup exposureLookup,
       final ExperimentationOptOutMode experimentationOptOutMode,
-      final boolean exposuresEnabled) {
+      final boolean exposuresEnabled,
+      final int metadataTableSize,
+      final int metadataTimeBucketMs) {
+    this(
+        spanEnrichmentEnabled,
+        exposureLookup,
+        experimentationOptOutMode,
+        exposuresEnabled,
+        EvaluationMetadataTable.create(metadataTableSize),
+        metadataTimeBucketMs);
+  }
+
+  FlagEvaluator(
+      final boolean spanEnrichmentEnabled,
+      final ExposureLookup exposureLookup,
+      final ExperimentationOptOutMode experimentationOptOutMode,
+      final boolean exposuresEnabled,
+      @Nullable final EvaluationMetadataTable metadataTable,
+      final int metadataTimeBucketMs) {
     this.spanEnrichmentEnabled = spanEnrichmentEnabled;
     this.exposureLookup = exposureLookup;
     this.experimentationOptOutMode = experimentationOptOutMode;
     this.exposuresEnabled = exposuresEnabled;
+    this.metadataTable = metadataTable;
+    this.metadataTimeBucketMs = EvaluationMetadataTable.timeBucketMs(metadataTimeBucketMs);
   }
 
   public <T> ProviderEvaluation<T> evaluate(
@@ -541,22 +593,79 @@ public final class FlagEvaluator {
           observeFullEvaluationData);
     }
 
-    // Stamp eval-time at the resolution point so first/last_evaluation reflect evaluation time,
-    // not hook-fire time. Passed to the hook via provider metadata "__dd_eval_timestamp_ms".
+    // The exposure state depends on the subject, so it is part of the metadata table key. A
+    // provider with exposures disabled treats every allocation as not logging exposures. The
+    // allocation and split were already selected, so this changes reporting, not assignment.
+    final boolean doLog = this.exposuresEnabled && Boolean.TRUE.equals(allocation.doLog);
+    final int exposure;
+    if (!doLog) {
+      exposure = EvaluationMetadataTable.NO_EXPOSURE;
+    } else if (this.exposureLookup.isExposed(
+        flag.key, context.getTargetingKey(), allocation.key, variant.key, split.serialId)) {
+      exposure = EvaluationMetadataTable.RECORDED_EXPOSURE;
+    } else {
+      exposure = EvaluationMetadataTable.NEW_EXPOSURE;
+    }
+    // Everything else in the metadata is fixed by the split, so evaluations of the split in the
+    // same time bucket share it.
+    final int bucketMs = this.metadataTimeBucketMs;
+    final long timeBucket =
+        bucketMs == EvaluationMetadataTable.UNBOUNDED
+            ? 0
+            : bucketMs == 1 ? evalTimestampMs : evalTimestampMs / bucketMs;
+    final EvaluationMetadataTable table = this.metadataTable;
+    ImmutableMetadata metadata =
+        table == null
+            ? null
+            : table.get(flag, allocation, split, observeFullEvaluationData, exposure, timeBucket);
+    if (metadata == null) {
+      metadata =
+          buildMetadata(
+              flag,
+              allocation,
+              split,
+              observeFullEvaluationData,
+              doLog,
+              exposure,
+              bucketMs == EvaluationMetadataTable.UNBOUNDED ? null : evalTimestampMs);
+      if (table != null) {
+        table.put(
+            flag, allocation, split, observeFullEvaluationData, exposure, timeBucket, metadata);
+      }
+    }
+    return ProviderEvaluation.<T>builder()
+        .value(mappedValue)
+        .reason(resolveReason(allocation, split))
+        .variant(variant.key)
+        .flagMetadata(metadata)
+        .build();
+  }
+
+  private ImmutableMetadata buildMetadata(
+      final Flag flag,
+      final Allocation allocation,
+      final Split split,
+      final boolean observeFullEvaluationData,
+      final boolean doLog,
+      final int exposure,
+      @Nullable final Long evalTimestampMs) {
     final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder =
         ImmutableMetadata.builder()
             .addString("flagKey", flag.key)
             .addString("variationType", flag.variationType.name())
             .addString(ALLOCATION_KEY, allocation.key)
-            .addLong(EVAL_TIMESTAMP_MS, evalTimestampMs)
             .addBoolean(OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData);
+    // Stamp eval-time at the resolution point so first/last_evaluation reflect evaluation time,
+    // not hook-fire time. Passed to the hook via provider metadata "__dd_eval_timestamp_ms".
+    // Without
+    // it, the hook stamps its own time.
+    if (evalTimestampMs != null) {
+      metadataBuilder.addLong(EVAL_TIMESTAMP_MS, evalTimestampMs);
+    }
     // Surface the UFC split's serial id and the allocation's doLog flag for APM span enrichment and
     // for the exposure hook, which sends the exposure after the evaluation succeeds. An evaluation
     // that neither logs exposures nor enriches spans carries neither key.
     // __dd_split_serial_id is omitted when the split carries no serial id.
-    // A provider with exposures disabled treats every allocation as not logging exposures. The
-    // allocation and split were already selected, so this changes reporting, not assignment.
-    final boolean doLog = this.exposuresEnabled && Boolean.TRUE.equals(allocation.doLog);
     if (spanEnrichmentEnabled || doLog) {
       if (split.serialId != null) {
         metadataBuilder.addInteger(SPLIT_SERIAL_ID, split.serialId);
@@ -566,16 +675,9 @@ public final class FlagEvaluator {
     addSplitFeatures(metadataBuilder, split);
     if (doLog) {
       metadataBuilder.addBoolean(
-          EXPOSURE_CACHE_HIT,
-          this.exposureLookup.isExposed(
-              flag.key, context.getTargetingKey(), allocation.key, variant.key, split.serialId));
+          EXPOSURE_CACHE_HIT, exposure == EvaluationMetadataTable.RECORDED_EXPOSURE);
     }
-    return ProviderEvaluation.<T>builder()
-        .value(mappedValue)
-        .reason(resolveReason(allocation, split))
-        .variant(variant.key)
-        .flagMetadata(metadataBuilder.build())
-        .build();
+    return metadataBuilder.build();
   }
 
   private static String resolveReason(final Allocation allocation, final Split split) {

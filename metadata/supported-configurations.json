@@ -1612,6 +1612,22 @@
         "aliases": []
       }
     ],
+    "DD_FEATURE_FLAGS_EVALUATION_METADATA_TABLE_SIZE": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "1024",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_EVALUATION_METADATA_TIME_BUCKET_MS": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "10",
+        "aliases": []
+      }
+    ],
     "DD_FEATURE_FLAGS_EVALUATION_TELEMETRY_PER_SUBJECT_OPT_OUT_ENABLED": [
       {
         "version": "A",
