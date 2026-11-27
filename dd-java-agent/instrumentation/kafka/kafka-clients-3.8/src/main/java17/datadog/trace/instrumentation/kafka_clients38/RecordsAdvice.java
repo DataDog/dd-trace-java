@@ -9,7 +9,6 @@ import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.JAVA_
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_POLL;
 
 import datadog.context.ContextScope;
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
@@ -28,10 +27,11 @@ import org.apache.kafka.common.errors.WakeupException;
 public class RecordsAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static ContextScope onEnter(@Advice.This ConsumerDelegate consumer) {
+    boolean dataStreamsEnabled = traceConfig().isDataStreamsEnabled();
     // Set cluster ID in ClusterIdHolder for Schema Registry instrumentation
     KafkaConsumerInfo kafkaConsumerInfo =
         InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class).get(consumer);
-    if (kafkaConsumerInfo != null && Config.get().isDataStreamsEnabled()) {
+    if (kafkaConsumerInfo != null && dataStreamsEnabled) {
       String clusterId =
           KafkaConsumerInstrumentationHelper.extractClusterId(
               kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, MetadataState.class));
@@ -40,7 +40,7 @@ public class RecordsAdvice {
       }
     }
 
-    if (traceConfig().isDataStreamsEnabled()) {
+    if (dataStreamsEnabled) {
       final AgentSpan span = startSpan(JAVA_KAFKA.toString(), KAFKA_POLL);
       return activateSpan(span);
     }

@@ -42,10 +42,11 @@ public class DataStreamsPropagator implements Propagator {
     AgentSpan span;
     PathwayContext pathwayContext;
     DataStreamsContext dsmContext;
-    if ((span = AgentSpan.fromContext(context)) == null
+    // Live DSM check first, so injection is skipped while DSM is off
+    if (!traceConfig().isDataStreamsEnabled()
+        || (span = AgentSpan.fromContext(context)) == null
         || (pathwayContext = span.spanContext().getPathwayContext()) == null
-        || (dsmContext = DataStreamsContext.fromContext(context)) == null
-        || !traceConfig().isDataStreamsEnabled()) {
+        || (dsmContext = DataStreamsContext.fromContext(context)) == null) {
       return;
     }
 

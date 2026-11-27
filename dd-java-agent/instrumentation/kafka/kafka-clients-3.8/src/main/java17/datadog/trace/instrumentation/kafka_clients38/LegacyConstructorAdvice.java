@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
 import datadog.trace.instrumentation.kafka_common.MetadataState;
@@ -49,13 +48,11 @@ public class LegacyConstructorAdvice {
       }
     }
 
-    if (Config.get().isDataStreamsEnabled()) {
-      MetadataState state =
-          InstrumentationContext.get(Metadata.class, MetadataState.class)
-              .getOrCreate(metadata, MetadataState::new);
-      KafkaConfigHelper.storePendingConsumerConfig(
-          state, normalizedConsumerGroup, KafkaConfigHelper.extractConsumerConfig(consumerConfig));
-    }
+    // Captured even with DSM off; only reported while DSM is enabled
+    MetadataState state =
+        InstrumentationContext.get(Metadata.class, MetadataState.class)
+            .getOrCreate(metadata, MetadataState::new);
+    KafkaConfigHelper.storePendingConsumerConfig(state, normalizedConsumerGroup, consumerConfig);
   }
 
   public static void muzzleCheck(ConsumerRecord record) {

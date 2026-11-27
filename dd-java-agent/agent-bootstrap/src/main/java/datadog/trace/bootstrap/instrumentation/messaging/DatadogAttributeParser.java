@@ -1,8 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.messaging;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.nio.ByteBuffer;
 import java.util.Base64;
@@ -29,7 +29,7 @@ public final class DatadogAttributeParser {
         acceptJsonProperty(classifier, json, "x-datadog-sampling-priority");
         acceptLlmObsPropagationTags(classifier, json);
       }
-      if (Config.get().isDataStreamsEnabled()) {
+      if (traceConfig().isDataStreamsEnabled()) {
         acceptJsonProperty(classifier, json, "dd-pathway-ctx-base64");
       }
     } catch (Exception e) {

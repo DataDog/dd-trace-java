@@ -56,6 +56,7 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
     return new String[] {
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
+      "datadog.trace.instrumentation.kafka_common.PendingConsumerGroupMember",
       "datadog.trace.instrumentation.kafka_common.MetadataState",
     };
   }

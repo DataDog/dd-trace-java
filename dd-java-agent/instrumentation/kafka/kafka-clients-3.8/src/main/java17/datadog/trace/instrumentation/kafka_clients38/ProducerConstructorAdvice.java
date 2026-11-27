@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
 import datadog.trace.instrumentation.kafka_common.MetadataState;
@@ -17,9 +16,7 @@ public class ProducerConstructorAdvice {
     MetadataState state =
         InstrumentationContext.get(Metadata.class, MetadataState.class)
             .getOrCreate(metadata, MetadataState::new);
-    if (Config.get().isDataStreamsEnabled()) {
-      KafkaConfigHelper.storePendingProducerConfig(
-          state, KafkaConfigHelper.extractProducerConfig(producerConfig));
-    }
+    // Captured even with DSM off; only reported while DSM is enabled
+    KafkaConfigHelper.storePendingProducerConfig(state, producerConfig);
   }
 }

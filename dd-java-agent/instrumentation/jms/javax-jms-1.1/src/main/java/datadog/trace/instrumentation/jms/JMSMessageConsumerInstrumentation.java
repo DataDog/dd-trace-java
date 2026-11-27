@@ -7,6 +7,7 @@ import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.jms.JMSDecorator.BROKER_DECORATE;
@@ -23,7 +24,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
@@ -160,7 +160,7 @@ public final class JMSMessageConsumerInstrumentation
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onConsume(span, message, consumerState.getConsumerResourceName());
 
-      if (Config.get().isDataStreamsEnabled()) {
+      if (traceConfig().isDataStreamsEnabled()) {
         final String tech = messageTechnology(message);
         if ("ibmmq".equals(tech)) { // Initial release only supports DSM in JMS for IBM MQ
           DataStreamsTags tags =

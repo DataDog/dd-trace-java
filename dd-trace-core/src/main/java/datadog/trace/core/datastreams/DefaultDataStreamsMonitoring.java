@@ -118,7 +118,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
         timeSource,
         traceConfigSupplier,
         new MsgPackDatastreamsPayloadWriter(
-            sink, config.getWellKnownTags(), DDTraceCoreInfo.VERSION, config.getPrimaryTag()),
+            sink,
+            config.getWellKnownTags(),
+            DDTraceCoreInfo.VERSION,
+            config.getPrimaryTag(),
+            traceConfigSupplier),
         Config.get().getDataStreamsBucketDurationNanoseconds());
   }
 
@@ -415,8 +419,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
       agentSupportsDataStreams = features.supportsDataStreams();
       checkDynamicConfig();
-      // only load extractors on startup
-      updateExtractorsFromConfig();
 
       if (!configSupportsDataStreams) {
         log.debug("Data streams is disabled");
@@ -448,7 +450,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               flush(Long.MAX_VALUE);
             }
             break;
-          } else if (supportsDataStreams) {
+          } else if (supportsDataStreams || refreshDynamicConfig()) {
             if (payload instanceof StatsPoint) {
               StatsPoint statsPoint = (StatsPoint) payload;
               StatsBucket statsBucket =
@@ -554,12 +556,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
   }
 
-  /* updateExtractorsFromConfig can be called to update extractors at runtime */
+  /** Loads the transaction extractors from config; called when Data Streams becomes enabled. */
   private void updateExtractorsFromConfig() {
-    if (!supportsDataStreams) {
-      return;
-    }
-
     List<DataStreamsTransactionExtractor> extractors =
         traceConfigSupplier.get().getDataStreamsTransactionExtractors();
     if (extractors == null) {
@@ -584,7 +582,22 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   private void checkDynamicConfig() {
     configSupportsDataStreams = traceConfigSupplier.get().isDataStreamsEnabled();
+    updateSupportsDataStreams();
+  }
+
+  /** Recomputes {@link #supportsDataStreams}, loading extractors when it turns on. */
+  private void updateSupportsDataStreams() {
+    boolean wasSupported = supportsDataStreams;
     supportsDataStreams = agentSupportsDataStreams && configSupportsDataStreams;
+    if (supportsDataStreams && !wasSupported) {
+      updateExtractorsFromConfig();
+    }
+  }
+
+  /** Re-reads the live config so items enqueued right after a remote enable are not dropped. */
+  private boolean refreshDynamicConfig() {
+    checkDynamicConfig();
+    return supportsDataStreams;
   }
 
   private void checkFeatures() {
@@ -601,7 +614,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
           "Agent upgrade detected. Not enabling data streams because it is disabled by config");
     }
 
-    supportsDataStreams = agentSupportsDataStreams && configSupportsDataStreams;
+    updateSupportsDataStreams();
 
     nextFeatureCheck = timeSource.getCurrentTimeNanos() + FEATURE_CHECK_INTERVAL_NANOS;
   }

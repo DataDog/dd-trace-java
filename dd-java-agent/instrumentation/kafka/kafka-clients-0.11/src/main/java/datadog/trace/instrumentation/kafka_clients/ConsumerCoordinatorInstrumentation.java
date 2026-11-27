@@ -67,6 +67,7 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
       packageName + ".KafkaConsumerInfo",
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
+      "datadog.trace.instrumentation.kafka_common.PendingConsumerGroupMember",
       "datadog.trace.instrumentation.kafka_common.MetadataState",
     };
   }
@@ -159,14 +160,13 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
 
       String consumerGroup = kafkaConsumerInfo.getConsumerGroup();
       Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
-      String clusterId = null;
-      if (consumerMetadata != null) {
-        MetadataState metadataState =
-            InstrumentationContext.get(Metadata.class, MetadataState.class).get(consumerMetadata);
-        clusterId = metadataState != null ? metadataState.clusterId : null;
-      }
+      MetadataState metadataState =
+          consumerMetadata != null
+              ? InstrumentationContext.get(Metadata.class, MetadataState.class)
+                  .get(consumerMetadata)
+              : null;
       if (KafkaConfigHelper.reportConsumerGroupMember(
-          clusterId, consumerGroup, memberId, generationId, memberProtocol)) {
+          metadataState, consumerGroup, memberId, generationId, memberProtocol)) {
         kafkaConsumerInfo.setLastReportedMembership(memberId, generationId);
       }
     }

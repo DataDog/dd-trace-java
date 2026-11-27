@@ -244,6 +244,16 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private final IdGenerationStrategy idGenerationStrategy;
   private final TraceCollector.Factory traceCollectorFactory;
   private final DataStreamsMonitoring dataStreamsMonitoring;
+
+  /** Orders a remote config DSM enable against the constructor registering the DSM propagator. */
+  private final Object dataStreamsPropagatorLock = new Object();
+
+  /** Set once the DSM propagator can be registered; guarded by dataStreamsPropagatorLock. */
+  private DataStreamsMonitoring dataStreamsPropagatorSource;
+
+  /** Remote config enabled DSM; guarded by dataStreamsPropagatorLock. */
+  private boolean dataStreamsPropagatorRequested;
+
   private final ExternalAgentLauncher externalAgentLauncher;
   private final boolean disableSamplingMechanismValidation;
   private final TimeSource timeSource;
@@ -881,8 +891,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         new TracingPropagator(config.isApmTracingEnabled(), tracingInjector, tracingExtractor);
     Propagators.register(TRACING_CONCERN, tracingPropagator);
     Propagators.register(XRAY_TRACING_CONCERN, new XRayPropagator(config), false);
-    if (config.isDataStreamsEnabled()) {
-      Propagators.register(DSM_CONCERN, this.dataStreamsMonitoring.propagator());
+    synchronized (dataStreamsPropagatorLock) {
+      dataStreamsPropagatorSource = this.dataStreamsMonitoring;
+      // Remote config may have enabled DSM before this point
+      if (config.isDataStreamsEnabled() || dataStreamsPropagatorRequested) {
+        Propagators.register(DSM_CONCERN, this.dataStreamsMonitoring.propagator());
+      }
     }
     if (config.isBaggagePropagationEnabled()
         && config.getTracePropagationBehaviorExtract() != IGNORE) {
@@ -2602,6 +2616,20 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
   }
 
+  /**
+   * Registers the DSM propagator, or defers it to the constructor when remote config enables DSM
+   * before the propagators are registered.
+   */
+  private void requestDataStreamsPropagator() {
+    synchronized (dataStreamsPropagatorLock) {
+      dataStreamsPropagatorRequested = true;
+      if (null != dataStreamsPropagatorSource) {
+        // Kept after a later disable: the default propagator stays a composite even without baggage
+        Propagators.register(DSM_CONCERN, dataStreamsPropagatorSource.propagator());
+      }
+    }
+  }
+
   protected class ConfigSnapshot extends DynamicConfig.Snapshot {
     final Sampler sampler;
 
@@ -2640,6 +2668,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       } else {
         // Reuse the agent sampler: registration for agent rates happens once, at construction.
         sampler = Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this, agentSampler);
+      }
+
+      // Registered lazily so DSM costs nothing until enabled.
+      // Runs before this snapshot is published.
+      if (null != oldSnapshot && isDataStreamsEnabled() && !oldSnapshot.isDataStreamsEnabled()) {
+        requestDataStreamsPropagator();
       }
 
       if (null != oldSnapshot

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.aws.v1.sqs;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.amazonaws.handlers.RequestHandler2;
@@ -45,7 +46,9 @@ public final class SqsClientInstrumentation extends InstrumenterModule.Tracing
   public static class HandlerChainAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void addHandler(@Advice.Return final List<RequestHandler2> handlers) {
+      // Startup config covers clients built before the tracer (and its live config) is installed
       if (Config.get().isDataStreamsEnabled()
+          || traceConfig().isDataStreamsEnabled()
           || Config.get().isSqsInjectDatadogAttributeEnabled()) {
         for (RequestHandler2 interceptor : handlers) {
           if (interceptor instanceof SqsInterceptor) {
