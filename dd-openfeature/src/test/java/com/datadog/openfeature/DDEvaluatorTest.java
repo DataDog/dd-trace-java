@@ -56,6 +56,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -421,6 +422,66 @@ public class DDEvaluatorTest {
     assertThat(details.getErrorCode(), nullValue());
     assertThat(details.getReason(), equalTo(expectedReason));
     assertThat(details.getVariant(), equalTo(expectedVariant));
+  }
+
+  static List<Arguments> idAttributeCases() {
+    final Map<String, Value> rawNull = new HashMap<>();
+    rawNull.put("id", null);
+    return asList(
+        Arguments.of("absent id is the targeting key", new MutableContext("subject"), "on"),
+        Arguments.of(
+            "explicit id replaces the targeting key",
+            new MutableContext("subject").add("id", "other"),
+            null),
+        Arguments.of(
+            "null Value under id is not the targeting key",
+            new MutableContext("subject").add("id", (String) null),
+            null),
+        Arguments.of(
+            "raw Java null under id is the targeting key",
+            new MutableContext("subject", rawNull),
+            "on"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("idAttributeCases")
+  public void testIdAttributeFallsBackToTheTargetingKeyOnlyWhenAbsent(
+      final String scenario, final EvaluationContext context, final String expectedVariant) {
+    final ProviderEvaluation<?> details = evaluateIdRule(context);
+
+    assertThat(details.getErrorCode(), nullValue());
+    assertThat(details.getVariant(), equalTo(expectedVariant));
+  }
+
+  @Test
+  public void testIdAttributeDoesNotReadTheContextKeys() {
+    // A layered context builds its key set from every layer, so the id lookup must not use it.
+    final EvaluationContext context =
+        new MutableContext("subject") {
+          @Override
+          public Set<String> keySet() {
+            throw new AssertionError("keySet() must not be read to resolve id");
+          }
+        };
+
+    assertThat(evaluateIdRule(context).getVariant(), equalTo("on"));
+  }
+
+  private static ProviderEvaluation<?> evaluateIdRule(final EvaluationContext context) {
+    final Rule idRule =
+        new Rule(
+            singletonList(
+                new ConditionConfiguration(ConditionOperator.ONE_OF, "id", asList("subject"))));
+    final Allocation allocation =
+        new Allocation("a", singletonList(idRule), null, null, singletonList(split("on")), false);
+    final Map<String, Variant> variations = new HashMap<>();
+    variations.put("on", new Variant("on", true));
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put(
+        "flag", new Flag("flag", true, ValueType.BOOLEAN, variations, singletonList(allocation)));
+    final DDEvaluator evaluator = newEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", false, null, flags));
+    return evaluator.evaluate(Boolean.class, "flag", false, context);
   }
 
   // ---- observeFullEvaluationData metadata is stamped from the evaluator's ServerConfiguration
