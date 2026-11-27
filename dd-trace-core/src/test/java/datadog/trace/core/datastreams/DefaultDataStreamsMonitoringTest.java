@@ -1,10 +1,13 @@
 package datadog.trace.core.datastreams;
 
 import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoring.FEATURE_CHECK_INTERVAL_NANOS;
+import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoring.MAX_TRANSACTION_CONTAINER_SIZE;
+import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBridge.getThread;
 import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBridge.getThreadState;
 import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBridge.isInboxEmpty;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -28,6 +31,7 @@ import datadog.trace.api.datastreams.KafkaConfigReport;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.datastreams.SchemaRegistryUsage;
 import datadog.trace.api.datastreams.StatsPoint;
+import datadog.trace.api.datastreams.TransactionInfoTestBridge;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -36,6 +40,7 @@ import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.Sink;
 import datadog.trace.core.DDCoreJavaSpecification;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -1658,6 +1663,110 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     dataStreams.setCheckpoint(span, mock(DataStreamsContext.class));
 
     verify(span, never()).setTag(eq(DDTags.PATHWAY_HASH), any(String.class));
+  }
+
+  @Test
+  void overflowingTransactionBucketFlushesImmediatelyWithoutFloodingInbox()
+      throws InterruptedException {
+    TransactionInfoTestBridge.resetCache();
+    DDAgentFeaturesDiscovery features = stubFeatures(true);
+    ControllableTimeSource timeSource = new ControllableTimeSource();
+    Sink sink = mock(Sink.class);
+    CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
+    TraceConfig traceConfig = stubTraceConfig(true);
+
+    DefaultDataStreamsMonitoring dataStreams =
+        new DefaultDataStreamsMonitoring(
+            sink,
+            features,
+            timeSource,
+            () -> traceConfig,
+            payloadWriter,
+            DEFAULT_BUCKET_DURATION_NANOS);
+    dataStreams.start();
+    try {
+      // Add a regular stats point in the current window to ensure only the overflowing
+      // transaction bucket is flushed early.
+      DataStreamsTags tags =
+          DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
+      dataStreams.add(
+          new StatsPoint(tags, 1, 2, 3, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
+
+      char[] chars = new char[255];
+      Arrays.fill(chars, 't');
+      String longId = new String(chars);
+      int bytesPerTx = 1 + Long.BYTES + 1 + 255;
+      int txToOverflow = (int) ((MAX_TRANSACTION_CONTAINER_SIZE + bytesPerTx - 1) / bytesPerTx);
+
+      // Pace batches well below the 1024-slot inbox so no items are dropped on offer.
+      for (int i = 0; i < txToOverflow; i++) {
+        dataStreams.trackTransaction(longId, "overflow-checkpoint");
+        if ((i + 1) % 256 == 0) {
+          awaitIdle(dataStreams);
+        }
+      }
+
+      // Current window must flush immediately without advancing time or calling report().
+      awaitBuckets(dataStreams, payloadWriter, 1);
+      StatsBucket overflowBucket = payloadWriter.buckets.get(0);
+      assertTrue(overflowBucket.getTransactions().getSize() >= MAX_TRANSACTION_CONTAINER_SIZE);
+      assertEquals(txToOverflow * bytesPerTx, overflowBucket.getTransactions().getSize());
+      assertTrue(overflowBucket.getGroups().isEmpty());
+
+      // Additional transactions in the same window go into a fresh bucket and do not re-flush.
+      for (int i = 0; i < 5; i++) {
+        dataStreams.trackTransaction("after-" + i, "overflow-checkpoint");
+      }
+      awaitIdle(dataStreams);
+      assertEquals(1, payloadWriter.buckets.size());
+
+      // Advancing past the current window flushes both the new transaction bucket and the stats.
+      timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
+      dataStreams.report();
+      awaitBuckets(dataStreams, payloadWriter, 3);
+
+      long remainingTxBytes = 0;
+      int statsGroups = 0;
+      for (int i = 1; i < payloadWriter.buckets.size(); i++) {
+        StatsBucket bucket = payloadWriter.buckets.get(i);
+        remainingTxBytes += bucket.getTransactions().getSize();
+        statsGroups += bucket.getGroups().size();
+      }
+      assertTrue(remainingTxBytes > 0);
+      assertEquals(1, statsGroups);
+    } finally {
+      payloadWriter.close();
+      dataStreams.close();
+    }
+  }
+
+  @Test
+  void inboxProcessorExitsWhenInterruptedDuringSleep() throws InterruptedException {
+    DDAgentFeaturesDiscovery features = stubFeatures(true);
+    ControllableTimeSource timeSource = new ControllableTimeSource();
+    Sink sink = mock(Sink.class);
+    CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
+    TraceConfig traceConfig = stubTraceConfig(true);
+
+    DefaultDataStreamsMonitoring dataStreams =
+        new DefaultDataStreamsMonitoring(
+            sink,
+            features,
+            timeSource,
+            () -> traceConfig,
+            payloadWriter,
+            DEFAULT_BUCKET_DURATION_NANOS);
+    dataStreams.start();
+    try {
+      awaitIdle(dataStreams);
+      Thread worker = getThread(dataStreams);
+      worker.interrupt();
+      worker.join(2000);
+      assertFalse(worker.isAlive());
+    } finally {
+      payloadWriter.close();
+      dataStreams.close();
+    }
   }
 
   static class CustomContextCarrier implements DataStreamsContextCarrier {

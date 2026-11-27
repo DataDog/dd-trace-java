@@ -13,12 +13,16 @@ public class TransactionContainer {
   }
 
   public void add(TransactionInfo transactionInfo) {
-    // check if we need to resize
+    if (!transactionInfo.isValid()) {
+      return;
+    }
     byte[] transactionBytes = transactionInfo.getBytes();
 
     // resize buffer if needed
-    if (data.length - size < transactionBytes.length) {
-      data = Arrays.copyOf(data, data.length << 1);
+    int required = size + transactionBytes.length;
+    if (required > data.length) {
+      int doubled = data.length << 1;
+      data = Arrays.copyOf(data, doubled > required ? doubled : required);
     }
 
     // add data

@@ -6,13 +6,17 @@ import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public final class TransactionInfo implements InboxItem {
-  private static final int MAX_ID_SIZE = 256;
+  static final int MAX_ID_SIZE = 255;
+  static final int MAX_CHECKPOINT_NAME_SIZE = 255;
+  static final int MAX_CHECKPOINTS = 254;
+  static final int INVALID_CHECKPOINT_ID = 0;
+
+  private static final byte[] EMPTY_BYTES = new byte[0];
   private static final Map<String, Integer> CACHE = new ConcurrentHashMap<>();
-  private static volatile byte[] CACHE_BYTES = new byte[0];
-  private static final AtomicInteger ID_COUNTER = new AtomicInteger(1);
+  private static volatile byte[] CACHE_BYTES = EMPTY_BYTES;
+  private static int nextCheckpointId = 1;
 
   private final String id;
   private final long timestamp;
@@ -21,7 +25,12 @@ public final class TransactionInfo implements InboxItem {
   public TransactionInfo(String id, long timestamp, String checkpoint) {
     this.id = id;
     this.timestamp = timestamp;
-    this.checkpointId = CACHE.computeIfAbsent(checkpoint, k -> generateCheckpointId(checkpoint));
+    if (id == null || checkpoint == null) {
+      this.checkpointId = INVALID_CHECKPOINT_ID;
+      return;
+    }
+    Integer cachedId = CACHE.get(checkpoint);
+    this.checkpointId = cachedId != null ? cachedId : getOrRegisterCheckpointId(checkpoint);
   }
 
   public String getId() {
@@ -36,32 +45,42 @@ public final class TransactionInfo implements InboxItem {
     return checkpointId;
   }
 
-  private int generateCheckpointId(String checkpoint) {
-    int id = ID_COUNTER.getAndIncrement();
+  public boolean isValid() {
+    return checkpointId != INVALID_CHECKPOINT_ID;
+  }
 
-    // update cache bytes
+  private static synchronized int getOrRegisterCheckpointId(String checkpoint) {
+    Integer existing = CACHE.get(checkpoint);
+    if (existing != null) {
+      return existing;
+    }
+    if (nextCheckpointId > MAX_CHECKPOINTS) {
+      return INVALID_CHECKPOINT_ID;
+    }
+
+    int id = nextCheckpointId++;
+
     byte[] checkpointBytes = checkpoint.getBytes(StandardCharsets.UTF_8);
-    byte[] bytesToAdd = new byte[checkpointBytes.length + 2];
-    bytesToAdd[0] = (byte) id;
-    bytesToAdd[1] = (byte) checkpointBytes.length;
-    System.arraycopy(checkpointBytes, 0, bytesToAdd, 2, checkpointBytes.length);
-    appendCacheBytes(bytesToAdd);
+    int checkpointLen = truncateUtf8Length(checkpointBytes, MAX_CHECKPOINT_NAME_SIZE);
+    int prevLen = CACHE_BYTES.length;
+    byte[] newCacheBytes = new byte[prevLen + checkpointLen + 2];
+    System.arraycopy(CACHE_BYTES, 0, newCacheBytes, 0, prevLen);
+    newCacheBytes[prevLen] = (byte) id;
+    newCacheBytes[prevLen + 1] = (byte) checkpointLen;
+    System.arraycopy(checkpointBytes, 0, newCacheBytes, prevLen + 2, checkpointLen);
+    CACHE_BYTES = newCacheBytes;
 
+    CACHE.put(checkpoint, id);
     return id;
   }
 
-  private static synchronized void appendCacheBytes(byte[] bytes) {
-    byte[] newCacheBytes = new byte[CACHE_BYTES.length + bytes.length];
-    System.arraycopy(CACHE_BYTES, 0, newCacheBytes, 0, CACHE_BYTES.length);
-    System.arraycopy(bytes, 0, newCacheBytes, CACHE_BYTES.length, bytes.length);
-    CACHE_BYTES = newCacheBytes;
-  }
-
   public byte[] getBytes() {
+    if (!isValid()) {
+      return EMPTY_BYTES;
+    }
     byte[] idBytes = id.getBytes(StandardCharsets.UTF_8);
 
-    // long ids will be truncated
-    int idLen = Math.min(idBytes.length, MAX_ID_SIZE);
+    int idLen = truncateUtf8Length(idBytes, MAX_ID_SIZE);
     ByteBuffer buffer = ByteBuffer.allocate(1 + Long.BYTES + 1 + idLen).order(ByteOrder.BIG_ENDIAN);
 
     buffer.put((byte) checkpointId);
@@ -72,11 +91,23 @@ public final class TransactionInfo implements InboxItem {
     return buffer.array();
   }
 
+  private static int truncateUtf8Length(byte[] bytes, int maxLength) {
+    if (bytes.length <= maxLength) {
+      return bytes.length;
+    }
+    int len = maxLength;
+    // Back up past UTF-8 continuation bytes so truncation stays on a code-point boundary.
+    while (len > 0 && (bytes[len] & 0xC0) == 0x80) {
+      len--;
+    }
+    return len;
+  }
+
   @VisibleForTesting
   static synchronized void resetCache() {
     CACHE.clear();
-    CACHE_BYTES = new byte[0];
-    ID_COUNTER.set(1);
+    CACHE_BYTES = EMPTY_BYTES;
+    nextCheckpointId = 1;
   }
 
   public static byte[] getCheckpointIdCacheBytes() {

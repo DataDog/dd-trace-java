@@ -110,99 +110,102 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   public void writePayload(Collection<StatsBucket> data, String serviceNameOverride) {
     final List<UTF8BytesString> processTags = ProcessTags.getTagsAsUTF8ByteStringList();
     final boolean hasProcessTags = processTags != null;
-    writer.startMap(8 + (hasProcessTags ? 1 : 0));
-    /* 1 */
-    writer.writeUTF8(ENV);
-    writer.writeUTF8(wellKnownTags.getEnv());
-
-    /* 2 */
-    writer.writeUTF8(SERVICE);
-    if (serviceNameOverride != null && !serviceNameOverride.isEmpty()) {
-      writer.writeUTF8(serviceNameOverride.getBytes(ISO_8859_1));
-    } else {
-      writer.writeUTF8(wellKnownTags.getService());
-    }
-
-    /* 3 */
-    writer.writeUTF8(LANG);
-    writer.writeUTF8(wellKnownTags.getLanguage());
-
-    /* 4 */
-    writer.writeUTF8(PRIMARY_TAG);
-    writer.writeUTF8(primaryTagValue);
-
-    /* 5 */
-    writer.writeUTF8(TRACER_VERSION);
-    writer.writeUTF8(tracerVersionValue);
-
-    /* 6 */
-    writer.writeUTF8(VERSION);
-    writer.writeUTF8(wellKnownTags.getVersion());
-
-    /* 7 */
-    writer.writeUTF8(STATS);
-    writer.startArray(data.size());
-
-    for (StatsBucket bucket : data) {
-      boolean hasBacklogs = !bucket.getBacklogs().isEmpty();
-      boolean hasTransactions = !bucket.getTransactions().isEmpty();
-      boolean hasSchemaRegistryUsages = !bucket.getSchemaRegistryUsages().isEmpty();
-      boolean hasKafkaConfigs = !bucket.getKafkaConfigs().isEmpty();
-      writer.startMap(
-          3
-              + (hasBacklogs ? 1 : 0)
-              + (hasTransactions ? 2 : 0)
-              + (hasSchemaRegistryUsages ? 1 : 0)
-              + (hasKafkaConfigs ? 1 : 0));
-
+    try {
+      writer.startMap(8 + (hasProcessTags ? 1 : 0));
       /* 1 */
-      writer.writeUTF8(START);
-      writer.writeLong(bucket.getStartTimeNanos());
+      writer.writeUTF8(ENV);
+      writer.writeUTF8(wellKnownTags.getEnv());
 
       /* 2 */
-      writer.writeUTF8(DURATION);
-      writer.writeLong(bucket.getBucketDurationNanos());
+      writer.writeUTF8(SERVICE);
+      if (serviceNameOverride != null && !serviceNameOverride.isEmpty()) {
+        writer.writeUTF8(serviceNameOverride.getBytes(ISO_8859_1));
+      } else {
+        writer.writeUTF8(wellKnownTags.getService());
+      }
 
       /* 3 */
+      writer.writeUTF8(LANG);
+      writer.writeUTF8(wellKnownTags.getLanguage());
+
+      /* 4 */
+      writer.writeUTF8(PRIMARY_TAG);
+      writer.writeUTF8(primaryTagValue);
+
+      /* 5 */
+      writer.writeUTF8(TRACER_VERSION);
+      writer.writeUTF8(tracerVersionValue);
+
+      /* 6 */
+      writer.writeUTF8(VERSION);
+      writer.writeUTF8(wellKnownTags.getVersion());
+
+      /* 7 */
       writer.writeUTF8(STATS);
-      writeBucket(bucket, writer);
+      writer.startArray(data.size());
 
-      if (hasBacklogs) {
-        /* 4 */
-        writeBacklogs(bucket.getBacklogs(), writer);
+      for (StatsBucket bucket : data) {
+        boolean hasBacklogs = !bucket.getBacklogs().isEmpty();
+        boolean hasTransactions = !bucket.getTransactions().isEmpty();
+        boolean hasSchemaRegistryUsages = !bucket.getSchemaRegistryUsages().isEmpty();
+        boolean hasKafkaConfigs = !bucket.getKafkaConfigs().isEmpty();
+        writer.startMap(
+            3
+                + (hasBacklogs ? 1 : 0)
+                + (hasTransactions ? 2 : 0)
+                + (hasSchemaRegistryUsages ? 1 : 0)
+                + (hasKafkaConfigs ? 1 : 0));
+
+        /* 1 */
+        writer.writeUTF8(START);
+        writer.writeLong(bucket.getStartTimeNanos());
+
+        /* 2 */
+        writer.writeUTF8(DURATION);
+        writer.writeLong(bucket.getBucketDurationNanos());
+
+        /* 3 */
+        writer.writeUTF8(STATS);
+        writeBucket(bucket, writer);
+
+        if (hasBacklogs) {
+          /* 4 */
+          writeBacklogs(bucket.getBacklogs(), writer);
+        }
+
+        if (hasSchemaRegistryUsages) {
+          /* 5 */
+          writeSchemaRegistryUsages(bucket.getSchemaRegistryUsages(), writer);
+        }
+
+        if (hasKafkaConfigs) {
+          writeKafkaConfigs(bucket.getKafkaConfigs(), writer);
+        }
+
+        if (hasTransactions) {
+          writer.writeUTF8(TRANSACTIONS);
+          writer.writeBinary(bucket.getTransactions().getData());
+          writer.writeUTF8(TRANSACTION_CHECKPOINT_IDS);
+          writer.writeBinary(TransactionInfo.getCheckpointIdCacheBytes());
+        }
       }
 
-      if (hasSchemaRegistryUsages) {
-        /* 5 */
-        writeSchemaRegistryUsages(bucket.getSchemaRegistryUsages(), writer);
+      /* 8 */
+      writer.writeUTF8(PRODUCTS_MASK);
+      writer.writeLong(getProductsMask());
+
+      /* 9 */
+      if (hasProcessTags) {
+        writer.writeUTF8(PROCESS_TAGS);
+        writer.startArray(processTags.size());
+        processTags.forEach(writer::writeUTF8);
       }
 
-      if (hasKafkaConfigs) {
-        writeKafkaConfigs(bucket.getKafkaConfigs(), writer);
-      }
-
-      if (hasTransactions) {
-        writer.writeUTF8(TRANSACTIONS);
-        writer.writeBinary(bucket.getTransactions().getData());
-        writer.writeUTF8(TRANSACTION_CHECKPOINT_IDS);
-        writer.writeBinary(TransactionInfo.getCheckpointIdCacheBytes());
-      }
+      buffer.mark();
+      sink.accept(buffer.messageCount(), buffer.slice());
+    } finally {
+      buffer.reset();
     }
-
-    /* 8 */
-    writer.writeUTF8(PRODUCTS_MASK);
-    writer.writeLong(getProductsMask());
-
-    /* 9 */
-    if (hasProcessTags) {
-      writer.writeUTF8(PROCESS_TAGS);
-      writer.startArray(processTags.size());
-      processTags.forEach(writer::writeUTF8);
-    }
-
-    buffer.mark();
-    sink.accept(buffer.messageCount(), buffer.slice());
-    buffer.reset();
   }
 
   private void writeBucket(StatsBucket bucket, Writable packer) {

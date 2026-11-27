@@ -60,6 +60,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
   static final long MAX_TRANSACTION_CONTAINER_SIZE = 1024 * 512;
+  private static final String TRANSACTION_BUCKET_KEY = "";
 
   private static final StatsPoint REPORT =
       new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
@@ -185,8 +186,14 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void trackTransaction(String transactionId, String checkpointName) {
-    inbox.offer(
-        new TransactionInfo(transactionId, timeSource.getCurrentTimeNanos(), checkpointName));
+    if (transactionId == null || checkpointName == null) {
+      return;
+    }
+    TransactionInfo transactionInfo =
+        new TransactionInfo(transactionId, timeSource.getCurrentTimeNanos(), checkpointName);
+    if (transactionInfo.isValid()) {
+      inbox.offer(transactionInfo);
+    }
   }
 
   @Override
@@ -400,7 +407,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     private StatsBucket getStatsBucket(final long timestamp, final String serviceNameOverride) {
       long bucket = currentBucket(timestamp);
       Map<String, StatsBucket> statsBucketMap =
-          timeToBucket.computeIfAbsent(bucket, startTime -> new HashMap<>(1));
+          timeToBucket.computeIfAbsent(bucket, startTime -> new HashMap<>(2));
       return statsBucketMap.computeIfAbsent(
           serviceNameOverride, s -> new StatsBucket(bucket, bucketDurationNanos));
     }
@@ -461,14 +468,22 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               statsBucket.addBacklog(backlog);
             } else if (payload instanceof TransactionInfo) {
               TransactionInfo transactionInfo = (TransactionInfo) payload;
-              StatsBucket statsBucket = getStatsBucket(transactionInfo.getTimestamp(), "");
+              long bucket = currentBucket(transactionInfo.getTimestamp());
+              Map<String, StatsBucket> statsBucketMap =
+                  timeToBucket.computeIfAbsent(bucket, startTime -> new HashMap<>(2));
+              StatsBucket statsBucket =
+                  statsBucketMap.computeIfAbsent(
+                      TRANSACTION_BUCKET_KEY, s -> new StatsBucket(bucket, bucketDurationNanos));
               statsBucket.addTransaction(transactionInfo);
-              // we want to force flush when the transaction payload gets too big
-              // with 512kb and approx 20 bytes per transaction we're looking at ~26k
-              // transaction/sec
-              // this should be enough for 99.9% of the users
+              // Flush the overflowing bucket immediately; scheduled flush() skips the current
+              // window.
               if (statsBucket.getTransactions().getSize() >= MAX_TRANSACTION_CONTAINER_SIZE) {
-                inbox.offer(REPORT);
+                statsBucketMap.remove(TRANSACTION_BUCKET_KEY);
+                if (statsBucketMap.isEmpty()) {
+                  timeToBucket.remove(bucket);
+                }
+                log.debug("Flushing overflowing transaction bucket ({})", bucket);
+                payloadWriter.writePayload(Collections.singletonList(statsBucket), "");
               }
             } else if (payload instanceof SchemaRegistryUsage) {
               SchemaRegistryUsage usage = (SchemaRegistryUsage) payload;
@@ -483,6 +498,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               statsBucket.addKafkaConfig(configReport);
             }
           }
+        } catch (InterruptedException e) {
+          currentThread.interrupt();
+          break;
         } catch (Exception e) {
           log.debug("Error monitoring data streams", e);
         }

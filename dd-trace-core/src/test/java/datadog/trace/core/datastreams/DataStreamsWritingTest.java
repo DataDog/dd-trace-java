@@ -1,9 +1,12 @@
 package datadog.trace.core.datastreams;
 
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -19,17 +22,21 @@ import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.time.ControllableTimeSource;
+import datadog.trace.common.metrics.EventListener;
+import datadog.trace.common.metrics.Sink;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okio.BufferedSource;
@@ -757,6 +764,91 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
       for (String tag : processTags) {
         assertEquals(tag, unpacker.unpackString());
       }
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void payloadWriterResetsBufferAfterSerializationAndSinkErrors(boolean sinkFailure)
+      throws IOException {
+    WellKnownTags wellKnownTags =
+        new WellKnownTags("runtimeid", "hostname", "test", "test-service", "version", "java");
+    AtomicInteger acceptedMessageCount = new AtomicInteger();
+    List<byte[]> acceptedPayloads = new CopyOnWriteArrayList<>();
+    boolean[] failSink = new boolean[] {sinkFailure};
+    Sink sink =
+        new Sink() {
+          @Override
+          public void accept(int messageCount, ByteBuffer buffer) {
+            if (failSink[0]) {
+              throw new RuntimeException("simulated sink failure");
+            }
+            acceptedMessageCount.set(messageCount);
+            byte[] bytes = new byte[buffer.remaining()];
+            buffer.get(bytes);
+            acceptedPayloads.add(bytes);
+          }
+
+          @Override
+          public void register(EventListener listener) {}
+        };
+
+    MsgPackDatastreamsPayloadWriter payloadWriter =
+        new MsgPackDatastreamsPayloadWriter(sink, wellKnownTags, DDTraceCoreInfo.VERSION, "region");
+
+    StatsBucket validBucket = new StatsBucket(1000L, defaultBucketDurationNanos);
+    StatsBucket failingBucket;
+    if (sinkFailure) {
+      failingBucket = validBucket;
+    } else {
+      failingBucket = mock(StatsBucket.class);
+      when(failingBucket.getBacklogs()).thenReturn(emptyList());
+      when(failingBucket.getTransactions()).thenReturn(new TransactionContainer(16));
+      when(failingBucket.getSchemaRegistryUsages()).thenReturn(emptyList());
+      when(failingBucket.getKafkaConfigs()).thenReturn(emptyList());
+      when(failingBucket.getGroups())
+          .thenThrow(new RuntimeException("simulated serialization failure"));
+    }
+    assertThrows(
+        RuntimeException.class, () -> payloadWriter.writePayload(singletonList(failingBucket), ""));
+
+    failSink[0] = false;
+    payloadWriter.writePayload(singletonList(validBucket), "");
+
+    assertEquals(1, acceptedPayloads.size());
+    assertEquals(1, acceptedMessageCount.get());
+
+    try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(acceptedPayloads.get(0))) {
+      int expectedFields = ProcessTags.getTagsAsUTF8ByteStringList() != null ? 9 : 8;
+      assertEquals(expectedFields, unpacker.unpackMapHeader());
+      assertEquals("Env", unpacker.unpackString());
+      assertEquals("test", unpacker.unpackString());
+      assertEquals("Service", unpacker.unpackString());
+      assertEquals("test-service", unpacker.unpackString());
+      assertEquals("Lang", unpacker.unpackString());
+      assertEquals("java", unpacker.unpackString());
+      assertEquals("PrimaryTag", unpacker.unpackString());
+      assertEquals("region", unpacker.unpackString());
+      assertEquals("TracerVersion", unpacker.unpackString());
+      assertEquals(DDTraceCoreInfo.VERSION, unpacker.unpackString());
+      assertEquals("Version", unpacker.unpackString());
+      assertEquals("version", unpacker.unpackString());
+      assertEquals("Stats", unpacker.unpackString());
+      assertEquals(1, unpacker.unpackArrayHeader());
+      assertEquals(3, unpacker.unpackMapHeader());
+      assertEquals("Start", unpacker.unpackString());
+      assertEquals(1000L, unpacker.unpackLong());
+      assertEquals("Duration", unpacker.unpackString());
+      assertEquals(defaultBucketDurationNanos, unpacker.unpackLong());
+      assertEquals("Stats", unpacker.unpackString());
+      assertEquals(0, unpacker.unpackArrayHeader());
+      assertEquals("ProductMask", unpacker.unpackString());
+      unpacker.unpackLong();
+      if (expectedFields == 9) {
+        assertEquals("ProcessTags", unpacker.unpackString());
+        unpacker.skipValue();
+      }
+      assertFalse(unpacker.hasNext());
     }
   }
 }
