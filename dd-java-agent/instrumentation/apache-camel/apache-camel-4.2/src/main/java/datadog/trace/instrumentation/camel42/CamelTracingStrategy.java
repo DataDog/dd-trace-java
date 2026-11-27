@@ -21,6 +21,7 @@ import org.apache.camel.support.RoutePolicySupport;
 public final class CamelTracingStrategy extends EventNotifierSupport
     implements RoutePolicyFactory, InterceptStrategy {
   private final CamelContext context;
+  private volatile Boolean nativeTracingPresent;
 
   private CamelTracingStrategy(CamelContext context) {
     this.context = context;
@@ -45,22 +46,42 @@ public final class CamelTracingStrategy extends EventNotifierSupport
     context.getManagementStrategy().addEventNotifier(strategy);
   }
 
-  private volatile Boolean nativeTracingPresent;
+  public static void invalidateNativeTracing(CamelContext context) {
+    for (RoutePolicyFactory factory : context.getRoutePolicyFactories()) {
+      if (factory instanceof CamelTracingStrategy) {
+        ((CamelTracingStrategy) factory).clearNativeTracing();
+      }
+    }
+  }
+
+  private synchronized void clearNativeTracing() {
+    nativeTracingPresent = null;
+  }
+
+  @Override
+  protected void doStart() {
+    clearNativeTracing();
+  }
 
   private boolean nativeTracingPresent() {
     Boolean present = nativeTracingPresent;
     if (present != null) {
       return present;
     }
-    // Camel's tracing adapters register their Tracer as a context service before routing.
-    try {
-      boolean found = context.hasService(CamelTracingService.class) != null;
-      if (context.isStarted()) {
-        nativeTracingPresent = found;
+    synchronized (this) {
+      present = nativeTracingPresent;
+      if (present != null) {
+        return present;
       }
-      return found;
-    } catch (Throwable ignored) {
-      return true;
+      try {
+        boolean found = context.hasService(CamelTracingService.class) != null;
+        if (context.isStarted()) {
+          nativeTracingPresent = found;
+        }
+        return found;
+      } catch (Throwable ignored) {
+        return true;
+      }
     }
   }
 
@@ -85,16 +106,13 @@ public final class CamelTracingStrategy extends EventNotifierSupport
 
   @Override
   public boolean isEnabled(CamelEvent event) {
-    if (!(event instanceof CamelEvent.ExchangeSendingEvent)) {
+    if (nativeTracingPresent() || !(event instanceof CamelEvent.ExchangeSendingEvent)) {
       return false;
     }
     Endpoint endpoint = ((CamelEvent.ExchangeSendingEvent) event).getEndpoint();
     Component component = endpoint == null ? null : endpoint.getComponent();
     String name = component == null ? null : component.getDefaultName();
-    if ("direct".equals(name) || "bean".equals(name) || "log".equals(name)) {
-      return false;
-    }
-    return !nativeTracingPresent();
+    return !"direct".equals(name) && !"bean".equals(name) && !"log".equals(name);
   }
 
   @Override
