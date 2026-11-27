@@ -4,16 +4,14 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.util.Base64Decoding;
 import java.nio.ByteBuffer;
-import java.util.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Parses trace context from an embedded '_datadog' message attribute. */
 public final class DatadogAttributeParser {
   private static final Logger log = LoggerFactory.getLogger(DatadogAttributeParser.class);
-
-  private static final Base64.Decoder BASE_64 = Base64.getDecoder();
 
   private static final String TAGS_KEY = "x-datadog-tags";
   private static final String LLMOBS_TAG_PREFIX = "_dd.p.llmobs_";
@@ -52,7 +50,12 @@ public final class DatadogAttributeParser {
         // TODO remove this branch once we are sure that this is never happening.
         // passing a base64 string in a byte buffer is a nonsense, since the base64 is a less
         // efficient representation.
-        jsonStr = UTF_8.decode(BASE_64.decode(json)).toString();
+        ByteBuffer decoded = Base64Decoding.decode(json);
+        if (decoded == null) {
+          log.debug("Problem decoding _datadog context");
+          return;
+        }
+        jsonStr = UTF_8.decode(decoded).toString();
       }
       forEachProperty(classifier, jsonStr);
     } catch (Exception e) {

@@ -13,6 +13,7 @@ import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.time.TimeSource;
+import datadog.trace.util.Base64Decoding;
 import datadog.trace.util.FNV64Hash;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
@@ -20,11 +21,23 @@ import java.util.Base64;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DefaultPathwayContext implements PathwayContext {
   private static final Logger log = LoggerFactory.getLogger(DefaultPathwayContext.class);
+
+  /**
+   * Longest encoded context accepted by {@link #decode}. A context is an 8-byte hash and two
+   * varints, Base64-encoded with padding: at most 36 characters with this encoder's 9-byte varints,
+   * or 40 with 10-byte varints.
+   */
+  static final int MAX_ENCODED_LENGTH = 64;
+
+  /** Shortest decoded context: an 8-byte hash and two 1-byte varints. */
+  private static final int MIN_DECODED_LENGTH = 10;
+
   private final TimeSource timeSource;
   private final String serviceNameOverride;
   private final GrowingByteArrayOutput outputBuffer =
@@ -215,7 +228,10 @@ public class DefaultPathwayContext implements PathwayContext {
     public void accept(String key, String value) {
       if (value != null && PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
         try {
-          extractedContext = decode(timeSource, serviceNameOverride, value);
+          DefaultPathwayContext decoded = decode(timeSource, serviceNameOverride, value);
+          if (decoded != null) {
+            extractedContext = decoded;
+          }
         } catch (Throwable ignored) {
         }
       }
@@ -235,10 +251,21 @@ public class DefaultPathwayContext implements PathwayContext {
     return extractor.extractedContext;
   }
 
+  /**
+   * Decodes a Base64-encoded pathway context, or returns {@code null} if {@code base64} is too
+   * long, isn't valid Base64 or is too short to hold a context.
+   */
+  @Nullable
   protected static DefaultPathwayContext decode(
       TimeSource timeSource, String serviceNameOverride, String base64) throws IOException {
     byte[] base64Bytes = base64.getBytes(UTF_8);
-    byte[] bytes = Base64.getDecoder().decode(base64Bytes);
+    if (base64Bytes.length > MAX_ENCODED_LENGTH) {
+      return null;
+    }
+    byte[] bytes = Base64Decoding.decode(base64Bytes);
+    if (bytes == null || bytes.length < MIN_DECODED_LENGTH) {
+      return null;
+    }
     ByteArrayInput input = ByteArrayInput.wrap(bytes);
 
     long hash = input.readLongLE();

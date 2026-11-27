@@ -17,6 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.util.AgentThreadFactory;
+import datadog.trace.util.Base64Decoding;
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.PrintWriter;
@@ -29,7 +30,6 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -1264,7 +1264,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return 0;
     }
     try {
-      byte[] decoded = Base64.getDecoder().decode(scopeData);
+      byte[] decoded = Base64Decoding.decode(scopeData);
+      if (decoded == null) {
+        return 0;
+      }
       int keyIdx = indexOfDatabricksAttemptKey(decoded, JOB_RUN_ATTEMPT_NUM_KEY);
       if (keyIdx < 0) {
         return 0;
