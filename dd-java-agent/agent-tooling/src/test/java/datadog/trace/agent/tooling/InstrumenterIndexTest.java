@@ -1,8 +1,12 @@
 package datadog.trace.agent.tooling;
 
+import static datadog.trace.agent.tooling.InstrumenterIndex.decodeModuleLazyLoadable;
 import static datadog.trace.agent.tooling.InstrumenterIndex.decodeModuleNeedsEarlyLoad;
 import static datadog.trace.agent.tooling.InstrumenterIndex.encodeModuleFlags;
+import static datadog.trace.agent.tooling.InstrumenterIndex.isLazyLoadable;
+import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -12,6 +16,11 @@ import datadog.trace.config.inversion.ConfigHelper.StrictnessPolicy;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+import net.bytebuddy.matcher.ElementMatchers;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -115,6 +124,90 @@ class InstrumenterIndexTest extends DDJavaSpecification {
 
     // then
     assertTrue(decodeModuleNeedsEarlyLoad(flags));
+  }
+
+  @Test
+  void moduleMatchingOnlyKnownTypesIsLazyLoadable() {
+    InstrumenterModule module = new TestModule(new SingleTypeMember(), new KnownTypesMember());
+
+    assertTrue(isLazyLoadable(module, false));
+    assertTrue(decodeModuleLazyLoadable(encodeModuleFlags(module, false)));
+  }
+
+  @Test
+  void moduleWithHierarchyMemberIsNotLazyLoadable() {
+    InstrumenterModule module = new TestModule(new SingleTypeMember(), new HierarchyMember());
+
+    assertFalse(isLazyLoadable(module, false));
+    assertFalse(decodeModuleLazyLoadable(encodeModuleFlags(module, false)));
+  }
+
+  @Test
+  void moduleWithContextStoreIsNotLazyLoadable() {
+    InstrumenterModule module =
+        new TestModule(new SingleTypeMember()) {
+          @Override
+          public Map<String, String> contextStore() {
+            return singletonMap("java.lang.Runnable", "java.lang.Object");
+          }
+        };
+
+    assertFalse(isLazyLoadable(module, false));
+  }
+
+  @Test
+  void moduleWithAdviceOverridesIsNotLazyLoadable() {
+    assertFalse(isLazyLoadable(new TestModule(new SingleTypeMember()), true));
+  }
+
+  @Test
+  void moduleWithoutMembersIsNotLazyLoadable() {
+    assertFalse(isLazyLoadable(new TestModule(), false));
+  }
+
+  @Test
+  void earlyLoadModuleIsNotLazyLoadable() {
+    assertFalse(isLazyLoadable(new TestJpmsOnlyModule(), false));
+  }
+
+  static class TestModule extends InstrumenterModule {
+    private final List<Instrumenter> members;
+
+    TestModule(Instrumenter... members) {
+      super("lazy-test");
+      this.members = asList(members);
+    }
+
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+      return members;
+    }
+  }
+
+  static class SingleTypeMember implements Instrumenter, Instrumenter.ForSingleType {
+    @Override
+    public String instrumentedType() {
+      return "com.example.Single";
+    }
+  }
+
+  static class KnownTypesMember implements Instrumenter, Instrumenter.ForKnownTypes {
+    @Override
+    public String[] knownMatchingTypes() {
+      return new String[] {"com.example.A", "com.example.B"};
+    }
+  }
+
+  static class HierarchyMember implements Instrumenter, Instrumenter.ForTypeHierarchy {
+    @Override
+    public String hierarchyMarkerType() {
+      return null;
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+      return ElementMatchers.none();
+    }
   }
 
   static class TestJpmsOnlyModule extends InstrumenterModule implements JavaModuleOpenProvider {

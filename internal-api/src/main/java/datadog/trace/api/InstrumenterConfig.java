@@ -67,6 +67,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FO
 import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DETAILED_INSTRUMENTATION_ERRORS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL;
+import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_LAZY_MODULE_LOADING;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INSTRUMENTATION_CONFIG_ID;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
@@ -217,6 +218,7 @@ public class InstrumenterConfig {
   private final Set<String> deferredClassLoaders;
 
   private final String deferIntegrationsUntil;
+  private final boolean lazyModuleLoading;
 
   private final ResolverCacheConfig resolverCacheConfig;
   private final String resolverCacheDir;
@@ -375,6 +377,7 @@ public class InstrumenterConfig {
     deferredClassLoaders = tryMakeImmutableSet(configProvider.getList(TRACE_CLASSLOADERS_DEFER));
 
     deferIntegrationsUntil = configProvider.getString(EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL);
+    lazyModuleLoading = configProvider.getBoolean(EXPERIMENTAL_LAZY_MODULE_LOADING, false);
 
     resolverCacheConfig =
         configProvider.getEnum(
@@ -676,6 +679,14 @@ public class InstrumenterConfig {
     return deferIntegrationsUntil;
   }
 
+  /**
+   * Experimental: instrumentation modules that only match known types are loaded when one of those
+   * types is first matched, instead of at startup.
+   */
+  public boolean isLazyModuleLoading() {
+    return lazyModuleLoading;
+  }
+
   public int getResolverNoMatchesSize() {
     return resolverCacheConfig.noMatchesSize();
   }
@@ -912,6 +923,8 @@ public class InstrumenterConfig {
         + deferredClassLoaders
         + ", deferIntegrationsUntil="
         + deferIntegrationsUntil
+        + ", lazyModuleLoading="
+        + lazyModuleLoading
         + ", resolverCacheConfig="
         + resolverCacheConfig
         + ", resolverCacheDir="
