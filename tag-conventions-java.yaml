@@ -53,6 +53,13 @@ span_types:
       - { dd-name: message, type: string, required: optional }
       - { dd-name: event,   type: string, required: optional }  # "cancelled"
 
+  # Apache Camel route orchestration spans.
+  camel.route:
+    extends: internal
+    tags:
+      - { dd-name: camel.route.id,        type: string, required: recommended }
+      - { dd-name: camel.endpoint.scheme, type: string, required: optional }
+
   # TIBCO BusinessWorks process and activity spans: the app node and version.
   tibco.process:
     extends: internal

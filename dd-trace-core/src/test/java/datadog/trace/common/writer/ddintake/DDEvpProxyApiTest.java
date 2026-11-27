@@ -103,7 +103,7 @@ class DDEvpProxyApiTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void testRetriesWhenBackendReturns5xx() {
+  void testRetriesWhenBackendReturns5xx() throws IOException {
     TrackType trackType = TrackType.CITESTCYCLE;
     String apiVersion = "v2";
     String evpProxyEndpoint = V2_EVP_PROXY_ENDPOINT;
@@ -135,6 +135,7 @@ class DDEvpProxyApiTest extends DDCoreJavaSpecification {
       assertEquals(path, agentEvpProxy.getLastRequest().getPath());
       assertEquals(
           INTAKE_SUBDOMAIN, agentEvpProxy.getLastRequest().getHeader(DD_EVP_SUBDOMAIN_HEADER));
+      assertDeepEquals(emptyMap(), convertMap(agentEvpProxy.getLastRequest().getBody(), false));
     } finally {
       agentEvpProxy.close();
     }

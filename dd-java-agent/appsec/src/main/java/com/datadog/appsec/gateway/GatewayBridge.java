@@ -42,6 +42,7 @@ import datadog.trace.api.gateway.Subscription;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.telemetry.LoginEvent;
 import datadog.trace.api.telemetry.RuleType;
 import datadog.trace.api.telemetry.WafMetricCollector;
@@ -1218,7 +1219,8 @@ public class GatewayBridge {
     return traceSeg.getTagTop(USER_COLLECTION_MODE_TAG) != null;
   }
 
-  private static void writeRequestHeaders(
+  @VisibleForTesting
+  static void writeRequestHeaders(
       AppSecRequestContext ctx,
       final TraceSegment traceSeg,
       final Set<String> allowed,
@@ -1235,7 +1237,8 @@ public class GatewayBridge {
         true);
   }
 
-  private static void writeResponseHeaders(
+  @VisibleForTesting
+  static void writeResponseHeaders(
       AppSecRequestContext ctx,
       final TraceSegment traceSeg,
       final Set<String> allowed,

@@ -1,0 +1,28 @@
+{
+  "version": "2.1",
+  "rules": [
+    {
+      "id": "foo",
+      "name": "foo",
+      "conditions": [
+        {
+          "operator": "match_regex",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "my.addr",
+                "key_path": ["kp"]
+              }
+            ],
+            "regex": "foo"
+          }
+        }
+      ],
+      "tags": {
+        "type": "t",
+        "category": "c"
+      },
+      "action": "record"
+    }
+  ]
+}
