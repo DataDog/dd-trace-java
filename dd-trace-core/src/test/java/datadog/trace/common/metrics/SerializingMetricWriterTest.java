@@ -9,6 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import datadog.metrics.api.Histograms;
@@ -20,6 +22,7 @@ import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -620,6 +623,60 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
     assertTrue(sink.validatedInput());
   }
 
+  @Test
+  void payloadOverTheCapIsDroppedAndTheNextOneIsSent() {
+    long startTime = MILLISECONDS.toNanos(System.currentTimeMillis());
+    long duration = SECONDS.toNanos(10);
+    WellKnownTags wellKnownTags =
+        new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language");
+    AggregateEntry entry =
+        entry(
+            "resource",
+            "service",
+            "operation",
+            null,
+            "type",
+            200,
+            false,
+            false,
+            "server",
+            Collections.<UTF8BytesString>emptyList(),
+            "GET",
+            "/api/users",
+            null,
+            1);
+    List<Integer> sent = new ArrayList<>();
+    Sink sink =
+        new Sink() {
+          @Override
+          public void accept(int messageCount, List<ByteBuffer> chunks) {
+            sent.add(messageCount);
+          }
+
+          @Override
+          public void register(EventListener listener) {}
+        };
+    HealthMetrics healthMetrics = mock(HealthMetrics.class);
+    SerializingMetricWriter writer =
+        new SerializingMetricWriter(
+            wellKnownTags, sink, 128, 4096, GitInfoProvider.INSTANCE, false, healthMetrics);
+
+    // a bucket well past the 4 KiB cap is dropped, without throwing
+    writer.startBucket(2000, startTime, duration);
+    for (int i = 0; i < 2000; ++i) {
+      writer.add(entry);
+    }
+    writer.finishBucket();
+    assertTrue(sent.isEmpty());
+    verify(healthMetrics).onClientStatPayloadDropped();
+
+    writer.startBucket(1, startTime, duration);
+    writer.add(entry);
+    writer.finishBucket();
+    assertEquals(Collections.singletonList(1), sent);
+    verifyNoMoreInteractions(healthMetrics);
+  }
+
   static final class ValidatingSink implements Sink {
 
     private final WellKnownTags wellKnownTags;
@@ -666,14 +723,27 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
     public void register(EventListener listener) {}
 
     @Override
-    public void accept(int messageCount, ByteBuffer buffer) {
+    public void accept(int messageCount, List<ByteBuffer> chunks) {
       // Sink.accept can't declare checked exceptions; surface any msgpack decode failure as an
       // assertion error so the test reports it.
       try {
-        validate(buffer);
+        validate(join(chunks));
       } catch (IOException e) {
         throw new AssertionError("Failed to decode metric payload", e);
       }
+    }
+
+    private static ByteBuffer join(List<ByteBuffer> chunks) {
+      int size = 0;
+      for (ByteBuffer chunk : chunks) {
+        size += chunk.remaining();
+      }
+      ByteBuffer joined = ByteBuffer.allocate(size);
+      for (ByteBuffer chunk : chunks) {
+        joined.put(chunk.duplicate());
+      }
+      joined.flip();
+      return joined;
     }
 
     private void validate(ByteBuffer buffer) throws IOException {

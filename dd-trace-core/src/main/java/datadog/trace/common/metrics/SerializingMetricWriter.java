@@ -3,7 +3,7 @@ package datadog.trace.common.metrics;
 import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
-import datadog.communication.serialization.GrowableBuffer;
+import datadog.communication.serialization.ChunkedStreamingBuffer;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.metrics.api.Histogram;
@@ -14,11 +14,22 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.util.ChunkedBuffer;
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.function.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class SerializingMetricWriter implements MetricWriter {
+
+  private static final Logger log = LoggerFactory.getLogger(SerializingMetricWriter.class);
+
+  // The Agent's default request limit (max_request_bytes): a larger payload would be rejected
+  // anyway. Chunks are allocated as a payload grows, so the cap costs nothing until it's used.
+  private static final int MAX_PAYLOAD_SIZE = 25 << 20;
 
   private static final byte[] SEQUENCE = "Sequence".getBytes(ISO_8859_1);
   private static final byte[] RUNTIME_ID = "RuntimeID".getBytes(ISO_8859_1);
@@ -73,11 +84,12 @@ public final class SerializingMetricWriter implements MetricWriter {
    */
   private final boolean additionalTagsConfigured;
 
-  private final GrowableBuffer buffer;
+  private final ChunkedStreamingBuffer buffer;
   private final DDCache<GitInfo, UTF8BytesString> gitInfoCache =
       DDCaches.newFixedSizeWeakKeyCache(4);
   private long sequence = 0;
   private final GitInfoProvider gitInfoProvider;
+  private final HealthMetrics healthMetrics;
   // Not final/eager: Histogram.newHistogram() requires the Histograms factory to be
   // registered first. SerializingMetricWriter is constructed during tracer startup before that
   // registration completes, so eager init would throw. Lazy init on first add() call is safe
@@ -91,37 +103,85 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   public SerializingMetricWriter(
       WellKnownTags wellKnownTags, Sink sink, boolean additionalTagsConfigured) {
-    this(wellKnownTags, sink, 512 * 1024, GitInfoProvider.INSTANCE, additionalTagsConfigured);
+    this(wellKnownTags, sink, additionalTagsConfigured, HealthMetrics.NO_OP);
   }
 
-  public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink, int initialCapacity) {
-    this(wellKnownTags, sink, initialCapacity, GitInfoProvider.INSTANCE);
+  /**
+   * As above, reporting each payload dropped for exceeding the size cap to {@code healthMetrics}.
+   */
+  public SerializingMetricWriter(
+      WellKnownTags wellKnownTags,
+      Sink sink,
+      boolean additionalTagsConfigured,
+      HealthMetrics healthMetrics) {
+    this(
+        wellKnownTags,
+        sink,
+        ChunkedBuffer.DEFAULT_FIRST_CHUNK_SIZE,
+        MAX_PAYLOAD_SIZE,
+        GitInfoProvider.INSTANCE,
+        additionalTagsConfigured,
+        healthMetrics);
+  }
+
+  public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink, int firstChunkSize) {
+    this(wellKnownTags, sink, firstChunkSize, GitInfoProvider.INSTANCE);
   }
 
   public SerializingMetricWriter(
       WellKnownTags wellKnownTags,
       Sink sink,
-      int initialCapacity,
+      int firstChunkSize,
       final GitInfoProvider gitInfoProvider) {
-    this(wellKnownTags, sink, initialCapacity, gitInfoProvider, false);
+    this(wellKnownTags, sink, firstChunkSize, gitInfoProvider, false);
   }
 
   public SerializingMetricWriter(
       WellKnownTags wellKnownTags,
       Sink sink,
-      int initialCapacity,
+      int firstChunkSize,
       final GitInfoProvider gitInfoProvider,
       boolean additionalTagsConfigured) {
+    this(
+        wellKnownTags,
+        sink,
+        firstChunkSize,
+        MAX_PAYLOAD_SIZE,
+        gitInfoProvider,
+        additionalTagsConfigured,
+        HealthMetrics.NO_OP);
+  }
+
+  SerializingMetricWriter(
+      WellKnownTags wellKnownTags,
+      Sink sink,
+      int firstChunkSize,
+      int maxPayloadSize,
+      final GitInfoProvider gitInfoProvider,
+      boolean additionalTagsConfigured,
+      HealthMetrics healthMetrics) {
     this.wellKnownTags = wellKnownTags;
-    this.buffer = new GrowableBuffer(initialCapacity);
+    this.buffer = new ChunkedStreamingBuffer(maxPayloadSize, firstChunkSize, sink);
     this.writer = new MsgPackWriter(buffer);
     this.sink = sink;
     this.gitInfoProvider = gitInfoProvider;
     this.additionalTagsConfigured = additionalTagsConfigured;
+    this.healthMetrics = healthMetrics;
   }
+
+  // A payload spans startBucket, add and finishBucket. Only the first write past the cap throws;
+  // the buffer discards the rest, and mark() in finishBucket reports the payload as dropped.
 
   @Override
   public void startBucket(int metricCount, long start, long duration) {
+    try {
+      writeBucketStart(metricCount, start, duration);
+    } catch (BufferOverflowException ignored) {
+      // reported by finishBucket
+    }
+  }
+
+  private void writeBucketStart(int metricCount, long start, long duration) {
     final UTF8BytesString processTags = ProcessTags.getTagsForSerialization();
     final boolean writeProcessTags = processTags != null;
     // the gitinfo can be rebuild in time and initialized after this class is created. So that a
@@ -177,6 +237,14 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   @Override
   public void add(AggregateEntry entry) {
+    try {
+      writeEntry(entry);
+    } catch (BufferOverflowException ignored) {
+      // reported by finishBucket
+    }
+  }
+
+  private void writeEntry(AggregateEntry entry) {
     // Dynamic map size based on optional fields; AggregateEntry encapsulates the EMPTY-as-absent
     // sentinel via its hasFoo() predicates so the serializer doesn't depend on the storage choice.
     final boolean hasHttpMethod = entry.hasHttpMethod();
@@ -306,9 +374,13 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   @Override
   public void finishBucket() {
-    buffer.mark();
-    sink.accept(buffer.messageCount(), buffer.slice());
-    buffer.reset();
+    if (buffer.mark()) {
+      buffer.flush();
+    } else {
+      log.debug("dropping a stats payload larger than {} bytes", buffer.capacity());
+      healthMetrics.onClientStatPayloadDropped();
+      buffer.reset();
+    }
   }
 
   @Override

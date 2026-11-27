@@ -16,6 +16,7 @@ import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
@@ -177,7 +178,7 @@ class FootprintForkedTest {
     public void register(EventListener listener) {}
 
     @Override
-    public void accept(int messageCount, ByteBuffer buffer) {
+    public void accept(int messageCount, List<ByteBuffer> chunks) {
       latch.countDown();
     }
   }

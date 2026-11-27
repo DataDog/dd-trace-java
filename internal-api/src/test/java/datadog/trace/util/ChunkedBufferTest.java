@@ -26,14 +26,14 @@ class ChunkedBufferTest {
 
   @Test
   void capacityIsExact() {
-    assertEquals(5 << 20, new ChunkedBuffer(5 << 20).capacity());
-    assertEquals(1024, new ChunkedBuffer(1024).capacity());
-    assertEquals(0, new ChunkedBuffer(0).capacity());
+    assertEquals(5 << 20, new ChunkedBuffer(5 << 20, CHUNK_SIZE).capacity());
+    assertEquals(1024, new ChunkedBuffer(1024, CHUNK_SIZE).capacity());
+    assertEquals(0, new ChunkedBuffer(0, CHUNK_SIZE).capacity());
   }
 
   @Test
   void lastChunkIsShortenedToFitCapacity() {
-    ChunkedBuffer buffer = new ChunkedBuffer(CHUNK_SIZE + 10);
+    ChunkedBuffer buffer = new ChunkedBuffer(CHUNK_SIZE + 10, CHUNK_SIZE);
     buffer.put(new byte[CHUNK_SIZE + 2]);
     buffer.putLong(5L);
     assertTrue(buffer.mark());
@@ -46,7 +46,7 @@ class ChunkedBufferTest {
 
   @Test
   void unusedChunkTailsDoNotReduceCapacity() {
-    ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS);
+    ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS, CHUNK_SIZE);
     buffer.put(new byte[CHUNK_SIZE - 3]);
     // leaves 3 unused bytes at the end of the first chunk
     buffer.putLong(1L);
@@ -61,7 +61,7 @@ class ChunkedBufferTest {
 
   @Test
   void keptShortChunkIsReplacedWhenAPayloadNeedsMoreOfIt() {
-    ChunkedBuffer buffer = new ChunkedBuffer(CHUNK_SIZE + 10);
+    ChunkedBuffer buffer = new ChunkedBuffer(CHUNK_SIZE + 10, CHUNK_SIZE);
     // no unused tail, so the second chunk only needs to be 10 bytes long
     buffer.put(new byte[CHUNK_SIZE + 10]);
     assertTrue(buffer.mark());
@@ -78,7 +78,7 @@ class ChunkedBufferTest {
 
   @Test
   void smallBufferIsOneSmallChunk() {
-    ChunkedBuffer buffer = new ChunkedBuffer(16);
+    ChunkedBuffer buffer = new ChunkedBuffer(16, CHUNK_SIZE);
     buffer.putLong(1L);
     buffer.putLong(2L);
     assertTrue(buffer.mark());
@@ -91,7 +91,7 @@ class ChunkedBufferTest {
 
   @Test
   void zeroCapacityRejectsEveryMessage() {
-    ChunkedBuffer buffer = new ChunkedBuffer(0);
+    ChunkedBuffer buffer = new ChunkedBuffer(0, CHUNK_SIZE);
     buffer.putInt(1);
     buffer.put(new byte[10]);
     assertFalse(buffer.mark());
@@ -101,7 +101,7 @@ class ChunkedBufferTest {
 
   @Test
   void allocatesNothingBeforeFirstWrite() {
-    ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS);
+    ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS, CHUNK_SIZE);
     assertEquals(0, buffer.allocatedChunks());
     buffer.mark();
     buffer.reset();
@@ -113,7 +113,7 @@ class ChunkedBufferTest {
   @Test
   void typedPutsAreBigEndianAcrossChunkBoundaries() {
     // a mix of widths, repeated enough to cross several chunk boundaries at varying offsets
-    ChunkedBuffer buffer = new ChunkedBuffer(THREE_CHUNKS);
+    ChunkedBuffer buffer = new ChunkedBuffer(THREE_CHUNKS, CHUNK_SIZE);
     ByteBuffer expected = ByteBuffer.allocate(THREE_CHUNKS);
     int i = 0;
     while (expected.position() < TWO_CHUNKS + CHUNK_SIZE / 2) {
@@ -144,7 +144,7 @@ class ChunkedBufferTest {
 
   @Test
   void primitiveThatDoesNotFitStartsTheNextChunk() {
-    ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS);
+    ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS, CHUNK_SIZE);
     buffer.put(new byte[CHUNK_SIZE - 3]);
     buffer.putLong(0x0102030405060708L);
     buffer.mark();
@@ -159,7 +159,7 @@ class ChunkedBufferTest {
 
   @Test
   void byteArraysSplitAcrossChunks() {
-    ChunkedBuffer buffer = new ChunkedBuffer(THREE_CHUNKS);
+    ChunkedBuffer buffer = new ChunkedBuffer(THREE_CHUNKS, CHUNK_SIZE);
     byte[] data = sequence(CHUNK_SIZE + CHUNK_SIZE / 2);
     buffer.put((byte) -1);
     buffer.put(data, 0, data.length);
@@ -177,7 +177,7 @@ class ChunkedBufferTest {
 
   @Test
   void byteBufferSplitsAcrossChunks() {
-    ChunkedBuffer buffer = new ChunkedBuffer(THREE_CHUNKS);
+    ChunkedBuffer buffer = new ChunkedBuffer(THREE_CHUNKS, CHUNK_SIZE);
     byte[] data = sequence(CHUNK_SIZE + 100);
     ByteBuffer src = ByteBuffer.wrap(data);
     buffer.put(src);
@@ -189,7 +189,7 @@ class ChunkedBufferTest {
 
   @Test
   void emptyMarksAreNotCounted() {
-    ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS);
+    ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS, CHUNK_SIZE);
     buffer.mark();
     buffer.mark();
     assertEquals(0, buffer.messageCount());
@@ -202,7 +202,7 @@ class ChunkedBufferTest {
 
   @Test
   void rewindDiscardsUnmarkedBytesAcrossChunks() {
-    ChunkedBuffer buffer = new ChunkedBuffer(THREE_CHUNKS);
+    ChunkedBuffer buffer = new ChunkedBuffer(THREE_CHUNKS, CHUNK_SIZE);
     buffer.putInt(42);
     buffer.mark();
     // spill the unfinished message into a second chunk
@@ -222,7 +222,7 @@ class ChunkedBufferTest {
 
   @Test
   void rewindBeforeAnyMarkEmptiesTheBuffer() {
-    ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS);
+    ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS, CHUNK_SIZE);
     buffer.put(new byte[CHUNK_SIZE + 10]);
     buffer.rewind();
     assertFalse(buffer.isDirty());
@@ -235,7 +235,7 @@ class ChunkedBufferTest {
 
   @Test
   void overflowFailsWithoutThrowingAndMarkRewinds() {
-    ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS);
+    ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS, CHUNK_SIZE);
     byte[] first = sequence(CHUNK_SIZE + 10);
     buffer.put(first);
     assertTrue(buffer.mark());
@@ -267,7 +267,7 @@ class ChunkedBufferTest {
 
   @Test
   void messageLargerThanCapacityFailsFromEmpty() {
-    ChunkedBuffer buffer = new ChunkedBuffer(CHUNK_SIZE);
+    ChunkedBuffer buffer = new ChunkedBuffer(CHUNK_SIZE, CHUNK_SIZE);
     buffer.put(new byte[CHUNK_SIZE + 1]);
     assertFalse(buffer.mark());
     assertFalse(buffer.isDirty());
@@ -276,7 +276,7 @@ class ChunkedBufferTest {
 
   @Test
   void writesFillCapacityExactly() {
-    ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS);
+    ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS, CHUNK_SIZE);
     buffer.put(new byte[TWO_CHUNKS - 8]);
     buffer.putLong(1L);
     assertTrue(buffer.mark());
@@ -289,7 +289,7 @@ class ChunkedBufferTest {
 
   @Test
   void rewindAlsoClearsFailure() {
-    ChunkedBuffer buffer = new ChunkedBuffer(CHUNK_SIZE);
+    ChunkedBuffer buffer = new ChunkedBuffer(CHUNK_SIZE, CHUNK_SIZE);
     buffer.put(new byte[CHUNK_SIZE + 1]);
     buffer.rewind();
     buffer.putInt(5);
@@ -299,7 +299,7 @@ class ChunkedBufferTest {
 
   @Test
   void resetKeepsTheChunksTheCompletedMessagesUsed() {
-    ChunkedBuffer buffer = new ChunkedBuffer(5 * CHUNK_SIZE);
+    ChunkedBuffer buffer = new ChunkedBuffer(5 * CHUNK_SIZE, CHUNK_SIZE);
     buffer.put(new byte[2 * CHUNK_SIZE + 1]);
     buffer.mark();
     assertEquals(3, buffer.allocatedChunks());
@@ -312,7 +312,7 @@ class ChunkedBufferTest {
 
   @Test
   void resetReleasesHalfTheSurplusEachTime() {
-    ChunkedBuffer buffer = new ChunkedBuffer(20 * CHUNK_SIZE);
+    ChunkedBuffer buffer = new ChunkedBuffer(20 * CHUNK_SIZE, CHUNK_SIZE);
     buffer.put(new byte[18 * CHUNK_SIZE + 1]);
     buffer.mark();
     buffer.reset();
@@ -330,7 +330,7 @@ class ChunkedBufferTest {
 
   @Test
   void growthIsNotHalved() {
-    ChunkedBuffer buffer = new ChunkedBuffer(5 * CHUNK_SIZE);
+    ChunkedBuffer buffer = new ChunkedBuffer(5 * CHUNK_SIZE, CHUNK_SIZE);
     buffer.putInt(1);
     buffer.mark();
     buffer.reset();
@@ -344,7 +344,7 @@ class ChunkedBufferTest {
 
   @Test
   void resetIgnoresUnfinishedAndFailedMessages() {
-    ChunkedBuffer buffer = new ChunkedBuffer(3 * CHUNK_SIZE);
+    ChunkedBuffer buffer = new ChunkedBuffer(3 * CHUNK_SIZE, CHUNK_SIZE);
     buffer.putInt(1);
     buffer.mark();
     // an oversized message touches every chunk before failing
@@ -355,7 +355,7 @@ class ChunkedBufferTest {
 
   @Test
   void resetReusesRetainedChunks() {
-    ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS);
+    ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS, CHUNK_SIZE);
     buffer.put(sequence(CHUNK_SIZE + 10));
     buffer.mark();
     ByteBuffer before = buffer.completedChunks().get(1);
@@ -370,7 +370,7 @@ class ChunkedBufferTest {
 
   @Test
   void completedChunksAreIndependentViews() {
-    ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS);
+    ChunkedBuffer buffer = new ChunkedBuffer(TWO_CHUNKS, CHUNK_SIZE);
     buffer.putLong(3L);
     buffer.mark();
 
@@ -402,6 +402,61 @@ class ChunkedBufferTest {
     buffer.putInt(2);
     assertTrue(buffer.mark());
     assertEquals(8, buffer.completedBytes());
+  }
+
+  @Test
+  void defaultFirstChunkIsSmall() {
+    ChunkedBuffer buffer = new ChunkedBuffer(5 << 20);
+    buffer.putInt(1);
+    assertTrue(buffer.mark());
+    assertEquals(
+        ChunkedBuffer.DEFAULT_FIRST_CHUNK_SIZE, buffer.completedChunks().get(0).array().length);
+  }
+
+  @Test
+  void chunksStartSmallAndDoubleUpToChunkSize() {
+    ChunkedBuffer buffer = new ChunkedBuffer(4 * CHUNK_SIZE, 4096);
+    buffer.put(new byte[4096 + 8192 + 16384 + 32768 + 65536 + 131072 + CHUNK_SIZE + 1]);
+    assertTrue(buffer.mark());
+
+    List<ByteBuffer> chunks = buffer.completedChunks();
+    int[] expected = {4096, 8192, 16384, 32768, 65536, 131072, CHUNK_SIZE, 1};
+    assertEquals(expected.length, chunks.size());
+    for (int i = 0; i < expected.length; ++i) {
+      assertEquals(expected[i], chunks.get(i).remaining(), "chunk " + i);
+    }
+  }
+
+  @Test
+  void smallPayloadKeepsOnlyASmallChunk() {
+    ChunkedBuffer buffer = new ChunkedBuffer(32 << 20, 4096);
+    buffer.put(new byte[100]);
+    assertTrue(buffer.mark());
+    assertEquals(4096, buffer.completedChunks().get(0).array().length);
+    buffer.reset();
+    assertEquals(1, buffer.allocatedChunks());
+  }
+
+  @Test
+  void capacityIsExactWithSmallFirstChunks() {
+    ChunkedBuffer buffer = new ChunkedBuffer(300_000, 4096);
+    // primitives leave unused tails in the small chunks
+    for (int i = 0; i < 300_000 / 8; ++i) {
+      buffer.putLong(i);
+    }
+    assertTrue(buffer.mark());
+    assertEquals(300_000, buffer.completedBytes());
+
+    buffer.put((byte) 1);
+    assertFalse(buffer.mark());
+  }
+
+  @Test
+  void firstChunkSizeIsLargeEnoughForAnyPrimitive() {
+    ChunkedBuffer buffer = new ChunkedBuffer(1024, 1);
+    buffer.putLong(7L);
+    assertTrue(buffer.mark());
+    assertEquals(7L, buffer.completedChunks().get(0).getLong());
   }
 
   private static byte[] sequence(int length) {

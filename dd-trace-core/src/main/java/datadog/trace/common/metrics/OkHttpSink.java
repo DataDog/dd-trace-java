@@ -13,6 +13,7 @@ import datadog.common.queue.Queues;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -67,13 +68,13 @@ public final class OkHttpSink implements Sink, EventListener {
   }
 
   @Override
-  public void accept(int messageCount, ByteBuffer buffer) {
+  public void accept(int messageCount, List<ByteBuffer> chunks) {
     // if the agent is healthy, then we can send on this thread,
-    // without copying the buffer, otherwise this needs to be async,
+    // without copying the chunks, otherwise this needs to be async,
     // so need to copy and buffer the request, and let it be executed
     // on the main task scheduler as a last resort
     if (!bufferingEnabled || lastRequestTime.get() < ASYNC_THRESHOLD_LATENCY) {
-      send(prepareRequest(metricsUrl, headers).post(makeRequestBody(buffer)).build());
+      send(prepareRequest(metricsUrl, headers).post(makeRequestBody(chunks)).build());
       AgentTaskScheduler.Scheduled<OkHttpSink> future = this.future;
       if (future != null && enqueuedRequests.isEmpty()) {
         // async mode has been started but request latency is normal,
@@ -87,27 +88,52 @@ public final class OkHttpSink implements Sink, EventListener {
             AgentTaskScheduler.get()
                 .scheduleAtFixedRate(new Sender(enqueuedRequests), this, 1, 1, SECONDS);
       }
-      sendAsync(messageCount, buffer);
+      sendAsync(messageCount, chunks);
     }
   }
 
-  private RequestBody makeRequestBody(ByteBuffer buffer) {
+  private RequestBody makeRequestBody(List<ByteBuffer> chunks) {
     if (compressionEnabled) {
-      return gzippedMsgpackRequestBodyOf(Collections.singletonList(buffer));
+      return gzippedMsgpackRequestBodyOf(chunks);
     } else {
-      return msgpackRequestBodyOf(Collections.singletonList(buffer));
+      return msgpackRequestBodyOf(chunks);
     }
   }
 
-  private void sendAsync(int messageCount, ByteBuffer buffer) {
+  private void sendAsync(int messageCount, List<ByteBuffer> chunks) {
     asyncRequestCounter.getAndIncrement();
+    // the chunks are reused for the next payload as soon as accept returns, so copy them
+    List<ByteBuffer> copies = copyOf(chunks);
     if (!enqueuedRequests.offer(
-        prepareRequest(metricsUrl, headers).post(makeRequestBody(buffer.duplicate())).build())) {
+        prepareRequest(metricsUrl, headers).post(makeRequestBody(copies)).build())) {
       log.debug(
           "dropping payload of {} and {}B because sending queue was full",
           messageCount,
-          buffer.limit());
+          sizeOf(copies));
     }
+  }
+
+  /**
+   * Copies each chunk into its own array, so a queued payload keeps the writer's bound on any one
+   * allocation: gathering a large payload into one array could make it humongous on G1.
+   */
+  static List<ByteBuffer> copyOf(List<ByteBuffer> chunks) {
+    List<ByteBuffer> copies = new ArrayList<>(chunks.size());
+    for (ByteBuffer chunk : chunks) {
+      ByteBuffer copy = ByteBuffer.allocate(chunk.remaining());
+      copy.put(chunk.duplicate());
+      copy.flip();
+      copies.add(copy);
+    }
+    return Collections.unmodifiableList(copies);
+  }
+
+  private static int sizeOf(List<ByteBuffer> chunks) {
+    int size = 0;
+    for (ByteBuffer chunk : chunks) {
+      size += chunk.remaining();
+    }
+    return size;
   }
 
   public boolean isInDegradedMode() {
