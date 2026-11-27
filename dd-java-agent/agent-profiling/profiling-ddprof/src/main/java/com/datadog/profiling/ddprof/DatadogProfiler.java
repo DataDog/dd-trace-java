@@ -1,3 +1,4 @@
+// Copyright 2026 Datadog, Inc.
 package com.datadog.profiling.ddprof;
 
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.enableJMethodIDOptim;
@@ -17,6 +18,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getStackDepth;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallCollapsing;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallContextFilter;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallPrecheck;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeTrackingEnabled;
@@ -44,10 +46,13 @@ import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.utils.ProfilingMode;
 import com.datadoghq.profiler.ContextSetter;
 import com.datadoghq.profiler.JavaProfiler;
+import com.datadoghq.profiler.TaskBlockBridge;
 import datadog.environment.JavaVirtualMachine;
 import datadog.libs.ddprof.DdprofLibraryLoader;
+import datadog.trace.api.Config;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.RecordingData;
+import datadog.trace.api.profiling.TaskBlockInstrumentationConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.TaskWrapper;
 import datadog.trace.util.Strings;
@@ -118,9 +123,12 @@ public final class DatadogProfiler {
     return new DatadogProfiler(configProvider);
   }
 
-  private final AtomicBoolean recordingFlag = new AtomicBoolean(false);
+  // JavaProfiler owns one process-wide native recording; all wrapper instances must observe the
+  // same lifecycle so early-created integrations can dispatch hooks while the controller records.
+  private static final AtomicBoolean RECORDING = new AtomicBoolean(false);
   private final ConfigProvider configProvider;
   private final JavaProfiler profiler;
+  private final TaskBlockBridge taskBlockBridge;
   private final Set<ProfilingMode> configuredProfilingModes = EnumSet.noneOf(ProfilingMode.class);
   private final Set<ProfilingMode> profilingModes = EnumSet.noneOf(ProfilingMode.class);
 
@@ -235,6 +243,8 @@ public final class DatadogProfiler {
     this.profilerOptions = getProfilerOptions(configProvider);
     warnIfProfilerOptionsConfigured(log, profilerOptions);
     this.profiler = DdprofLibraryLoader.javaProfiler().getComponent();
+    this.taskBlockBridge =
+        new TaskBlockBridge(profiler, reason -> warnTaskBlockUnsupported(log, reason));
     this.detailedDebugLogging =
         configProvider.getBoolean(
             PROFILING_DETAILED_DEBUG_LOGGING, PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT);
@@ -242,6 +252,9 @@ public final class DatadogProfiler {
     if (reasonNotLoaded != null) {
       throw new UnsupportedOperationException(
           "Unable to instantiate datadog profiler", reasonNotLoaded);
+    }
+    if (TaskBlockInstrumentationConfig.isEnabled(Config.get(), configProvider)) {
+      taskBlockBridge.reportIfUnsupported();
     }
 
     // TODO enable/disable events by name (e.g. datadog.ExecutionSample), not flag, so configuration
@@ -355,7 +368,7 @@ public final class DatadogProfiler {
 
   /** A call-back from {@linkplain DatadogProfilerRecording#stop()} */
   void stopProfiler() {
-    if (recordingFlag.compareAndSet(true, false)) {
+    if (RECORDING.compareAndSet(true, false)) {
       profiler.stop();
       if (isActive()) {
         log.debug("Profiling is still active. Waiting to stop.");
@@ -389,7 +402,7 @@ public final class DatadogProfiler {
   }
 
   Path newRecording() throws IOException, IllegalStateException {
-    if (recordingFlag.compareAndSet(false, true)) {
+    if (RECORDING.compareAndSet(false, true)) {
       Path recFile = Files.createTempFile(recordingsPath, "dd-profiler-", ".jfr");
       String cmd = cmdStartProfiling(recFile);
       try {
@@ -401,7 +414,7 @@ public final class DatadogProfiler {
         } else {
           log.warn("Unable to start Datadog profiler recording: {}", e.getMessage());
         }
-        recordingFlag.set(false);
+        RECORDING.set(false);
         throw e;
       }
       return recFile;
@@ -478,6 +491,7 @@ public final class DatadogProfiler {
       } else {
         cmd.append(",filter=");
       }
+      cmd.append(",wallprecheck=").append(getWallPrecheck(configProvider));
     }
     cmd.append(",loglevel=").append(getLogLevel(configProvider));
     if (configuredProfilingModes.contains(ALLOCATION)
@@ -588,6 +602,11 @@ public final class DatadogProfiler {
   private static String normalizeProfilerOption(String name, String option) {
     int equals = option.indexOf('=');
     return equals < 0 ? name : name + '=' + option.substring(equals + 1).trim();
+  }
+
+  /** Surfaces a disabled TaskBlock bridge locally and through telemetry logs. */
+  static void warnTaskBlockUnsupported(Logger logger, String reason) {
+    logger.warn(SEND_TELEMETRY, reason);
   }
 
   static void warnIfProfilerOptionsConfigured(Logger logger, String configuredOptions) {
@@ -783,6 +802,26 @@ public final class DatadogProfiler {
 
   public void clearSpanContext() {
     clearTraceContext();
+  }
+
+  boolean hasParkTaskBlockSupport() {
+    return taskBlockBridge.hasParkSupport();
+  }
+
+  boolean parkEnter() {
+    return RECORDING.get() && taskBlockBridge.parkEnter();
+  }
+
+  void parkExit(long blocker, long unblockingSpanId) {
+    taskBlockBridge.parkExit(blocker, unblockingSpanId);
+  }
+
+  long beginTaskBlock() {
+    return RECORDING.get() ? taskBlockBridge.beginTaskBlock() : 0L;
+  }
+
+  boolean endTaskBlock(long token, long blocker, long unblockingSpanId) {
+    return token != 0L && taskBlockBridge.endTaskBlock(token, blocker, unblockingSpanId);
   }
 
   public boolean setContextValue(int offset, String value) {

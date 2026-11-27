@@ -1,3 +1,4 @@
+// Copyright 2026 Datadog, Inc.
 package com.datadog.profiling.ddprof;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -75,5 +76,16 @@ class DatadogProfilerRecordingTest {
     // Snapshot files must live under the same recordings dir as start (SCP-1361).
     assertNotNull(data.getPath());
     assertEquals(recording.getRecordingFile().getParent(), data.getPath().getParent());
+  }
+
+  @Test
+  void recordingLifecycleIsVisibleAcrossProfilerWrappers() {
+    DatadogProfiler integrationProfiler = DatadogProfiler.newInstance();
+
+    // Assert the native park-hook capability resolved against the pinned ddprof artifact before
+    // verifying that an active recording accepts the park interval.
+    assertTrue(integrationProfiler.hasParkTaskBlockSupport());
+    assertTrue(integrationProfiler.parkEnter());
+    integrationProfiler.parkExit(0L, 0L);
   }
 }
