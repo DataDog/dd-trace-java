@@ -1,8 +1,7 @@
 package datadog.gradle.plugin.muzzle.tasks
 
-import datadog.gradle.plugin.muzzle.mainSourceSet
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.model.ObjectFactory
-import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.InputFiles
@@ -17,7 +16,6 @@ import javax.inject.Inject
 
 @CacheableTask
 abstract class MuzzleGetReferencesTask @Inject constructor(
-  providers: ProviderFactory,
   objects: ObjectFactory,
 ) : AbstractMuzzleTask() {
 
@@ -31,7 +29,7 @@ abstract class MuzzleGetReferencesTask @Inject constructor(
 
   @get:InputFiles
   @get:Classpath
-  val classpath = providers.provider { project.mainSourceSet.runtimeClasspath }
+  val classpath: ConfigurableFileCollection = objects.fileCollection()
 
   // This output is only used to make the task cacheable, this is not exposed
   @get:OutputFile
@@ -41,7 +39,7 @@ abstract class MuzzleGetReferencesTask @Inject constructor(
 
   @TaskAction
   fun printMuzzle() {
-    val cl = URLClassLoader(classpath.get().map { it.toURI().toURL() }.toTypedArray(), null)
+    val cl = URLClassLoader(classpath.map { it.toURI().toURL() }.toTypedArray(), null)
     val printMethod: Method = cl.loadClass("datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin")
       .getMethod(
         "printMuzzleReferences",

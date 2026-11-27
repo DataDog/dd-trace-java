@@ -47,7 +47,6 @@ class MuzzleEndTaskTest {
     }
 
     val task = project.tasks.register<MuzzleEndTask>("muzzle-end").get().apply {
-      startTimeMs.set(System.currentTimeMillis() - 1_000)
       sourceFile.set("lettuce-5.0")
       muzzleResultFiles.from(passReportPath.toFile(), failReportPath.toFile())
     }

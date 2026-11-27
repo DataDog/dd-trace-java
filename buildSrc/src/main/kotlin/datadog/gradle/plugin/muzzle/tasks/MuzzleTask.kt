@@ -3,12 +3,7 @@ package datadog.gradle.plugin.muzzle.tasks
 import datadog.gradle.plugin.HostPlatform
 import datadog.gradle.plugin.muzzle.MuzzleAction
 import datadog.gradle.plugin.muzzle.MuzzleDirective
-import datadog.gradle.plugin.muzzle.MuzzleExtension
-import datadog.gradle.plugin.muzzle.allMainSourceSet
-import org.gradle.api.Project
-import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.ConfigurableFileCollection
-import org.gradle.api.file.FileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.invocation.BuildInvocationDetails
 import org.gradle.api.model.ObjectFactory
@@ -25,7 +20,6 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaLauncher
 import org.gradle.jvm.toolchain.JavaToolchainService
-import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.property
 import org.gradle.workers.WorkerExecutor
 import javax.inject.Inject
@@ -52,15 +46,15 @@ abstract class MuzzleTask @Inject constructor(
 
   @get:InputFiles
   @get:Classpath
-  abstract val muzzleBootstrap: Property<Configuration>
+  abstract val muzzleBootstrap: ConfigurableFileCollection
 
   @get:InputFiles
   @get:Classpath
-  abstract val muzzleTooling: Property<Configuration>
+  abstract val muzzleTooling: ConfigurableFileCollection
 
   @get:InputFiles
   @get:Classpath
-  protected val agentClassPath = providers.provider { createAgentClassPath(project) }
+  val agentClassPath: ConfigurableFileCollection = objects.fileCollection()
 
   @get:InputFiles
   @get:Classpath
@@ -68,7 +62,10 @@ abstract class MuzzleTask @Inject constructor(
 
   @get:InputFiles
   @get:Classpath
-  protected val muzzleClassPath = providers.provider { createMuzzleClassPath(project, name) }
+  val muzzleClassPath: ConfigurableFileCollection = objects.fileCollection()
+
+  @get:Input
+  val checkCompileTimeDependencies: Property<Boolean> = objects.property<Boolean>().convention(true)
 
   @get:Input
   @get:Optional
@@ -135,8 +132,8 @@ abstract class MuzzleTask @Inject constructor(
       // Fallback for the root "muzzle" lifecycle task when no pass{} directives are
       // declared. In that case there are no version-specific pass tasks, so we assert
       // the instrumentation against its own compile-time classpath as a basic sanity check.
-      !project.extensions.getByType<MuzzleExtension>().directives.any { it.assertPass } -> {
-        project.logger.info("No muzzle pass directives configured. Asserting pass against instrumentation compile-time dependencies")
+      checkCompileTimeDependencies.get() -> {
+        logger.info("No muzzle pass directives configured. Asserting pass against instrumentation compile-time dependencies")
         assertMuzzle()
       }
     }
@@ -168,8 +165,8 @@ abstract class MuzzleTask @Inject constructor(
       buildStartedTime.set(invocationDetails.buildStartedTime)
       bootstrapClassPath.setFrom(muzzleBootstrap)
       toolingClassPath.setFrom(muzzleTooling)
-      instrumentationClassPath.setFrom(agentClassPath.get(), extraAgentClasspath)
-      testApplicationClassPath.setFrom(muzzleClassPath.get())
+      instrumentationClassPath.setFrom(agentClassPath, extraAgentClasspath)
+      testApplicationClassPath.setFrom(muzzleClassPath)
       if (muzzleDirective != null) {
         assertPass.set(muzzleDirective.assertPass)
         this.muzzleDirective.set(muzzleDirective.name ?: muzzleDirective.module)
@@ -178,31 +175,5 @@ abstract class MuzzleTask @Inject constructor(
       }
       resultFile.set(result)
     }
-  }
-
-  private fun createAgentClassPath(project: Project): FileCollection {
-    project.logger.info("Creating agent classpath for $project")
-    val cp = project.files()
-    cp.from(project.allMainSourceSet.map { it.runtimeClasspath })
-
-    if (project.logger.isInfoEnabled) {
-      cp.forEach { project.logger.info("-- $it") }
-    }
-    return cp
-  }
-
-  private fun createMuzzleClassPath(project: Project, muzzleTaskName: String): FileCollection {
-    project.logger.info("Creating muzzle classpath for $muzzleTaskName")
-    val cp = project.files()
-    val config = if (muzzleTaskName == "muzzle") {
-      project.configurations.named("compileClasspath").get()
-    } else {
-      project.configurations.named(muzzleTaskName).get()
-    }
-    cp.from(config)
-    if (project.logger.isInfoEnabled) {
-      cp.forEach { project.logger.info("-- $it") }
-    }
-    return cp
   }
 }
