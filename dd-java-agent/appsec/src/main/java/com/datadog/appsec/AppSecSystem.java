@@ -8,6 +8,7 @@ import com.datadog.appsec.config.AppSecConfigService;
 import com.datadog.appsec.config.AppSecConfigServiceImpl;
 import com.datadog.appsec.ddwaf.WAFModule;
 import com.datadog.appsec.event.EventDispatcher;
+import com.datadog.appsec.event.EventProducerService;
 import com.datadog.appsec.event.ReplaceableEventProducerService;
 import com.datadog.appsec.gateway.GatewayBridge;
 import com.datadog.appsec.util.AbortStartupException;
@@ -20,6 +21,7 @@ import datadog.remoteconfig.ConfigurationPoller;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.gateway.SubscriptionService;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.telemetry.ProductChange;
 import datadog.trace.api.telemetry.ProductChangeCollector;
 import datadog.trace.bootstrap.ActiveSubsystems;
@@ -40,7 +42,7 @@ public class AppSecSystem {
   private static final AtomicBoolean STARTED = new AtomicBoolean();
   private static final Map<AppSecModule, String> STARTED_MODULES_INFO = new HashMap<>();
   private static AppSecConfigServiceImpl APP_SEC_CONFIG_SERVICE;
-  private static ReplaceableEventProducerService REPLACEABLE_EVENT_PRODUCER; // testing
+  private static ReplaceableEventProducerService REPLACEABLE_EVENT_PRODUCER;
   private static Runnable STOP_SUBSCRIPTION_SERVICE;
   private static Runnable RESET_SUBSCRIPTION_SERVICE;
   private static volatile GatewayBridge GATEWAY_BRIDGE;
@@ -232,6 +234,11 @@ public class AppSecSystem {
         API_SECURITY_SAMPLER = requestSampler;
       }
     }
+  }
+
+  @VisibleForTesting
+  static EventProducerService currentEventProducer() {
+    return REPLACEABLE_EVENT_PRODUCER.getCurrent();
   }
 
   public static boolean isStarted() {

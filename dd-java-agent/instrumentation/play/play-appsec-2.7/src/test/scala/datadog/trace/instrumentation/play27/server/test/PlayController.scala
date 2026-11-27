@@ -69,6 +69,18 @@ class PlayController(cc: ControllerComponents)(implicit ec: ExecutionContext)
     Results.Ok(id.toString)
   }
 
+  def catchAll(path: String) = Action {
+    Results.Ok(path)
+  }
+
+  def file(name: String, ext: String) = Action {
+    Results.Ok(s"$name.$ext")
+  }
+
+  def optional(x: String) = Action {
+    Results.Ok(x)
+  }
+
   def created = controller(ServerEndpoint.CREATED) { request =>
     val body: String = request.body.asText.getOrElse("")
     Results.Created(s"created: $body")
