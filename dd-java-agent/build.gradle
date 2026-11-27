@@ -646,8 +646,10 @@ tasks.register('verifyAgentJarIntegrations', JavaExec) {
   description = 'Verify the agent jar lists exactly the integrations in metadata/agent-jar-checks.properties'
 
   def jarProvider = tasks.named('shadowJar', ShadowJar).flatMap { it.archiveFile }
+  def restletIncluded = findProject(':dd-java-agent:instrumentation:restlet-2.2') != null
   inputs.file(jarProvider)
   inputs.file(agentJarChecksProps)
+  inputs.property('restletIncluded', restletIncluded)
   outputs.file(project.layout.buildDirectory.file("tmp/${it.name}/.verified"))
 
   // Run the assembled agent jar directly — this exercises dd-java-agent.index,
@@ -679,6 +681,9 @@ tasks.register('verifyAgentJarIntegrations', JavaExec) {
     agentJarChecksProps.withInputStream { props.load(it) }
     def actual   = capturedOutput.toString().readLines().findAll { !it.isBlank() }.toSorted()
     def expected = props.getProperty('expected.integrations').split(',').collect { it.trim() }.toSorted()
+    if (!restletIncluded) {
+      expected.remove('restlet-http')
+    }
     def added    = actual - expected
     def removed  = expected - actual
 
