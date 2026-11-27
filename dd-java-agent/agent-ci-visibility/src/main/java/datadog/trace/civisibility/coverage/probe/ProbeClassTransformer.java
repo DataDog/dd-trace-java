@@ -5,7 +5,9 @@ import datadog.trace.api.civisibility.coverage.SourceMap;
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.objectweb.asm.ClassReader;
@@ -41,6 +43,13 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
   private static final boolean ASM_ONLY =
       Boolean.getBoolean("dd.civisibility.experiment.asm.transformer");
 
+  static final String CLASS_LIMIT =
+      "the process has more than " + ProbeRecorder.MAX_CLASSES + " classes with probes";
+  static final String TOO_LARGE = "the method would outgrow the size limit with probes";
+  static final String TOO_LARGE_FOR_EXCEPTION_PROBES =
+      "the method would outgrow the size limit with exception probes";
+  static final String NO_PROBE_PLACE = "the method has no place for a probe that the JIT accepts";
+
   private final Predicate<String> instrumentationFilter;
 
   public ProbeClassTransformer(Predicate<String> instrumentationFilter) {
@@ -66,12 +75,13 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
     }
     int majorVersion = ((source[6] & 0xFF) << 8) | (source[7] & 0xFF);
     if (majorVersion < Opcodes.V1_5) {
+      ProbeLosses.classLost(className, "the class file is older than Java 5", null);
       return null;
     }
     try {
       return instrument(source, loader, majorVersion >= Opcodes.V1_6);
     } catch (Throwable e) {
-      log.debug("Could not insert line probes into {}", className, e);
+      ProbeLosses.classLost(className, "inserting probes failed with " + e, e);
       return null;
     }
   }
@@ -121,6 +131,7 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
     }
     int classId = ProbeRecorder.reserveClassId();
     if (classId < 0) {
+      ProbeLosses.classLost(classFile.className(classFile.thisClass), CLASS_LIMIT, null);
       return null;
     }
     try {
@@ -176,25 +187,44 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
     if (classId < 0) {
       classId = ProbeRecorder.reserveClassId();
       if (classId < 0) {
+        ProbeLosses.classLost(reader.getClassName(), CLASS_LIMIT, null);
         return null;
       }
     }
     // methods that outgrow the size limit lose their exception probes, then all their probes;
     // methods with no place for a probe that the JIT compilers accept lose all their probes
     Map<String, Integer> reductions = new HashMap<>();
+    Set<String> withoutProbePlace = new HashSet<>();
     while (true) {
       try {
-        return instrument(reader, frames, classId, reductions);
+        Instrumented instrumented = instrument(reader, frames, classId, reductions);
+        countReductions(reader.getClassName(), reductions, withoutProbePlace);
+        return instrumented;
       } catch (MethodTooLargeException e) {
         String method = e.getMethodName() + e.getDescriptor();
         if (reductions.merge(method, 1, Integer::sum) > SKIP_METHOD) {
           throw e;
         }
       } catch (MethodProbeInserter.ProbePlacementException e) {
-        Integer previous = reductions.put(e.methodName + e.descriptor, SKIP_METHOD);
+        String method = e.methodName + e.descriptor;
+        Integer previous = reductions.put(method, SKIP_METHOD);
         if (previous != null && previous == SKIP_METHOD) {
           throw e;
         }
+        withoutProbePlace.add(method);
+      }
+    }
+  }
+
+  private static void countReductions(
+      String className, Map<String, Integer> reductions, Set<String> withoutProbePlace) {
+    for (Map.Entry<String, Integer> reduction : reductions.entrySet()) {
+      String method = reduction.getKey();
+      if (reduction.getValue() >= SKIP_METHOD) {
+        ProbeLosses.methodLost(
+            className, method, withoutProbePlace.contains(method) ? NO_PROBE_PLACE : TOO_LARGE);
+      } else {
+        ProbeLosses.exceptionProbesLost(className, method, TOO_LARGE_FOR_EXCEPTION_PROBES);
       }
     }
   }

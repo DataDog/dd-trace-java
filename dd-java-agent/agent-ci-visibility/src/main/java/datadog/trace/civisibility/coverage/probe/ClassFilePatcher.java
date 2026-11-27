@@ -49,7 +49,13 @@ final class ClassFilePatcher {
    */
   @Nullable
   static ProbeClassTransformer.Instrumented instrument(ClassFile classFile, int classId) {
-    return new ClassFilePatcher(classFile, classId).instrument();
+    ClassFilePatcher patcher = new ClassFilePatcher(classFile, classId);
+    ProbeClassTransformer.Instrumented instrumented = patcher.instrument();
+    for (String method : patcher.skippedMethods) {
+      ProbeLosses.methodLost(
+          classFile.className(classFile.thisClass), method, ProbeClassTransformer.NO_PROBE_PLACE);
+    }
+    return instrumented;
   }
 
   @Nullable

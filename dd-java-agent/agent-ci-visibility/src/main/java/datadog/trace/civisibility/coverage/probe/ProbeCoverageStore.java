@@ -210,6 +210,7 @@ public final class ProbeCoverageStore extends CoverageWindow implements Coverage
     @Override
     public void reportShared(DDTraceId testSessionId) {
       SharedCoverageReporter.report(sourceFiles, testSessionId);
+      ProbeLosses.warnOnce();
     }
 
     @Override

@@ -63,6 +63,7 @@ final class PatcherStats {
       writer.write(
           ProbeRecorder.getRegisteredThreadProbesCount()
               + "\tprobes: threads registered at exit\n");
+      ProbeLosses.writeTo(writer);
     } catch (IOException e) {
       // nothing to report to
     }
