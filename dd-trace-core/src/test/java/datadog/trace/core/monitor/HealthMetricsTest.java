@@ -1,5 +1,6 @@
 package datadog.trace.core.monitor;
 
+import static datadog.trace.core.monitor.OtelExporterId.Signal.SPAN;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.mock;
@@ -8,6 +9,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import datadog.metrics.api.statsd.StatsDClient;
+import datadog.trace.api.config.OtlpConfig.Protocol;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
@@ -36,6 +38,16 @@ class HealthMetricsTest {
   void testOnShutdown() {
     TracerHealthMetrics healthMetrics = new TracerHealthMetrics(statsD);
     healthMetrics.onShutdown(true);
+    verifyNoInteractions(statsD);
+  }
+
+  @Test
+  void testExportHooksReportNothing() {
+    TracerHealthMetrics healthMetrics = new TracerHealthMetrics(statsD);
+    OtelExporterId exporter = OtelExporterId.otlp(SPAN, Protocol.HTTP_PROTOBUF, null);
+    healthMetrics.onExportStart(exporter, 3);
+    healthMetrics.onExportEnd(exporter, 3, 1_000L, RemoteApi.Response.success(200), null);
+    healthMetrics.onExportEnd(exporter, 3, 1_000L, null, new IllegalStateException());
     verifyNoInteractions(statsD);
   }
 

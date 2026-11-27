@@ -221,6 +221,25 @@ public final class CompositeHealthMetrics extends HealthMetrics {
   }
 
   @Override
+  public void onExportStart(final OtelExporterId exporter, final long itemCount) {
+    for (HealthMetrics delegate : delegates) {
+      delegate.onExportStart(exporter, itemCount);
+    }
+  }
+
+  @Override
+  public void onExportEnd(
+      final OtelExporterId exporter,
+      final long itemCount,
+      final long durationNanos,
+      final RemoteApi.Response response,
+      final Throwable error) {
+    for (HealthMetrics delegate : delegates) {
+      delegate.onExportEnd(exporter, itemCount, durationNanos, response, error);
+    }
+  }
+
+  @Override
   public void onLongRunningUpdate(final int dropped, final int write, final int expired) {
     for (HealthMetrics delegate : delegates) {
       delegate.onLongRunningUpdate(dropped, write, expired);
