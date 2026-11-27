@@ -6,7 +6,9 @@ import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.SPLIT_SERIAL_ID;
 
+import dev.openfeature.sdk.Client;
 import dev.openfeature.sdk.EvaluationContext;
+import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
@@ -78,6 +80,24 @@ final class ScaleCase {
         return provider.getStringEvaluation(flag, (String) defaultValue, context);
       case "JSON":
         return provider.getObjectEvaluation(flag, (Value) defaultValue, context);
+      default:
+        throw new IllegalArgumentException("Unsupported variationType: " + variationType);
+    }
+  }
+
+  /** Evaluates this case through an OpenFeature client, with its hooks, and another context. */
+  FlagEvaluationDetails<?> evaluate(final Client client, final EvaluationContext context) {
+    switch (variationType) {
+      case "BOOLEAN":
+        return client.getBooleanDetails(flag, (Boolean) defaultValue, context);
+      case "INTEGER":
+        return client.getIntegerDetails(flag, (Integer) defaultValue, context);
+      case "NUMERIC":
+        return client.getDoubleDetails(flag, (Double) defaultValue, context);
+      case "STRING":
+        return client.getStringDetails(flag, (String) defaultValue, context);
+      case "JSON":
+        return client.getObjectDetails(flag, (Value) defaultValue, context);
       default:
         throw new IllegalArgumentException("Unsupported variationType: " + variationType);
     }
