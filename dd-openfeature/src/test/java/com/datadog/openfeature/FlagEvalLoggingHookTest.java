@@ -1,5 +1,6 @@
 package com.datadog.openfeature;
 
+import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURES_HANDLE;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EVALUATION_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.EXPOSURE_FEATURE_PREFIX;
 import static com.datadog.openfeature.internal.evaluation.MetadataKeys.FEATURE_PREFIX;
@@ -10,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -21,6 +23,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import com.datadog.openfeature.internal.evaluation.EvaluationFeatureHandlesForTest;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvalEvent;
 import com.datadog.openfeature.internal.flagevaluation.FlagEvaluationWriter;
 import dev.openfeature.sdk.ErrorCode;
@@ -149,6 +152,44 @@ class FlagEvalLoggingHookTest {
         Collections.singletonMap("bandit.policy_id", "p2"),
         captured.get().features,
         "only EVALUATION features reach the event, whatever the consent");
+  }
+
+  @Test
+  void finallyAfterPassesThePreparedFeaturesWhileTheHandleResolves() {
+    final Map<String, Object> prepared = Collections.singletonMap("bandit.policy_id", "p2");
+    final long handle = EvaluationFeatureHandlesForTest.register(prepared);
+    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
+
+    hook.finallyAfter(null, featureDetails(handle), Collections.emptyMap());
+    final Map<String, Object> first = captured.get().features;
+    hook.finallyAfter(null, featureDetails(handle), Collections.emptyMap());
+
+    assertEquals(prepared, first);
+    assertSame(first, captured.get().features, "every evaluation of the split passes one map");
+  }
+
+  @Test
+  void finallyAfterRebuildsTheFeaturesWhenTheHandleIsStale() {
+    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
+
+    hook.finallyAfter(null, featureDetails(Long.MAX_VALUE), Collections.emptyMap());
+
+    assertEquals(Collections.singletonMap("bandit.policy_id", "p2"), captured.get().features);
+  }
+
+  private static FlagEvaluationDetails<Object> featureDetails(final long handle) {
+    return details(
+        "my-flag",
+        "on-value",
+        "on",
+        Reason.TARGETING_MATCH.name(),
+        ImmutableMetadata.builder()
+            .addString(EVALUATION_FEATURE_PREFIX + "bandit.policy_id", "p2")
+            .addBoolean(HAS_EVALUATION_FEATURES, true)
+            .addLong(EVALUATION_FEATURES_HANDLE, handle)
+            .build());
   }
 
   @Test

@@ -5,6 +5,7 @@ import com.datadog.openfeature.internal.bridge.v1.AgentBridge;
 import com.datadog.openfeature.internal.config.Settings;
 import com.datadog.openfeature.internal.delivery.FlagSelectionRequest;
 import com.datadog.openfeature.internal.evaluation.ConfigurationStore;
+import com.datadog.openfeature.internal.evaluation.EvaluationFeatureHandles;
 import com.datadog.openfeature.internal.evaluation.FlagEvaluator;
 import com.datadog.openfeature.internal.exposure.ExposureDeduplicationCache;
 import com.datadog.openfeature.internal.exposure.ExposureEvent;
@@ -179,6 +180,7 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
 
   @Override
   public void accept(final ServerConfiguration config) {
+    EvaluationFeatureHandles.configurationChanged(config);
     this.configuration.set(config);
     if (config != null) {
       this.configuration.markReady();
