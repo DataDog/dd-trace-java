@@ -222,8 +222,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     return currentRuleVersion;
   }
 
-  @VisibleForTesting
-  class AppSecConfigChangesListener implements ProductListener {
+  private class AppSecConfigChangesListener implements ProductListener {
     @Override
     public void accept(ConfigKey configKey, byte[] content, PollingRateHinter pollingRateHinter)
         throws IOException {

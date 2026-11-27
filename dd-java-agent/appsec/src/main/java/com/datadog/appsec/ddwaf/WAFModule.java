@@ -95,8 +95,7 @@ public class WAFModule implements AppSecModule {
     }
   }
 
-  @VisibleForTesting
-  static class CtxAndAddresses {
+  private static class CtxAndAddresses {
     final Collection<Address<?>> addressesOfInterest;
     final WafHandle ctx;
 
@@ -142,8 +141,7 @@ public class WAFModule implements AppSecModule {
   private final boolean wafMetricsEnabled =
       Config.get().isAppSecWafMetrics(); // could be static if not for tests
 
-  @VisibleForTesting
-  final AtomicReference<CtxAndAddresses> ctxAndAddresses = new AtomicReference<>();
+  private final AtomicReference<CtxAndAddresses> ctxAndAddresses = new AtomicReference<>();
 
   @VisibleForTesting final RateLimiter rateLimiter;
 

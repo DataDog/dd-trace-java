@@ -31,7 +31,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -65,7 +64,6 @@ import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.event.ChangeableFlow;
 import com.datadog.appsec.event.DataListener;
 import com.datadog.appsec.event.data.Address;
-import com.datadog.appsec.event.data.AddressTestBridge;
 import com.datadog.appsec.event.data.CaseInsensitiveMap;
 import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.event.data.MapDataBundle;
@@ -115,6 +113,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -1081,21 +1080,18 @@ class WAFModuleTest extends DDJavaSpecification {
 
   @Test
   void initialConfigurationHasUnknownAddresses() throws Exception {
-    Address<String> doesNotExistAddress =
-        AddressTestBridge.newAddress("server.request.headers.does-not-exist");
-
     // when
     initialRuleAdd("waf_module/unknown_address_config.json");
 
     // then
     verifyWafInit();
-    assertFalse(
-        wafModule
-            .getDataSubscriptions()
-            .iterator()
-            .next()
-            .getSubscribedAddresses()
-            .contains(doesNotExistAddress));
+    // Address uses identity equality, so compare the keys
+    Set<String> subscribedKeys = new HashSet<>();
+    for (Address<?> address :
+        wafModule.getDataSubscriptions().iterator().next().getSubscribedAddresses()) {
+      subscribedKeys.add(address.getKey());
+    }
+    assertFalse(subscribedKeys.contains("server.request.headers.does-not-exist"));
     verifyNoMoreMockInteractions();
   }
 
@@ -1120,7 +1116,8 @@ class WAFModuleTest extends DDJavaSpecification {
         () -> initialRuleAddWithMap(Collections.<String, Object>singletonMap("waf", emptyMap())));
 
     // then
-    assertNull(wafModule.ctxAndAddresses.get());
+    assertTrue(wafModule.getInfo().endsWith("no rules loaded"));
+    assertTrue(wafModule.getDataSubscriptions().isEmpty());
     // WAF initialization is attempted but fails, so wafInit is called with success=false
     verify(wafMetricCollector).wafInit(eq(Waf.LIB_VERSION), any(), eq(false));
     verifyNoMoreMockInteractions();
@@ -1350,8 +1347,8 @@ class WAFModuleTest extends DDJavaSpecification {
     // when
     initialRuleAdd("small_config.json");
     wafModule.applyConfig(reconf);
-    WAFModule.CtxAndAddresses ctx0 = wafModule.ctxAndAddresses.get();
-    Collection<Address<?>> addresses = ctx0.addressesOfInterest;
+    Collection<Address<?>> addresses =
+        wafModule.getDataSubscriptions().iterator().next().getSubscribedAddresses();
 
     // then
     assertEquals(6, addresses.size());
@@ -1380,6 +1377,7 @@ class WAFModuleTest extends DDJavaSpecification {
     verify(ctx).closeWafContext();
     verify(ctx).isWafContextClosed();
     verifyWafInit();
+    verifyNoInteractions(tracer);
     verifyNoMoreMockInteractions(flow);
   }
 
@@ -1403,6 +1401,7 @@ class WAFModuleTest extends DDJavaSpecification {
     verify(ctx).isWafContextClosed();
     verifyWafInit();
     verify(wafMetricCollector).raspRuleSkipped(RuleType.SQL_INJECTION);
+    verifyNoInteractions(tracer);
     verifyNoMoreMockInteractions(flow);
   }
 
