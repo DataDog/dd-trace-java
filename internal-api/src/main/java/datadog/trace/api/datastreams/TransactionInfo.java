@@ -13,8 +13,9 @@ public final class TransactionInfo implements InboxItem {
   static final int MAX_CHECKPOINTS = 254;
   static final int INVALID_CHECKPOINT_ID = 0;
 
+  private static final byte[] EMPTY_BYTES = new byte[0];
   private static final Map<String, Integer> CACHE = new ConcurrentHashMap<>();
-  private static volatile byte[] CACHE_BYTES = new byte[0];
+  private static volatile byte[] CACHE_BYTES = EMPTY_BYTES;
   private static int nextCheckpointId = 1;
 
   private final String id;
@@ -75,7 +76,7 @@ public final class TransactionInfo implements InboxItem {
 
   public byte[] getBytes() {
     if (!isValid()) {
-      return new byte[0];
+      return EMPTY_BYTES;
     }
     byte[] idBytes = id.getBytes(StandardCharsets.UTF_8);
 
@@ -105,7 +106,7 @@ public final class TransactionInfo implements InboxItem {
   @VisibleForTesting
   static synchronized void resetCache() {
     CACHE.clear();
-    CACHE_BYTES = new byte[0];
+    CACHE_BYTES = EMPTY_BYTES;
     nextCheckpointId = 1;
   }
 

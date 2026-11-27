@@ -60,6 +60,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
   static final long MAX_TRANSACTION_CONTAINER_SIZE = 1024 * 512;
+  private static final String TRANSACTION_BUCKET_KEY = "";
 
   private static final StatsPoint REPORT =
       new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
@@ -406,7 +407,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     private StatsBucket getStatsBucket(final long timestamp, final String serviceNameOverride) {
       long bucket = currentBucket(timestamp);
       Map<String, StatsBucket> statsBucketMap =
-          timeToBucket.computeIfAbsent(bucket, startTime -> new HashMap<>(1));
+          timeToBucket.computeIfAbsent(bucket, startTime -> new HashMap<>(2));
       return statsBucketMap.computeIfAbsent(
           serviceNameOverride, s -> new StatsBucket(bucket, bucketDurationNanos));
     }
@@ -467,20 +468,17 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               statsBucket.addBacklog(backlog);
             } else if (payload instanceof TransactionInfo) {
               TransactionInfo transactionInfo = (TransactionInfo) payload;
-              if (!transactionInfo.isValid()) {
-                continue;
-              }
               long bucket = currentBucket(transactionInfo.getTimestamp());
               Map<String, StatsBucket> statsBucketMap =
-                  timeToBucket.computeIfAbsent(bucket, startTime -> new HashMap<>(1));
+                  timeToBucket.computeIfAbsent(bucket, startTime -> new HashMap<>(2));
               StatsBucket statsBucket =
                   statsBucketMap.computeIfAbsent(
-                      "", s -> new StatsBucket(bucket, bucketDurationNanos));
+                      TRANSACTION_BUCKET_KEY, s -> new StatsBucket(bucket, bucketDurationNanos));
               statsBucket.addTransaction(transactionInfo);
               // Flush the overflowing bucket immediately; scheduled flush() skips the current
               // window.
               if (statsBucket.getTransactions().getSize() >= MAX_TRANSACTION_CONTAINER_SIZE) {
-                statsBucketMap.remove("");
+                statsBucketMap.remove(TRANSACTION_BUCKET_KEY);
                 if (statsBucketMap.isEmpty()) {
                   timeToBucket.remove(bucket);
                 }

@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 class TransactionInfoTest {
   private static String repeatChar(char c, int count) {
@@ -100,22 +101,38 @@ class TransactionInfoTest {
     }
   }
 
-  @Test
-  void testTransactionIdTruncationRespectsUtf8CodePointBoundaries() {
+  @TableTest({
+    "Scenario                  | Prefix length | Character    | Expected suffix",
+    "split 2-byte character    | 254           | \u00e9       | ''             ",
+    "complete 2-byte character | 253           | \u00e9       | \u00e9         ",
+    "3-byte split after byte 1 | 254           | \u20ac       | ''             ",
+    "3-byte split after byte 2 | 253           | \u20ac       | ''             ",
+    "complete 3-byte character | 252           | \u20ac       | \u20ac         ",
+    "4-byte split after byte 1 | 254           | \uD83D\uDE00 | ''             ",
+    "4-byte split after byte 2 | 253           | \uD83D\uDE00 | ''             ",
+    "4-byte split after byte 3 | 252           | \uD83D\uDE00 | ''             ",
+    "complete 4-byte character | 251           | \uD83D\uDE00 | \uD83D\uDE00   "
+  })
+  void testTruncationRespectsUtf8CodePointBoundaries(
+      int prefixLength, String character, String expectedSuffix) {
     TransactionInfo.resetCache();
-    // 254 ASCII bytes + 2-byte UTF-8 char = 256 bytes; truncates cleanly to 254 bytes.
-    String twoByteBoundary = repeatChar('a', 254) + "\u00e9";
-    byte[] twoByteSerialized = new TransactionInfo(twoByteBoundary, 1L, "cp").getBytes();
-    assertEquals(254, Byte.toUnsignedInt(twoByteSerialized[1 + Long.BYTES]));
-    assertEquals(
-        repeatChar('a', 254), new String(twoByteSerialized, 1 + Long.BYTES + 1, 254, UTF_8));
+    String prefix = repeatChar('a', prefixLength);
+    String input = prefix + character + "tail";
+    String expected = prefix + expectedSuffix;
+    int expectedLength = expected.getBytes(UTF_8).length;
+    TransactionInfo info = new TransactionInfo(input, 1L, input);
 
-    // 252 ASCII bytes + 4-byte emoji = 256 bytes; truncates cleanly to 252 bytes.
-    String fourByteBoundary = repeatChar('x', 252) + "\uD83D\uDE00";
-    byte[] fourByteSerialized = new TransactionInfo(fourByteBoundary, 2L, "cp").getBytes();
-    assertEquals(252, Byte.toUnsignedInt(fourByteSerialized[1 + Long.BYTES]));
-    assertEquals(
-        repeatChar('x', 252), new String(fourByteSerialized, 1 + Long.BYTES + 1, 252, UTF_8));
+    byte[] serialized = info.getBytes();
+    int idOffset = 1 + Long.BYTES + 1;
+    assertEquals(idOffset + expectedLength, serialized.length);
+    assertEquals(expectedLength, Byte.toUnsignedInt(serialized[idOffset - 1]));
+    assertEquals(expected, new String(serialized, idOffset, expectedLength, UTF_8));
+
+    byte[] checkpoints = TransactionInfo.getCheckpointIdCacheBytes();
+    assertEquals(2 + expectedLength, checkpoints.length);
+    assertEquals(1, Byte.toUnsignedInt(checkpoints[0]));
+    assertEquals(expectedLength, Byte.toUnsignedInt(checkpoints[1]));
+    assertEquals(expected, new String(checkpoints, 2, expectedLength, UTF_8));
   }
 
   @Test

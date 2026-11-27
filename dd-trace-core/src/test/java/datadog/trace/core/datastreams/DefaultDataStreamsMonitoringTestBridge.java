@@ -30,12 +30,7 @@ final class DefaultDataStreamsMonitoringTestBridge {
   }
 
   static Thread.State getThreadState(DefaultDataStreamsMonitoring monitoring) {
-    try {
-      Thread thread = (Thread) THREAD_FIELD.get(monitoring);
-      return thread.getState();
-    } catch (IllegalAccessException e) {
-      throw new IllegalStateException(e);
-    }
+    return getThread(monitoring).getState();
   }
 
   static Thread getThread(DefaultDataStreamsMonitoring monitoring) {

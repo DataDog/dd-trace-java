@@ -1,6 +1,8 @@
 package datadog.trace.core.datastreams;
 
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -28,7 +30,6 @@ import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -766,13 +767,15 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     }
   }
 
-  @Test
-  void payloadWriterResetsBufferAfterSerializationAndSinkErrors() throws IOException {
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void payloadWriterResetsBufferAfterSerializationAndSinkErrors(boolean sinkFailure)
+      throws IOException {
     WellKnownTags wellKnownTags =
         new WellKnownTags("runtimeid", "hostname", "test", "test-service", "version", "java");
     AtomicInteger acceptedMessageCount = new AtomicInteger();
     List<byte[]> acceptedPayloads = new CopyOnWriteArrayList<>();
-    boolean[] failSink = new boolean[] {false};
+    boolean[] failSink = new boolean[] {sinkFailure};
     Sink sink =
         new Sink() {
           @Override
@@ -793,29 +796,24 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     MsgPackDatastreamsPayloadWriter payloadWriter =
         new MsgPackDatastreamsPayloadWriter(sink, wellKnownTags, DDTraceCoreInfo.VERSION, "region");
 
-    // 1) Failure mid-serialization must reset the GrowableBuffer.
-    StatsBucket brokenBucket = mock(StatsBucket.class);
-    when(brokenBucket.getBacklogs()).thenReturn(Collections.emptyList());
-    when(brokenBucket.getTransactions()).thenReturn(new TransactionContainer(16));
-    when(brokenBucket.getSchemaRegistryUsages()).thenReturn(Collections.emptyList());
-    when(brokenBucket.getKafkaConfigs()).thenReturn(Collections.emptyList());
-    when(brokenBucket.getGroups())
-        .thenThrow(new RuntimeException("simulated serialization failure"));
-
-    assertThrows(
-        RuntimeException.class,
-        () -> payloadWriter.writePayload(Collections.singletonList(brokenBucket), ""));
-
-    // 2) Failure inside sink.accept after buffer.mark()/slice() must also reset the GrowableBuffer.
     StatsBucket validBucket = new StatsBucket(1000L, defaultBucketDurationNanos);
-    failSink[0] = true;
+    StatsBucket failingBucket;
+    if (sinkFailure) {
+      failingBucket = validBucket;
+    } else {
+      failingBucket = mock(StatsBucket.class);
+      when(failingBucket.getBacklogs()).thenReturn(emptyList());
+      when(failingBucket.getTransactions()).thenReturn(new TransactionContainer(16));
+      when(failingBucket.getSchemaRegistryUsages()).thenReturn(emptyList());
+      when(failingBucket.getKafkaConfigs()).thenReturn(emptyList());
+      when(failingBucket.getGroups())
+          .thenThrow(new RuntimeException("simulated serialization failure"));
+    }
     assertThrows(
-        RuntimeException.class,
-        () -> payloadWriter.writePayload(Collections.singletonList(validBucket), ""));
+        RuntimeException.class, () -> payloadWriter.writePayload(singletonList(failingBucket), ""));
 
-    // 3) Next valid write must emit a single clean MsgPack map with no stale prefix bytes.
     failSink[0] = false;
-    payloadWriter.writePayload(Collections.singletonList(validBucket), "");
+    payloadWriter.writePayload(singletonList(validBucket), "");
 
     assertEquals(1, acceptedPayloads.size());
     assertEquals(1, acceptedMessageCount.get());
