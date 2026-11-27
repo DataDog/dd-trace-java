@@ -22,7 +22,7 @@ import akka.http.scaladsl.unmarshalling.{
 }
 import akka.http.scaladsl.util.FastFuture.EnhancedFuture
 import akka.http.scaladsl.{Http, model}
-import akka.stream.{ActorMaterializer, Materializer}
+import akka.stream.Materializer
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import datadog.appsec.api.blocking.{Blocking, BlockingException}
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint._
@@ -47,7 +47,7 @@ class AkkaHttpTestWebServer(binder: Binder) extends HttpServer {
       case Some(config) => ActorSystem(name, config)
     }
   }
-  implicit val materializer: ActorMaterializer   = ActorMaterializer()
+  implicit val materializer: Materializer        = Materializer(system)
   private var port: Int                          = 0
   private var portBinding: Future[ServerBinding] = _
 
