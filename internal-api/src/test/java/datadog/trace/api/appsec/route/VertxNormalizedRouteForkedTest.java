@@ -2,6 +2,7 @@ package datadog.trace.api.appsec.route;
 
 import static datadog.trace.api.KnownTags.DD_APPSEC_NORMALIZED_ROUTE;
 import static datadog.trace.api.appsec.route.NormalizedRouteHelper.NORMALIZED_ROUTE_TAG;
+import static java.util.Collections.singletonMap;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.inOrder;
@@ -14,18 +15,15 @@ import datadog.trace.api.appsec.route.VertxRouteParser.Grammar;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
+import org.tabletest.junit.TableTest;
 
 /** Mutates the global {@link ActiveSubsystems#APPSEC_ACTIVE}, so it runs in its own JVM. */
 class VertxNormalizedRouteForkedTest {
-
-  private static final Map<String, String> NO_PARAMS = Collections.emptyMap();
 
   private boolean previousAppSecActive;
 
@@ -45,47 +43,25 @@ class VertxNormalizedRouteForkedTest {
     AgentSpan span = spanWithRoute("/sub/catch-all/");
 
     VertxNormalizedRoute.tag(
-        span,
-        "/catch-all/*",
-        Grammar.DEFAULT,
-        "/sub/",
-        "/sub/catch-all/a",
-        Collections.singletonMap("*", "a"));
+        span, "/catch-all/*", Grammar.DEFAULT, "/sub/", "/sub/catch-all/a", singletonMap("*", "a"));
 
     InOrder order = inOrder(span);
     order.verify(span).setTag(NORMALIZED_ROUTE_TAG, (String) null);
     order.verify(span).setTag(DD_APPSEC_NORMALIZED_ROUTE, "/sub/catch-all/{param1}");
   }
 
-  @Test
-  void onlyClearsForANullDeclaredPath() {
-    AgentSpan span = spanWithRoute("/a");
+  @TableTest({
+    "Scenario               | Declared     | Mount        | Path                | Params                 ",
+    "null declared path     |              |              | '/a'                | [:]                    ",
+    "regex-like route       | '/a/:id?'    |              | '/a/1'              | [:]                    ",
+    "param mount            | '/users/:id' | '/acme/api/' | '/acme/api/users/1' | [tenant: acme, id: '1']",
+    "mount inside a segment | '/*'         | '/sub'       | '/subway/x'         | [:]                    "
+  })
+  void onlyClearsWhenThereIsNoTag(
+      String declared, String mount, String path, Map<String, String> params) {
+    AgentSpan span = spanWithRoute("/route");
 
-    VertxNormalizedRoute.tag(span, null, Grammar.DEFAULT, null, "/a", NO_PARAMS);
-
-    verify(span).setTag(NORMALIZED_ROUTE_TAG, (String) null);
-    verify(span, never()).setTag(anyLong(), anyString());
-  }
-
-  @Test
-  void onlyClearsForARegexLikeRoute() {
-    AgentSpan span = spanWithRoute("/a/:id?");
-
-    VertxNormalizedRoute.tag(span, "/a/:id?", Grammar.DEFAULT, null, "/a/1", NO_PARAMS);
-
-    verify(span).setTag(NORMALIZED_ROUTE_TAG, (String) null);
-    verify(span, never()).setTag(anyLong(), anyString());
-  }
-
-  @Test
-  void onlyClearsUnderAParamMount() {
-    AgentSpan span = spanWithRoute("/acme/api/users/:id");
-    Map<String, String> params = new HashMap<>();
-    params.put("tenant", "acme");
-    params.put("id", "1");
-
-    VertxNormalizedRoute.tag(
-        span, "/users/:id", Grammar.DEFAULT, "/acme/api/", "/acme/api/users/1", params);
+    VertxNormalizedRoute.tag(span, declared, Grammar.DEFAULT, mount, path, params);
 
     verify(span).setTag(NORMALIZED_ROUTE_TAG, (String) null);
     verify(span, never()).setTag(anyLong(), anyString());

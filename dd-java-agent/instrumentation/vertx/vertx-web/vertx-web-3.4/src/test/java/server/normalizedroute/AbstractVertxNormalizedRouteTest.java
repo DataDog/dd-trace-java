@@ -1,21 +1,29 @@
 package server.normalizedroute;
 
+import static datadog.trace.api.appsec.route.NormalizedRouteHelper.NORMALIZED_ROUTE_TAG;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.utils.OkHttpUtils;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.core.DDSpan;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
-import java.net.ServerSocket;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -32,17 +40,20 @@ import org.junit.jupiter.api.TestInstance;
 @TestInstance(PER_CLASS)
 abstract class AbstractVertxNormalizedRouteTest extends AbstractInstrumentationTest {
 
+  private static final long TIMEOUT_SECONDS = 10;
+
+  /** Operation name of the server span, which carries both route tags. */
+  private static final String SERVER_SPAN = "netty.request";
+
   private final OkHttpClient client = OkHttpUtils.client();
   private Vertx vertx;
   private HttpServer server;
   private int port;
   private boolean appSecActiveBefore;
+  private boolean paramMountSupported;
 
   @BeforeAll
   void startServer() throws Exception {
-    try (ServerSocket socket = new ServerSocket(0)) {
-      port = socket.getLocalPort();
-    }
     vertx = Vertx.vertx();
     Router router = Router.router(vertx);
     router.route("/").handler(AbstractVertxNormalizedRouteTest::ok);
@@ -67,35 +78,30 @@ abstract class AbstractVertxNormalizedRouteTest extends AbstractInstrumentationT
     sub.route("/files/*").handler(AbstractVertxNormalizedRouteTest::ok);
     router.mountSubRouter("/sub", sub);
 
-    CountDownLatch ready = new CountDownLatch(1);
-    server =
-        vertx
-            .createHttpServer()
-            .requestHandler(router::accept)
-            .listen(
-                port,
-                result -> {
-                  if (result.failed()) {
-                    throw new RuntimeException("Failed to start Vert.x server", result.cause());
-                  }
-                  ready.countDown();
-                });
-    if (!ready.await(10, TimeUnit.SECONDS)) {
-      throw new IllegalStateException("Vert.x server did not start in time");
+    // a mount with a parameter (3.8.2+; 3.4 rejects patterns in sub-router mounts): the mount point
+    // is the concrete matched prefix
+    Router tenant = Router.router(vertx);
+    tenant.route("/items/:id").handler(AbstractVertxNormalizedRouteTest::ok);
+    try {
+      router.mountSubRouter("/:tenant/api", tenant);
+      paramMountSupported = true;
+    } catch (IllegalArgumentException e) {
+      paramMountSupported = false;
     }
+
+    server =
+        await(
+            handler -> vertx.createHttpServer().requestHandler(router::accept).listen(0, handler));
+    port = server.actualPort();
   }
 
   @AfterAll
   void stopServer() throws Exception {
     if (server != null) {
-      CountDownLatch closed = new CountDownLatch(1);
-      server.close(ar -> closed.countDown());
-      closed.await(10, TimeUnit.SECONDS);
+      AbstractVertxNormalizedRouteTest.<Void>await(server::close);
     }
     if (vertx != null) {
-      CountDownLatch closed = new CountDownLatch(1);
-      vertx.close(ar -> closed.countDown());
-      closed.await(10, TimeUnit.SECONDS);
+      AbstractVertxNormalizedRouteTest.<Void>await(vertx::close);
     }
   }
 
@@ -114,6 +120,36 @@ abstract class AbstractVertxNormalizedRouteTest extends AbstractInstrumentationT
     ctx.response().setStatusCode(200).end("ok");
   }
 
+  /**
+   * Starts the callback-style Vert.x {@code operation} and waits for its result; a failure is
+   * rethrown on the test thread.
+   */
+  private static <T> T await(Consumer<Handler<AsyncResult<T>>> operation) throws Exception {
+    CountDownLatch done = new CountDownLatch(1);
+    AtomicReference<T> result = new AtomicReference<>();
+    AtomicReference<Throwable> failure = new AtomicReference<>();
+    operation.accept(ar -> {
+      if (ar.succeeded()) {
+        result.set(ar.result());
+      } else {
+        failure.set(ar.cause());
+      }
+      done.countDown();
+    });
+    if (!done.await(TIMEOUT_SECONDS, SECONDS)) {
+      throw new IllegalStateException("Vert.x operation did not complete in time");
+    }
+    if (failure.get() != null) {
+      throw new RuntimeException("Vert.x operation failed", failure.get());
+    }
+    return result.get();
+  }
+
+  /** Whether this Vert.x version accepted the {@code /:tenant/api} sub-router mount. */
+  boolean paramMountSupported() {
+    return paramMountSupported;
+  }
+
   /** Sends {@code GET path} and returns the HTTP status. */
   int get(String path) throws Exception {
     Request request = new Request.Builder().url("http://localhost:" + port + path).get().build();
@@ -122,18 +158,30 @@ abstract class AbstractVertxNormalizedRouteTest extends AbstractInstrumentationT
     }
   }
 
-  /** Tags of the {@code netty.request} span of the single trace written. */
+  /** Tags of the {@link #SERVER_SPAN} span of the single trace written. */
   Map<String, Object> serverSpanTags() throws Exception {
     writer.waitForTraces(1);
     DDSpan serverSpan = null;
     for (List<DDSpan> trace : writer) {
       for (DDSpan span : trace) {
-        if ("netty.request".equals(span.getOperationName().toString())) {
+        if (SERVER_SPAN.equals(span.getOperationName().toString())) {
           serverSpan = span;
         }
       }
     }
-    assertNotNull(serverSpan, "netty.request span");
+    assertNotNull(serverSpan, SERVER_SPAN + " span");
     return serverSpan.getTags();
+  }
+
+  /**
+   * Sends {@code GET request}, expects a 200 with {@code expectedHttpRoute} (null for none) as
+   * {@code http.route} and no normalized route.
+   */
+  void assertNoNormalizedRoute(String request, String expectedHttpRoute) throws Exception {
+    assertEquals(200, get(request));
+    Map<String, Object> tags = serverSpanTags();
+
+    assertEquals(expectedHttpRoute, Objects.toString(tags.get(HTTP_ROUTE), null));
+    assertNull(tags.get(NORMALIZED_ROUTE_TAG));
   }
 }

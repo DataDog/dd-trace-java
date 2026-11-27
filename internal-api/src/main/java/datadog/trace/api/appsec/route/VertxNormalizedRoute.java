@@ -19,10 +19,21 @@ public final class VertxNormalizedRoute {
   private static final Logger log = LoggerFactory.getLogger(VertxNormalizedRoute.class);
 
   /** System property that selects the {@link Grammar#EXTENDED} name grammar on Vert.x 4.0.3+. */
-  static final String EXTENDED_PATTERN_PROPERTY = "io.vertx.web.route.param.extended-pattern";
+  private static final String EXTENDED_PATTERN_PROPERTY =
+      "io.vertx.web.route.param.extended-pattern";
 
   /** Path param Vert.x binds to the catch-all match; never used for presence. */
   private static final String REST_PARAM = "*";
+
+  /** {@link #remainderStart} result: the request path does not match the static base. */
+  private static final int UNKNOWN_REMAINDER = -1;
+
+  /**
+   * {@link #remainderStart} result: the full base ends inside a request segment while the {@code *}
+   * is a whole segment. Vert.x matched something the template cannot describe (a mount {@code /sub}
+   * without trailing {@code /} matches {@code /subway/x} for the sub-route {@code /*}).
+   */
+  private static final int NOT_A_SEGMENT_BOUNDARY = -2;
 
   /** Catch-all resolvers by {@link RoutePresence#ordinal()}, so rendering allocates none. */
   private static final PresenceResolver[] CATCH_ALL_RESOLVERS;
@@ -65,12 +76,14 @@ public final class VertxNormalizedRoute {
       // a later route that cannot be expressed must not keep the tag of an earlier one
       span.setTag(NormalizedRouteHelper.NORMALIZED_ROUTE_TAG, (String) null);
       RouteTemplate template = template(declaredPath, grammar, mountPoint, pathParams);
-      if (template != null) {
+      if (template == null) {
+        return;
+      }
+      PresenceResolver resolver =
+          resolver(template, declaredPath, grammar, mountPoint, normalizedPath);
+      if (resolver != null) {
         NormalizedRouteHelper.tag(
-            span,
-            template,
-            NormalizedRouteHelper.decodePath(mountPoint),
-            resolver(template, declaredPath, grammar, mountPoint, normalizedPath));
+            span, template, NormalizedRouteHelper.decodePath(mountPoint), resolver);
       }
     } catch (Throwable t) {
       log.debug("Failed to set the Vert.x normalized route tag", t);
@@ -89,9 +102,11 @@ public final class VertxNormalizedRoute {
     if (template == null) {
       return null;
     }
-    return template.render(
-        NormalizedRouteHelper.decodePath(mountPoint),
-        resolver(template, declaredPath, grammar, mountPoint, normalizedPath));
+    PresenceResolver resolver =
+        resolver(template, declaredPath, grammar, mountPoint, normalizedPath);
+    return resolver == null
+        ? null
+        : template.render(NormalizedRouteHelper.decodePath(mountPoint), resolver);
   }
 
   /**
@@ -112,7 +127,8 @@ public final class VertxNormalizedRoute {
    * Template to render, or null when there is no tag: the route cannot be expressed, or the mount
    * point holds request values. A mount with parameters returns the concrete matched prefix and
    * shares its {@code pathParams()} with the sub-router, so a bound parameter that the route does
-   * not declare means a parameter mount (conservative: a middleware route may also have left it).
+   * not declare means a parameter mount (conservative: a middleware route may also have left it). A
+   * root mount ({@code /}) never holds request values, so it skips that check.
    */
   private static RouteTemplate template(
       String declaredPath, Grammar grammar, String mountPoint, Map<String, String> pathParams) {
@@ -120,7 +136,7 @@ public final class VertxNormalizedRoute {
     if (!template.isExpressible()) {
       return null;
     }
-    if (mountPoint != null && !mountPoint.isEmpty() && pathParams != null) {
+    if (pathParams != null && !isRootMount(mountPoint)) {
       for (String name : pathParams.keySet()) {
         if (!REST_PARAM.equals(name)
             && !VertxRouteParser.declaresParam(declaredPath, name, grammar)) {
@@ -131,8 +147,16 @@ public final class VertxNormalizedRoute {
     return template;
   }
 
+  /** Whether there is no mount, or the mount is {@code /} (empty once its trailing '/' is gone). */
+  private static boolean isRootMount(String mountPoint) {
+    return mountPoint == null
+        || mountPoint.isEmpty()
+        || (mountPoint.length() == 1 && mountPoint.charAt(0) == '/');
+  }
+
   /**
-   * Presence of the trailing catch-all, or null for templates that do not depend on the request.
+   * Presence of the trailing catch-all ({@link PresenceResolver#UNKNOWN} for templates that do not
+   * depend on the request), or null when there is no tag.
    */
   private static PresenceResolver resolver(
       RouteTemplate template,
@@ -142,14 +166,31 @@ public final class VertxNormalizedRoute {
       String normalizedPath) {
     // the trailing '*' is the only optional part of a Vert.x template
     if (template.staticRoute() != null) {
-      return null;
+      return PresenceResolver.UNKNOWN;
     }
     int start = remainderStart(declaredPath, grammar, mountPoint, normalizedPath);
-    RoutePresence presence =
-        start < 0
-            ? RoutePresence.UNKNOWN
-            : RoutePresence.ofCatchAllValue(normalizedPath.substring(start));
-    return catchAllResolver(presence);
+    if (start == NOT_A_SEGMENT_BOUNDARY) {
+      return null;
+    }
+    return catchAllResolver(
+        start == UNKNOWN_REMAINDER ? RoutePresence.UNKNOWN : presenceFrom(normalizedPath, start));
+  }
+
+  /**
+   * Same as {@link RoutePresence#ofCatchAllValue} for {@code path.substring(start)}, without the
+   * copy.
+   */
+  private static RoutePresence presenceFrom(String path, int start) {
+    int length = path.length();
+    if (start == length) {
+      return RoutePresence.ABSENT;
+    }
+    for (int i = start; i < length; i++) {
+      if (path.charAt(i) != '/') {
+        return RoutePresence.PRESENT;
+      }
+    }
+    return RoutePresence.ABSENT_TRAILING_SLASH;
   }
 
   /** Shared resolver that answers {@code presence} for the unnamed catch-all. */
@@ -159,7 +200,8 @@ public final class VertxNormalizedRoute {
   }
 
   /**
-   * Index of {@code normalizedPath} where the trailing {@code *} match starts, or -1 when unknown.
+   * Index of {@code normalizedPath} where the trailing {@code *} match starts, {@link
+   * #UNKNOWN_REMAINDER} when the path does not match the base, or {@link #NOT_A_SEGMENT_BOUNDARY}.
    * The static base is the declared path without the {@code *} and the {@code /} right before it;
    * the full base is the mount (without its trailing {@code /}) followed by the base, which is
    * Vert.x' join: {@code mount + path.substring(1)} for a mount ending with {@code /}, the mount
@@ -168,7 +210,7 @@ public final class VertxNormalizedRoute {
   private static int remainderStart(
       String declaredPath, Grammar grammar, String mountPoint, String normalizedPath) {
     if (normalizedPath == null) {
-      return -1;
+      return UNKNOWN_REMAINDER;
     }
     int baseEnd = declaredPath.length() - 1;
     boolean wholeSegment = baseEnd > 0 && declaredPath.charAt(baseEnd - 1) == '/';
@@ -180,25 +222,25 @@ public final class VertxNormalizedRoute {
       mountLength--;
     }
     if (mountLength > 0 && !normalizedPath.regionMatches(0, mountPoint, 0, mountLength)) {
-      return -1;
+      return UNKNOWN_REMAINDER;
     }
     int start;
     if (declaredPath.indexOf(':') < 0) {
       // no parameter: Vert.x matches the joined path with startsWith
       if (!normalizedPath.regionMatches(mountLength, declaredPath, 0, baseEnd)) {
-        return -1;
+        return UNKNOWN_REMAINDER;
       }
       start = mountLength + baseEnd;
     } else {
       start =
           skipSegments(declaredPath, baseEnd, wholeSegment, grammar, normalizedPath, mountLength);
       if (start < 0) {
-        return -1;
+        return UNKNOWN_REMAINDER;
       }
     }
     if (wholeSegment && start < normalizedPath.length() && normalizedPath.charAt(start) != '/') {
-      // "/a/*" never matches "/ab"
-      return -1;
+      // "/a/*" never matches "/ab" by itself; a mount without trailing '/' can make it match
+      return NOT_A_SEGMENT_BOUNDARY;
     }
     return start;
   }
@@ -219,7 +261,7 @@ public final class VertxNormalizedRoute {
     int pathLength = path.length();
     int segmentStart = 0;
     while (segmentStart < baseEnd) {
-      // declaredPath.charAt(segmentStart) == '/': the parser only accepts absolute paths
+      // invariant: every declared segment starts with '/' (parse rejects relative paths)
       if (position >= pathLength || path.charAt(position) != '/') {
         return -1;
       }

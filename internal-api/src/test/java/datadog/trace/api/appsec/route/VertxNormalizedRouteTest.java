@@ -1,6 +1,7 @@
 package datadog.trace.api.appsec.route;
 
 import static datadog.trace.api.appsec.route.NormalizedRouteHelper.NORMALIZED_ROUTE_TAG;
+import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -11,7 +12,6 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.appsec.route.VertxRouteParser.Grammar;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Collections;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
@@ -29,11 +29,11 @@ class VertxNormalizedRouteTest {
     "dashed params, extended grammar           | '/t/:a-b'                   | EXTENDED |               | '/t/1'                     | [a-b: '1']              | '/t/{a_b}'                ",
     "encoded literal                           | '/caf%C3%A9'                | DEFAULT  |               | '/caf%C3%A9'               | [:]                     | '/caf%C3%A9'              ",
     "encoded mount                             | '/x'                        | DEFAULT  | '/caf%C3%A9/' | '/caf%C3%A9/x'             | [:]                     | '/caf%C3%A9/x'            ",
-    "catch-all, base only                      | '/catch-all/*'              | DEFAULT  |               | '/catch-all'               | ['*': '/']              | '/catch-all'              ",
-    "catch-all, trailing slash                 | '/catch-all/*'              | DEFAULT  |               | '/catch-all/'              | ['*': '']               | '/catch-all/'             ",
-    "catch-all, present                        | '/catch-all/*'              | DEFAULT  |               | '/catch-all/a/b'           | ['*': 'a/b']            | '/catch-all/{param1}'     ",
-    "catch-all, double slash normalized        | '/api_security/catch-all/*' | DEFAULT  |               | '/api_security/catch-all/' | [:]                     | '/api_security/catch-all/'",
-    "catch-all, other segment                  | '/catch-all/*'              | DEFAULT  |               | '/catch-allx'              | [:]                     | '/catch-all'              ",
+    "catch-all, base only                      | '/catch-all/*'              | DEFAULT  |               | '/catch-all'               | [:]                     | '/catch-all'              ",
+    "catch-all, trailing slash                 | '/catch-all/*'              | DEFAULT  |               | '/catch-all/'              | [:]                     | '/catch-all/'             ",
+    "catch-all, present                        | '/catch-all/*'              | DEFAULT  |               | '/catch-all/a/b'           | [:]                     | '/catch-all/{param1}'     ",
+    "catch-all, nested base, trailing slash    | '/api_security/catch-all/*' | DEFAULT  |               | '/api_security/catch-all/' | [:]                     | '/api_security/catch-all/'",
+    "catch-all, other segment                  | '/catch-all/*'              | DEFAULT  |               | '/catch-allx'              | [:]                     |                           ",
     "catch-all, path outside the base          | '/catch-all/*'              | DEFAULT  |               | '/other/a'                 | [:]                     | '/catch-all'              ",
     "catch-all, no normalized path             | '/catch-all/*'              | DEFAULT  |               |                            | [:]                     | '/catch-all'              ",
     "catch-all under mount with slash          | '/catch-all/*'              | DEFAULT  | '/sub/'       | '/sub/catch-all/a'         | ['*': 'a']              | '/sub/catch-all/{param1}' ",
@@ -45,10 +45,16 @@ class VertxNormalizedRouteTest {
     "root catch-all under mount, present       | '/*'                        | DEFAULT  | '/sub/'       | '/sub/x'                   | [:]                     | '/sub/{param1}'           ",
     "root catch-all under mount, slash         | '/*'                        | DEFAULT  | '/sub/'       | '/sub/'                    | [:]                     | '/sub/'                   ",
     "root catch-all under mount, base only     | '/*'                        | LEGACY   | '/sub'        | '/sub'                     | [:]                     | '/sub'                    ",
+    "root catch-all, bare mount, slash         | '/*'                        | LEGACY   | '/sub'        | '/sub/'                    | [:]                     | '/sub/'                   ",
+    "root catch-all, bare mount, present       | '/*'                        | LEGACY   | '/sub'        | '/sub/x'                   | [:]                     | '/sub/{param1}'           ",
+    "root catch-all, bare mount, base only 4.x | '/*'                        | DEFAULT  | '/sub'        | '/sub'                     | [:]                     | '/sub'                    ",
+    "root catch-all, bare mount, other segment | '/*'                        | LEGACY   | '/sub'        | '/subway/x'                | [:]                     |                           ",
+    "root catch-all, bare mount, other seg 4.x | '/*'                        | DEFAULT  | '/sub'        | '/subway'                  | [:]                     |                           ",
+    "catch-all under mount, other segment      | '/x/*'                      | DEFAULT  | '/sub'        | '/sub/xy'                  | [:]                     |                           ",
     "in-segment catch-all, present             | '/img*'                     | DEFAULT  |               | '/img42'                   | [:]                     | '/img{param1}'            ",
     "in-segment catch-all, absent              | '/img*'                     | DEFAULT  |               | '/img'                     | [:]                     | '/img'                    ",
     "param prefix route, slash                 | '/users/:id/*'              | DEFAULT  |               | '/users/5/'                | [id: '5']               | '/users/{id}/'            ",
-    "param prefix route, present               | '/users/:id/*'              | DEFAULT  |               | '/users/5/a/b'             | [id: '5', '*': 'a/b']   | '/users/{id}/{param1}'    ",
+    "param prefix route, present               | '/users/:id/*'              | DEFAULT  |               | '/users/5/a/b'             | [id: '5']               | '/users/{id}/{param1}'    ",
     "param prefix route, absent                | '/users/:id/*'              | DEFAULT  |               | '/users/5'                 | [id: '5']               | '/users/{id}'             ",
     "param prefix route, too few segments      | '/users/:id/*'              | DEFAULT  |               | '/users'                   | [:]                     | '/users/{id}'             ",
     "param prefix route, no leading slash      | '/users/:id/*'              | DEFAULT  |               | 'users/5/a'                | [:]                     | '/users/{id}'             ",
@@ -69,6 +75,7 @@ class VertxNormalizedRouteTest {
     "param mount: undeclared bound param       | '/users/:id'                | DEFAULT  | '/acme/api/'  | '/acme/api/users/1'        | [tenant: acme, id: '1'] |                           ",
     "same params without mount                 | '/users/:id'                | DEFAULT  |               | '/users/1'                 | [tenant: acme, id: '1'] | '/users/{id}'             ",
     "same params with empty mount              | '/users/:id'                | DEFAULT  | ''            | '/users/1'                 | [tenant: acme, id: '1'] | '/users/{id}'             ",
+    "same params with root mount               | '/users/:id'                | DEFAULT  | '/'           | '/users/1'                 | [tenant: acme, id: '1'] | '/users/{id}'             ",
     "mount: rest param ignored                 | '/users/:id'                | DEFAULT  | '/sub/'       | '/sub/users/1'             | [id: '1', '*': x]       | '/sub/users/{id}'         ",
     "mount: no params                          | '/users/:id'                | DEFAULT  | '/sub/'       | '/sub/users/1'             |                         | '/sub/users/{id}'         "
   })
@@ -83,11 +90,10 @@ class VertxNormalizedRouteTest {
   }
 
   @Test
-  void clearsThePreviousTagBeforeTagging() {
+  void clearsTheTagEvenWhenDisabled() {
     AgentSpan span = mock(AgentSpan.class);
 
-    VertxNormalizedRoute.tag(
-        span, "/users/:id", Grammar.DEFAULT, null, "/users/1", Collections.emptyMap());
+    VertxNormalizedRoute.tag(span, "/users/:id", Grammar.DEFAULT, null, "/users/1", emptyMap());
 
     // the tag is only set when NormalizedRouteHelper is enabled (see the forked test)
     verify(span).setTag(NORMALIZED_ROUTE_TAG, (String) null);
@@ -100,10 +106,10 @@ class VertxNormalizedRouteTest {
 
     assertDoesNotThrow(() ->
         VertxNormalizedRoute.tag(
-            span, "/users/:id", Grammar.DEFAULT, null, "/users/1", Collections.emptyMap()));
+            span, "/users/:id", Grammar.DEFAULT, null, "/users/1", emptyMap()));
     assertDoesNotThrow(() ->
         VertxNormalizedRoute.tag(
-            null, "/users/:id", Grammar.DEFAULT, null, "/users/1", Collections.emptyMap()));
+            null, "/users/:id", Grammar.DEFAULT, null, "/users/1", emptyMap()));
   }
 
   @Test

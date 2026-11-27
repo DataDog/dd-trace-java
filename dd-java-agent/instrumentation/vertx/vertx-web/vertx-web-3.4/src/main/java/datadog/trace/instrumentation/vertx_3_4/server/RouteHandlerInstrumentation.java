@@ -40,13 +40,10 @@ public class RouteHandlerInstrumentation extends InstrumenterModule.Tracing
             .and(takesArgument(0, named("io.vertx.core.Handler"))),
         packageName + ".RouteHandlerWrapperAdvice");
     transformer.applyAdvice(
-        isMethod().and(named("setPath")).and(takesArguments(1)).and(takesArgument(0, String.class)),
+        isMethod().and(named("setPath")).and(takesArguments(String.class)),
         packageName + ".RouteSetPathAdvice");
     transformer.applyAdvice(
-        isMethod()
-            .and(named("setRegex"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, String.class)),
+        isMethod().and(named("setRegex")).and(takesArguments(String.class)),
         packageName + ".RouteSetRegexAdvice");
   }
 }

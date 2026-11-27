@@ -53,10 +53,20 @@ public final class VertxRouteParser {
      */
     EXTENDED;
 
-    private final DDCache<String, RouteTemplate> cache = DDCaches.newFixedSizeCache(CACHE_CAPACITY);
-
     private final Function<String, RouteTemplate> safeParse =
         safely(path -> VertxRouteParser.parse(path, this));
+
+    /** Cache of this grammar; created on first use, so a process only pays for the one it uses. */
+    DDCache<String, RouteTemplate> cache() {
+      switch (this) {
+        case LEGACY:
+          return LegacyCache.CACHE;
+        case EXTENDED:
+          return ExtendedCache.CACHE;
+        default:
+          return DefaultCache.CACHE;
+      }
+    }
 
     boolean isNameStart(char c) {
       if (isAsciiLetter(c)) {
@@ -87,6 +97,21 @@ public final class VertxRouteParser {
 
   private VertxRouteParser() {}
 
+  /** Lazy holder of the {@link Grammar#LEGACY} cache. */
+  private static final class LegacyCache {
+    static final DDCache<String, RouteTemplate> CACHE = DDCaches.newFixedSizeCache(CACHE_CAPACITY);
+  }
+
+  /** Lazy holder of the {@link Grammar#DEFAULT} cache. */
+  private static final class DefaultCache {
+    static final DDCache<String, RouteTemplate> CACHE = DDCaches.newFixedSizeCache(CACHE_CAPACITY);
+  }
+
+  /** Lazy holder of the {@link Grammar#EXTENDED} cache. */
+  private static final class ExtendedCache {
+    static final DDCache<String, RouteTemplate> CACHE = DDCaches.newFixedSizeCache(CACHE_CAPACITY);
+  }
+
   /**
    * Same as {@link #parse(String, Grammar)} but backed by a bounded cache per grammar, for the
    * request hot path. Never returns null or throws.
@@ -95,7 +120,7 @@ public final class VertxRouteParser {
     if (grammar == null) {
       return RouteTemplate.NOT_EXPRESSIBLE;
     }
-    return cached(grammar.cache, declaredPath, grammar.safeParse);
+    return cached(grammar.cache(), declaredPath, grammar.safeParse);
   }
 
   @VisibleForTesting
@@ -158,7 +183,7 @@ public final class VertxRouteParser {
     boolean trailingStar = declaredPath.charAt(len - 1) == '*';
     int end = trailingStar ? len - 1 : len;
     // Vert.x compiles the path to a regex as soon as it holds a ':', valid name or not
-    boolean regex = declaredPath.indexOf(':') >= 0;
+    boolean compiledToRegex = declaredPath.indexOf(':') >= 0;
     RouteTemplate.Builder builder = RouteTemplate.builder();
     List<RoutePart> parts = new ArrayList<>();
     List<String> names = null;
@@ -170,41 +195,36 @@ public final class VertxRouteParser {
         literalStart = flushLiteral(declaredPath, literalStart, i, parts);
         endSegment(builder, parts);
         i++;
-      } else if (regex && isRegexOperator(c)) {
+      } else if (compiledToRegex && isRegexOperator(c)) {
         return RouteTemplate.NOT_EXPRESSIBLE;
-      } else if (c == ':' && i + 1 < end && grammar.isNameStart(declaredPath.charAt(i + 1))) {
-        literalStart = flushLiteral(declaredPath, literalStart, i, parts);
-        int nameEnd = i + 2;
-        while (nameEnd < end && grammar.isNamePart(declaredPath.charAt(nameEnd))) {
-          nameEnd++;
-        }
-        String name = declaredPath.substring(i + 1, nameEnd);
-        if (names == null) {
-          names = new ArrayList<>();
-        } else if (names.contains(name)) {
-          // Vert.x rejects a name used twice
-          return RouteTemplate.NOT_EXPRESSIBLE;
-        }
-        names.add(name);
-        parts.add(param(name));
-        i = nameEnd;
       } else {
-        if (literalStart < 0) {
-          literalStart = i;
+        int nameEnd = c == ':' ? nameEnd(declaredPath, i, end, grammar) : -1;
+        if (nameEnd > 0) {
+          literalStart = flushLiteral(declaredPath, literalStart, i, parts);
+          String name = declaredPath.substring(i + 1, nameEnd);
+          if (names == null) {
+            names = new ArrayList<>();
+          } else if (names.contains(name)) {
+            // Vert.x rejects a name used twice
+            return RouteTemplate.NOT_EXPRESSIBLE;
+          }
+          names.add(name);
+          parts.add(param(name));
+          i = nameEnd;
+        } else {
+          if (literalStart < 0) {
+            literalStart = i;
+          }
+          i++;
         }
-        i++;
       }
     }
     flushLiteral(declaredPath, literalStart, end, parts);
-    if (trailingStar && declaredPath.charAt(end - 1) == '/') {
-      // "/a/*": the '/' before it already closed the previous segment
-      builder.segment(catchAll(null));
-    } else {
-      if (trailingStar) {
-        parts.add(catchAll(null));
-      }
-      endSegment(builder, parts);
+    // for "/a/*", the '/' before the '*' already closed the previous segment: the '*' is alone
+    if (trailingStar) {
+      parts.add(catchAll(null));
     }
+    endSegment(builder, parts);
     return builder
         .trailingSlash(!trailingStar && len > 1 && declaredPath.charAt(len - 1) == '/')
         .build();
@@ -221,7 +241,7 @@ public final class VertxRouteParser {
     int len = declaredPath.length();
     for (int i = declaredPath.indexOf(':'); i >= 0; i = declaredPath.indexOf(':', i + 1)) {
       int nameEnd = nameEnd(declaredPath, i, len, grammar);
-      if (nameEnd - i - 1 == name.length() && declaredPath.startsWith(name, i + 1)) {
+      if (nameEnd > 0 && nameEnd - i - 1 == name.length() && declaredPath.startsWith(name, i + 1)) {
         return true;
       }
     }

@@ -40,6 +40,11 @@ class VertxRouteParserCacheTest {
     assertNotSame(legacy, extended);
     assertSame(legacy, VertxRouteParser.cached("/t/:1abc", Grammar.LEGACY));
     assertSame(current, VertxRouteParser.cached("/t/:1abc", Grammar.DEFAULT));
+    assertSame(extended, VertxRouteParser.cached("/t/:1abc", Grammar.EXTENDED));
+    assertNotSame(Grammar.LEGACY.cache(), Grammar.DEFAULT.cache());
+    assertNotSame(Grammar.DEFAULT.cache(), Grammar.EXTENDED.cache());
+    assertNotSame(Grammar.LEGACY.cache(), Grammar.EXTENDED.cache());
+    assertSame(Grammar.LEGACY.cache(), Grammar.LEGACY.cache());
   }
 
   @Test

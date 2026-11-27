@@ -14,11 +14,13 @@ import org.tabletest.junit.TableTest;
 class VertxNormalizedRouteTest extends AbstractVertxNormalizedRouteTest {
 
   @TableTest({
-    "Scenario                          | Request                | Route                   | Normalized              ",
+    "Scenario                          | Request                | HttpRoute               | Normalized              ",
     "root                              | '/'                    | '/'                     | '/'                     ",
     "two params in a segment           | '/multi/1.json'        | '/multi/:id.:format'    | '/multi/{id}.{format}'  ",
     "three params in a segment         | '/three/1-2-3'         | '/three/:a-:b-:c'       | '/three/{a}-{b}-{c}'    ",
     "static text before a param        | '/static-text/user-1'  | '/static-text/user-:id' | '/static-text/user-{id}'",
+    // getPath() drops the trailing '*' (http.route '/catch-all/'), so '{param1}' proves the
+    // declared '/catch-all/*' was captured from setPath
     "catch-all present                 | '/catch-all/a/b/c.txt' | '/catch-all/'           | '/catch-all/{param1}'   ",
     "catch-all matched a slash         | '/catch-all/'          | '/catch-all/'           | '/catch-all/'           ",
     "catch-all after a collapsed slash | '/catch-all//'         | '/catch-all/'           | '/catch-all/'           ",
@@ -26,35 +28,18 @@ class VertxNormalizedRouteTest extends AbstractVertxNormalizedRouteTest {
     "sub-router param                  | '/sub/users/1'         | '/sub/users/:id'        | '/sub/users/{id}'       ",
     "sub-router catch-all              | '/sub/files/a'         | '/sub/files/'           | '/sub/files/{param1}'   "
   })
-  void normalizedRoute(String request, String route, String normalized) throws Exception {
+  void normalizedRoute(String request, String httpRoute, String normalized) throws Exception {
     assertEquals(200, get(request));
     Map<String, Object> tags = serverSpanTags();
 
-    assertEquals(route, String.valueOf(tags.get(HTTP_ROUTE)));
+    assertEquals(httpRoute, String.valueOf(tags.get(HTTP_ROUTE)));
     assertEquals(normalized, String.valueOf(tags.get(NORMALIZED_ROUTE_TAG)));
-  }
-
-  /**
-   * The store holds the declared {@code /catch-all/*}: {@code getPath()} drops the trailing {@code
-   * *} (http.route {@code /catch-all/}), so only the declared path gives {@code {param1}}.
-   */
-  @Test
-  void storeKeepsTheTrailingStarOfTheDeclaredPath() throws Exception {
-    assertEquals(200, get("/catch-all/x"));
-    Map<String, Object> tags = serverSpanTags();
-
-    assertEquals("/catch-all/", String.valueOf(tags.get(HTTP_ROUTE)));
-    assertEquals("/catch-all/{param1}", String.valueOf(tags.get(NORMALIZED_ROUTE_TAG)));
   }
 
   /** {@code http.route} falls back to the regex of the route; a regex has no normalized route. */
   @Test
   void noNormalizedRouteForRegexRoute() throws Exception {
-    assertEquals(200, get("/regex/123"));
-    Map<String, Object> tags = serverSpanTags();
-
-    assertEquals("/regex/(\\d+)", String.valueOf(tags.get(HTTP_ROUTE)));
-    assertNull(tags.get(NORMALIZED_ROUTE_TAG));
+    assertNoNormalizedRoute("/regex/123", "/regex/(\\d+)");
   }
 
   /**
@@ -63,11 +48,7 @@ class VertxNormalizedRouteTest extends AbstractVertxNormalizedRouteTest {
    */
   @Test
   void staleNormalizedRouteIsClearedByLaterRegexRoute() throws Exception {
-    assertEquals(200, get("/stale/1"));
-    Map<String, Object> tags = serverSpanTags();
-
-    assertEquals("/stale/(\\d+)", String.valueOf(tags.get(HTTP_ROUTE)));
-    assertNull(tags.get(NORMALIZED_ROUTE_TAG));
+    assertNoNormalizedRoute("/stale/1", "/stale/(\\d+)");
   }
 
   /**
@@ -77,22 +58,14 @@ class VertxNormalizedRouteTest extends AbstractVertxNormalizedRouteTest {
    */
   @Test
   void noNormalizedRouteUnderAParameterMount() throws Exception {
-    assertEquals(200, get("/acme/api/items/1"));
-    Map<String, Object> tags = serverSpanTags();
-
-    assertEquals("/acme/api/items/:id", String.valueOf(tags.get(HTTP_ROUTE)));
-    assertNull(tags.get(NORMALIZED_ROUTE_TAG));
+    assertNoNormalizedRoute("/acme/api/items/1", "/acme/api/items/:id");
   }
 
   @Test
   void noNormalizedRouteWhenAppSecIsInactive() throws Exception {
     ActiveSubsystems.APPSEC_ACTIVE = false;
 
-    assertEquals(200, get("/multi/1.json"));
-    Map<String, Object> tags = serverSpanTags();
-
-    assertEquals("/multi/:id.:format", String.valueOf(tags.get(HTTP_ROUTE)));
-    assertNull(tags.get(NORMALIZED_ROUTE_TAG));
+    assertNoNormalizedRoute("/multi/1.json", "/multi/:id.:format");
   }
 
   /**

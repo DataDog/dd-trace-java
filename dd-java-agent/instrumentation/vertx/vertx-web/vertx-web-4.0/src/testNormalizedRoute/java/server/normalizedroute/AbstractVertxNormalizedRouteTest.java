@@ -1,6 +1,11 @@
 package server.normalizedroute;
 
+import static datadog.trace.api.appsec.route.NormalizedRouteHelper.NORMALIZED_ROUTE_TAG;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -12,11 +17,10 @@ import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
-import java.net.ServerSocket;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -35,6 +39,11 @@ import org.junit.jupiter.api.TestInstance;
 @TestInstance(PER_CLASS)
 abstract class AbstractVertxNormalizedRouteTest extends AbstractInstrumentationTest {
 
+  private static final long TIMEOUT_SECONDS = 10;
+
+  /** Operation name of the server span, which carries both route tags. */
+  private static final String SERVER_SPAN = "netty.request";
+
   private final OkHttpClient client = OkHttpUtils.client();
   private Vertx vertx;
   private HttpServer server;
@@ -43,9 +52,6 @@ abstract class AbstractVertxNormalizedRouteTest extends AbstractInstrumentationT
 
   @BeforeAll
   void startServer() throws Exception {
-    try (ServerSocket socket = new ServerSocket(0)) {
-      port = socket.getLocalPort();
-    }
     vertx = Vertx.vertx();
     Router router = Router.router(vertx);
     router.route("/").handler(AbstractVertxNormalizedRouteTest::ok);
@@ -70,7 +76,8 @@ abstract class AbstractVertxNormalizedRouteTest extends AbstractInstrumentationT
     tenant.route("/items/:id").handler(AbstractVertxNormalizedRouteTest::ok);
     router.route("/:tenant/api/*").subRouter(tenant);
 
-    server = await(vertx.createHttpServer().requestHandler(router).listen(port));
+    server = await(vertx.createHttpServer().requestHandler(router).listen(0));
+    port = server.actualPort();
   }
 
   @AfterAll
@@ -110,7 +117,7 @@ abstract class AbstractVertxNormalizedRouteTest extends AbstractInstrumentationT
       }
       done.countDown();
     });
-    if (!done.await(10, TimeUnit.SECONDS)) {
+    if (!done.await(TIMEOUT_SECONDS, SECONDS)) {
       throw new IllegalStateException("Vert.x operation did not complete in time");
     }
     if (failure.get() != null) {
@@ -127,18 +134,30 @@ abstract class AbstractVertxNormalizedRouteTest extends AbstractInstrumentationT
     }
   }
 
-  /** Tags of the {@code netty.request} span of the single trace written. */
+  /** Tags of the {@link #SERVER_SPAN} span of the single trace written. */
   Map<String, Object> serverSpanTags() throws Exception {
     writer.waitForTraces(1);
     DDSpan serverSpan = null;
     for (List<DDSpan> trace : writer) {
       for (DDSpan span : trace) {
-        if ("netty.request".equals(span.getOperationName().toString())) {
+        if (SERVER_SPAN.equals(span.getOperationName().toString())) {
           serverSpan = span;
         }
       }
     }
-    assertNotNull(serverSpan, "netty.request span");
+    assertNotNull(serverSpan, SERVER_SPAN + " span");
     return serverSpan.getTags();
+  }
+
+  /**
+   * Sends {@code GET request}, expects a 200 with {@code expectedHttpRoute} (null for none) as
+   * {@code http.route} and no normalized route.
+   */
+  void assertNoNormalizedRoute(String request, String expectedHttpRoute) throws Exception {
+    assertEquals(200, get(request));
+    Map<String, Object> tags = serverSpanTags();
+
+    assertEquals(expectedHttpRoute, Objects.toString(tags.get(HTTP_ROUTE), null));
+    assertNull(tags.get(NORMALIZED_ROUTE_TAG));
   }
 }

@@ -32,7 +32,7 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
   private final Handler<RoutingContext> actual;
   private final boolean spanStarter;
 
-  /** Declared path of each route, null when the instrumentation could not provide it. */
+  /** Declared path of each route. */
   private final ContextStore<Route, String> declaredPaths;
 
   public RouteHandlerWrapper(
@@ -128,8 +128,7 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
 
   private void tagNormalizedRoute(final RoutingContext routingContext, final AgentSpan span) {
     try {
-      final String declared =
-          declaredPaths != null ? declaredPaths.get(routingContext.currentRoute()) : null;
+      final String declared = declaredPaths.get(routingContext.currentRoute());
       VertxNormalizedRoute.tag(
           span,
           declared,
