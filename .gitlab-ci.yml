@@ -391,6 +391,7 @@ build:
 
 build_tests:
   extends: .gradle_build
+  needs: []
   variables:
     <<: *tier_xl_variables
     DEPENDENCY_CACHE_POLICY: pull
