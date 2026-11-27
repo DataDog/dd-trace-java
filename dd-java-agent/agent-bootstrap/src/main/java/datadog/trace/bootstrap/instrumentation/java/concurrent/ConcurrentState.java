@@ -106,18 +106,16 @@ public final class ConcurrentState {
   }
 
   private void cancelContinuation() {
-    final ContextContinuation continuation = CONTINUATION.get(this);
-    if (continuation != null && continuation != CLAIMED) {
-      continuation.release();
-    }
+    cancelAndClearContinuation();
   }
 
   private void cancelAndClearContinuation() {
     final ContextContinuation continuation = CONTINUATION.get(this);
     if (continuation != null && continuation != CLAIMED) {
       // We should never be able to reuse this state
-      CONTINUATION.compareAndSet(this, continuation, CLAIMED);
-      continuation.release();
+      if (CONTINUATION.compareAndSet(this, continuation, CLAIMED)) {
+        continuation.release();
+      }
     }
   }
 }
