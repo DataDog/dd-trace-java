@@ -988,7 +988,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         .scheduleWithJitter(MetricsAggregator::start, metricsAggregator, 1, SECONDS);
 
     if (config.isMetricsOtlpExporterEnabled()) {
-      OtlpMetricsService.INSTANCE.start();
+      OtlpMetricsService.INSTANCE.start(this.healthMetrics);
     }
   }
 

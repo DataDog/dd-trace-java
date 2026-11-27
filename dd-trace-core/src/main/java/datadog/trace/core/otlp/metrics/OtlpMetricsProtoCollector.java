@@ -63,6 +63,7 @@ public final class OtlpMetricsProtoCollector extends OtlpMetricsCollector
   private int payloadBytes;
   private int scopedBytes;
   private int metricBytes;
+  private int dataPoints;
 
   private OtelInstrumentationScope currentScope;
   private OtelInstrumentDescriptor currentMetric;
@@ -141,6 +142,7 @@ public final class OtlpMetricsProtoCollector extends OtlpMetricsCollector
     payloadBytes = 0;
     scopedBytes = 0;
     metricBytes = 0;
+    dataPoints = 0;
 
     currentScope = null;
     currentMetric = null;
@@ -185,6 +187,7 @@ public final class OtlpMetricsProtoCollector extends OtlpMetricsCollector
 
     // add complete data point message to the metric chunks
     metricBytes += recordDataPointMessage(buf, point, protobuf);
+    dataPoints++;
   }
 
   // called once we've processed all scopes and metric messages
@@ -202,7 +205,7 @@ public final class OtlpMetricsProtoCollector extends OtlpMetricsCollector
 
     // finally prepend the total length of all collected chunks
     protobuf.recordMessage(buf, 1, payloadBytes);
-    return protobuf.toPayload();
+    return protobuf.toPayload(dataPoints);
   }
 
   // called once we've processed all metrics in a specific scope
