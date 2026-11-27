@@ -46,7 +46,7 @@ Then read the check files that apply to the diff:
 | `references/checks/allocation.md` | #1 per-call allocation, #7 escape defeated, J1 EA, J4 GC → tail latency; defensive copies, capturing lambdas, `Optional`/boxing | always |
 | `references/checks/repeat-work.md` | #2 repeat work, J8 backtracking regex; regex compile, `String.format`, `Config.get()`, Streams | always |
 | `references/checks/critical-path.md` | #4 deferrable work, #6 FFI crossing, J3 JNI + virtual-thread pinning | always |
-| `references/checks/collections.md` | wrong collection type, mis-sizing, concurrency choice | always |
+| `references/checks/collections.md` | wrong collection type, mis-sizing, concurrency choice, J17 lock → compare-and-set on an immutable snapshot | always |
 | `references/checks/startup.md` | premain-reachable startup cost | always |
 | `references/checks/product-off.md` | J14 work for an optional product that's off | always |
 | `references/checks/dispatch.md` | #5 polymorphic dispatch, J2 megamorphic (**parked**) | always |
@@ -57,7 +57,8 @@ Then read the check files that apply to the diff:
 
 Each check reads as: **pattern** — *expensive when (the interprocedural condition to trace)* —
 confidence — severity — fix. J7, J9, J10 and J11 route an *existing* #1/#2/#3 finding to a landed reusable
-fix — they are not new triggers. Don't raise a finding you wouldn't have raised anyway.
+fix — they are not new triggers. Don't raise a finding you wouldn't have raised anyway. J17 is
+the exception: it is a trigger in its own right, by policy (prefer compare-and-set over locks).
 
 ## Workflow
 
