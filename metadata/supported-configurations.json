@@ -7523,6 +7523,14 @@
         "aliases": ["DD_JDBC_ANALYTICS_SAMPLE_RATE"]
       }
     ],
+    "DD_TRACE_JDBC_CAPTURE_QUERY_PARAMETERS": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_JDBC_CONNECTION_CLASS_NAME": [
       {
         "version": "A",
