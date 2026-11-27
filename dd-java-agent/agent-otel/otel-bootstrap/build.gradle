@@ -1,4 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 
 plugins {
   id 'com.gradleup.shadow'
@@ -52,7 +53,8 @@ buildTimeInstrumentation {
 minimumInstructionCoverage = 0.0
 minimumBranchCoverage = 0.0
 
-forbiddenApis {
+tasks.withType(CheckForbiddenApis).configureEach {
+  // Forbidden APIs loses these extension settings when Gradle stores the configuration cache.
   failOnMissingClasses = false
   ignoreFailures = true
 }

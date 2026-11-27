@@ -74,7 +74,7 @@ class ForbiddenApisConventionPluginTest : GradleFixture() {
   }
 
   @Test
-  fun `preserves extension and typed task overrides`() {
+  fun `preserves additive signature files and typed task overrides`() {
     writeFile("gradle/forbiddenApiFilters/instrumentation.txt", "java.lang.Runtime#exit(int)")
     writeRootProject(
       """
@@ -83,13 +83,16 @@ class ForbiddenApisConventionPluginTest : GradleFixture() {
       plugins {
         id("dd-trace-java.conventions.forbidden-apis")
       }
+      repositories {
+        mavenCentral()
+      }
 
-      forbiddenApis {
+      tasks.withType<CheckForbiddenApis>().configureEach {
         signaturesFiles += files("gradle/forbiddenApiFilters/instrumentation.txt")
-        ignoreFailures = true
       }
       tasks.named<CheckForbiddenApis>("forbiddenApisMain") {
         failOnMissingClasses = false
+        ignoreFailures = true
       }
       tasks.named("forbiddenApisTest") {
         enabled = true
@@ -111,6 +114,22 @@ class ForbiddenApisConventionPluginTest : GradleFixture() {
 
     assertThat(result.task(":verifyOverrides")?.outcome)
       .describedAs(result.output).isEqualTo(TaskOutcome.SUCCESS)
+
+    writeJavaSource("Example", "public class Example { public void exit() { System.exit(0); Runtime.getRuntime().exit(0); } }")
+    val arguments = arrayOf("forbiddenApisMain", "--rerun", "--configuration-cache")
+    val stored = run(*arguments)
+    val reused = run(*arguments)
+
+    assertThat(stored.output).contains("Configuration cache entry stored")
+    assertThat(reused.output).contains("Reusing configuration cache")
+    for (build in listOf(stored, reused)) {
+      assertThat(build.task(":forbiddenApisMain")?.outcome)
+        .describedAs(build.output).isEqualTo(TaskOutcome.SUCCESS)
+      assertThat(build.output).contains(
+        "Forbidden method invocation: java.lang.System#exit(int)",
+        "Forbidden method invocation: java.lang.Runtime#exit(int)",
+      )
+    }
   }
 
   @Test
@@ -127,11 +146,18 @@ class ForbiddenApisConventionPluginTest : GradleFixture() {
     )
     writeJavaSource("Example", "public class Example { public void exit() { System.exit(0); } }")
 
-    val failed = run("check", expectFailure = true)
+    val arguments = arrayOf("check", "--configuration-cache")
+    val failed = run(*arguments, expectFailure = true)
 
     assertThat(failed.task(":forbiddenApisMain")?.outcome)
       .describedAs(failed.output).isEqualTo(TaskOutcome.FAILED)
-    assertThat(failed.output).contains("java.lang.System#exit(int)")
+    assertThat(failed.output).contains("Configuration cache entry stored", "Forbidden method invocation: java.lang.System#exit(int)")
+
+    val reused = run(*arguments, expectFailure = true)
+
+    assertThat(reused.task(":forbiddenApisMain")?.outcome)
+      .describedAs(reused.output).isEqualTo(TaskOutcome.FAILED)
+    assertThat(reused.output).contains("Reusing configuration cache", "Forbidden method invocation: java.lang.System#exit(int)")
 
     writeJavaSource(
       "Example",
@@ -145,8 +171,9 @@ class ForbiddenApisConventionPluginTest : GradleFixture() {
       """
     )
 
-    val suppressed = run("check")
+    val suppressed = run(*arguments)
 
+    assertThat(suppressed.output).contains("Reusing configuration cache")
     assertThat(suppressed.task(":forbiddenApisMain")?.outcome)
       .describedAs(suppressed.output).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(suppressed.task(":forbiddenApisTest")?.outcome).isEqualTo(TaskOutcome.SKIPPED)
