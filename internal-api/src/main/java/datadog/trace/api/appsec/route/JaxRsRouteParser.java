@@ -209,9 +209,10 @@ public final class JaxRsRouteParser {
    * True when {@code regex} may match a {@code /}, found by a static scan (the regex is never
    * compiled). Outside a character class: an unescaped {@code .} or {@code /}, or an escape that
    * may match {@code /} (see {@link #escape}). Inside a class: a member or a range that holds
-   * {@code /} (e.g. {@code !-~}), or a negated class without it. Nested classes and intersections
-   * are scanned as unions. Invalid constructs (unterminated class, unknown letter escape, malformed
-   * {@code \x}, <code>&#92;u</code> or octal escape) count as accepting {@code /}.
+   * {@code /} (e.g. {@code !-~}), or a negated class without it. A class with a nested class or an
+   * intersection counts as accepting {@code /}, since nesting can negate or narrow its members.
+   * Invalid constructs (unterminated class, unknown letter escape, malformed {@code \x}, <code>
+   * &#92;u</code> or octal escape) count as accepting {@code /}.
    */
   @VisibleForTesting
   static boolean acceptsSlash(String regex) {
@@ -256,8 +257,28 @@ public final class JaxRsRouteParser {
     return -1;
   }
 
+  /**
+   * True when the class between {@code open} and {@code end} holds an unescaped nested class
+   * ({@code [}) or an intersection ({@code &&}).
+   */
+  private static boolean hasNestedClassOrIntersection(String regex, int open, int end) {
+    for (int i = open + 1; i < end; i++) {
+      char c = regex.charAt(i);
+      if (c == '\\') {
+        i++;
+      } else if (c == '[' || (c == '&' && i + 1 < end && regex.charAt(i + 1) == '&')) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /** Whether the class between {@code open} ({@code [}) and {@code end} ({@code ]}) admits '/'. */
   private static boolean classAcceptsSlash(String regex, int open, int end) {
+    if (hasNestedClassOrIntersection(regex, open, end)) {
+      // a nested class or an intersection can negate or narrow its members: be conservative
+      return true;
+    }
     int i = open + 1;
     boolean negated = i < end && regex.charAt(i) == '^';
     if (negated) {
