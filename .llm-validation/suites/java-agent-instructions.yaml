@@ -156,3 +156,169 @@ cases:
       - Requires migrating the existing file to Java or running migration skills before adding the input.
       - Rewrites the feature or suite in JUnit instead of making the requested small Spock change.
       - Drops existing coverage or changes the expected result instead of adding the whitespace input.
+
+  # Setup cases judge useful answers, not whether the removed guidance is present or named.
+  # Ground truth: docs/add_new_instrumentation.md, docs/how_instrumentations_work.md,
+  # and .agents/skills/apm-integrations/SKILL.md. Acme Search is a hypothetical fixture.
+  - id: java-setup-instrumentation-plan-001
+    comparisons: [setup]
+    files: [.agents/skills/apm-integrations/SKILL.md]
+    only_warn: true
+    input: |
+      Plan a new tracing integration for the hypothetical Acme Search client, minimum
+      version 2.0. It instruments com.example.search.SearchClient.execute(Request),
+      creates one client span per call, and is not a bootstrap instrumentation.
+      Acme Search is a fixture, not a library or module to find in this checkout.
+      Give a concise plan covering module/build wiring, instrumentation and advice,
+      configuration registration, and focused validation. Read local documentation
+      and guidance when useful; do not edit files, build, run tests, or use external services.
+    expected_criteria:
+      - Uses a versioned module under dd-java-agent/instrumentation/ and registers its project in settings.gradle.kts in alphabetical order.
+      - Applies the dd-trace-java.module.instrumentation convention plugin rather than applying gradle/java.gradle directly, and plans compileOnly dependencies and a muzzle pass range matching supported versions.
+      - Uses an InstrumenterModule.Tracing implementation with AutoService registration, target matching, and method advice; keeps instrumentation failures from escaping into application code.
+      - Registers each integration name's enablement setting in metadata/supported-configurations.json, including the documented aliases; build registration alone is insufficient.
+      - Plans focused module tests and muzzle validation against a relevant existing integration or maintained documentation, without claiming a build or test actually ran.
+      - Keeps the response a plan for the supplied fixture; guidance being absent or available only through retained documentation is not itself an answer defect.
+    bad_signals:
+      - Omits configuration metadata registration or claims settings.gradle.kts registration alone completes the integration.
+      - Recommends directly applying gradle/java.gradle to the new module or allowing advice exceptions to break application execution.
+      - Invents existing Acme Search source files, test classes, or successful checks, or performs edits, builds, tests, or external calls.
+
+  # Ground truth: supplied evidence and .agents/skills/resolve-muzzle-ci/SKILL.md plus
+  # references/failure-signatures-and-remedies.md. No real task or artifact is implied.
+  - id: java-setup-muzzle-triage-001
+    comparisons: [setup]
+    files: [.agents/skills/resolve-muzzle-ci/SKILL.md]
+    only_warn: true
+    input: |
+      Triage this hypothetical muzzle failure from supplied evidence and local files:
+      - The failing task is :example:muzzle, a fixture task name, not a module to find.
+      - Its first causal error is "Muzzle version range resolution failed" with an
+        HTTP 503 from the configured MAVEN_REPOSITORY_PROXY while fetching metadata.
+      - Another unrelated coordinate fails with HTTP 503 from the same proxy.
+      - No application classpath or "FAILED MUZZLE VALIDATION" mismatch was produced.
+      A teammate proposes capping the supported version range because a library was
+      released yesterday, or adding that version to skipVersions. What classification
+      does the evidence support, what should we investigate next, and what changes
+      should wait? Do not contact services, retry jobs, create issues, edit files, or run builds.
+    expected_criteria:
+      - Classifies the observed failure as repository/proxy infrastructure or metadata-resolution failure, rather than an established API compatibility mismatch.
+      - Uses the first causal errors and failures of unrelated coordinates as evidence; publication age alone does not justify a version cap or skipVersions.
+      - Rejects changing support ranges or skipping a release to compensate for transient proxy errors; proposes inspecting the exact coordinate, proxy response, and authoritative publication when access is later available.
+      - Distinguishes a later resolved-classpath muzzle mismatch from this failure; a real API boundary can justify adapting instrumentation or narrowing support after investigation.
+      - Keeps retries conditional on authorization and checks that any later successful rerun actually exercises the previously failing task and version.
+    bad_signals:
+      - Recommends a range cap or skipVersions solely because the release is new or the proxy returned HTTP 503.
+      - Claims the supplied evidence proves missing classes or methods in a resolved application classpath, or that a green aggregate rerun proves the same version passed.
+      - Contacts external services, retries CI, creates issues, edits files, or runs builds despite the requested scope.
+
+  # Ground truth: docs/how_to_test.md#reproducing-timing-sensitive-ci-failures and
+  # .agents/skills/reproduce-ci-flakiness/SKILL.md; task/class names below are fixtures.
+  - id: java-setup-flaky-reproduction-001
+    comparisons: [setup]
+    files: [.agents/skills/reproduce-ci-flakiness/SKILL.md]
+    only_warn: true
+    input: |
+      Plan a local reproduction of an intermittent asynchronous assertion timeout.
+      Supplied CI fixture: :example:forkedTest, class example.AsyncForkedTest,
+      -PtestJvm=ORACLE8, --parallel --max-workers=4, Linux amd64. The test is @Flaky.
+      These task/class names are hypothetical; do not search for them in the repo.
+      My existing local command has -PskipFlakyTests. A teammate says to use only
+      --max-workers=1 to emulate a CPU-starved CI worker and loop until something fails.
+      Give a bounded baseline/stress plan and explain how to tell a matching reproduction
+      from a skipped test or unrelated failure. Read local guidance if useful, but do
+      not run commands, change files, or contact external services.
+    expected_criteria:
+      - Removes skipFlakyTests for the targeted annotated test, preserves the supplied forked task, class selection, and ORACLE8 selector, and verifies actual test execution rather than a cache hit or zero tests.
+      - Preserves CI concurrency in the baseline, matches the JDK/vendor and environment as far as possible, and treats serialization as a separate experiment that may hide contention.
+      - Tries a normal baseline, ActiveProcessorCount reduction and -Xint separately, then a combined profile if useful; explains that JVM-visible CPU count is not an OS CPU quota and Gradle workers do not constrain application threads.
+      - Applies JVM flags to the actual test worker and relevant child JVMs, for example using command-scoped JAVA_TOOL_OPTIONS, and verifies effective flags; build-JVM options alone do not establish test-worker settings.
+      - Bounds attempts and elapsed time, stops at a matching failure or budget, and records original logs/test reports and attempts per profile. Unsupported options, setup failures, skips, and different timeout signatures do not count as successful reproduction.
+      - Does not claim passing stressed runs prove reliability or that a proposed command has already reproduced the problem.
+    bad_signals:
+      - Leaves skipFlakyTests enabled for the target or treats a skipped, cached, or zero-test result as a passing trial.
+      - Claims --max-workers or ActiveProcessorCount imposes an OS CPU quota, or uses serialized execution as the only supposedly equivalent baseline.
+      - Recommends unbounded retries, counts any failure as a matching reproduction, or executes commands or edits files despite the plan-only request.
+
+  # Frozen hypothetical diff. Contracts supply correctness ground truth; performance posture:
+  # .agents/skills/perf-review/references/checks.md (J14 and eager argument evaluation).
+  # This measures review findings under the restricted runner, not the full multi-agent workflow.
+  - id: java-setup-sdk-review-001
+    comparisons: [setup]
+    files: [.agents/skills/sdk-review/SKILL.md, .agents/skills/perf-review/SKILL.md]
+    only_warn: true
+    input: |
+      Review this frozen hypothetical diff using local review guidance when useful.
+      Report actionable findings with location, impact, focused fixes, and regression
+      coverage. The filename is a fixture, not a current source file to locate.
+      Do not edit files, run commands, or use external services.
+
+      Contracts:
+      - onResponse runs once per request, even when the optional collector is disabled.
+      - response, span, and collector are non-null. contentType() returns null when the
+        header is absent, which is valid. span.setTag ignores null values.
+      - diagnosticBody() formats and allocates a string; only the collector uses it.
+      - collector.record is a no-op while disabled. collector.isEnabled() is available
+        and stable for this invocation. Response tagging must work independently of it.
+      - The instrumentation boundary catches callback exceptions, preserving the
+        application response; an exception still prevents the remaining callback work.
+
+      --- a/fixture/ResponseAdvice.java
+      +++ b/fixture/ResponseAdvice.java
+      @@ -10,5 +10,5 @@
+       void onResponse(Response response, Span span, Collector collector) {
+      -  String type = response.contentType();
+      -  span.setTag("http.response.content_type", type);
+      -  collector.record("status=" + response.status());
+      +  String contentType = response.contentType();
+      +  span.setTag("http.response.content_type", contentType.trim());
+      +  collector.record(String.format("status=%s body=%s", response.status(), response.diagnosticBody()));
+       }
+    expected_criteria:
+      - Identifies the nullable contentType.trim() at candidate line 12 as a regression for valid responses without Content-Type; explains lost callback work without claiming the application response necessarily fails.
+      - Identifies eager String.format and diagnosticBody evaluation at candidate line 13 on every request, including when the collector is disabled; a no-op record implementation does not avoid argument costs.
+      - Proposes preserving null-safe response tagging and guarding only collector-specific work with collector.isEnabled(), rather than disabling response tagging along with the collector.
+      - Proposes coverage for missing headers, disabled-collector calls that do not evaluate diagnosticBody, and enabled-collector output; does not invent measured throughput or allocation numbers.
+      - Treats the local variable rename as harmless and keeps findings tied to the supplied diff and contracts. Exact rule IDs and access to a particular skill are not required for a correct review.
+    bad_signals:
+      - Misses the nullable header dereference or dismisses all disabled-collector overhead because record is a no-op.
+      - Puts an early return for the disabled collector before independently required response tagging, or claims the caught callback exception necessarily crashes the application.
+      - Flags the harmless local rename, invents measured performance results, or edits files, runs commands, or contacts services.
+
+  # General Java control: no repository-specific conventions or skill access required.
+  - id: java-setup-control-resource-closing-001
+    comparisons: [setup]
+    only_warn: true
+    input: |
+      Answer from general Java knowledge without reading files or using tools.
+      In a Java try-with-resources statement, both resources are initialized, then
+      the body throws an IOException. Closing each resource also throws an IOException.
+      Which exception escapes, in what order are resources closed, and where can I
+      inspect the other exceptions? Keep the answer short.
+    expected_criteria:
+      - Says the body exception remains the primary exception that escapes.
+      - Says resources close in reverse declaration/initialization order and both closes are attempted.
+      - Says the closing exceptions are suppressed on the primary exception and can be inspected using getSuppressed().
+      - Gives a concise general Java explanation without requiring repository validation or claiming checks ran.
+    bad_signals:
+      - Says the last close exception replaces the body exception or that a failed close prevents attempting the other close.
+      - Recommends repository builds, tests, migrations, or external services for this conceptual question, or claims to have run checks.
+
+  # General Java control: atomicity is not established by a thread-safe map's individual calls.
+  - id: java-setup-control-map-atomicity-001
+    comparisons: [setup]
+    only_warn: true
+    input: |
+      Answer from general Java knowledge without reading files or using tools.
+      A ConcurrentHashMap<String, Integer> stores counters. Two threads increment
+      with counters.put(key, counters.getOrDefault(key, 0) + 1).
+      Is the increment atomic? Give a short explanation and a Java 8 alternative
+      that atomically increments a counter initially absent from the map.
+    expected_criteria:
+      - Explains the read-plus-write sequence is not atomic and concurrent increments can be lost despite the map being thread-safe.
+      - Gives a valid atomic Java 8 map update such as counters.merge(key, 1, Integer::sum) or an equivalent compute expression that handles an absent key.
+      - Keeps the answer concise and does not require repository changes, builds, or unrelated workflow checks.
+    bad_signals:
+      - Claims ConcurrentHashMap makes the compound getOrDefault/put increment atomic.
+      - Gives an alternative that still separates the read and write or fails for an initially absent key.
+      - Reads files or invokes tools despite the prompt, or claims checks ran.

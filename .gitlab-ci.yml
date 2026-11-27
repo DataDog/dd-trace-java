@@ -1587,7 +1587,7 @@ update_central_configurations_version_range_v2:
     MULTIPLE_RELEASE_LINES: "false"
     SEND_ALIASES: "true"
 
-# Regular instruction-change validation; setup evaluation remains disabled.
+# Regular instruction-change validation.
 "llm validation":
   # Advisory during calibration: retain job failures without failing the pipeline.
   allow_failure: true
@@ -1617,3 +1617,21 @@ update_central_configurations_version_range_v2:
       - results-partial.json
       - report-partial.md
       - build/llm-validation/context-growth.md
+
+# Schedule this job every two weeks with LLMVAL_SETUP_PRESET=setup-full and
+# LLMVAL_SETUP_ENABLED=true.
+# Other pipelines can opt in with the same enable flag.
+"llm validation (setup smoke)":
+  allow_failure: true
+  before_script: []
+  variables:
+    LLMVAL_SETUP_PRESET: "setup-calibration"
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$LLMVAL_SETUP_ENABLED == "true"'
+      when: on_success
+    - when: never
+  artifacts:
+    # Retain the shared setup artifact paths.
+    expire_in: 13 mos
