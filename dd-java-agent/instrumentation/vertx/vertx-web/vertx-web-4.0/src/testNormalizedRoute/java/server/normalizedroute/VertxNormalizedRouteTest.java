@@ -57,6 +57,11 @@ class VertxNormalizedRouteTest extends AbstractVertxNormalizedRouteTest {
    * unchanged.
    */
   @Test
+  void declaredPathIsDroppedByALaterPathRegex() throws Exception {
+    assertNoNormalizedRoute("/stale-path/1", "/stale-path/x");
+  }
+
+  @Test
   void noNormalizedRouteUnderAParameterMount() throws Exception {
     assertNoNormalizedRoute("/acme/api/items/1", "/acme/api/items/:id");
   }

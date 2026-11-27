@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.vertx_3_4.server;
 
+import static datadog.trace.api.appsec.route.VertxRouteParser.Grammar.LEGACY;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -10,7 +11,6 @@ import static datadog.trace.instrumentation.vertx_3_4.server.VertxDecorator.INST
 import datadog.context.ContextScope;
 import datadog.trace.api.appsec.route.NormalizedRouteHelper;
 import datadog.trace.api.appsec.route.VertxNormalizedRoute;
-import datadog.trace.api.appsec.route.VertxRouteParser;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -132,7 +132,7 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
       VertxNormalizedRoute.tag(
           span,
           declared,
-          VertxRouteParser.Grammar.LEGACY,
+          LEGACY,
           routingContext.mountPoint(),
           routingContext.normalisedPath(),
           routingContext.pathParams());

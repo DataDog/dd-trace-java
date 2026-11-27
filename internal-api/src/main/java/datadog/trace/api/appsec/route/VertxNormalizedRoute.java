@@ -1,5 +1,8 @@
 package datadog.trace.api.appsec.route;
 
+import static datadog.trace.api.appsec.route.NormalizedRouteHelper.NORMALIZED_ROUTE_TAG;
+import static datadog.trace.api.appsec.route.NormalizedRouteHelper.decodePath;
+
 import datadog.trace.api.appsec.route.VertxRouteParser.Grammar;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -74,7 +77,7 @@ public final class VertxNormalizedRoute {
     }
     try {
       // a later route that cannot be expressed must not keep the tag of an earlier one
-      span.setTag(NormalizedRouteHelper.NORMALIZED_ROUTE_TAG, (String) null);
+      span.setTag(NORMALIZED_ROUTE_TAG, (String) null);
       RouteTemplate template = template(declaredPath, grammar, mountPoint, pathParams);
       if (template == null) {
         return;
@@ -82,8 +85,7 @@ public final class VertxNormalizedRoute {
       PresenceResolver resolver =
           resolver(template, declaredPath, grammar, mountPoint, normalizedPath);
       if (resolver != null) {
-        NormalizedRouteHelper.tag(
-            span, template, NormalizedRouteHelper.decodePath(mountPoint), resolver);
+        NormalizedRouteHelper.tag(span, template, decodePath(mountPoint), resolver);
       }
     } catch (Throwable t) {
       log.debug("Failed to set the Vert.x normalized route tag", t);
@@ -104,9 +106,7 @@ public final class VertxNormalizedRoute {
     }
     PresenceResolver resolver =
         resolver(template, declaredPath, grammar, mountPoint, normalizedPath);
-    return resolver == null
-        ? null
-        : template.render(NormalizedRouteHelper.decodePath(mountPoint), resolver);
+    return resolver == null ? null : template.render(decodePath(mountPoint), resolver);
   }
 
   /**
@@ -164,8 +164,9 @@ public final class VertxNormalizedRoute {
       Grammar grammar,
       String mountPoint,
       String normalizedPath) {
-    // the trailing '*' is the only optional part of a Vert.x template
-    if (template.staticRoute() != null) {
+    // the trailing '*' is the only optional part of a Vert.x template; the root route also has
+    // no static route (empty body) but no catch-all either
+    if (template.staticRoute() != null || !declaredPath.endsWith("*")) {
       return PresenceResolver.UNKNOWN;
     }
     int start = remainderStart(declaredPath, grammar, mountPoint, normalizedPath);

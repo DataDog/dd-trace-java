@@ -64,6 +64,12 @@ abstract class AbstractVertxNormalizedRouteTest extends AbstractInstrumentationT
     // middleware with a declared path, then a regex route: the regex route must not keep its tag
     router.route("/stale/*").handler(RoutingContext::next);
     router.routeWithRegex("/stale/(\\d+)").handler(AbstractVertxNormalizedRouteTest::ok);
+    // path() then pathRegex() on the same route: the setRegex advice drops the declared path
+    router.route("/stale-path/*").handler(RoutingContext::next);
+    router
+        .route("/stale-path/x")
+        .pathRegex("/stale-path/(\\d+)")
+        .handler(AbstractVertxNormalizedRouteTest::ok);
 
     // what mountSubRouter("/sub/", sub) does on 4.x (mountSubRouter is gone in 5.x)
     Router sub = Router.router(vertx);
