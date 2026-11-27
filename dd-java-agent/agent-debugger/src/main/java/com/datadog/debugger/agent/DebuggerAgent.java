@@ -37,6 +37,7 @@ import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.bootstrap.debugger.util.Redaction;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.util.TagsHelper;
@@ -156,6 +157,8 @@ public class DebuggerAgent {
       snapshotSerializer = new JsonSnapshotSerializer();
       DebuggerContext.initValueSerializer(snapshotSerializer);
       DebuggerContext.initTracer(new DebuggerTracer(debuggerSink.getProbeStatusSink()));
+      // started here, on an agent thread, so the detector does not inherit app thread locals
+      TimeoutChecker.startPauseDetectorIfEnabled(config);
       return true;
     } catch (Exception ex) {
       LOGGER.debug("Failed to init common component for debugger agent", ex);

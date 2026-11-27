@@ -53,6 +53,7 @@ public final class AgentThreadFactory implements ThreadFactory {
 
     DEBUGGER_SNAPSHOT_SERIALIZER("dd-debugger-snapshot-serializer"),
     DEBUGGER_HTTP_DISPATCHER("dd-debugger-upload-http-dispatcher"),
+    DEBUGGER_PAUSE_DETECTOR("dd-debugger-pause-detector"),
 
     CI_SHELL_COMMAND("dd-ci-shell-command"),
     CI_GIT_DATA_UPLOADER("dd-ci-git-data-uploader"),

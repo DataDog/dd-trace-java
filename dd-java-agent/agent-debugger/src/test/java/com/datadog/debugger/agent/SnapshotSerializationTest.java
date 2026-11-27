@@ -31,7 +31,6 @@ import com.datadog.debugger.util.MoshiSnapshotHelper;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.environment.JavaVirtualMachine;
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -40,7 +39,7 @@ import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
-import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import datadog.trace.bootstrap.debugger.util.WallTimeoutChecker;
 import datadog.trace.test.util.Flaky;
 import java.io.File;
 import java.io.IOException;
@@ -1003,7 +1002,7 @@ public class SnapshotSerializationTest {
         new TimeoutSnapshotSerializer(Duration.of(20, ChronoUnit.MILLIS)));
     CapturedContext.CapturedValue arg1 =
         CapturedContext.CapturedValue.of("arg1", Random.class.getTypeName(), new Random(0));
-    arg1.freeze(TimeoutChecker.create(Config.get(), Duration.ofMillis(10)));
+    arg1.freeze(new WallTimeoutChecker(Duration.ofMillis(10)));
     String buffer = arg1.getStrValue();
     System.out.println(buffer);
     Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);

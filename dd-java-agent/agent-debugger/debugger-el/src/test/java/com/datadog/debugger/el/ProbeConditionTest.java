@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import datadog.trace.bootstrap.debugger.util.WallTimeoutChecker;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -299,9 +300,7 @@ public class ProbeConditionTest {
     EvaluationException evaluationException =
         assertThrows(
             EvaluationException.class,
-            () ->
-                probeCondition.execute(
-                    ctx, TimeoutChecker.create(Config.get(), Duration.ofMillis(1))));
+            () -> probeCondition.execute(ctx, new WallTimeoutChecker(Duration.ofMillis(1))));
     assertEquals("timeout (1ms)", evaluationException.getMessage());
     // test good execution
     assertTrue(probeCondition.execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));

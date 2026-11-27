@@ -1294,9 +1294,9 @@
     ],
     "DD_INTERNAL_DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
-        "default": "WALL",
+        "default": "WALL-PAUSE-DETECTOR",
         "aliases": []
       }
     ],
