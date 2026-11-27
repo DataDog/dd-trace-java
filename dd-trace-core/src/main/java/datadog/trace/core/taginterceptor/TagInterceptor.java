@@ -119,7 +119,7 @@ public class TagInterceptor {
   private static Set<String> customTagNames(Set<String> names) {
     Set<String> custom = null;
     for (String name : names) {
-      if (KnownTagCodec.keyOf(name) == 0) {
+      if (KnownTagCodec.idOf(name) == 0) {
         if (custom == null) {
           custom = new HashSet<>();
         }
@@ -173,12 +173,12 @@ public class TagInterceptor {
   }
 
   public boolean needsIntercept(String tag) {
-    long tagId = KnownTagCodec.keyOf(tag);
+    long tagId = KnownTagCodec.idOf(tag);
     return tagId != 0 ? needsIntercept(tagId) : isSplitServiceTag(tag);
   }
 
   public boolean interceptTag(DDSpanContext span, String tag, Object value) {
-    long tagId = KnownTagCodec.keyOf(tag);
+    long tagId = KnownTagCodec.idOf(tag);
     return tagId != 0 ? interceptTag(span, tagId, value) : interceptCustomTag(span, tag, value);
   }
 

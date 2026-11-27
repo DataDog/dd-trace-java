@@ -1095,7 +1095,7 @@ public class DDSpanContext
 
   /** Removes {@code tag}, known or custom. Call under the {@code knownTags} lock. */
   private void routeRemoval(String tag) {
-    routeRemoval(KnownTagCodec.keyOf(tag), tag);
+    routeRemoval(KnownTagCodec.idOf(tag), tag);
   }
 
   private void routeRemoval(long key, String tag) {
@@ -1238,7 +1238,7 @@ public class DDSpanContext
 
   public void setMetric(final CharSequence key, final int value) {
     String tag = key.toString();
-    long tagId = KnownTagCodec.keyOf(tag);
+    long tagId = KnownTagCodec.idOf(tag);
     synchronized (knownTags) {
       routeSet(tagId, tag, value);
     }
@@ -1246,7 +1246,7 @@ public class DDSpanContext
 
   public void setMetric(final CharSequence key, final long value) {
     String tag = key.toString();
-    long tagId = KnownTagCodec.keyOf(tag);
+    long tagId = KnownTagCodec.idOf(tag);
     synchronized (knownTags) {
       routeSet(tagId, tag, value);
     }
@@ -1254,7 +1254,7 @@ public class DDSpanContext
 
   public void setMetric(final CharSequence key, final float value) {
     String tag = key.toString();
-    long tagId = KnownTagCodec.keyOf(tag);
+    long tagId = KnownTagCodec.idOf(tag);
     synchronized (knownTags) {
       routeSet(tagId, tag, value);
     }
@@ -1262,7 +1262,7 @@ public class DDSpanContext
 
   public void setMetric(final CharSequence key, final double value) {
     String tag = key.toString();
-    long tagId = KnownTagCodec.keyOf(tag);
+    long tagId = KnownTagCodec.idOf(tag);
     synchronized (knownTags) {
       routeSet(tagId, tag, value);
     }
@@ -1344,7 +1344,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = KnownTagCodec.idOf(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (null == value) {
@@ -1360,7 +1360,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = KnownTagCodec.idOf(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (null == value) {
@@ -1509,7 +1509,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = KnownTagCodec.idOf(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
@@ -1524,7 +1524,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = KnownTagCodec.idOf(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
@@ -1539,7 +1539,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = KnownTagCodec.idOf(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
@@ -1554,7 +1554,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = KnownTagCodec.idOf(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
@@ -1569,7 +1569,7 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    final long tagId = KnownTagCodec.keyOf(tag);
+    final long tagId = KnownTagCodec.idOf(tag);
     if (tagId != 0) {
       setTag(tagId, value);
     } else if (!tagInterceptor.needsInterceptCustomTag(tag)
@@ -1640,7 +1640,7 @@ public class DDSpanContext
     } else if (!map.isEmpty()) {
       synchronized (knownTags) {
         for (final Map.Entry<String, ?> tag : map.entrySet()) {
-          long tagId = KnownTagCodec.keyOf(tag.getKey());
+          long tagId = KnownTagCodec.idOf(tag.getKey());
           boolean intercepted =
               tagId != 0
                   ? tagInterceptor.interceptTag(this, tagId, tag.getValue())
@@ -1654,19 +1654,19 @@ public class DDSpanContext
   }
 
   void unsafeSetTag(final String tag, final Object value) {
-    routeSet(KnownTagCodec.keyOf(tag), tag, value);
+    routeSet(KnownTagCodec.idOf(tag), tag, value);
   }
 
   void unsafeSetTag(final String tag, final CharSequence value) {
-    routeSet(KnownTagCodec.keyOf(tag), tag, value);
+    routeSet(KnownTagCodec.idOf(tag), tag, value);
   }
 
   void unsafeSetTag(final String tag, final byte value) {
-    routeSet(KnownTagCodec.keyOf(tag), tag, value);
+    routeSet(KnownTagCodec.idOf(tag), tag, value);
   }
 
   void unsafeSetTag(final String tag, final double value) {
-    routeSet(KnownTagCodec.keyOf(tag), tag, value);
+    routeSet(KnownTagCodec.idOf(tag), tag, value);
   }
 
   Object getTag(final String key) {
@@ -1702,7 +1702,7 @@ public class DDSpanContext
 
   @Override
   public Object load(String tag) {
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     if (key != 0) {
       return knownTags.load(key);
     }
@@ -1713,7 +1713,7 @@ public class DDSpanContext
 
   @Override
   public String loadString(String tag) {
-    long key = KnownTagCodec.keyOf(tag);
+    long key = KnownTagCodec.idOf(tag);
     if (key != 0) {
       return knownTags.loadString(key);
     }
@@ -1737,7 +1737,7 @@ public class DDSpanContext
     if (value == null) {
       routeRemoval(tag);
     } else {
-      routeSet(KnownTagCodec.keyOf(tag), tag, value);
+      routeSet(KnownTagCodec.idOf(tag), tag, value);
     }
   }
 
@@ -1780,7 +1780,7 @@ public class DDSpanContext
     if (direction == KnownTagCodec.DIRECTION_UNKNOWN) {
       return null;
     }
-    long tagId = KnownTagCodec.directionalKeyOf(tag, direction);
+    long tagId = KnownTagCodec.directionalIdOf(tag, direction);
     if (tagId == 0) {
       return null;
     }

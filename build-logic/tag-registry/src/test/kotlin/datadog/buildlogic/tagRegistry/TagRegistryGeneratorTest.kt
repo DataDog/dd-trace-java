@@ -64,7 +64,7 @@ class TagRegistryGeneratorTest {
   }
 
   @Test
-  fun `keyOf initializer reads the static arrays outside its loop`() {
+  fun `idOf initializer reads the static arrays outside its loop`() {
     val yaml = directory.conventionsFile(
       """
       span_types:
@@ -79,8 +79,8 @@ class TagRegistryGeneratorTest {
     val loop = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
       .substringAfter("static {")
       .substringAfter("for (")
-      .substringBefore("KEYOF_HASHES =")
-    assertThat(loop).doesNotContain("KEYOF_NAMES", "KEYOF_VALUES")
+      .substringBefore("IDOF_HASHES =")
+    assertThat(loop).doesNotContain("IDOF_NAMES", "IDOF_VALUES")
   }
 
   @TableTest(
@@ -315,7 +315,7 @@ class TagRegistryGeneratorTest {
     val generated = contents(output)
     val source = generated.getValue("java/datadog/trace/api/KnownTags.java")
     assertThat(source).doesNotContain("HTTP_HOSTNAME_OTEL_NAME")
-    assertThat(source.substringAfter("KEYOF_NAMES = {").substringBefore("};")).doesNotContain("server.address")
+    assertThat(source.substringAfter("IDOF_NAMES = {").substringBefore("};")).doesNotContain("server.address")
     assertThat(source).contains("return direction == KnownTagCodec.DIRECTION_INBOUND ? \"server.address\" : null;")
     assertThat(generated.getValue("tag-assignment.txt"))
       .containsPattern("server\\.address +inbound +-> http\\.hostname")
@@ -390,8 +390,8 @@ class TagRegistryGeneratorTest {
         "return PEER_PORT;",
         "case KnownTagCodec.DIRECTION_NONE:",
       )
-    // Without a direction the Datadog name is its own tag; only directionalKeyOf maps it elsewhere.
-    assertThat(source.substringAfter("KEYOF_VALUES = {").substringBefore("};"))
+    // Without a direction the Datadog name is its own tag; only directionalIdOf maps it elsewhere.
+    assertThat(source.substringAfter("IDOF_VALUES = {").substringBefore("};"))
       .contains("SERVER_PORT,")
       .doesNotContain("SENTINEL")
   }
@@ -460,8 +460,8 @@ class TagRegistryGeneratorTest {
     assertThat(source)
       .contains("PEER_PORT_NAME = \"peer.port\"", "long PEER_PORT = ")
       .doesNotContain("PEER_PORT_INBOUND", "PEER_PORT_OUTBOUND", "shared")
-    assertThat(source.substringAfter("KEYOF_NAMES = {").substringBefore("};")).contains("PEER_PORT_NAME,")
-    assertThat(source.substringAfter("KEYOF_VALUES = {").substringBefore("};")).contains("PEER_PORT,")
+    assertThat(source.substringAfter("IDOF_NAMES = {").substringBefore("};")).contains("PEER_PORT_NAME,")
+    assertThat(source.substringAfter("IDOF_VALUES = {").substringBefore("};")).contains("PEER_PORT,")
     assertThat(generated.getValue("tag-assignment.txt").lines().filter { it.endsWith(" peer.port") })
       .hasSize(1)
   }
@@ -493,7 +493,7 @@ class TagRegistryGeneratorTest {
     )
     assertThat(emit).contains("return direction == KnownTagCodec.DIRECTION_INBOUND ? \"server.address\" : null;")
     // Direction-scoped names are not resolved by name yet.
-    assertThat(source.substringAfter("KEYOF_NAMES = {").substringBefore("};"))
+    assertThat(source.substringAfter("IDOF_NAMES = {").substringBefore("};"))
       .doesNotContain("client.port", "server.port", "server.address")
   }
 
