@@ -3,6 +3,9 @@ package datadog.trace.common.writer;
 import static datadog.trace.api.ProtocolVersion.V0_4;
 import static datadog.trace.api.ProtocolVersion.V0_5;
 import static datadog.trace.api.ProtocolVersion.V1_0;
+import static datadog.trace.core.monitor.OtelExporterId.Signal.SPAN;
+import static java.util.Arrays.asList;
+import static java.util.Collections.nCopies;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -11,6 +14,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.intThat;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.times;
@@ -35,7 +39,10 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.PendingTrace;
+import datadog.trace.core.monitor.ExportRecorder;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.monitor.OtelComponentId;
+import datadog.trace.core.monitor.OtelExporterId;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.lang.reflect.Constructor;
@@ -307,6 +314,85 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
     assertEquals(singletonList(false), mapper.retries);
     verify(healthMetrics).onFailedPublish(anyInt(), eq(1));
     verifyNoInteractions(api);
+  }
+
+  /**
+   * A full buffer is sent before the overflowing trace is retried, so that payload counts only the
+   * traces written before it.
+   */
+  @Test
+  void aBufferFullFlushCountsOnlyTheSpansAlreadyWritten() throws Exception {
+    DDSpan span = realSpan();
+    List<DDSpan> oneSpan = singletonList(span);
+    // a small buffer, so overflow sends payloads without any flush()
+    TraceMapperV0_4 mapper = new TraceMapperV0_4(2 * payloadSize(new TraceMapperV0_4(), oneSpan));
+    DDAgentApi api = mock(DDAgentApi.class);
+    when(api.sendSerializedTraces(any())).thenReturn(RemoteApi.Response.success(200));
+    HealthMetrics healthMetrics = mock(HealthMetrics.class);
+    PayloadDispatcherImpl dispatcher = countingDispatcher(mapper, api, healthMetrics);
+
+    // traces of 1 and 2 spans in turn, so a count including the retried trace shows
+    List<Integer> traceSizes = new ArrayList<>();
+    for (int i = 0; i < 12; i++) {
+      traceSizes.add(1 + i % 2);
+      dispatcher.addTrace(nCopies(1 + i % 2, span));
+    }
+    dispatcher.flush();
+
+    ArgumentCaptor<Payload> payloads = ArgumentCaptor.forClass(Payload.class);
+    verify(api, atLeast(3)).sendSerializedTraces(payloads.capture());
+    List<Long> expected = new ArrayList<>();
+    int next = 0;
+    for (Payload payload : payloads.getAllValues()) {
+      long spans = 0;
+      for (int i = 0; i < payload.traceCount(); i++) {
+        spans += traceSizes.get(next++);
+      }
+      expected.add(spans);
+    }
+    assertEquals(traceSizes.size(), next, "every trace is sent");
+    assertEquals(expected, exportedSpanCounts(healthMetrics));
+  }
+
+  /** A trace too large for an empty buffer is rejected, and its spans aren't counted. */
+  @Test
+  void aRejectedTraceIsNotCounted() throws Exception {
+    DDSpan span = realSpan();
+    List<DDSpan> oneSpan = singletonList(span);
+    List<DDSpan> tooLarge = nCopies(20, span);
+    TraceMapperV0_4 mapper = new TraceMapperV0_4(2 * payloadSize(new TraceMapperV0_4(), oneSpan));
+    DDAgentApi api = mock(DDAgentApi.class);
+    when(api.sendSerializedTraces(any())).thenReturn(RemoteApi.Response.success(200));
+    HealthMetrics healthMetrics = mock(HealthMetrics.class);
+    PayloadDispatcherImpl dispatcher = countingDispatcher(mapper, api, healthMetrics);
+
+    dispatcher.addTrace(tooLarge); // into the empty buffer
+    dispatcher.addTrace(oneSpan);
+    dispatcher.addTrace(tooLarge); // sends the one-span trace, then is rejected
+    dispatcher.addTrace(oneSpan);
+    dispatcher.flush();
+
+    assertEquals(asList(1L, 1L), exportedSpanCounts(healthMetrics));
+  }
+
+  /** A dispatcher reporting each send's span export to {@code healthMetrics}. */
+  private static PayloadDispatcherImpl countingDispatcher(
+      RemoteMapper mapper, RemoteApi api, HealthMetrics healthMetrics) {
+    OtelExporterId exporter =
+        new OtelExporterId(SPAN, OtelComponentId.next("test_span_exporter"), null, false);
+    return new PayloadDispatcherImpl(
+        new SwitchingDiscovery(mapper),
+        api,
+        healthMetrics,
+        monitoring,
+        ExportRecorder.create(healthMetrics, exporter));
+  }
+
+  /** The span count of each export reported to {@code healthMetrics}, in order. */
+  private static List<Long> exportedSpanCounts(HealthMetrics healthMetrics) {
+    ArgumentCaptor<Long> counts = ArgumentCaptor.forClass(Long.class);
+    verify(healthMetrics, atLeast(0)).onExportStart(any(), counts.capture());
+    return counts.getAllValues();
   }
 
   /** Records each map call's retry flag, then encodes with {@code delegate}. */

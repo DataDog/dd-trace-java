@@ -38,6 +38,15 @@ public interface RemoteMapper extends Mapper<List<? extends CoreSpan<?>>> {
 
   String endpoint();
 
+  /**
+   * The number of spans of {@code trace} that the last {@code map} call wrote, called once that
+   * call has completed the message. All spans by default; a mapper that writes only some of them
+   * overrides it.
+   */
+  default int mappedSpanCount(List<? extends CoreSpan<?>> trace) {
+    return trace.size();
+  }
+
   class NoopRemoteMapper implements RemoteMapper {
 
     @Override

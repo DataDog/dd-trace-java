@@ -1,5 +1,7 @@
 package datadog.trace.common.writer;
 
+import static datadog.trace.core.monitor.OtelExporterId.Signal.SPAN;
+
 import datadog.communication.ddagent.DroppingPolicy;
 import datadog.metrics.api.Monitoring;
 import datadog.trace.api.Config;
@@ -8,7 +10,10 @@ import datadog.trace.api.intake.TrackType;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddintake.DDIntakeMapperDiscovery;
+import datadog.trace.core.monitor.ExportRecorder;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.monitor.OtelComponentId;
+import datadog.trace.core.monitor.OtelExporterId;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -138,7 +143,26 @@ public class DDIntakeWriter extends RemoteWriter {
       RemoteApi intakeApi = e.getValue();
       DDIntakeMapperDiscovery mapperDiscovery =
           new DDIntakeMapperDiscovery(trackType, wellKnownTags, intakeApi.isCompressionEnabled());
-      return new PayloadDispatcherImpl(mapperDiscovery, intakeApi, healthMetrics, monitoring);
+      ExportRecorder exportRecorder =
+          sendsSpans(trackType)
+              ? ExportRecorder.create(
+                  healthMetrics,
+                  new OtelExporterId(
+                      SPAN,
+                      OtelComponentId.next("datadog_intake_span_exporter"),
+                      intakeApi.destination(),
+                      false))
+              : ExportRecorder.NO_OP;
+      return new PayloadDispatcherImpl(
+          mapperDiscovery, intakeApi, healthMetrics, monitoring, exportRecorder);
+    }
+
+    /**
+     * Whether the track's items are spans, so its dispatcher is a span exporter. Code coverage
+     * reports aren't spans, and the no-op track sends nothing.
+     */
+    private static boolean sendsSpans(TrackType trackType) {
+      return trackType == TrackType.CITESTCYCLE || trackType == TrackType.LLMOBS;
     }
   }
 

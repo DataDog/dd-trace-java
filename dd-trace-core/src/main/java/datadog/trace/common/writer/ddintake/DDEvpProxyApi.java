@@ -17,6 +17,7 @@ import java.net.ConnectException;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -167,6 +168,12 @@ public class DDEvpProxyApi extends RemoteApi {
       countAndLogFailedSend(payload.traceCount(), sizeInBytes, null, e);
       return Response.failed(e);
     }
+  }
+
+  @Override
+  @Nullable
+  public HttpUrl destination() {
+    return destination(httpClient, proxiedApiUrl);
   }
 
   @Override

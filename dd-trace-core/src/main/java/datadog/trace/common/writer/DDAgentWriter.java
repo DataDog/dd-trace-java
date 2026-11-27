@@ -5,6 +5,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
+import static datadog.trace.core.monitor.OtelExporterId.Signal.SPAN;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.DroppingPolicy;
@@ -15,7 +16,10 @@ import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery;
 import datadog.trace.common.writer.ddagent.Prioritization;
+import datadog.trace.core.monitor.ExportRecorder;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.monitor.OtelComponentId;
+import datadog.trace.core.monitor.OtelExporterId;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -172,8 +176,17 @@ public class DDAgentWriter extends RemoteWriter {
       }
 
       final DDAgentMapperDiscovery mapperDiscovery = new DDAgentMapperDiscovery(featureDiscovery);
+      final ExportRecorder exportRecorder =
+          ExportRecorder.create(
+              healthMetrics,
+              new OtelExporterId(
+                  SPAN,
+                  OtelComponentId.next("datadog_agent_span_exporter"),
+                  agentApi.destination(),
+                  false));
       final PayloadDispatcher dispatcher =
-          new PayloadDispatcherImpl(mapperDiscovery, agentApi, healthMetrics, monitoring);
+          new PayloadDispatcherImpl(
+              mapperDiscovery, agentApi, healthMetrics, monitoring, exportRecorder);
       final TraceProcessingWorker traceProcessingWorker =
           new TraceProcessingWorker(
               traceBufferSize,

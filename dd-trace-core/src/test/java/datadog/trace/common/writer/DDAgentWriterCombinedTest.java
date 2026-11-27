@@ -125,6 +125,7 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     writer.flush();
 
     // then: 0 * _ (no interactions at all on mocked api)
+    verify(api).destination(); // read once at build, for the exporter identity
     verifyNoMoreInteractions(api);
 
     writer.close();
@@ -161,6 +162,7 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
 
     verify(discovery, times(2)).getTraceEndpoint();
     verify(api, times(1)).sendSerializedTraces(argThat(payload -> payload.traceCount() == 2));
+    verify(api).destination(); // read once at build, for the exporter identity
     verifyNoMoreInteractions(api, discovery);
 
     writer.close();
@@ -204,6 +206,7 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     verify(discovery, times(2)).getTraceEndpoint();
     verify(api, times(1))
         .sendSerializedTraces(argThat(payload -> payload.traceCount() <= traceCount));
+    verify(api).destination(); // read once at build, for the exporter identity
     verifyNoMoreInteractions(api, discovery);
 
     writer.close();
@@ -254,6 +257,7 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     verify(api, times(1)).sendSerializedTraces(argThat(payload -> payload.traceCount() == 5));
     // _ * healthMetrics.onPublish(_, _) means any number, so don't verify count
     verify(healthMetrics).onSend(anyInt(), anyInt(), any());
+    verify(api).destination(); // read once at build, for the exporter identity
     verifyNoMoreInteractions(api, discovery);
 
     writer.close();
@@ -312,6 +316,7 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
             argThat(payload -> payload != null && payload.traceCount() == maxedPayloadTraceCount));
     verify(api, times(1))
         .sendSerializedTraces(argThat(payload -> payload != null && payload.traceCount() == 1));
+    verify(api).destination(); // read once at build, for the exporter identity
     verifyNoMoreInteractions(api, discovery);
 
     writer.close();

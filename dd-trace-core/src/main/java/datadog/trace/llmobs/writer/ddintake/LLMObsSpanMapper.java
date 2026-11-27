@@ -157,6 +157,9 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private boolean[] pendingDroppedSpans;
   private int spansWritten;
 
+  /** The number of spans the last {@code map} call wrote. */
+  private int lastMappedSpanCount;
+
   public LLMObsSpanMapper() {
     this(EvpProxy.PAYLOAD_SIZE_LIMIT_BYTES);
   }
@@ -184,6 +187,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
   @Override
   public void map(List<? extends CoreSpan<?>> trace, Writable writable, boolean retry) {
+    lastMappedSpanCount = 0;
     if (!retry) {
       pendingDroppedSpans = null;
     }
@@ -287,7 +291,14 @@ public class LLMObsSpanMapper implements RemoteMapper {
     // Increase only after all spans have been written. This way, if it rolls back because of a
     // buffer overflow, the counter won't be skewed.
     spansWritten += llmobsSpans.size();
+    lastMappedSpanCount = llmobsSpans.size();
     pendingDroppedSpans = null;
+  }
+
+  /** Only the trace's LLM Observability spans that the span processor kept are written. */
+  @Override
+  public int mappedSpanCount(List<? extends CoreSpan<?>> trace) {
+    return lastMappedSpanCount;
   }
 
   private List<? extends CoreSpan<?>> processSpans(
