@@ -8,6 +8,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.KnownTags
+import datadog.trace.api.appsec.route.NormalizedRouteHelper
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
 import datadog.trace.instrumentation.ratpack.RatpackServerDecorator
@@ -120,6 +121,12 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
   }
 
   @Override
+  Serializable expectedNormalizedRoute(ServerEndpoint endpoint) {
+    // Every endpoint is a prefix(...) { all {} } hit exactly, except get('path/:id/param')
+    return endpoint == PATH_PARAM ? '/path/{id}/param' : endpoint.rawPath
+  }
+
+  @Override
   boolean hasDecodedResource() {
     false
   }
@@ -135,6 +142,7 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
     def otelSemantics = Config.get().isTraceOtelSemanticsEnabled()
     def requestUrl = endpoint.resolve(address)
     def expectedRoute = expectedServerSpanRoute(endpoint)
+    def expectedNormalizedRoute = expectedNormalizedRoute(endpoint)
     trace.span {
       serviceName expectedServiceName()
       operationName "ratpack.handler"
@@ -159,6 +167,9 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
         "$Tags.HTTP_METHOD" String
         "$Tags.HTTP_STATUS" Integer
         "$Tags.HTTP_ROUTE" expectedRoute
+        if (null != expectedNormalizedRoute) {
+          "$NormalizedRouteHelper.NORMALIZED_ROUTE_TAG" expectedNormalizedRoute
+        }
         "$Tags.HTTP_CLIENT_IP" (endpoint == FORWARDED ? endpoint.body : '127.0.0.1')
         "$Tags.NETWORK_CLIENT_IP" '127.0.0.1'
         if (endpoint == EXCEPTION) {
