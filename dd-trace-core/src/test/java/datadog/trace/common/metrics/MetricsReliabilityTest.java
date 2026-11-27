@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.core.MetricsAggregatorTestBridge.getMetricsAggregator;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -13,6 +14,7 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.TracerHealthMetrics;
+import datadog.trace.test.util.PollingConditions;
 import datadog.trace.util.Strings;
 import java.security.NoSuchAlgorithmException;
 import java.util.Properties;
@@ -48,6 +50,13 @@ class MetricsReliabilityTest extends DDCoreJavaSpecification {
       // should support metrics
       assertTrue(state.latch.await(10, SECONDS));
       assertTrue(featuresDiscovery.supportsMetrics());
+
+      // Discovery does not wait for asynchronous metrics aggregator installation.
+      new PollingConditions(10)
+          .eventually(() ->
+              assertTrue(
+                  getMetricsAggregator(tracer) instanceof ClientStatsAggregator,
+                  "Metrics aggregator was not initialized"));
 
       // a span is published
       tracer.startSpan("test", "test").finish();
