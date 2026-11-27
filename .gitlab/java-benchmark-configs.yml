@@ -50,46 +50,53 @@ linux-java-insecure-bank-load-parallel:
     - job: publish-artifacts-to-s3
     - job: build-java-insecure-bank-image
       artifacts: true
-  rules: *parallel_benchmark_rules
+  rules:
+    - when: always
 
 linux-java-spring-petclinic-load-parallel:
   needs:
     - job: publish-artifacts-to-s3
     - job: build-java-spring-petclinic-image
       artifacts: true
-  rules: *parallel_benchmark_rules
+  rules:
+    - when: always
 
 linux-java-spring-petclinic-sca-load-parallel:
   needs:
     - job: publish-artifacts-to-s3
     - job: build-java-spring-petclinic-image
       artifacts: true
-  rules: *parallel_benchmark_rules
+  rules:
+    - when: always
 
 linux-java-insecure-bank-startup-parallel:
   needs:
     - job: publish-artifacts-to-s3
     - job: build-java-insecure-bank-image
       artifacts: true
-  rules: *parallel_startup_benchmark_rules
+  rules:
+    - when: always
 
 linux-java-spring-petclinic-startup-parallel:
   needs:
     - job: publish-artifacts-to-s3
     - job: build-java-spring-petclinic-image
       artifacts: true
-  rules: *parallel_startup_benchmark_rules
+  rules:
+    - when: always
 
 linux-java-dacapo-parallel-1:
   needs:
     - job: publish-artifacts-to-s3
     - job: build-java-dacapo-image
       artifacts: true
-  rules: *parallel_benchmark_rules
+  rules:
+    - when: always
 
 linux-java-dacapo-parallel-2:
   needs:
     - job: publish-artifacts-to-s3
     - job: build-java-dacapo-image
       artifacts: true
-  rules: *parallel_benchmark_rules
+  rules:
+    - when: always
