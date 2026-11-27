@@ -182,7 +182,7 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        tags.hasAllTags("direction:in", "topic:" + queueName, "type:rabbitmq")
+        tags.hasAllTags("direction:in", "topic:amq.gen-*", "type:rabbitmq")
       }
     }
 
@@ -229,14 +229,50 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        tags.hasAllTags("direction:out", "topic:" + queueName, "type:rabbitmq")
+        tags.hasAllTags("direction:out", "topic:amq.gen-*", "type:rabbitmq")
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        tags.hasAllTags("direction:in", "topic:" + queueName, "type:rabbitmq")
+        tags.hasAllTags("direction:in", "topic:amq.gen-*", "type:rabbitmq")
       }
     }
+  }
+
+  def "test rabbit per-instance names are normalized in DSM tags (#scenario)"() {
+    setup:
+    channel.queueDeclare(queueName, false, true, true, null)
+    if (!exchangeName.isEmpty()) {
+      channel.exchangeDeclare(exchangeName, "direct", false, true, null)
+      channel.queueBind(queueName, exchangeName, queueName)
+    }
+    channel.basicPublish(exchangeName, queueName, null, "Hello, world!".getBytes())
+    GetResponse response = channel.basicGet(queueName, true)
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    }
+
+    expect:
+    new String(response.getBody()) == "Hello, world!"
+
+    and:
+    if (isDataStreamsEnabled()) {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
+      verifyAll(first) {
+        tags.hasAllTags((["direction:out", "type:rabbitmq"] + expectedOutTags) as String[])
+      }
+
+      StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
+      verifyAll(second) {
+        tags.hasAllTags("direction:in", "topic:" + expectedInTopic, "type:rabbitmq")
+      }
+    }
+
+    where:
+    scenario           | queueName                             | exchangeName                                               | expectedOutTags                               | expectedInTopic
+    "default exchange" | "callback-" + UUID.randomUUID()       | ""                                                         | ["topic:callback-*"]                          | "callback-*"
+    "named exchange"   | "callback-" + UUID.randomUUID()       | "events-" + UUID.randomUUID().toString().replace("-", "") | ["exchange:events-*", "has_routing_key:true"] | "callback-*"
+    "bare uuid queue"  | UUID.randomUUID().toString()          | ""                                                         | ["topic:*"]                                   | "*"
   }
 
   def "test rabbit consume #messageCount messages"() {
@@ -330,7 +366,7 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
 
       StatsGroup consumerPoint = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == producerPoints.get(0).hash }
       verifyAll(consumerPoint) {
-        tags.hasAllTags("direction:in", "topic:" + queueName, "type:rabbitmq")
+        tags.hasAllTags("direction:in", "topic:" + (messageCount % 2 == 0 ? "amq.gen-*" : "some-queue"), "type:rabbitmq")
       }
     }
 
@@ -419,7 +455,7 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
       verifyAll(second) {
-        tags.hasAllTags("direction:in", "topic:" + queueName, "type:rabbitmq")
+        tags.hasAllTags("direction:in", "topic:amq.gen-*", "type:rabbitmq")
       }
     }
 

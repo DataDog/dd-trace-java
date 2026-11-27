@@ -256,7 +256,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
     // Only build the DSM tags and context when DSM is on: with it off the checkpoint is a no-op,
     // but the arguments were still built for every message.
     if (null != headers && traceConfig().isDataStreamsEnabled()) {
-      DataStreamsTags tags = create("rabbitmq", INBOUND, queue);
+      DataStreamsTags tags = create("rabbitmq", INBOUND, RabbitDsmNames.normalize(queue));
       AgentTracer.get()
           .getDataStreamsMonitoring()
           .setCheckpoint(span, create(tags, produceMillis, 0));
