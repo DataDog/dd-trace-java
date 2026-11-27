@@ -28,7 +28,6 @@ dependencies {
   testImplementation libs.bytebuddy
   testImplementation project(':remote-config:remote-config-core')
   testImplementation project(':utils:test-utils')
-  testImplementation group: 'com.flipkart.zjsonpatch', name: 'zjsonpatch', version: '0.4.11'
   testImplementation libs.logback.classic
   testImplementation libs.jackson.databind
 
