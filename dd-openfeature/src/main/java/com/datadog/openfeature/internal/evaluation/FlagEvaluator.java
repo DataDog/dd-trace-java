@@ -33,9 +33,6 @@ import dev.openfeature.sdk.ImmutableMetadata;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Reason;
 import dev.openfeature.sdk.Value;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
@@ -179,6 +176,7 @@ public final class FlagEvaluator {
       final Instant now = Instant.now();
       final long evalTimestampMs = now.toEpochMilli();
       final String targetingKey = context.getTargetingKey();
+      ShardHasher hasher = null;
 
       for (final Allocation allocation : flag.allocations) {
         if (experimentationCutoff != null
@@ -214,10 +212,13 @@ public final class FlagEvaluator {
                 return error(
                     defaultValue, ErrorCode.TARGETING_KEY_MISSING, null, observeFullEvaluationData);
               }
+              if (hasher == null) {
+                hasher = new ShardHasher(targetingKey);
+              }
               // To match a split, subject must match ALL underlying shards
               boolean allShardsMatch = true;
               for (final Shard shard : split.shards) {
-                if (!matchesShard(shard, targetingKey)) {
+                if (!matchesShard(shard, hasher)) {
                   allShardsMatch = false;
                   break;
                 }
@@ -458,41 +459,14 @@ public final class FlagEvaluator {
     return comparator.compare(ordering);
   }
 
-  private static boolean matchesShard(final Shard shard, final String targetingKey) {
-    final long assignedShard = getShard(shard.salt, targetingKey, shard.totalShards);
+  private static boolean matchesShard(final Shard shard, final ShardHasher hasher) {
+    final long assignedShard = hasher.shard(shard.salt, shard.totalShards);
     for (final ShardRange range : shard.ranges) {
       if (assignedShard >= range.start && assignedShard < range.end) {
         return true;
       }
     }
     return false;
-  }
-
-  private static long getShard(
-      final String salt, final String targetingKey, final long totalShards) {
-    final String hashKey = salt + "-" + targetingKey;
-    final String md5Hash = getMD5Hash(hashKey);
-    final String first8Chars = md5Hash.substring(0, Math.min(8, md5Hash.length()));
-    final long intFromHash = Long.parseLong(first8Chars, 16);
-    return intFromHash % totalShards;
-  }
-
-  private static String getMD5Hash(final String input) {
-    try {
-      final MessageDigest md = MessageDigest.getInstance("MD5");
-      final byte[] hashBytes = md.digest(input.getBytes(StandardCharsets.UTF_8));
-      final StringBuilder hexString = new StringBuilder();
-      for (byte b : hashBytes) {
-        final String hex = Integer.toHexString(0xff & b);
-        if (hex.length() == 1) {
-          hexString.append('0');
-        }
-        hexString.append(hex);
-      }
-      return hexString.toString();
-    } catch (NoSuchAlgorithmException e) {
-      throw new RuntimeException("MD5 algorithm not available", e);
-    }
   }
 
   private <T> ProviderEvaluation<T> resolveVariant(
