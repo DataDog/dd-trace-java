@@ -207,7 +207,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     }
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -253,7 +253,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -304,7 +304,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -342,7 +342,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -382,7 +382,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -423,7 +423,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -458,7 +458,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -493,7 +493,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -541,7 +541,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -591,7 +591,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -631,7 +631,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -669,7 +669,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -733,7 +733,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -828,7 +828,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
 
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -858,7 +858,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     }
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
@@ -893,7 +893,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
     }
     and:
     if (isDataStreamsEnabled()) {
-      StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find {
+      StatsGroup first = TEST_DATA_STREAMS_WRITER.waitForGroup {
         it.parentHash == 0
       }
       verifyAll(first) {
