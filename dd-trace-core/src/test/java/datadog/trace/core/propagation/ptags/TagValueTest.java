@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
+import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class TagValueTest {
@@ -73,5 +74,23 @@ class TagValueTest {
     } else {
       assertNotSame(tv1, tv2);
     }
+  }
+
+  @Test
+  void uncachedValueEqualsCachedValue() {
+    TagValue cached = TagValue.from(Encoding.W3C, "x:abc", 2, 5);
+    TagValue uncached = TagValue.uncached(Encoding.W3C, "x:abc", 2, 5);
+
+    assertEquals(cached, uncached);
+    assertEquals(cached.hashCode(), uncached.hashCode());
+    assertEquals(cached.forType(Encoding.DATADOG), uncached.forType(Encoding.DATADOG));
+  }
+
+  @Test
+  void repeatedValuesAreStillCached() {
+    TagValue first = TagValue.from(Encoding.DATADOG, "-4");
+    TagValue second = TagValue.from(Encoding.DATADOG, "-4");
+
+    assertSame(first, second);
   }
 }
