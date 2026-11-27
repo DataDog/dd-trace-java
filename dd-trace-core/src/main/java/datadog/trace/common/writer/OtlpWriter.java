@@ -6,9 +6,11 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_TRACES_ENDPOINT
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_TRACES_TIMEOUT;
 
 import datadog.communication.ddagent.DroppingPolicy;
+import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.Prioritization;
+import datadog.trace.common.writer.ddagent.SpanBudget;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.otlp.common.OtlpGrpcSender;
 import datadog.trace.core.otlp.common.OtlpHttpSender;
@@ -63,6 +65,7 @@ public class OtlpWriter extends RemoteWriter {
     private OtlpConfig.Protocol protocol = OtlpConfig.Protocol.HTTP_PROTOBUF;
     private OtlpConfig.Compression compression = OtlpConfig.Compression.NONE;
     private int traceBufferSize = BUFFER_SIZE;
+    private SpanBudget spanBudget;
     private int flushIntervalMilliseconds = 1000;
     private int flushTimeout = 1;
     private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
@@ -92,6 +95,12 @@ public class OtlpWriter extends RemoteWriter {
 
     public OtlpWriterBuilder compression(OtlpConfig.Compression compression) {
       this.compression = compression;
+      return this;
+    }
+
+    /** The span budget the writer's queues count traces against; by default, the configured one. */
+    public OtlpWriterBuilder spanBudget(SpanBudget spanBudget) {
+      this.spanBudget = spanBudget;
       return this;
     }
 
@@ -144,6 +153,9 @@ public class OtlpWriter extends RemoteWriter {
       final TraceProcessingWorker worker =
           new TraceProcessingWorker(
               traceBufferSize,
+              spanBudget != null
+                  ? spanBudget
+                  : (Prioritization.FAST_LANE).spanBudget(Config.get().getTraceWriterSpanBudget()),
               HealthMetrics.NO_OP,
               dispatcher,
               DroppingPolicy.DISABLED,

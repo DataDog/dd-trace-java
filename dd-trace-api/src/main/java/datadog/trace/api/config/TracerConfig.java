@@ -20,6 +20,10 @@ public final class TracerConfig {
   public static final String WRITER_LINKS_INJECT = "writer.links.inject";
 
   public static final String PRIORITIZATION_TYPE = "prioritization.type";
+
+  /** Most spans the writer holds awaiting serialization before shedding; 0 disables the limit. */
+  public static final String TRACE_WRITER_SPAN_BUDGET = "trace.writer.span.budget";
+
   public static final String TRACE_AGENT_URL = "trace.agent.url";
   public static final String AGENT_HOST = "agent.host";
   public static final String TRACE_AGENT_PORT = "trace.agent.port";
