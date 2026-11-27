@@ -3,9 +3,8 @@ package datadog.trace.instrumentation.azure.functions.worker;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsDecorator.AZURE_FUNCTIONS_REQUEST;
-import static datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsDecorator.DECORATE;
-import static datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsDecorator.ORCHESTRATION_TRIGGER;
+import static datadog.trace.instrumentation.azure.functions.worker.AzureFunctionsWorkerDecorator.AZURE_FUNCTIONS_REQUEST;
+import static datadog.trace.instrumentation.azure.functions.worker.AzureFunctionsWorkerDecorator.DECORATE;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -17,24 +16,29 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.azure.DurableOrchestrationState;
 import java.time.Instant;
 
-public final class DurableFunctionsUtils {
+public final class AzureFunctionsWorkerUtils {
+  public static final String ORCHESTRATION_TRIGGER = "DurableOrchestration";
+
+  private static final String ACTIVITY_TRIGGER = "DurableActivity";
+  private static final String ENTITY_TRIGGER = "DurableEntity";
+  private static final String COSMOS_DB_TRIGGER = "CosmosDB";
+
   private static final String ACTIVITY_ANNOTATION = "DurableActivityTrigger";
   private static final String ENTITY_ANNOTATION = "DurableEntityTrigger";
   private static final String ORCHESTRATION_ANNOTATION = "DurableOrchestrationTrigger";
   private static final String COSMOS_DB_ANNOTATION = "CosmosDBTrigger";
-  private static final String COSMOS_DB_TRIGGER = "CosmosDB";
 
-  private DurableFunctionsUtils() {}
+  private AzureFunctionsWorkerUtils() {}
 
   public static String getTrigger(MiddlewareContext context) {
     if (context.getParameterName(ORCHESTRATION_ANNOTATION) != null) {
       return ORCHESTRATION_TRIGGER;
     }
     if (context.getParameterName(ACTIVITY_ANNOTATION) != null) {
-      return "DurableActivity";
+      return ACTIVITY_TRIGGER;
     }
     if (context.getParameterName(ENTITY_ANNOTATION) != null) {
-      return "DurableEntity";
+      return ENTITY_TRIGGER;
     }
     if (context.getParameterName(COSMOS_DB_ANNOTATION) != null) {
       return COSMOS_DB_TRIGGER;
