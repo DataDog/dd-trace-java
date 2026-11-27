@@ -73,6 +73,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       T sessionCoverageCalculator,
       ExecutionSettings executionSettings,
       BuildSessionSettings sessionSettings,
+      @Nullable String classCacheDirectory,
       Consumer<AgentSpan> onSpanFinish) {
     super(
         sessionSpanContext,
@@ -107,7 +108,8 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
                 jacocoAgent,
                 signalServerAddress,
                 executionSettings,
-                sessionSettings));
+                sessionSettings,
+                classCacheDirectory));
 
     setTag(Tags.TEST_COMMAND, startCommand);
 
@@ -137,7 +139,8 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
       @Nullable JavaAgent jacocoAgent,
       InetSocketAddress signalServerAddress,
       ExecutionSettings executionSettings,
-      BuildSessionSettings sessionSettings) {
+      BuildSessionSettings sessionSettings,
+      @Nullable String classCacheDirectory) {
     Map<String, String> propagatedSystemProperties = new HashMap<>();
     for (Map.Entry<String, String> p : SystemProperties.asStringMap().entrySet()) {
       String propertyName = p.getKey();
@@ -230,6 +233,13 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
           propertyNameToSystemPropertyName(
               CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED),
           Boolean.toString(true));
+    }
+
+    if (classCacheDirectory != null) {
+      propagatedSystemProperties.put(
+          propertyNameToSystemPropertyName(
+              CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_CLASS_CACHE_DIR),
+          classCacheDirectory);
     }
 
     // propagate module span context to child processes

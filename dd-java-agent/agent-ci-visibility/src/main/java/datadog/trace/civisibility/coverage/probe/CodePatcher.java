@@ -1176,7 +1176,7 @@ final class CodePatcher {
       inserted.variable(ALOAD, probesLocal);
     } else if (initializer) {
       inserted.member(GETSTATIC, patch.probesField());
-      push(inserted, classId);
+      pushClassId(inserted);
       inserted.opcode(AALOAD);
     } else {
       takeProbes(inserted);
@@ -1185,8 +1185,22 @@ final class CodePatcher {
 
   /** Pushes the probe array of the running code's owner. */
   private void takeProbes(InsertedCode inserted) {
-    push(inserted, classId);
+    pushClassId(inserted);
     inserted.member(INVOKESTATIC, patch.probesMethod());
+  }
+
+  /**
+   * Pushes the class id. A class to be cached loads it from a constant of its own, which a cache
+   * hit sets to the id of the class in that JVM; both uses are followed by an instruction that can
+   * throw anyway.
+   */
+  private void pushClassId(InsertedCode inserted) {
+    int constant = patch.classIdConstant();
+    if (constant != 0) {
+      inserted.constant(constant);
+    } else {
+      push(inserted, classId);
+    }
   }
 
   /**

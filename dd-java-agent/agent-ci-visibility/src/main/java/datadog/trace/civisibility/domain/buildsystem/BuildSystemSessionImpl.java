@@ -19,6 +19,7 @@ import datadog.trace.civisibility.config.DynamicAutoTestRetrySettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.config.ExecutionSettingsFactory;
 import datadog.trace.civisibility.config.JvmInfo;
+import datadog.trace.civisibility.coverage.probe.ProbeClassCache;
 import datadog.trace.civisibility.coverage.report.CoverageProcessor;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestSession;
@@ -36,6 +37,7 @@ import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
+import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -54,6 +56,10 @@ public class BuildSystemSessionImpl<T extends CoverageProcessor> extends Abstrac
   private final CoverageProcessor.Factory<T> coverageProcessorFactory;
   private final T coverageProcessor;
   private final BuildSessionSettings settings;
+
+  private final Object classCacheLock = new Object();
+  private boolean classCacheDirectoryCreated;
+  @Nullable private File classCacheDirectory;
 
   public BuildSystemSessionImpl(
       String projectName,
@@ -185,7 +191,29 @@ public class BuildSystemSessionImpl<T extends CoverageProcessor> extends Abstrac
         coverageProcessor,
         executionSettings,
         settings,
+        classCacheDirectory(),
         this::onModuleFinish);
+  }
+
+  /**
+   * The directory that the test JVMs of the build share as their line probe class cache, created
+   * with the first module, or {@code null} if there is none to create.
+   */
+  @Nullable
+  private String classCacheDirectory() {
+    String explicitDirectory = config.getCiVisibilityCoverageLineProbesClassCacheDir();
+    if (!config.isCiVisibilityCoverageLineProbesEnabled()
+        || !config.isCiVisibilityCoverageLineProbesClassCacheEnabled()
+        || (explicitDirectory != null && !explicitDirectory.isEmpty())) {
+      return null;
+    }
+    synchronized (classCacheLock) {
+      if (!classCacheDirectoryCreated) {
+        classCacheDirectoryCreated = true;
+        classCacheDirectory = ProbeClassCache.createBuildDirectory();
+      }
+      return classCacheDirectory != null ? classCacheDirectory.getPath() : null;
+    }
   }
 
   @Override
@@ -224,6 +252,15 @@ public class BuildSystemSessionImpl<T extends CoverageProcessor> extends Abstrac
   @Override
   public void end(@Nullable Long endTime) {
     signalServer.stop();
+
+    File cacheDirectory;
+    synchronized (classCacheLock) {
+      cacheDirectory = classCacheDirectory;
+      classCacheDirectory = null;
+    }
+    if (cacheDirectory != null) {
+      ProbeClassCache.deleteBuildDirectory(cacheDirectory);
+    }
 
     Long coveragePercentage = coverageProcessor.processCoverageData();
     if (coveragePercentage != null) {

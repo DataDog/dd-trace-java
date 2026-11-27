@@ -19,6 +19,7 @@ final class InsertedCode {
   private static final int MEMBER = 3;
   private static final int JUMP = 4;
   private static final int LABEL = 5;
+  private static final int CONSTANT = 6;
 
   /** Items of three ints: a kind and two operands. */
   private int[] items = new int[24];
@@ -47,6 +48,11 @@ final class InsertedCode {
    */
   void push(int value, int constant) {
     add(PUSH, value, constant);
+  }
+
+  /** Pushes the value of an Integer constant, whatever it is. */
+  void constant(int constant) {
+    add(CONSTANT, constant, 0);
   }
 
   /** A load or store of a local variable. */
@@ -104,6 +110,8 @@ final class InsertedCode {
       case MEMBER:
       case JUMP:
         return 3;
+      case CONSTANT:
+        return items[k + 1] < 256 ? 2 : 3;
       default:
         return 0;
     }
@@ -145,6 +153,13 @@ final class InsertedCode {
           break;
         case JUMP:
           out.putByte(first).putShort(labelOffsets[second] - offset);
+          break;
+        case CONSTANT:
+          if (first < 256) {
+            out.putByte(LDC).putByte(first);
+          } else {
+            out.putByte(InstructionSet.LDC_W).putShort(first);
+          }
           break;
         default:
           break;

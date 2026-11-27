@@ -268,6 +268,8 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_EXCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_INCLUDES;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_CLASS_CACHE_DIR;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_CLASS_CACHE_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_REPORT_UPLOAD_ENABLED;
@@ -1208,6 +1210,8 @@ public class Config {
   private final boolean ciVisibilityCodeCoverageEnabled;
   private final Boolean ciVisibilityCoverageLinesEnabled;
   private final boolean ciVisibilityCoverageLineProbesEnabled;
+  private final boolean ciVisibilityCoverageLineProbesClassCacheEnabled;
+  private final String ciVisibilityCoverageLineProbesClassCacheDir;
   private final String ciVisibilityCodeCoverageReportDumpDir;
   private final List<String> codeCoverageFlags;
   private final String ciVisibilityCompilerPluginVersion;
@@ -2885,6 +2889,11 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED);
     ciVisibilityCoverageLineProbesEnabled =
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_ENABLED, false);
+    ciVisibilityCoverageLineProbesClassCacheEnabled =
+        configProvider.getBoolean(
+            CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_CLASS_CACHE_ENABLED, false);
+    ciVisibilityCoverageLineProbesClassCacheDir =
+        configProvider.getString(CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_CLASS_CACHE_DIR);
     ciVisibilityCodeCoverageReportDumpDir =
         configProvider.getString(CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR);
     codeCoverageFlags = parseCodeCoverageFlags(configProvider.getList(CODE_COVERAGE_FLAGS));
@@ -4751,6 +4760,22 @@ public class Config {
    */
   public boolean isCiVisibilityCoverageLineProbesEnabled() {
     return ciVisibilityCoverageLineProbesEnabled;
+  }
+
+  /**
+   * @return {@code true} if a build creates a directory that its test JVMs share to cache the
+   *     classes they insert line probes into
+   */
+  public boolean isCiVisibilityCoverageLineProbesClassCacheEnabled() {
+    return ciVisibilityCoverageLineProbesClassCacheEnabled;
+  }
+
+  /**
+   * @return the directory that caches the classes line probes are inserted into, kept across
+   *     builds, or {@code null}
+   */
+  public String getCiVisibilityCoverageLineProbesClassCacheDir() {
+    return ciVisibilityCoverageLineProbesClassCacheDir;
   }
 
   /**

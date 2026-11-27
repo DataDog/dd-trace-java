@@ -35,6 +35,11 @@ final class ConstantPoolAppender {
     out.putBytes(entries.data, 0, entries.length);
   }
 
+  /** The length of the added entries, which {@link #writeTo} writes. */
+  int addedLength() {
+    return entries.length;
+  }
+
   /** The index of a UTF8 constant of the class with that ASCII text, or a new one. */
   int existingOrNewUtf8(String ascii) {
     for (int i = 1; i < classFile.constantCount; i++) {
@@ -124,6 +129,15 @@ final class ConstantPoolAppender {
     return add(key);
   }
 
+  /**
+   * Adds an Integer constant that no other use shares, so that its value can be changed in the
+   * class file. Its value starts one byte after the {@link #addedLength} from before the call.
+   */
+  int newInteger(int value) {
+    entries.putByte(ClassFile.CONSTANT_INTEGER).putInt(value);
+    return nextIndex();
+  }
+
   int methodReference(String owner, String name, String descriptor) {
     return memberReference(ClassFile.CONSTANT_METHODREF, owner, name, descriptor);
   }
@@ -155,11 +169,15 @@ final class ConstantPoolAppender {
   }
 
   private int add(String key) {
+    int index = nextIndex();
+    added.put(key, index);
+    return index;
+  }
+
+  private int nextIndex() {
     if (next >= MAX_CONSTANTS) {
       throw new IllegalArgumentException("too many constants");
     }
-    int index = next++;
-    added.put(key, index);
-    return index;
+    return next++;
   }
 }

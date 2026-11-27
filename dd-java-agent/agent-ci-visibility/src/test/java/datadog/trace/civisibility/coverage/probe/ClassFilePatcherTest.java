@@ -105,7 +105,7 @@ class ClassFilePatcherTest {
       ProbeClassTransformer.Instrumented fromPatcher = null;
       RuntimeException patcherFailure = null;
       try {
-        fromPatcher = ClassFilePatcher.instrument(classFile, CLASS_ID);
+        fromPatcher = ClassFilePatcher.instrument(classFile, CLASS_ID, false, new ArrayList<>());
       } catch (UnsupportedClassException e) {
         fallbacks.merge(e.reason, 1, Integer::sum);
         continue;

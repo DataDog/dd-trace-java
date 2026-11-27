@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.coverage.probe;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Queue;
@@ -100,15 +101,13 @@ final class ProbeLosses {
     }
   }
 
+  @VisibleForTesting
   static int classCount() {
     return CLASSES.get();
   }
 
+  @VisibleForTesting
   static int methodCount() {
     return METHODS.get();
-  }
-
-  static int exceptionProbeMethodCount() {
-    return METHODS_WITHOUT_EXCEPTION_PROBES.get();
   }
 }

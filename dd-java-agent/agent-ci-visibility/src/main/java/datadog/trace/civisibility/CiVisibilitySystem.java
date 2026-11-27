@@ -28,6 +28,7 @@ import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.coverage.file.instrumentation.CoverageClassTransformer;
 import datadog.trace.civisibility.coverage.file.instrumentation.CoverageInstrumentationFilter;
+import datadog.trace.civisibility.coverage.probe.ProbeClassCache;
 import datadog.trace.civisibility.coverage.probe.ProbeClassFilter;
 import datadog.trace.civisibility.coverage.probe.ProbeClassTransformer;
 import datadog.trace.civisibility.decorator.TestDecorator;
@@ -109,7 +110,8 @@ public class CiVisibilitySystem {
         if (config.isCiVisibilityCoverageLineProbesEnabled() && startProbeRecorder(inst)) {
           Predicate<String> instrumentationFilter =
               createLineProbesInstrumentationFilter(services, repoServices);
-          inst.addTransformer(new ProbeClassTransformer(instrumentationFilter));
+          inst.addTransformer(
+              new ProbeClassTransformer(instrumentationFilter, ProbeClassCache.open(config)));
           TestPreparationWindow.enable();
           WithGlobalTracer.registerOrExecute(new ProbeScopeListener());
         } else if (!config.isCiVisibilityCoverageLinesEnabled()) {

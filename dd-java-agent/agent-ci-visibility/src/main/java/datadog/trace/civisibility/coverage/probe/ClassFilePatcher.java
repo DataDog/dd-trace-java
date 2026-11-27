@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.coverage.probe;
 
 import datadog.trace.civisibility.coverage.probe.MethodProbeInserter.ProbePlacementException;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -10,6 +11,9 @@ import javax.annotation.Nullable;
  * class file is copied as it is, with constants appended to its constant pool and the Code
  * attribute of each method that gets probes replaced. Classes are patched as {@link
  * ProbeClassTransformer} instruments them with ASM, probe ids included.
+ *
+ * <p>A class to be cached loads its class id from a constant of its own, so that only the value of
+ * that constant depends on the JVM that patched it.
  */
 final class ClassFilePatcher {
 
@@ -19,6 +23,7 @@ final class ClassFilePatcher {
   final ClassFile classFile;
   private final ConstantPoolAppender constants;
   private final int classId;
+  private final boolean cacheable;
 
   private int methodCount;
   private int[] methodStart;
@@ -36,25 +41,34 @@ final class ClassFilePatcher {
   private int probesType;
   private int throwableType;
   private int stackMapTableName;
+  private int classIdConstant;
 
-  private ClassFilePatcher(ClassFile classFile, int classId) {
+  /** Where the value of the class id constant starts among the added constants. */
+  private int classIdValue;
+
+  /** Where the value of the class id constant starts in the patched class, or -1. */
+  private int classIdSlot = -1;
+
+  private ClassFilePatcher(ClassFile classFile, int classId, boolean cacheable) {
     this.classFile = classFile;
     this.constants = new ConstantPoolAppender(classFile);
     this.classId = classId;
+    this.cacheable = cacheable;
   }
 
   /**
+   * @param cacheable whether the patched class is to be cached
+   * @param skippedMethods receives the methods left without probes, by name and descriptor, since
+   *     they have no place for a probe that the JIT compilers accept
    * @return the patched class, or {@code null} if it has no lines to cover
    * @throws UnsupportedClassException if the class is to be left to the ASM transformer
    */
   @Nullable
-  static ProbeClassTransformer.Instrumented instrument(ClassFile classFile, int classId) {
-    ClassFilePatcher patcher = new ClassFilePatcher(classFile, classId);
+  static ProbeClassTransformer.Instrumented instrument(
+      ClassFile classFile, int classId, boolean cacheable, Collection<String> skippedMethods) {
+    ClassFilePatcher patcher = new ClassFilePatcher(classFile, classId, cacheable);
     ProbeClassTransformer.Instrumented instrumented = patcher.instrument();
-    for (String method : patcher.skippedMethods) {
-      ProbeLosses.methodLost(
-          classFile.className(classFile.thisClass), method, ProbeClassTransformer.NO_PROBE_PLACE);
-    }
+    skippedMethods.addAll(patcher.skippedMethods);
     return instrumented;
   }
 
@@ -147,8 +161,9 @@ final class ClassFilePatcher {
       return null;
     }
     String className = classFile.className(classFile.thisClass);
+    byte[] bytes = write(patched);
     return new ProbeClassTransformer.Instrumented(
-        classId, write(patched), className, sourceFile, sourceDebug, probes);
+        classId, bytes, className, sourceFile, sourceDebug, probes, classIdSlot);
   }
 
   private boolean instrument(
@@ -164,6 +179,7 @@ final class ClassFilePatcher {
     return true;
   }
 
+  /** Writes the patched class and sets {@link #classIdSlot}. */
   private byte[] write(CodePatcher[] patched) {
     // the Code attributes are written first, since they may add constants
     ByteArrayBuilder codes = new ByteArrayBuilder(1024);
@@ -182,6 +198,7 @@ final class ClassFilePatcher {
     out.putBytes(bytes, 0, 8);
     out.putShort(constants.constantCount());
     out.putBytes(bytes, 10, classFile.constantsEnd - 10);
+    classIdSlot = classIdConstant != 0 ? out.length + classIdValue : -1;
     constants.writeTo(out);
     out.putBytes(
         bytes, classFile.constantsEnd, classFile.methodsOffset + 2 - classFile.constantsEnd);
@@ -200,6 +217,15 @@ final class ClassFilePatcher {
     }
     out.putBytes(bytes, classFile.attributesOffset, bytes.length - classFile.attributesOffset);
     return out.toByteArray();
+  }
+
+  /** The index of the constant the class id is loaded from, or 0 if it is pushed as a value. */
+  int classIdConstant() {
+    if (cacheable && classIdConstant == 0) {
+      classIdValue = constants.addedLength() + 1;
+      classIdConstant = constants.newInteger(classId);
+    }
+    return classIdConstant;
   }
 
   int probesMethod() {

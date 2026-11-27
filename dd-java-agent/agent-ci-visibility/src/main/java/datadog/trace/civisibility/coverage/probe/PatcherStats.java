@@ -41,8 +41,12 @@ final class PatcherStats {
   private PatcherStats() {}
 
   static void count(String outcome) {
+    add(outcome, 1);
+  }
+
+  static void add(String outcome, long amount) {
     if (DIRECTORY != null) {
-      COUNTS.computeIfAbsent(outcome, key -> new AtomicLong()).incrementAndGet();
+      COUNTS.computeIfAbsent(outcome, key -> new AtomicLong()).addAndGet(amount);
     }
   }
 

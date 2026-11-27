@@ -2,12 +2,17 @@ package datadog.trace.civisibility.coverage.probe;
 
 import datadog.trace.api.civisibility.coverage.ProbeRecorder;
 import datadog.trace.api.civisibility.coverage.SourceMap;
+import java.io.File;
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.objectweb.asm.ClassReader;
@@ -43,6 +48,15 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
   private static final boolean ASM_ONLY =
       Boolean.getBoolean("dd.civisibility.experiment.asm.transformer");
 
+  /**
+   * Patches each class found in the class cache again, compares the two and uses the class patched
+   * again. This does the work that the cache saves, so it is for checking the cache only.
+   */
+  private static final boolean VERIFY_CACHE =
+      Boolean.getBoolean("dd.civisibility.experiment.class.cache.verify");
+
+  private static final AtomicBoolean CACHE_MISMATCH_LOGGED = new AtomicBoolean();
+
   static final String CLASS_LIMIT =
       "the process has more than " + ProbeRecorder.MAX_CLASSES + " classes with probes";
   static final String TOO_LARGE = "the method would outgrow the size limit with probes";
@@ -51,9 +65,20 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
   static final String NO_PROBE_PLACE = "the method has no place for a probe that the JIT accepts";
 
   private final Predicate<String> instrumentationFilter;
+  @Nullable private final ProbeClassCache cache;
 
   public ProbeClassTransformer(Predicate<String> instrumentationFilter) {
+    this(instrumentationFilter, null);
+  }
+
+  /**
+   * @param cache the patched classes that the test JVMs of the build share, or {@code null} to
+   *     patch every class in this JVM
+   */
+  public ProbeClassTransformer(
+      Predicate<String> instrumentationFilter, @Nullable ProbeClassCache cache) {
     this.instrumentationFilter = instrumentationFilter;
+    this.cache = cache;
   }
 
   @Override
@@ -79,22 +104,29 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
       return null;
     }
     try {
-      return instrument(source, loader, majorVersion >= Opcodes.V1_6);
+      return instrument(source, loader, majorVersion >= Opcodes.V1_6, cache);
     } catch (Throwable e) {
       ProbeLosses.classLost(className, "inserting probes failed with " + e, e);
       return null;
     }
   }
 
+  @Nullable
+  static byte[] instrument(byte[] source, ClassLoader loader, boolean frames) {
+    return instrument(source, loader, frames, null);
+  }
+
   /**
    * Instruments a class and registers its probes.
    *
    * @param frames whether the class file carries stack map frames
+   * @param cache the class cache, or {@code null}
    * @return the instrumented class file, or {@code null} if the class has no lines to cover
    */
   @Nullable
-  static byte[] instrument(byte[] source, ClassLoader loader, boolean frames) {
-    Instrumented instrumented = instrument(source, frames);
+  static byte[] instrument(
+      byte[] source, ClassLoader loader, boolean frames, @Nullable ProbeClassCache cache) {
+    Instrumented instrumented = instrument(source, frames, cache);
     if (instrumented == null) {
       return null;
     }
@@ -115,36 +147,115 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
    */
   @Nullable
   static Instrumented instrument(byte[] source, boolean frames) {
+    return instrument(source, frames, null);
+  }
+
+  @Nullable
+  private static Instrumented instrument(
+      byte[] source, boolean frames, @Nullable ProbeClassCache cache) {
     if (!frames || ASM_ONLY) {
       PatcherStats.count(frames ? "asm: switch" : "asm: class file before Java 6");
       return instrumentWithAsm(source, frames, -1);
+    }
+    File entryFile = null;
+    ProbeClassCache.Entry cached = null;
+    if (cache != null) {
+      entryFile = cache.entryFile(source);
+      cached = cache.read(entryFile, source);
+      PatcherStats.count(cached != null ? "cache: hit" : "cache: miss");
+      if (cached != null && !VERIFY_CACHE) {
+        return fromCache(cached);
+      }
     }
     ClassFile classFile;
     try {
       classFile = new ClassFile(source);
     } catch (RuntimeException e) {
-      PatcherStats.count("asm: class file not read");
-      return instrumentWithAsm(source, true, -1);
+      return instrumentWithAsm(source, -1, "class file not read", cached);
     }
     if ((classFile.access & Opcodes.ACC_MODULE) != 0) {
       return null;
     }
+    String className = classFile.className(classFile.thisClass);
     int classId = ProbeRecorder.reserveClassId();
     if (classId < 0) {
-      ProbeLosses.classLost(classFile.className(classFile.thisClass), CLASS_LIMIT, null);
+      ProbeLosses.classLost(className, CLASS_LIMIT, null);
       return null;
     }
+    List<String> skippedMethods = new ArrayList<>();
+    Instrumented instrumented;
     try {
-      Instrumented instrumented = ClassFilePatcher.instrument(classFile, classId);
-      PatcherStats.count(instrumented != null ? "patched" : "no lines");
-      return instrumented;
+      instrumented = ClassFilePatcher.instrument(classFile, classId, cache != null, skippedMethods);
     } catch (UnsupportedClassException e) {
-      PatcherStats.count("asm: " + e.reason);
+      return instrumentWithAsm(source, classId, e.reason, cached);
     } catch (RuntimeException e) {
-      PatcherStats.count("asm: patcher failed with " + e.getClass().getName());
-      log.debug("Class file patcher failed on {}", classFile.className(classFile.thisClass), e);
+      log.debug("Class file patcher failed on {}", className, e);
+      return instrumentWithAsm(
+          source, classId, "patcher failed with " + e.getClass().getName(), cached);
+    }
+    if (cached != null) {
+      String difference = cached.difference(classId, className, skippedMethods, instrumented);
+      if (difference == null) {
+        PatcherStats.count("cache: verified");
+      } else {
+        cacheMismatch(className, difference);
+      }
+    } else if (cache != null) {
+      cache.write(entryFile, source, className, skippedMethods, instrumented);
+    }
+    return reportOutcome(className, skippedMethods, instrumented);
+  }
+
+  /** A class from the class cache, with the class id it gets in this JVM. */
+  @Nullable
+  private static Instrumented fromCache(ProbeClassCache.Entry cached) {
+    Instrumented instrumented = null;
+    if (cached.hasLines()) {
+      int classId = ProbeRecorder.reserveClassId();
+      if (classId < 0) {
+        ProbeLosses.classLost(cached.className, CLASS_LIMIT, null);
+        return null;
+      }
+      instrumented = cached.instrumented(classId);
+    }
+    return reportOutcome(cached.className, Arrays.asList(cached.skippedMethods), instrumented);
+  }
+
+  /** Reports the methods the class file patcher left without probes, and counts the outcome. */
+  @Nullable
+  private static Instrumented reportOutcome(
+      String className, List<String> skippedMethods, @Nullable Instrumented instrumented) {
+    for (String method : skippedMethods) {
+      ProbeLosses.methodLost(className, method, NO_PROBE_PLACE);
+    }
+    PatcherStats.count(instrumented != null ? "patched" : "no lines");
+    return instrumented;
+  }
+
+  /**
+   * Instruments with ASM a class that the class file patcher left to it.
+   *
+   * @param cached the cache entry of the class, when it is checked, which then differs
+   */
+  @Nullable
+  private static Instrumented instrumentWithAsm(
+      byte[] source, int classId, String reason, @Nullable ProbeClassCache.Entry cached) {
+    PatcherStats.count("asm: " + reason);
+    if (cached != null) {
+      cacheMismatch(cached.className, "the class file patcher now leaves it to ASM");
     }
     return instrumentWithAsm(source, true, classId);
+  }
+
+  private static void cacheMismatch(String className, String difference) {
+    PatcherStats.count("cache: verify mismatch");
+    if (CACHE_MISMATCH_LOGGED.compareAndSet(false, true)) {
+      log.warn(
+          "A class read from the line probe class cache differs from the class patched again: {}"
+              + " ({}). The class patched again is used.",
+          className,
+          difference);
+    }
   }
 
   /** A class with probes inserted, and what is needed to register them. */
@@ -156,19 +267,27 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
     @Nullable final String sourceDebug;
     final ClassProbesBuilder probes;
 
+    /**
+     * Where the value of the constant that the class id is loaded from starts in {@link #bytes}, or
+     * -1 if the class id is pushed as a value and the class cannot be cached.
+     */
+    final int classIdSlot;
+
     Instrumented(
         int classId,
         byte[] bytes,
         String className,
         String sourceFile,
         @Nullable String sourceDebug,
-        ClassProbesBuilder probes) {
+        ClassProbesBuilder probes,
+        int classIdSlot) {
       this.classId = classId;
       this.bytes = bytes;
       this.className = className;
       this.sourceFile = sourceFile;
       this.sourceDebug = sourceDebug;
       this.probes = probes;
+      this.classIdSlot = classIdSlot;
     }
   }
 
@@ -269,7 +388,8 @@ public final class ProbeClassTransformer implements ClassFileTransformer {
         classNode.name,
         classNode.sourceFile,
         classNode.sourceDebug,
-        probes);
+        probes,
+        -1);
   }
 
   private static boolean instrument(

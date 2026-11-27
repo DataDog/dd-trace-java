@@ -571,6 +571,22 @@
         "aliases": []
       }
     ],
+    "DD_CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_CLASS_CACHE_DIR": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_CLASS_CACHE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_ENABLED": [
       {
         "version": "A",

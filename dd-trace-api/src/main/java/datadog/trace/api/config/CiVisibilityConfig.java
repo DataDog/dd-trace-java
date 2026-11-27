@@ -101,6 +101,10 @@ public final class CiVisibilityConfig {
       "civisibility.code.coverage.lines.enabled";
   public static final String CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_ENABLED =
       "civisibility.code.coverage.line.probes.enabled";
+  public static final String CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_CLASS_CACHE_ENABLED =
+      "civisibility.code.coverage.line.probes.class.cache.enabled";
+  public static final String CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_CLASS_CACHE_DIR =
+      "civisibility.code.coverage.line.probes.class.cache.dir";
   public static final String CIVISIBILITY_CODE_COVERAGE_INCLUDES =
       "civisibility.code.coverage.includes";
   public static final String CIVISIBILITY_CODE_COVERAGE_EXCLUDES =

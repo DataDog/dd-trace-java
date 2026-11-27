@@ -2,6 +2,9 @@ package datadog.trace.civisibility.coverage.probe;
 
 import datadog.trace.api.civisibility.coverage.InstrumentedClass;
 import datadog.trace.api.civisibility.coverage.SourceMap;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -21,6 +24,63 @@ final class ClassProbesBuilder {
   ClassProbesBuilder() {
     // id 0 is where exception handlers store when the method started no code that can throw
     newProbe(NO_LINES, -1);
+  }
+
+  private ClassProbesBuilder(int initStart) {
+    this.initStart = initStart;
+  }
+
+  /** Writes the probes for {@link #readFrom} to read, in another JVM too. */
+  void writeTo(DataOutputStream out) throws IOException {
+    out.writeInt(initStart);
+    writeTree(out, probeLines, probeParent);
+    writeTree(out, nodeLines, nodeParent);
+  }
+
+  private static void writeTree(DataOutputStream out, List<int[]> lines, int[] parents)
+      throws IOException {
+    out.writeInt(lines.size());
+    for (int id = 0; id < lines.size(); id++) {
+      out.writeInt(parents[id]);
+      int[] idLines = lines.get(id);
+      out.writeInt(idLines.length);
+      for (int line : idLines) {
+        out.writeInt(line);
+      }
+    }
+  }
+
+  /** Reads the probes that {@link #writeTo} wrote. */
+  static ClassProbesBuilder readFrom(DataInputStream in) throws IOException {
+    ClassProbesBuilder probes = new ClassProbesBuilder(in.readInt());
+    int probeCount = readCount(in);
+    for (int id = 0; id < probeCount; id++) {
+      int parent = in.readInt();
+      probes.newProbe(readLines(in), parent);
+    }
+    int nodeCount = readCount(in);
+    for (int id = 0; id < nodeCount; id++) {
+      int parent = in.readInt();
+      probes.newNode(readLines(in), parent);
+    }
+    return probes;
+  }
+
+  private static int[] readLines(DataInputStream in) throws IOException {
+    int[] lines = new int[readCount(in)];
+    for (int k = 0; k < lines.length; k++) {
+      lines[k] = in.readInt();
+    }
+    return lines;
+  }
+
+  /** A count of ints that follow, which cannot be more than the ints left to read. */
+  private static int readCount(DataInputStream in) throws IOException {
+    int count = in.readInt();
+    if (count < 0 || count > in.available() / 4) {
+      throw new IOException("count out of range: " + count);
+    }
+    return count;
   }
 
   int newProbe(int[] lines, int parentNode) {
