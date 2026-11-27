@@ -79,7 +79,7 @@ docs/                     Developer documentation (see below)
 
 ### Core performance rules
 
-These rules are strict for shipped runtime code in `dd-trace-core/src/main/` and `internal-api/src/main/`. Elsewhere, including those modules' tests, benchmarks and build files, treat them as advice.
+These rules are strict for shipped runtime code in `dd-trace-core/src/main/`, `internal-api/src/main/` and `components/toolbox/src/main/`. Elsewhere, including those modules' tests, benchmarks and build files, treat them as advice.
 
 - **Measure performance claims.** A PR that claims to be faster or to allocate less must include JMH before/after results from the same machine, JDK, JVM flags and benchmark settings, with time and allocation (`-Pjmh.profilers=gc`). Without them, reviewers should flag the claim as unmeasured and the author should either add numbers or drop the claim.
 

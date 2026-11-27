@@ -15,7 +15,7 @@ import javax.annotation.Nullable;
  *
  * <p>Deliberately shaped against the {@code Optional}-style merge-with-singleton pitfall: {@link
  * #of} is the only allocation site, always allocates (never returns a shared instance), and holds a
- * plain nullable field. See {@code EscapeShapeBenchmark}'s {@code phiWithStatic} arm for why an
+ * plain nullable field. See {@code EscapeShapeBenchmark}'s {@code mergeWithStatic} arm for why an
  * {@code EMPTY} singleton would cost 8 B/op on every JDK measured, including 25.
  *
  * <p>This shape -- one allocation site, a plain nullable field, no singleton merge --
@@ -24,14 +24,14 @@ import javax.annotation.Nullable;
  * caller is that the wrapping method itself construct a {@code Maybe} at exactly one call site (fed
  * by a plain nullable local merged through ordinary branches, or by delegating to an
  * already-nullable-returning method) rather than once per {@code return} statement -- multiple
- * construction sites inline into a multi-producer phi that fails scalar replacement on JDK
- * 8/11/17/21 (measured 16 B/op, {@code MaybeUsagePatternsBenchmark#badMultiConstructionSite}) once
- * the refusal branch is reachable. On JDK 25, {@code ReduceAllocationMerges} collapses this
+ * construction sites inline into a merge of several allocations, which fails scalar replacement on
+ * JDK 8/11/17/21 (measured 16 B/op, {@code MaybeUsagePatternsBenchmark#badMultiConstructionSite})
+ * once the refusal branch is reachable. On JDK 25, {@code ReduceAllocationMerges} collapses this
  * specific shape -- two branches allocating the same final type with identical field layout -- back
  * down to 0 B/op; do not rely on that JDK-25-only behavior, since it is exactly the kind of
  * EA-dependent elision that can regress silently the moment the two branches stop being trivially
  * mergeable (e.g. one branch gains extra state). See {@code EscapeShapeBenchmark}'s {@code
- * phiOfTwoAllocations} arm, which uses two distinct interface implementations rather than one
+ * mergeOfTwoAllocations} arm, which uses two distinct interface implementations rather than one
  * concrete type and therefore fails to scalar-replace on every JDK including 25 -- a different,
  * stronger failure mode than the one demonstrated here.
  *
