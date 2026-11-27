@@ -4,12 +4,15 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_GRPC_TRACES_ENDPOINT
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_TRACES_ENDPOINT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_TRACES_TIMEOUT;
+import static datadog.trace.core.monitor.OtelExporterId.Signal.SPAN;
 
 import datadog.communication.ddagent.DroppingPolicy;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.Prioritization;
+import datadog.trace.core.monitor.ExportRecorder;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.monitor.OtelExporterId;
 import datadog.trace.core.otlp.common.OtlpGrpcSender;
 import datadog.trace.core.otlp.common.OtlpHttpSender;
 import datadog.trace.core.otlp.common.OtlpSender;
@@ -140,7 +143,12 @@ public class OtlpWriter extends RemoteWriter {
           protocol == OtlpConfig.Protocol.HTTP_JSON
               ? new OtlpTraceJsonCollector()
               : new OtlpTraceProtoCollector();
-      final OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+      // TODO: pass the tracer's HealthMetrics instead of NO_OP to report span exporter metrics
+      final ExportRecorder exportRecorder =
+          ExportRecorder.create(
+              HealthMetrics.NO_OP, OtelExporterId.otlp(SPAN, protocol, sender.destination()));
+      final OtlpPayloadDispatcher dispatcher =
+          new OtlpPayloadDispatcher(sender, collector, exportRecorder);
       final TraceProcessingWorker worker =
           new TraceProcessingWorker(
               traceBufferSize,
