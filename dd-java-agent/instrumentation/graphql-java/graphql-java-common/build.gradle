@@ -1,4 +1,5 @@
 plugins {
+  id 'java-test-fixtures'
   id 'dd-trace-java.module.instrumentation'
 }
 
@@ -13,4 +14,10 @@ muzzle {
 
 dependencies {
   compileOnly group: 'com.graphql-java', name: 'graphql-java', version: '14.0'
+
+  testFixturesApi project(':dd-java-agent:instrumentation-testing')
+  testFixturesCompileOnly group: 'com.graphql-java', name: 'graphql-java', version: '14.0'
+  testFixturesImplementation libs.junit.jupiter
+  testFixturesImplementation libs.mokito.core
+  testFixturesImplementation libs.tabletest
 }

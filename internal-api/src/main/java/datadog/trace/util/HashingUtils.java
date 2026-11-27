@@ -170,4 +170,23 @@ public final class HashingUtils {
     }
     return result;
   }
+
+  /**
+   * Spreads a hash code across all 32 bits, for a table that takes its slot from the low bits. A
+   * golden-ratio (Fibonacci) multiply mixes the low input bits into the high bits of the product,
+   * and the fold brings those back down. So keys whose hash codes differ only slightly, such as
+   * sequential names like {@code key-00001} and {@code key-00002}, land far apart instead of in
+   * adjacent slots that grow into long probe runs. The multiplier is odd, so the multiply loses no
+   * bits.
+   *
+   * <p>One 32-bit multiply, a shift and an xor: cheap enough for lookups of keys that are already
+   * well spread. For a 64-bit composite hash, use {@link LongHashingUtils#hashSpread(long)}.
+   *
+   * @param hash a hash code.
+   * @return the spread hash: mask it for a slot, or store it.
+   */
+  public static int hashSpread(int hash) {
+    final int z = hash * 0x9E3779B9; // 2^32 / golden ratio
+    return z ^ (z >>> 15);
+  }
 }

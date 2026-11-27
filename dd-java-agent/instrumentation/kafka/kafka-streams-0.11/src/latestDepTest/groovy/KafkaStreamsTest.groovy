@@ -26,7 +26,6 @@ import spock.lang.Shared
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
-@Flaky("https://github.com/DataDog/dd-trace-java/issues/3865")
 class KafkaStreamsTest extends InstrumentationSpecification {
   static final STREAM_PENDING = "test.pending"
   static final STREAM_PROCESSED = "test.processed"
@@ -48,6 +47,7 @@ class KafkaStreamsTest extends InstrumentationSpecification {
     return true
   }
 
+  @Flaky("https://github.com/DataDog/dd-trace-java/issues/3865")
   def "test kafka produce and consume with streams in-between"() {
     setup:
     def config = new Properties()
@@ -263,5 +263,34 @@ class KafkaStreamsTest extends InstrumentationSpecification {
     producerFactory?.destroy()
     streams?.close()
     consumerContainer?.stop()
+  }
+
+  def "data streams consume checkpoint is tagged with the source topic and application id"() {
+    setup:
+    def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
+    def config = new Properties()
+    config.putAll(producerProps)
+    config.put(StreamsConfig.APPLICATION_ID_CONFIG, "test-application")
+    config.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName())
+    config.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName())
+    def builder = new StreamsBuilder()
+    builder.stream(STREAM_PENDING).to(STREAM_PROCESSED, Produced.with(Serdes.String(), Serdes.String()))
+    def streams = new KafkaStreams(builder.build(), config)
+    streams.start()
+    def producerFactory = new DefaultKafkaProducerFactory<String, String>(producerProps)
+
+    when:
+    new KafkaTemplate<String, String>(producerFactory).send(STREAM_PENDING, "hello")
+    // source produce, streams consume, streams produce
+    TEST_DATA_STREAMS_WRITER.waitForGroups(3, 10_000)
+    StatsGroup consume = TEST_DATA_STREAMS_WRITER.groups.find { it.tags.direction == "direction:in" }
+
+    then:
+    consume.tags.topic == "topic:$STREAM_PENDING"
+    consume.tags.group == "group:test-application"
+
+    cleanup:
+    producerFactory?.destroy()
+    streams?.close()
   }
 }

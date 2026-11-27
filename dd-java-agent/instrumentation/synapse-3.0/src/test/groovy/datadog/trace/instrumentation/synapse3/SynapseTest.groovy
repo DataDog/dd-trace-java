@@ -48,13 +48,13 @@ abstract class SynapseTest extends VersionedNamingTestBase {
   int port
 
   def setupSpec() {
-    def testResourceDir = System.getProperty('user.dir') + '/src/test/resources/'
+    def synapseHome = new File(getClass().getResource('/synapse').toURI())
     ServerConfigurationInformation config = new ServerConfigurationInformation()
 
-    config.setSynapseHome(testResourceDir + 'synapse/')
-    config.setAxis2RepoLocation(testResourceDir + 'synapse/repository/')
-    config.setSynapseXMLLocation(testResourceDir + 'synapse/repository/conf/synapse.xml')
-    config.setAxis2Xml(testResourceDir + 'synapse/repository/conf/axis2.xml')
+    config.setSynapseHome(synapseHome.absolutePath)
+    config.setAxis2RepoLocation(new File(synapseHome, 'repository').absolutePath)
+    config.setSynapseXMLLocation(new File(synapseHome, 'repository/conf/synapse.xml').absolutePath)
+    config.setAxis2Xml(new File(synapseHome, 'repository/conf/axis2.xml').absolutePath)
 
     server = new ServerManager()
     server.init(config, new ServerContextInformation(config))
@@ -97,14 +97,7 @@ abstract class SynapseTest extends VersionedNamingTestBase {
   abstract String expectedServerOperation()
 
   def cleanupSpec() {
-    server.shutdown()
-
-    // cleanup stray access logs - unfortunately Synapse won't let us choose where these go
-    def accessLogDir = new File(System.getProperty('user.dir') + '/logs')
-    if (accessLogDir.isDirectory()) {
-      accessLogDir.eachFileMatch(~/http_access_[0-9-]*.log/, { it.delete() })
-      accessLogDir.delete()
-    }
+    server?.shutdown()
   }
 
   def "test plain request is traced"() {

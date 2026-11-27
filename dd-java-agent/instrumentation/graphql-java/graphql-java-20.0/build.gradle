@@ -36,6 +36,7 @@ dependencies {
   compileOnly group: 'com.graphql-java', name: 'graphql-java', version: '20.0'
   implementation project(':dd-java-agent:instrumentation:graphql-java:graphql-java-common')
 
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:graphql-java:graphql-java-common'))
   testImplementation group: 'com.graphql-java', name: 'graphql-java', version: '20.0'
   // to test collisions with other instrumentation
   testRuntimeOnly project(':dd-java-agent:instrumentation:graphql-java:graphql-java-14.0')

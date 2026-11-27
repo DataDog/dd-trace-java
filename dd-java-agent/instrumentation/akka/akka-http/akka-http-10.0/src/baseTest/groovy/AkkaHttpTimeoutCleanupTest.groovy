@@ -2,6 +2,7 @@ import akka.actor.ActorSystem
 import akka.actor.Cancellable
 import akka.http.javadsl.model.HttpRequest
 import akka.stream.ActorMaterializer
+import datadog.context.Context
 import datadog.trace.agent.test.InstrumentationSpecification
 import scala.concurrent.Await
 import scala.concurrent.Promise$
@@ -12,12 +13,10 @@ import spock.util.concurrent.PollingConditions
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled
 
 class AkkaHttpTimeoutCleanupTest extends InstrumentationSpecification {
 
-  def 'timeout cleanup does not retain a request while its entity is unfinished: propagation=#enabled'() {
+  def 'timeout cleanup does not retain a request while its entity is unfinished: captureEnabled=#captureEnabled'() {
     setup:
     def system = ActorSystem.create('timeout-cleanup')
     def materializer = ActorMaterializer.create(system)
@@ -41,9 +40,9 @@ class AkkaHttpTimeoutCleanupTest extends InstrumentationSpecification {
 
     when:
     runUnderTrace('request') {
-      setAsyncPropagationEnabled(enabled)
+      Context.setCaptureEnabled(captureEnabled)
       clear.invoke(access)
-      assert isAsyncPropagationEnabled() == enabled
+      assert Context.isCaptureEnabled() == captureEnabled
     }
 
     then:
@@ -72,6 +71,6 @@ class AkkaHttpTimeoutCleanupTest extends InstrumentationSpecification {
     }
 
     where:
-    enabled << [true, false]
+    captureEnabled << [true, false]
   }
 }

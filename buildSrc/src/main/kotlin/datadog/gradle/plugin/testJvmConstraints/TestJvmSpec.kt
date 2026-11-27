@@ -35,6 +35,12 @@ import java.nio.file.Paths
 class TestJvmSpec(val project: Project) {
   companion object {
     const val TEST_JVM = "testJvm"
+
+    /**
+     * Environment variable set by the CI builder images to the latest GA Java major version, which
+     * early-access JDKs installed alongside it must not replace as `tip`.
+     */
+    const val LATEST_JDK_VERSION_ENV = "LATEST_VERSION"
   }
 
   /**
@@ -43,7 +49,8 @@ class TestJvmSpec(val project: Project) {
   val testJvmProperty: Provider<String> = project.providers.gradleProperty(TEST_JVM)
 
   /**
-   * Normalized `tip` string that's set to the highest JAVA_X_HOME version found in environment variables.
+   * Normalized `tip` string that's set to the `LATEST_VERSION` environment variable when present, or
+   * to the highest Java version found via toolchains or JAVA_X_HOME environment variables otherwise.
    */
   val normalizedTestJvm: Provider<String> = testJvmProperty.map { testJvm ->
     if (testJvm.isBlank()) {
@@ -52,14 +59,20 @@ class TestJvmSpec(val project: Project) {
 
     when (testJvm) {
       "tip" -> {
-        val javaVersions = discoverJavaVersionsViaToolchains()
-          ?: discoverJavaVersionsViaEnvVars()
+        val latestJdkVersion = project.providers.environmentVariable(LATEST_JDK_VERSION_ENV).orNull
+        if (latestJdkVersion != null) {
+          latestJdkVersion.toIntOrNull()?.takeIf { it > 0 }?.toString()
+            ?: throw GradleException("$LATEST_JDK_VERSION_ENV must be a Java major version, got '$latestJdkVersion'.")
+        } else {
+          val javaVersions = discoverJavaVersionsViaToolchains()
+            ?: discoverJavaVersionsViaEnvVars()
 
-        if (javaVersions.isEmpty()) {
-          throw GradleException("No Java installations found via toolchains or JAVA_X_HOME environment variables.")
+          if (javaVersions.isEmpty()) {
+            throw GradleException("No Java installations found via toolchains or JAVA_X_HOME environment variables.")
+          }
+
+          javaVersions.max().toString()
         }
-
-        javaVersions.max().toString()
       }
 
       else -> testJvm

@@ -141,6 +141,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_B3_PADDING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RDS_TAGS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES;
@@ -176,6 +177,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_LOG
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PROTOCOL_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_ITEMS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_TAG_KEYS;
@@ -322,6 +324,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ATTEMP
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_OPTIMIZATION_MANIFEST_FILE;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_OPTIMIZATION_PAYLOADS_IN_FILES;
+import static datadog.trace.api.config.CiVisibilityConfig.TEST_OPTIMIZATION_RUNTIME_TAGS;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_SESSION_NAME;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
@@ -441,6 +444,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
+import static datadog.trace.api.config.GeneralConfig.TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
@@ -637,6 +641,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.PLAY_REPORT_HT
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_INCLUDE_ROUTINGKEY_IN_RESOURCE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_EXCHANGES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RABBIT_PROPAGATION_DISABLED_QUEUES;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RDS_TAGS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESILIENCE4J_MEASURED_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESILIENCE4J_TAG_METRICS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR;
@@ -765,6 +770,7 @@ import static datadog.trace.util.json.JsonPathParser.parseJsonPaths;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
+import datadog.json.JsonReader;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.config.GeneralConfig;
@@ -787,6 +793,7 @@ import datadog.trace.bootstrap.config.provider.CapturedEnvironmentConfigSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.config.inversion.ConfigHelper;
 import datadog.trace.context.TraceScope;
 import datadog.trace.util.ConfigStrings;
@@ -857,6 +864,16 @@ public class Config {
 
   private static final Logger log = LoggerFactory.getLogger(Config.class);
   private static final int MAX_CODE_COVERAGE_FLAGS = 32;
+  private static final Set<String> OVERRIDABLE_RUNTIME_TAGS =
+      new HashSet<>(
+          Arrays.asList(
+              Tags.OS_PLATFORM,
+              Tags.OS_ARCHITECTURE,
+              Tags.OS_VERSION,
+              Tags.RUNTIME_NAME,
+              Tags.RUNTIME_VERSION,
+              Tags.RUNTIME_VENDOR));
+  private static final int MAX_RUNTIME_TAGS_NESTING_DEPTH = 64;
   private static final int DYNAMIC_ATR_BUCKET_COUNT = 5;
   private static final int MAX_DYNAMIC_ATR_RETRIES_PER_BUCKET = 20;
 
@@ -981,6 +998,7 @@ public class Config {
   private final boolean dbClientSplitByInstance;
   private final boolean dbClientSplitByInstanceTypeSuffix;
   private final boolean dbClientSplitByHost;
+  private final boolean rdsTagsEnabled;
   private final Set<String> splitByTags;
   private final Set<String> traceStatsAdditionalTags;
   private final boolean jeeSplitByDeployment;
@@ -1262,6 +1280,7 @@ public class Config {
   private final boolean ciVisibilityFailedTestReplayEnabled;
   private final String testOptimizationManifestFile;
   private final boolean testOptimizationPayloadsInFiles;
+  private final Map<String, String> testOptimizationRuntimeTags;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1429,6 +1448,7 @@ public class Config {
   private final String dogStatsDPath;
   private final List<String> dogStatsDArgs;
   private final int dogStatsDPort;
+  private final boolean lambdaStripInjectedContextEnabled;
 
   private String env;
   private String version;
@@ -1825,6 +1845,10 @@ public class Config {
       spanAttributeSchemaVersion = configuredSpanAttributeSchemaVersion;
     }
 
+    lambdaStripInjectedContextEnabled =
+        configProvider.getBoolean(
+            TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED, DEFAULT_TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED);
+
     peerHostNameEnabled = configProvider.getBoolean(TRACE_PEER_HOSTNAME_ENABLED, true);
 
     // following two only used in v0.
@@ -1918,6 +1942,7 @@ public class Config {
     dbClientSplitByHost =
         configProvider.getBoolean(
             DB_CLIENT_HOST_SPLIT_BY_HOST, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST);
+    rdsTagsEnabled = configProvider.getBoolean(RDS_TAGS_ENABLED, DEFAULT_RDS_TAGS_ENABLED);
 
     dbmPropagationMode =
         configProvider.getString(
@@ -2999,10 +3024,16 @@ public class Config {
     testOptimizationManifestFile = configProvider.getString(TEST_OPTIMIZATION_MANIFEST_FILE);
     testOptimizationPayloadsInFiles =
         configProvider.getBoolean(TEST_OPTIMIZATION_PAYLOADS_IN_FILES, false);
+    testOptimizationRuntimeTags =
+        parseTestOptimizationRuntimeTags(configProvider.getString(TEST_OPTIMIZATION_RUNTIME_TAGS));
 
+    // Off by default in AWS Lambda: the Datadog Lambda extension serves no Remote Configuration.
+    // Must be kept in sync with Agent.isRemoteConfigEnabled().
     remoteConfigEnabled =
         configProvider.getBoolean(
-            REMOTE_CONFIGURATION_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED, REMOTE_CONFIG_ENABLED);
+            REMOTE_CONFIGURATION_ENABLED,
+            DEFAULT_REMOTE_CONFIG_ENABLED && !awsServerless,
+            REMOTE_CONFIG_ENABLED);
     remoteConfigIntegrityCheckEnabled =
         configProvider.getBoolean(
             REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED, DEFAULT_REMOTE_CONFIG_INTEGRITY_CHECK_ENABLED);
@@ -3907,6 +3938,10 @@ public class Config {
 
   public boolean isDbClientSplitByHost() {
     return dbClientSplitByHost;
+  }
+
+  public boolean isRdsTagsEnabled() {
+    return rdsTagsEnabled;
   }
 
   public boolean isDbMetadataFetchingOnQueryEnabled() {
@@ -4975,6 +5010,11 @@ public class Config {
     return testOptimizationPayloadsInFiles;
   }
 
+  /** Returns the OS and runtime tag values that replace the detected ones, keyed by tag name. */
+  public Map<String, String> getTestOptimizationRuntimeTags() {
+    return testOptimizationRuntimeTags;
+  }
+
   public String getGitPullRequestBaseBranch() {
     return gitPullRequestBaseBranch;
   }
@@ -5556,6 +5596,10 @@ public class Config {
     return sfnInjectDatadogAttributeEnabled;
   }
 
+  public boolean isLambdaStripInjectedContextEnabled() {
+    return lambdaStripInjectedContextEnabled;
+  }
+
   /**
    * @return A map of tags to be applied only to the local application root span.
    */
@@ -5602,13 +5646,18 @@ public class Config {
         getRuntimeId(),
         getEnv(),
         LANGUAGE_TAG_VALUE,
-        SystemProperties.get("java.runtime.name"),
-        SystemProperties.get("java.version"),
-        SystemProperties.get("java.vendor"),
-        SystemProperties.get("os.arch"),
-        SystemProperties.get("os.name"),
-        SystemProperties.get("os.version"),
+        getTestOptimizationRuntimeTag(Tags.RUNTIME_NAME, "java.runtime.name"),
+        getTestOptimizationRuntimeTag(Tags.RUNTIME_VERSION, "java.version"),
+        getTestOptimizationRuntimeTag(Tags.RUNTIME_VENDOR, "java.vendor"),
+        getTestOptimizationRuntimeTag(Tags.OS_ARCHITECTURE, "os.arch"),
+        getTestOptimizationRuntimeTag(Tags.OS_PLATFORM, "os.name"),
+        getTestOptimizationRuntimeTag(Tags.OS_VERSION, "os.version"),
         isServiceNameSetByUser() ? "true" : "false");
+  }
+
+  private String getTestOptimizationRuntimeTag(String tag, String systemProperty) {
+    String override = testOptimizationRuntimeTags.get(tag);
+    return override != null ? override : SystemProperties.get(systemProperty);
   }
 
   public String getPrimaryTag() {
@@ -6596,6 +6645,68 @@ public class Config {
         MAX_DYNAMIC_ATR_RETRIES_PER_BUCKET);
   }
 
+  private static Map<String, String> parseTestOptimizationRuntimeTags(String configuredTags) {
+    if (configuredTags == null || configuredTags.trim().isEmpty()) {
+      return Collections.emptyMap();
+    }
+
+    Object parsed = null;
+    if (!isNestedDeeperThan(configuredTags, MAX_RUNTIME_TAGS_NESTING_DEPTH)) {
+      try (JsonReader reader = new JsonReader(configuredTags)) {
+        parsed = reader.nextValue();
+      } catch (IOException | RuntimeException e) {
+        // reported below as an invalid value
+      }
+    }
+    if (!(parsed instanceof Map)) {
+      log.warn(
+          "Invalid {} value '{}'; expected a JSON object",
+          propertyNameToEnvironmentVariableName(TEST_OPTIMIZATION_RUNTIME_TAGS),
+          configuredTags);
+      return Collections.emptyMap();
+    }
+
+    Map<String, String> tags = new HashMap<>();
+    for (Map.Entry<?, ?> parsedTag : ((Map<?, ?>) parsed).entrySet()) {
+      Object tag = parsedTag.getKey();
+      Object value = parsedTag.getValue();
+      if (OVERRIDABLE_RUNTIME_TAGS.contains(tag) && value instanceof String) {
+        String trimmedValue =
+            Strings.truncate(((String) value).trim(), CIConstants.MAX_META_STRING_VALUE_LENGTH)
+                .trim();
+        if (!trimmedValue.isEmpty()) {
+          tags.put((String) tag, trimmedValue);
+        }
+      }
+    }
+    return Collections.unmodifiableMap(tags);
+  }
+
+  /** Lets the recursive {@link JsonReader#nextValue()} reject deeply nested input safely. */
+  private static boolean isNestedDeeperThan(String json, int maxDepth) {
+    int depth = 0;
+    boolean inString = false;
+    for (int i = 0; i < json.length(); i++) {
+      char c = json.charAt(i);
+      if (inString) {
+        if (c == '\\') {
+          i++;
+        } else if (c == '"') {
+          inString = false;
+        }
+      } else if (c == '"') {
+        inString = true;
+      } else if (c == '{' || c == '[') {
+        if (++depth > maxDepth) {
+          return true;
+        }
+      } else if (c == '}' || c == ']') {
+        depth--;
+      }
+    }
+    return false;
+  }
+
   private static List<String> parseCodeCoverageFlags(List<String> configuredFlags) {
     if (configuredFlags.isEmpty()) {
       return Collections.emptyList();
@@ -6811,6 +6922,8 @@ public class Config {
         + integrationSynapseLegacyOperationName
         + ", codeCoverageFlags="
         + codeCoverageFlags
+        + ", testOptimizationRuntimeTags="
+        + testOptimizationRuntimeTags
         + ", writerType='"
         + writerType
         + '\''
@@ -6880,6 +6993,8 @@ public class Config {
         + dbClientSplitByInstanceTypeSuffix
         + ", dbClientSplitByHost="
         + dbClientSplitByHost
+        + ", rdsTagsEnabled="
+        + rdsTagsEnabled
         + ", dbMetadataFetchingEnabled="
         + dbMetadataFetchingOnQuery
         + ", dbMetadataFetchingOnConnect="
@@ -7360,6 +7475,8 @@ public class Config {
         + sqsInjectDatadogAttributeEnabled
         + ", snsInjectDatadogAttributeEnabled="
         + snsInjectDatadogAttributeEnabled
+        + ", lambdaStripInjectedContextEnabled="
+        + lambdaStripInjectedContextEnabled
         + '}';
   }
 }

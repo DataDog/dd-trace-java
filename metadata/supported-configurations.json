@@ -797,9 +797,9 @@
     ],
     "DD_CIVISIBILITY_JACOCO_PLUGIN_VERSION": [
       {
-        "version": "B",
+        "version": "C",
         "type": "string",
-        "default": "0.8.15",
+        "default": "0.8.16",
         "aliases": []
       }
     ],
@@ -4308,6 +4308,14 @@
         "aliases": []
       }
     ],
+    "DD_TEST_OPTIMIZATION_RUNTIME_TAGS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_TEST_SESSION_NAME": [
       {
         "version": "A",
@@ -5002,6 +5010,14 @@
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_TRACE_INTEGRATION_AWS_LAMBDA_ENABLED", "DD_INTEGRATION_AWS_LAMBDA_ENABLED"]
+      }
+    ],
+    "DD_TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
       }
     ],
     "DD_TRACE_AWS_PROPAGATION_ENABLED": [
@@ -9514,6 +9530,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_R2DBC_ENABLED", "DD_INTEGRATION_R2DBC_ENABLED"]
+      }
+    ],
+    "DD_TRACE_RDS_TAGS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
       }
     ],
     "DD_TRACE_REACTIVE_STREAMS_1_ENABLED": [

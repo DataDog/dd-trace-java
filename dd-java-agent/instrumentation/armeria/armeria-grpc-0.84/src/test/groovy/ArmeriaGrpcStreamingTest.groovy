@@ -5,6 +5,7 @@ import com.linecorp.armeria.server.Server
 import com.linecorp.armeria.server.ServerBuilder
 import com.linecorp.armeria.server.grpc.GrpcService
 import com.linecorp.armeria.testing.junit4.server.ServerRule
+import datadog.context.Context
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
@@ -75,30 +76,30 @@ abstract class ArmeriaGrpcStreamingTest extends VersionedNamingTestBase {
                       serverReceived << value.message
 
                       (1..msgCount).each {
-                        if (TEST_TRACER.isAsyncPropagationEnabled()) {
+                        if (Context.isCaptureEnabled()) {
                           observer.onNext(value)
                         } else {
-                          observer.onError(new IllegalStateException("not async propagating!"))
+                          observer.onError(new IllegalStateException("not capturing contexts!"))
                         }
                       }
                     }
 
                     @Override
                     void onError(Throwable t) {
-                      if (TEST_TRACER.isAsyncPropagationEnabled()) {
+                      if (Context.isCaptureEnabled()) {
                         error.set(t)
                         observer.onError(t)
                       } else {
-                        observer.onError(new IllegalStateException("not async propagating!"))
+                        observer.onError(new IllegalStateException("not capturing contexts!"))
                       }
                     }
 
                     @Override
                     void onCompleted() {
-                      if (TEST_TRACER.isAsyncPropagationEnabled()) {
+                      if (Context.isCaptureEnabled()) {
                         observer.onCompleted()
                       } else {
-                        observer.onError(new IllegalStateException("not async propagating!"))
+                        observer.onError(new IllegalStateException("not capturing contexts!"))
                       }
                     }
                   }
@@ -118,26 +119,26 @@ abstract class ArmeriaGrpcStreamingTest extends VersionedNamingTestBase {
     def streamObserver = client.conversation(new StreamObserver<Helloworld.Response>() {
         @Override
         void onNext(Helloworld.Response value) {
-          if (TEST_TRACER.isAsyncPropagationEnabled()) {
+          if (Context.isCaptureEnabled()) {
             clientReceived << value.message
           } else {
-            error.set(new IllegalStateException("not async propagating!"))
+            error.set(new IllegalStateException("not capturing contexts!"))
           }
         }
 
         @Override
         void onError(Throwable t) {
-          if (TEST_TRACER.isAsyncPropagationEnabled()) {
+          if (Context.isCaptureEnabled()) {
             error.set(t)
           } else {
-            error.set(new IllegalStateException("not async propagating!"))
+            error.set(new IllegalStateException("not capturing contexts!"))
           }
         }
 
         @Override
         void onCompleted() {
-          if (!TEST_TRACER.isAsyncPropagationEnabled()) {
-            error.set(new IllegalStateException("not async propagating!"))
+          if (!Context.isCaptureEnabled()) {
+            error.set(new IllegalStateException("not capturing contexts!"))
           }
         }
       })

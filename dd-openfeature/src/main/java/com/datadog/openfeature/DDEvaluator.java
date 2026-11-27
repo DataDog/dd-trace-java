@@ -103,15 +103,40 @@ class DDEvaluator implements Evaluator, Consumer<ServerConfiguration> {
       final Settings settings,
       final ExperimentationOptOutMode experimentationOptOutMode,
       final FlagSelectionRequest flagSelection) {
+    this(
+        configCallback,
+        bridge,
+        settings,
+        experimentationOptOutMode,
+        flagSelection,
+        settings.isSpanEnrichmentEnabled(),
+        true);
+  }
+
+  /**
+   * Creates an evaluator.
+   *
+   * @param spanEnrichmentEnabled whether to attach span-enrichment metadata to every evaluation.
+   * @param exposuresEnabled whether evaluations of allocations logging exposures are exposures.
+   */
+  DDEvaluator(
+      final Runnable configCallback,
+      final AgentBridge bridge,
+      final Settings settings,
+      final ExperimentationOptOutMode experimentationOptOutMode,
+      final FlagSelectionRequest flagSelection,
+      final boolean spanEnrichmentEnabled,
+      final boolean exposuresEnabled) {
     this.configCallback = configCallback;
     this.bridge = bridge;
     this.settings = settings;
     this.flagSelection = flagSelection;
     // When span enrichment is off, the __dd_* span-enrichment metadata is attached only to
-    // evaluations of allocations logging exposures, for the exposure hook.
+    // evaluations of allocations logging exposures, when exposures are enabled, for the exposure
+    // hook.
     this.core =
         new FlagEvaluator(
-            settings.isSpanEnrichmentEnabled(), this::isExposed, experimentationOptOutMode);
+            spanEnrichmentEnabled, this::isExposed, experimentationOptOutMode, exposuresEnabled);
   }
 
   @Override
