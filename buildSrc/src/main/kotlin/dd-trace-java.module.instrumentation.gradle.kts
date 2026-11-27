@@ -1,4 +1,5 @@
 import datadog.gradle.plugin.instrument.BuildTimeInstrumentationExtension
+import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 
 plugins {
   id("dd-trace-java.conventions.java")
@@ -26,7 +27,7 @@ configurations.named("muzzleBootstrap") {
 
 tasks.withType<Javadoc>().configureEach { enabled = false }
 
-forbiddenApis {
+tasks.withType<CheckForbiddenApis>().configureEach {
   signaturesFiles += files(rootDir.resolve("gradle/forbiddenApiFilters/instrumentation.txt"))
 }
 
