@@ -652,11 +652,16 @@ public final class FlagEvaluator {
   }
 
   private static Object resolveAttribute(final String name, final EvaluationContext context) {
-    // Special handling for "id" attribute: if not explicitly provided, use targeting key
-    if ("id".equals(name) && !context.keySet().contains(name)) {
+    // Special handling for "id" and "targetingKey" attributes: if not explicitly provided, use
+    // targeting key
+    if (fallsBackToTargetingKey(name) && !context.keySet().contains(name)) {
       return context.getTargetingKey();
     }
     return context.convertValue(context.getValue(name));
+  }
+
+  private static boolean fallsBackToTargetingKey(final String name) {
+    return "id".equals(name) || "targetingKey".equals(name);
   }
 
   public static boolean isTypeCompatible(final Class<?> target, final ValueType variationType) {
