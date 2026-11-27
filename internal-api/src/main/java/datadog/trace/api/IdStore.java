@@ -39,7 +39,30 @@ public abstract class IdStore {
    * @return a fresh, empty id store
    */
   public static IdStore create(TagMap parent) {
-    return IdStoreFactory.Default.INSTANCE.create(parent == null ? null : parent.knownStore);
+    return create(parent, null);
+  }
+
+  /**
+   * Like {@link #create(TagMap)}, presized from {@code hint} (see {@link SizingHintTable}); a null
+   * hint, or a store that isn't sized per span, ignores it.
+   */
+  public static IdStore create(TagMap parent, @Nullable SizingHint hint) {
+    return IdStoreFactory.Default.INSTANCE.create(parent == null ? null : parent.knownStore, hint);
+  }
+
+  /**
+   * Feeds this store's size back into the hint it was presized from -- a best-effort, racy max, so
+   * later stores of the same operation are presized to it. A store created without a hint, or with
+   * a capped one, or that isn't sized per span, does nothing.
+   */
+  public void recordSize() {}
+
+  /**
+   * Whether this JVM's stores are sized per span (the dense store), so {@link #recordSize} does
+   * anything. Constant for the JVM, so a caller's test folds and skips the walk with it off.
+   */
+  public static boolean recordsSizes() {
+    return IdStoreFactory.Default.DENSE;
   }
 
   /**
