@@ -42,13 +42,13 @@ plugins {
 
 val isCI = providers.environmentVariable("CI")
 val isGitLabCI = providers.environmentVariable("GITLAB_CI")
-val skipBuildscan = providers.environmentVariable("SKIP_BUILDSCAN").map { it.toBoolean() }.orElse(false)
 
 develocity {
   buildScan {
+    val publishBuildScan = isCI.isPresent && !providers.environmentVariable("SKIP_BUILDSCAN").orNull.toBoolean()
     termsOfUseUrl = "https://gradle.com/help/legal-terms-of-use"
     termsOfUseAgree = "yes"
-    publishing.onlyIf { isCI.isPresent && !skipBuildscan.get() }
+    publishing.onlyIf { publishBuildScan }
   }
 }
 
