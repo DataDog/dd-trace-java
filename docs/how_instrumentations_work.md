@@ -842,6 +842,9 @@ The basic span lifecycle in an Advice class looks like:
 
 Step 5 must complete before step 6: `beforeFinish` fires IAST/AppSec request-end callbacks that resolve the current span via `AgentTracer.activeSpan()`, and async callback frameworks (e.g. `CompletableFuture`) capture the active span at registration time — both break if the scope is closed first.
 
+Agent-owned `CompletableFuture` callbacks that do not need the registration context can opt out of
+continuation capture; see [CompletableFuture callback exclusions](instrumentation_design_guidelines.md#4-completablefuture-callback-exclusions).
+
 ```java
 @Advice.OnMethodEnter(suppress = Throwable.class)
 public static ContextScope begin() {
