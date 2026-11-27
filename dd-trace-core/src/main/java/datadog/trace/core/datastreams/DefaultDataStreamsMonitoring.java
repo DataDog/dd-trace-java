@@ -215,7 +215,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     }
   }
 
-  private static String getThreadServiceName() {
+  @Override
+  public String getThreadServiceName() {
     return serviceNameOverride.get();
   }
 
