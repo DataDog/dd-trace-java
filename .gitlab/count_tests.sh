@@ -3,13 +3,20 @@
 set -e
 
 # Count tests from JUnit XML reports and emit metrics
-# Usage: count_tests.sh [-v] <test_category> <jvm_version> <results_dir> <output_file>
+# Usage: count_tests.sh [-v] [--collect] <test_category> <jvm_version> <results_dir> <output_file>
+# In --collect mode, exit status 2 indicates that XML export succeeded but count generation failed.
 
 # https://docs.gitlab.com/ci/variables/predefined_variables/
 
 VERBOSE=0
 if [ "$1" = "-v" ]; then
     VERBOSE=1
+    shift
+fi
+
+COLLECT=false
+if [[ "${1:-}" = --collect ]]; then
+    COLLECT=true
     shift
 fi
 
@@ -30,7 +37,7 @@ log_verbose "JVM version: $JVM_VERSION"
 log_verbose "Results directory: $RESULTS_DIR"
 log_verbose "Output file: $OUTPUT_FILE"
 
-if [ ! -d "$RESULTS_DIR" ]; then
+if [[ "$COLLECT" = false && ! -d "$RESULTS_DIR" ]]; then
     echo "Results directory not found: $RESULTS_DIR"
     log_verbose "Directory does not exist, exiting"
     exit 0
@@ -38,11 +45,15 @@ fi
 
 # Parse XML elements so captured stdout/stderr and report formatting cannot affect counts.
 echo "Counting tests in $RESULTS_DIR for $TEST_CATEGORY on JVM $JVM_VERSION"
-source "$(dirname "$0")/java-utils.sh"
-java_bin=$(resolve_java)
 
 # Capture separately from read so a parser failure propagates through set -e.
-counts=$("$java_bin" "$(dirname "$0")/CountTests.java" "$RESULTS_DIR" "$VERBOSE")
+if [[ "$COLLECT" = true ]]; then
+    counts=$("$(dirname "$0")/collect_results.sh" --counts "$RESULTS_DIR")
+else
+    source "$(dirname "$0")/java-utils.sh"
+    java_bin=$(resolve_java)
+    counts=$("$java_bin" "$(dirname "$0")/collect-result/CountTests.java" "$RESULTS_DIR" "$VERBOSE")
+fi
 read -r TOTAL_TESTS TOTAL_FAILURES TOTAL_ERRORS TOTAL_SKIPPED <<< "$counts"
 
 TOTAL_PASSED=$((TOTAL_TESTS - TOTAL_FAILURES - TOTAL_ERRORS - TOTAL_SKIPPED))
@@ -89,7 +100,7 @@ fi
 # ============================================================================
 
 log_verbose "Writing JSON output to $OUTPUT_FILE"
-cat > "$OUTPUT_FILE" <<EOF
+if ! cat > "$OUTPUT_FILE" <<EOF
 {
   "test_category": "$TEST_CATEGORY",
   "jvm_version": "$JVM_VERSION",
@@ -110,5 +121,11 @@ cat > "$OUTPUT_FILE" <<EOF
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
 EOF
+then
+    if [[ "$COLLECT" = true ]]; then
+        exit 2
+    fi
+    exit 1
+fi
 
 echo "Test count output written to $OUTPUT_FILE"

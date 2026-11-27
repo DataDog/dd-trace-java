@@ -841,10 +841,14 @@ muzzle-dep-report:
     - gitlab_section_start "collect-reports" "Collecting reports"
     - .gitlab/collect_reports.sh
     - if [ "$PROFILE_TESTS" == "true" ]; then .gitlab/collect_profiles.sh; fi
-    - .gitlab/collect_results.sh
+    - |
+      count_status=0
+      .gitlab/count_tests.sh --collect "$GRADLE_TARGET" "$testJvm" "./results" "./test_counts_${CI_JOB_ID}.json" || count_status=$?
+      # Exit status 2 means XML export succeeded and only count generation failed.
+      if [ "$count_status" -ne 0 ] && [ "$count_status" -ne 2 ]; then exit "$count_status"; fi
     - .gitlab/upload_ciapp.sh $CACHE_TYPE $testJvm
     - gitlab_section_end "collect-reports"
-    - .gitlab/count_tests.sh "$GRADLE_TARGET" "$testJvm" "./results" "./test_counts_${CI_JOB_ID}.json"
+    - if [ "$count_status" -ne 0 ]; then exit "$count_status"; fi
     - export TEST_COUNTS_S3_PREFIX="test-counts/${CI_PIPELINE_ID}"
     - export TEST_COUNTS_FILE="./test_counts_${CI_JOB_ID}.json"
     # Use logical job identity in S3 so retried jobs overwrite stale attempts.
