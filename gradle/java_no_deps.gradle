@@ -214,9 +214,14 @@ tasks.withType(Javadoc).configureEach {
 
   options.addStringOption('Xdoclint:none', '-quiet')
 
-  doFirst {
-    if (project.ext.has("apiLinks")) {
-      options.links(*project.apiLinks)
+  def apiLinks = providers.provider {
+    project.ext.has('apiLinks') ? project.ext.get('apiLinks').collect { it.toString() } : []
+  }
+  inputs.property('apiLinks', apiLinks)
+  doFirst { Javadoc task ->
+    def links = apiLinks.get()
+    if (!links.isEmpty()) {
+      task.options.links(*links)
     }
   }
 }
