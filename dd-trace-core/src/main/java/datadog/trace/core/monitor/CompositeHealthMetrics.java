@@ -240,6 +240,14 @@ public final class CompositeHealthMetrics extends HealthMetrics {
   }
 
   @Override
+  public void onMetricCollection(
+      final OtelComponentId reader, final long durationNanos, final Throwable error) {
+    for (HealthMetrics delegate : delegates) {
+      delegate.onMetricCollection(reader, durationNanos, error);
+    }
+  }
+
+  @Override
   public void onLongRunningUpdate(final int dropped, final int write, final int expired) {
     for (HealthMetrics delegate : delegates) {
       delegate.onLongRunningUpdate(dropped, write, expired);

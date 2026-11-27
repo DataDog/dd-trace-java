@@ -12,6 +12,7 @@ import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.monitor.ExportRecorder;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.monitor.OtelComponentId;
 import datadog.trace.core.monitor.OtelExporterId;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
@@ -35,9 +36,13 @@ public final class OtlpMetricsService {
   private final OtlpSender sender;
   private final int intervalMillis;
 
+  /** The {@code periodic_metric_reader} identity of this service's collection side. */
+  private final OtelComponentId reader = OtelComponentId.next("periodic_metric_reader");
+
   /** The identity of this service's sender; null when there is no sender. */
   private final OtelExporterId exporter;
 
+  private volatile HealthMetrics healthMetrics = HealthMetrics.NO_OP;
   private volatile ExportRecorder exportRecorder = ExportRecorder.NO_OP;
 
   private final Object lifecycleLock = new Object();
@@ -92,16 +97,22 @@ public final class OtlpMetricsService {
   }
 
   @VisibleForTesting
+  OtelComponentId getReader() {
+    return reader;
+  }
+
+  @VisibleForTesting
   OtelExporterId getExporter() {
     return exporter;
   }
 
-  /** Starts periodic collection and export, reporting each export to {@code healthMetrics}. */
+  /** Starts periodic collection and export, reporting both to {@code healthMetrics}. */
   public void start(HealthMetrics healthMetrics) {
     if (sender == null) {
       return;
     }
 
+    this.healthMetrics = healthMetrics;
     this.exportRecorder = ExportRecorder.create(healthMetrics, exporter);
 
     // add random jitter of up to 5 seconds to initial delay; avoids a fleet
@@ -186,7 +197,7 @@ public final class OtlpMetricsService {
   private void export() {
     ExportRecorder.Export export = null;
     try {
-      OtlpPayload payload = collector.collectMetrics();
+      OtlpPayload payload = collect();
       if (payload == OtlpPayload.EMPTY) {
         return;
       }
@@ -203,6 +214,33 @@ public final class OtlpMetricsService {
         OtlpTelemetry.getInstance().onMetricsExportComplete(false);
       }
       LOGGER.debug("Failed to export OTLP metrics", e);
+    }
+  }
+
+  /**
+   * Collects the metrics, reporting how long it took and whether it failed.
+   *
+   * <p>The duration includes encoding the payload, which the collector does while it collects. Only
+   * an exception that escapes the collector marks the collection as failed: observable callbacks
+   * catch and log their own exceptions, so a cycle where a callback failed is still reported as a
+   * success.
+   */
+  private OtlpPayload collect() {
+    HealthMetrics sink = healthMetrics;
+    long startNanos = System.nanoTime();
+    Throwable error = null;
+    try {
+      return collector.collectMetrics();
+    } catch (Throwable e) {
+      error = e;
+      throw e;
+    } finally {
+      // self-monitoring must never drop the payload or replace the collection error
+      try {
+        sink.onMetricCollection(reader, System.nanoTime() - startNanos, error);
+      } catch (Throwable e) {
+        LOGGER.debug("Failed to record OTLP metrics collection", e);
+      }
     }
   }
 }

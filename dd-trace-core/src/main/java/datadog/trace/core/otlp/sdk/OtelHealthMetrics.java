@@ -17,6 +17,7 @@ import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.monitor.OtelComponentId;
 import datadog.trace.core.monitor.OtelExporterId;
 import datadog.trace.core.monitor.OtelExporterId.Signal;
 import datadog.trace.core.otlp.common.OtlpGrpcStatusException;
@@ -35,6 +36,8 @@ import javax.annotation.Nullable;
  *   <li>{@code otel.sdk.exporter.<signal>.inflight}, {@code .exported} and {@code
  *       otel.sdk.exporter.operation.duration}, modeled on the OTel Java SDK's {@code
  *       SemConvExporterMetrics}, one series per {@link OtelExporterId}.
+ *   <li>{@code otel.sdk.metric_reader.collection.duration}, one series per reader {@link
+ *       OtelComponentId}.
  * </ul>
  *
  * Every other callback stays a no-op.
@@ -75,6 +78,7 @@ final class OtelHealthMetrics extends HealthMetrics {
 
   private final Map<Signal, ExportInstruments> exports = new EnumMap<>(Signal.class);
   private final OtelMetricStorage exportDuration;
+  private final OtelMetricStorage collectionDuration;
 
   private OtelHealthMetrics() {
     observe("otel.sdk.span.started", COUNTER, "The number of created spans.", started, ORIGINS);
@@ -97,6 +101,14 @@ final class OtelHealthMetrics extends HealthMetrics {
             "The duration of exporting a batch of telemetry records.",
             "s",
             // no bucket boundaries: a single bucket with count, sum, min and max
+            descriptor -> OtelMetricStorage.newHistogramStorage(descriptor, emptyList()));
+    collectionDuration =
+        OtelSdkRegistry.storage(
+            OtelInstrumentBuilder.ofDoubles(
+                "otel.sdk.metric_reader.collection.duration", HISTOGRAM),
+            false,
+            "The duration of the collect operation of the metric reader.",
+            "s",
             descriptor -> OtelMetricStorage.newHistogramStorage(descriptor, emptyList()));
   }
 
@@ -169,20 +181,38 @@ final class OtelHealthMetrics extends HealthMetrics {
   }
 
   /**
+   * Records the collection, with {@code error.type} (see {@link ErrorTypes}) when it threw.
+   * Failures inside observable callbacks are caught and logged by the callbacks, so they don't set
+   * {@code error.type}.
+   */
+  @Override
+  public void onMetricCollection(
+      OtelComponentId reader, long durationNanos, @Nullable Throwable error) {
+    AttributesBuilder attributes = componentAttributes(reader);
+    if (error != null) {
+      attributes.put(ERROR_TYPE, ErrorTypes.fromException(error));
+    }
+    collectionDuration.recordDouble(durationNanos / 1e9, attributes.build());
+  }
+
+  /**
    * {@code otel.component.*}, plus {@code server.*} when the destination is known. Built per call
    * rather than cached: exports are infrequent, and the sink keeps no per-exporter state.
    */
   private static Attributes baseAttributes(OtelExporterId exporter) {
-    AttributesBuilder builder =
-        Attributes.builder()
-            .put(COMPONENT_TYPE, exporter.component().type())
-            .put(COMPONENT_NAME, exporter.component().name());
+    AttributesBuilder builder = componentAttributes(exporter.component());
     String serverAddress = exporter.serverAddress();
     if (serverAddress != null) {
       builder.put(SERVER_ADDRESS, serverAddress);
       builder.put(SERVER_PORT, exporter.serverPort());
     }
     return builder.build();
+  }
+
+  private static AttributesBuilder componentAttributes(OtelComponentId component) {
+    return Attributes.builder()
+        .put(COMPONENT_TYPE, component.type())
+        .put(COMPONENT_NAME, component.name());
   }
 
   /**
