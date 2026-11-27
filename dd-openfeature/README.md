@@ -347,6 +347,8 @@ tracing remain active. Previously recorded or queued data is not removed.
 * The provider moved to `com.datadog.openfeature.Provider`, and the exposure hook to `com.datadog.openfeature.ExposureHook`. `datadog.trace.api.openfeature.Provider` and `datadog.trace.api.openfeature.ExposureHook` are kept as deprecated aliases.
 * The SDK no longer requires `dd-java-agent` and no longer links against agent classes.
 * `dd-openfeature` releases before 1.69.0 link to agent classes that `dd-java-agent` 1.69.0 removes: with `dd-java-agent` 1.69.0 or later, they return the caller default values. Upgrade `dd-openfeature` to 1.69.0 or later together with `dd-java-agent`.
+* JSON flag values are now shared and read-only. Changing the returned structure, list, or `asObjectMap()` map throws `UnsupportedOperationException`. Copy the value before you change it, for example with `asMap()` or `new HashMap<>(structure.asObjectMap())`. The copy is shallow: also copy each nested map or list that you change. A hook that changes the value in `after` makes the evaluation return the default value with the `GENERAL` error code.
+* Integers in JSON flag values are now `Integer` or `Long` (for example `5`, not `5.0`), and integers up to `Long.MAX_VALUE` keep their exact value. This also applies to `Value.asObject()` and `Value.equals`. OpenFeature SDK 1.22.0 and older cannot read back a `Long`, so with them an integer outside the `Integer` range stays a `Double`. Integers beyond `Long.MAX_VALUE` are always `Double`. To read a number as a double, use `Value.asDouble()` or `((Number) map.get("n")).doubleValue()`.
 
 ## Design notes for contributors
 

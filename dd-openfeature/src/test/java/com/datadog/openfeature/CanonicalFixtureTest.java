@@ -288,7 +288,10 @@ class CanonicalFixtureTest {
     }
   }
 
-  /** Normalizes the integral numbers read as Long to Double, as the UFC parser does. */
+  /**
+   * Normalizes the integral numbers read as Long to Double, as the UFC parser does outside JSON
+   * variant values.
+   */
   private static Object normalize(final Object value) {
     if (value instanceof Long) {
       return ((Long) value).doubleValue();
@@ -301,6 +304,28 @@ class CanonicalFixtureTest {
     if (value instanceof List) {
       final List<Object> list = new ArrayList<>();
       ((List<?>) value).forEach(v -> list.add(normalize(v)));
+      return list;
+    }
+    return value;
+  }
+
+  /**
+   * Maps the integral numbers read as Long to Integer when they fit, as the UFC parser does for
+   * JSON variant values.
+   */
+  private static Object exactIntegers(final Object value) {
+    if (value instanceof Long) {
+      final long number = (Long) value;
+      return number == (int) number ? (Object) (int) number : value;
+    }
+    if (value instanceof Map) {
+      final Map<String, Object> map = new java.util.LinkedHashMap<>();
+      ((Map<?, ?>) value).forEach((k, v) -> map.put((String) k, exactIntegers(v)));
+      return map;
+    }
+    if (value instanceof List) {
+      final List<Object> list = new ArrayList<>();
+      ((List<?>) value).forEach(v -> list.add(exactIntegers(v)));
       return list;
     }
     return value;
@@ -334,10 +359,14 @@ class CanonicalFixtureTest {
       this.index = index;
       final Object attributes = normalize(json.get("attributes"));
       this.attributes = attributes == null ? emptyMap() : (Map<String, Object>) attributes;
-      this.defaultValue = normalize(json.get("defaultValue"));
       this.flag = (String) json.get("flag");
       this.targetingKey = (String) json.get("targetingKey");
       this.variationType = (String) json.get("variationType");
+      // The default value of a JSON case uses the same number model as its result.
+      this.defaultValue =
+          "JSON".equals(this.variationType)
+              ? exactIntegers(json.get("defaultValue"))
+              : normalize(json.get("defaultValue"));
       final Map<String, Object> result = (Map<String, Object>) json.get("result");
       requireSupportedKeys(
           result,
@@ -356,7 +385,10 @@ class CanonicalFixtureTest {
       if (result.containsKey("doLog")) {
         assertNotNull(this.resultDoLog, "A doLog expectation must be a boolean");
       }
-      this.resultValue = normalize(result.get("value"));
+      this.resultValue =
+          "JSON".equals(this.variationType)
+              ? exactIntegers(result.get("value"))
+              : normalize(result.get("value"));
       this.resultReason = (String) result.get("reason");
       this.resultErrorCode = (String) result.get("errorCode");
       if (result.containsKey("errorCode")) {
