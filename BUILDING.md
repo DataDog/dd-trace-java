@@ -200,6 +200,10 @@ To enable access to Akka artifacts hosted on Lightbend’s private repository, y
 
 ## Building the project
 
+Local builds omit the `restlet-2.2` instrumentation because its public artifact repository is
+unavailable. CI includes it using artifacts cached by the internal Maven proxy. Until version
+metadata is available again, Restlet Muzzle checks only the fixed compile-time dependency.
+
 After everything is properly set up, you can build the project or check [the contribution guidelines](CONTRIBUTING.md).
 
 To build the project without running tests, run:
