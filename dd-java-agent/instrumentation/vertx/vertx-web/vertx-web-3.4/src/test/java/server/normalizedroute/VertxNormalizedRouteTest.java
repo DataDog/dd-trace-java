@@ -4,9 +4,11 @@ import static datadog.trace.api.appsec.route.NormalizedRouteHelper.NORMALIZED_RO
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import datadog.trace.bootstrap.ActiveSubsystems;
+import io.vertx.ext.web.Router;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
@@ -60,6 +62,19 @@ class VertxNormalizedRouteTest extends AbstractVertxNormalizedRouteTest {
    * prefix ({@code /acme/api}), which holds a request value: no normalized route, {@code
    * http.route} unchanged.
    */
+  /**
+   * A parameter mount can never reuse a child param name: Vert.x 3.4 rejects patterns in mounts and
+   * 3.8.2+ rejects the repeated identifier, so the mount-param check always sees a foreign key.
+   */
+  @Test
+  void vertxRejectsAParameterMountReusingAChildParamName() {
+    Router child = Router.router(vertx);
+    child.route("/items/:id").handler(ctx -> ctx.response().end());
+
+    assertThrows(
+        RuntimeException.class, () -> Router.router(vertx).mountSubRouter("/:id/api", child));
+  }
+
   @Test
   void noNormalizedRouteUnderAParameterMount() throws Exception {
     assumeTrue(paramMountSupported(), "this Vert.x version rejects patterns in sub-router mounts");

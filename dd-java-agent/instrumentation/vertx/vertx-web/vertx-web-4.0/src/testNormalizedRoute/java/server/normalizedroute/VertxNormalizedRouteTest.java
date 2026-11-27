@@ -4,8 +4,10 @@ import static datadog.trace.api.appsec.route.NormalizedRouteHelper.NORMALIZED_RO
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.trace.bootstrap.ActiveSubsystems;
+import io.vertx.ext.web.Router;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
@@ -59,6 +61,25 @@ class VertxNormalizedRouteTest extends AbstractVertxNormalizedRouteTest {
   @Test
   void declaredPathIsDroppedByALaterPathRegex() throws Exception {
     assertNoNormalizedRoute("/stale-path/1", "/stale-path/x");
+  }
+
+  /**
+   * A parameter mount can never reuse a child param name: Vert.x rejects the repeated identifier
+   * when mounting and when a route is added later, so the mount-param check always sees a foreign
+   * key.
+   */
+  @Test
+  void vertxRejectsAParameterMountReusingAChildParamName() {
+    Router child = Router.router(vertx);
+    child.route("/items/:id").handler(ctx -> ctx.response().end());
+    assertThrows(
+        RuntimeException.class, () -> Router.router(vertx).route("/:id/api/*").subRouter(child));
+
+    Router laterChild = Router.router(vertx);
+    Router.router(vertx).route("/:id/api/*").subRouter(laterChild);
+    assertThrows(
+        RuntimeException.class,
+        () -> laterChild.route("/items/:id").handler(ctx -> ctx.response().end()));
   }
 
   @Test

@@ -46,7 +46,7 @@ abstract class AbstractVertxNormalizedRouteTest extends AbstractInstrumentationT
   private static final String SERVER_SPAN = "netty.request";
 
   private final OkHttpClient client = OkHttpUtils.client();
-  private Vertx vertx;
+  Vertx vertx;
   private HttpServer server;
   private int port;
   private boolean appSecActiveBefore;
