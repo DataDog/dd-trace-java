@@ -301,10 +301,14 @@ public class TestImpl implements DDTest {
    */
   private void endWithContext(@Nullable Long endTime) {
     if (ended) {
+      log.debug("Ignoring repeated end of test: {}", span);
       return;
     }
     ended = true;
     boolean cleanupCurrentContext = contextActivation.isCurrent();
+    if (!cleanupCurrentContext) {
+      log.debug("Ending test that is not current, skipping end callbacks: {}", span);
+    }
     try {
       if (cleanupCurrentContext) {
         span.swap();

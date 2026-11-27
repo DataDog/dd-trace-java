@@ -239,10 +239,14 @@ public class TestSuiteImpl implements DDTestSuite {
       }
     } else {
       if (ended) {
+        log.debug("Ignoring repeated end of suite: {}", span);
         return;
       }
       ended = true;
       if (contextActivation != null) {
+        if (!contextActivation.isCurrent()) {
+          log.debug("Ending suite that is not current, deferring context restore: {}", span);
+        }
         contextActivation.exit();
       }
     }
