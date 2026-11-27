@@ -112,6 +112,8 @@ public class InstrumentationTags {
   public static final String KAFKA_BOOTSTRAP_SERVERS = "messaging.kafka.bootstrap.servers";
   public static final String KAFKA_CLUSTER_ID = "messaging.kafka.cluster.id";
   public static final String MESSAGING_DESTINATION_NAME = "messaging.destination.name";
+  public static final String CAMEL_ROUTE_ID = "camel.route.id";
+  public static final String CAMEL_ENDPOINT_SCHEME = "camel.endpoint.scheme";
 
   /** A Pub/Sub topic's full path, {@code projects/<project>/topics/<topic>}, when known. */
   public static final String GCP_PUBSUB_TOPIC_NAME = "gcp.pubsub.topic.name";

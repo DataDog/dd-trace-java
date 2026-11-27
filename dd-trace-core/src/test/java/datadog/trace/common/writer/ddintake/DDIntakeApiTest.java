@@ -94,7 +94,7 @@ class DDIntakeApiTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void testRetriesWhenBackendReturns5xx() {
+  void testRetriesWhenBackendReturns5xx() throws IOException {
     TrackType trackType = TrackType.CITESTCYCLE;
     String apiVersion = "v2";
     String path = buildIntakePath(trackType, apiVersion);
@@ -121,13 +121,14 @@ class DDIntakeApiTest extends DDCoreJavaSpecification {
       assertTrue(clientResponse.status().isPresent());
       assertEquals(200, clientResponse.status().getAsInt());
       assertEquals(path, intake.getLastRequest().getPath());
+      assertDeepEquals(emptyMap(), convertMap(intake.getLastRequest().getBody()));
     } finally {
       intake.close();
     }
   }
 
   @Test
-  void testRetriesWhenBackendReturns429TooManyRequests() {
+  void testRetriesWhenBackendReturns429TooManyRequests() throws IOException {
     TrackType trackType = TrackType.CITESTCYCLE;
     String apiVersion = "v2";
     String path = buildIntakePath(trackType, apiVersion);
@@ -154,6 +155,7 @@ class DDIntakeApiTest extends DDCoreJavaSpecification {
       assertTrue(clientResponse.status().isPresent());
       assertEquals(200, clientResponse.status().getAsInt());
       assertEquals(path, intake.getLastRequest().getPath());
+      assertDeepEquals(emptyMap(), convertMap(intake.getLastRequest().getBody()));
     }
   }
 
