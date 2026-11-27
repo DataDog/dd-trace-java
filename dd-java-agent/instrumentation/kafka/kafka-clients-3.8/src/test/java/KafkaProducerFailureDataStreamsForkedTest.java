@@ -51,8 +51,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.kafka.test.EmbeddedKafkaBroker;
-import org.springframework.kafka.test.EmbeddedKafkaKraftBroker;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
 
 @WithConfig(key = "data.streams.enabled", value = "true")
@@ -63,7 +61,7 @@ class KafkaProducerFailureDataStreamsForkedTest extends AbstractInstrumentationT
 
   private static final List<Payload> dataStreamsPayloads = new CopyOnWriteArrayList<>();
 
-  private EmbeddedKafkaBroker embeddedKafka;
+  private KafkaTestBroker embeddedKafka;
 
   // AbstractInstrumentationTest has no data streams support, so swap in a tracer whose data
   // streams monitoring records the payloads it flushes.
@@ -92,7 +90,7 @@ class KafkaProducerFailureDataStreamsForkedTest extends AbstractInstrumentationT
   @BeforeEach
   void startBroker() {
     dataStreamsPayloads.clear();
-    embeddedKafka = new EmbeddedKafkaKraftBroker(1, 1, OK_TOPIC);
+    embeddedKafka = new KafkaTestBroker(1, 1, OK_TOPIC);
     embeddedKafka.afterPropertiesSet();
     embeddedKafka.addTopics(
         new NewTopic(REJECTING_TOPIC, 1, (short) 1)

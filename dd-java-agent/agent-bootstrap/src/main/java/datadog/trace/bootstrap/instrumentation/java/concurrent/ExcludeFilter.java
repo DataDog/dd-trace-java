@@ -92,6 +92,10 @@ public class ExcludeFilter {
     for (ExcludeType type : SKIP_TYPE_VALUES) {
       SKIP_TYPE_PREFIXES.put(type, new ArrayList<>());
     }
+    // This process-wide entropy daemon must not inherit application context.
+    excludedClassNames
+        .get(ExcludeType.RUNNABLE)
+        .add("org.bouncycastle.jcajce.provider.drbg.EntropyDaemon");
     // TODO generic prefix registration
     SKIP_TYPE_PREFIXES.get(ExcludeType.RUNNABLE).add("slick.");
     // Don't instrument the executor's own runnables. These runnables may never return until

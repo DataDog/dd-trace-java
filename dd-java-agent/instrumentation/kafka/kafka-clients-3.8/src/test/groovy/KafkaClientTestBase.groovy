@@ -33,8 +33,6 @@ import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.kafka.listener.ContainerProperties
 import org.springframework.kafka.listener.KafkaMessageListenerContainer
 import org.springframework.kafka.listener.MessageListener
-import org.springframework.kafka.test.EmbeddedKafkaBroker
-import org.springframework.kafka.test.EmbeddedKafkaKraftBroker
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
 
@@ -51,10 +49,10 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   static final SHARED_TOPIC = "shared.topic"
 
-  EmbeddedKafkaBroker embeddedKafka
+  KafkaTestBroker embeddedKafka
 
   def setup() {
-    embeddedKafka = new EmbeddedKafkaKraftBroker(1, 2, SHARED_TOPIC)
+    embeddedKafka = new KafkaTestBroker(1, 2, SHARED_TOPIC)
     embeddedKafka.afterPropertiesSet()
 
     TEST_WRITER.setFilter(dropKafkaPoll)
@@ -166,7 +164,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     }
 
     // set up the Kafka consumer properties
-    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    def consumerProperties = KafkaTestUtils.consumerProps(embeddedKafka.getBrokersAsString(), "sender", "false")
 
     // create a Kafka consumer factory
     def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
@@ -1204,10 +1202,10 @@ class KafkaClientContextSwapForkedTest extends KafkaClientV0ForkedTest {
 }
 
 class KafkaClientBadBase64HeaderForkedTest extends InstrumentationSpecification {
-  EmbeddedKafkaBroker embeddedKafka
+  KafkaTestBroker embeddedKafka
 
   def setup() {
-    embeddedKafka = new EmbeddedKafkaKraftBroker(1, 2, KafkaClientTestBase.SHARED_TOPIC)
+    embeddedKafka = new KafkaTestBroker(1, 2, KafkaClientTestBase.SHARED_TOPIC)
     embeddedKafka.afterPropertiesSet()
   }
 

@@ -66,6 +66,15 @@ class ExcludeFilterTest {
     assertFalse(exclude(EXECUTOR, taskRunnerWorker));
   }
 
+  @Test
+  void excludeBouncyCastleEntropyDaemonFromRunnablePropagation() {
+    String entropyDaemon = "org.bouncycastle.jcajce.provider.drbg.EntropyDaemon";
+
+    assertTrue(exclude(RUNNABLE, entropyDaemon));
+    assertFalse(exclude(EXECUTOR, entropyDaemon));
+    assertFalse(exclude(RUNNABLE, entropyDaemon + "Task"));
+  }
+
   static class One {}
 
   static class Another {}

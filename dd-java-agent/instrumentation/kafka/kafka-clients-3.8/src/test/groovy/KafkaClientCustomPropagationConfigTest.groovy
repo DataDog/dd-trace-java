@@ -11,8 +11,6 @@ import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.kafka.listener.ContainerProperties
 import org.springframework.kafka.listener.KafkaMessageListenerContainer
 import org.springframework.kafka.listener.MessageListener
-import org.springframework.kafka.test.EmbeddedKafkaBroker
-import org.springframework.kafka.test.EmbeddedKafkaKraftBroker
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
 import spock.lang.Shared
@@ -30,10 +28,10 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
   static final MESSAGE = "Testing without headers for certain topics"
 
   @Shared
-  EmbeddedKafkaBroker embeddedKafka
+  KafkaTestBroker embeddedKafka
 
   def setupSpec() {
-    embeddedKafka = new EmbeddedKafkaKraftBroker(1, 2, *SHARED_TOPIC)
+    embeddedKafka = new KafkaTestBroker(1, 2, *SHARED_TOPIC)
     embeddedKafka.afterPropertiesSet()
   }
 
