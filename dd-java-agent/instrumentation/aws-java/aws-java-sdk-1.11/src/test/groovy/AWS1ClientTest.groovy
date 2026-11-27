@@ -1,5 +1,6 @@
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
+import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 import com.amazonaws.AmazonClientException
@@ -620,3 +621,10 @@ class AWS1ClientV1ForkedTest extends AWS1ClientTest {
   }
 }
 
+class ContextSwapAWS1ClientForkedTest extends AWS1ClientV0Test {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(LEGACY_CONTEXT_MANAGER_ENABLED, "false")
+  }
+}

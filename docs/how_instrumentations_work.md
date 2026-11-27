@@ -919,6 +919,8 @@ has finished.
 
 See the [Context API](../components/context/src/main/java/datadog/context/Context.java) for details.
 
+Swapping contexts does not finish spans.
+
 ### Continuation effects
 
 An unresolved continuation keeps `PendingTrace`'s reference count positive and prevents its normal

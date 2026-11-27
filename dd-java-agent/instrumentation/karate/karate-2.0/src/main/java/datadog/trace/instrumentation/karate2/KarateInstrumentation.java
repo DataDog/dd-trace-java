@@ -36,7 +36,8 @@ public class KarateInstrumentation extends InstrumenterModule.CiVisibility
       packageName + ".TestEventsHandlerHolder",
       packageName + ".ExecutionContext",
       packageName + ".FeatureSuite",
-      packageName + ".KarateTracingListener"
+      packageName + ".KarateTracingListener",
+      packageName + ".KarateTracingListener$StepContext"
     };
   }
 
@@ -45,6 +46,8 @@ public class KarateInstrumentation extends InstrumenterModule.CiVisibility
     Map<String, String> contextStores = new HashMap<>();
     contextStores.put("io.karatelabs.gherkin.Scenario", packageName + ".ExecutionContext");
     contextStores.put("io.karatelabs.core.FeatureRuntime", packageName + ".FeatureSuite");
+    contextStores.put(
+        "io.karatelabs.core.ScenarioRuntime", packageName + ".KarateTracingListener$StepContext");
     return contextStores;
   }
 

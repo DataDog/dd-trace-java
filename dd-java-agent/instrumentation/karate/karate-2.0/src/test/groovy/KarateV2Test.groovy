@@ -16,6 +16,7 @@ import org.junit.platform.launcher.core.LauncherFactory
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
+import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
 @DisableTestTrace(reason = "avoid self-tracing")
@@ -273,5 +274,14 @@ class KarateV2Test extends CiVisibilityInstrumentationTest {
     void executionFinished(org.junit.platform.launcher.TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
       testsByStatus.computeIfAbsent(testExecutionResult.status, k -> new CopyOnWriteArrayList<>()).add(testIdentifier)
     }
+  }
+}
+
+@DisableTestTrace(reason = "avoid self-tracing")
+class ContextSwapKarateV2ForkedTest extends KarateV2Test {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(LEGACY_CONTEXT_MANAGER_ENABLED, "false")
   }
 }

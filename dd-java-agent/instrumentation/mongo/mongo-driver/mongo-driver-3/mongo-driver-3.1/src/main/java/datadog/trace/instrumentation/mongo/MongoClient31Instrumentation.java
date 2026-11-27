@@ -57,6 +57,7 @@ public final class MongoClient31Instrumentation extends InstrumenterModule.Traci
       packageName + ".MongoDecorator",
       packageName + ".MongoDecorator31",
       packageName + ".Context",
+      packageName + ".MongoPendingSpan",
       packageName + ".MongoCommandListener",
       packageName + ".MongoCommandListener$SpanEntry"
     };

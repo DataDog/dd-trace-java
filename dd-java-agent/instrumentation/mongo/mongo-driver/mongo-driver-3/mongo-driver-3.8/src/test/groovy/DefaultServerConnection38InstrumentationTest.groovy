@@ -1,6 +1,7 @@
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_FULL
+import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 import com.mongodb.ConnectionString
@@ -412,5 +413,13 @@ class DefaultServerConnection38InstrumentationDisabledV1ForkedTest extends Defau
   @Override
   String dbType() {
     return V1_DB_TYPE
+  }
+}
+
+class ContextSwapDefaultServerConnection38InstrumentationEnabledForkedTest extends DefaultServerConnection38InstrumentationEnabledV0ForkedTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(LEGACY_CONTEXT_MANAGER_ENABLED, "false")
   }
 }

@@ -19,6 +19,7 @@ import spock.lang.IgnoreIf
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
+import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
 @IgnoreIf(reason = "Karate does not support Java 24+ yet: https://github.com/karatelabs/karate/blob/master/.github/workflows/jdk-compat.yml#L18", value = {
@@ -294,5 +295,17 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     void executionFinished(org.junit.platform.launcher.TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
       testsByStatus.computeIfAbsent(testExecutionResult.status, k -> new CopyOnWriteArrayList<>()).add(testIdentifier)
     }
+  }
+}
+
+@IgnoreIf(reason = "Karate does not support Java 24+ yet", value = {
+  JavaVirtualMachine.isJavaVersionAtLeast(24)
+})
+@DisableTestTrace(reason = "avoid self-tracing")
+class ContextSwapKarateForkedTest extends KarateTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(LEGACY_CONTEXT_MANAGER_ENABLED, "false")
   }
 }

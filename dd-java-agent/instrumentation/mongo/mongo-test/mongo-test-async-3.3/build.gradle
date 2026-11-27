@@ -4,6 +4,8 @@ plugins {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteForDir('dbm36Test', 'dbmTest')
+addTestSuiteForDir('dbm38Test', 'dbmTest')
 
 dependencies {
   testContainerImage(image('mongo:4.4.29', 'test.mongo.image'))
@@ -20,4 +22,19 @@ dependencies {
 
   testImplementation group: 'org.mongodb', name: 'mongodb-driver-async', version: '3.3.0'
   latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-async', version: '+'
+
+  // DBM command advice starts at 3.6; exercise both connection implementation packages.
+  dbm36TestImplementation 'org.mongodb:mongodb-driver-async:3.6.0'
+  dbm38TestImplementation 'org.mongodb:mongodb-driver-async:3.8.0'
+  [configurations.dbm36TestImplementation, configurations.dbm38TestImplementation].each {
+    add(it.name, project(':dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-3:mongo-driver-3.4')) {
+      transitive = false
+    }
+    add(it.name, project(':dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-3:mongo-driver-3.6')) {
+      transitive = false
+    }
+  }
+  dbm38TestImplementation(project(':dd-java-agent:instrumentation:mongo:mongo-driver:mongo-driver-3:mongo-driver-3.8')) {
+    transitive = false
+  }
 }

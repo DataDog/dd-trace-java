@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.karate2;
 
+import datadog.context.ContextHandle;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
@@ -37,12 +39,25 @@ public class KarateTracingListener implements RunListener {
 
   private final ContextStore<Scenario, ExecutionContext> scenarioContext;
   private final ContextStore<FeatureRuntime, FeatureSuite> featureSuites;
+  private final ContextStore<ScenarioRuntime, StepContext> stepContexts;
+
+  public static final class StepContext {
+    final AgentSpan span;
+    final ContextHandle previousContext;
+
+    StepContext(AgentSpan span) {
+      this.span = span;
+      this.previousContext = span.swap();
+    }
+  }
 
   public KarateTracingListener(
       ContextStore<Scenario, ExecutionContext> scenarioContext,
-      ContextStore<FeatureRuntime, FeatureSuite> featureSuites) {
+      ContextStore<FeatureRuntime, FeatureSuite> featureSuites,
+      ContextStore<ScenarioRuntime, StepContext> stepContexts) {
     this.scenarioContext = scenarioContext;
     this.featureSuites = featureSuites;
+    this.stepContexts = stepContexts;
   }
 
   @Override
@@ -66,6 +81,9 @@ public class KarateTracingListener implements RunListener {
 
   private void afterScenario(ScenarioRunEvent event) {
     ScenarioRuntime sr = event.source();
+    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      finishStep(sr);
+    }
     Scenario scenario = sr.getScenario();
     // A context means call advice will finish the test after scenario post-processing.
     if (scenarioContext.get(scenario) == null) {
@@ -268,12 +286,20 @@ public class KarateTracingListener implements RunListener {
   }
 
   private void beforeStep(StepRunEvent event) {
+    if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      // A veto from another listener skips STEP_EXIT, leaving the previous step attached.
+      finishStep(event.scenarioRuntime());
+    }
     Step step = event.step();
     if (skipTracking(step)) {
       return;
     }
     AgentSpan span = AgentTracer.startSpan("karate", KARATE_STEP_SPAN_NAME);
-    AgentTracer.activateSpanWithoutScope(span);
+    if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      AgentTracer.get().activateSpanWithoutScope(span);
+    } else {
+      stepContexts.put(event.scenarioRuntime(), new StepContext(span));
+    }
     String stepName = step.getPrefix() + " " + step.getText();
     span.setResourceName(stepName);
     span.setTag(Tags.COMPONENT, "karate");
@@ -285,17 +311,27 @@ public class KarateTracingListener implements RunListener {
   }
 
   private void afterStep(StepRunEvent event) {
-    if (skipTracking(event.step())) {
-      return;
+    if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      if (skipTracking(event.step())) {
+        return;
+      }
+      AgentSpan span = AgentTracer.activeSpan();
+      if (span == null) {
+        return;
+      }
+      AgentTracer.get().closeActive();
+      span.finish();
+    } else {
+      finishStep(event.scenarioRuntime());
     }
+  }
 
-    AgentSpan span = AgentTracer.activeSpan();
-    if (span == null) {
-      return;
+  private void finishStep(ScenarioRuntime sr) {
+    StepContext stepContext = stepContexts.remove(sr);
+    if (stepContext != null) {
+      stepContext.previousContext.swap();
+      stepContext.span.finish();
     }
-
-    AgentTracer.closeActive();
-    span.finish();
   }
 
   private static Throwable getFailedReason(ScenarioResult result, Throwable suppressedError) {

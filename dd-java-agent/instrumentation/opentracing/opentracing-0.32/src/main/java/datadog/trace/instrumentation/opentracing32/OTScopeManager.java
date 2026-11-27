@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.opentracing32;
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
@@ -14,6 +15,9 @@ import org.slf4j.LoggerFactory;
 
 public class OTScopeManager implements ScopeManager {
   static final Logger log = LoggerFactory.getLogger(OTScopeManager.class);
+
+  /** Best-effort suppression; concurrent callers may each log a warning. */
+  private static volatile boolean unsupportedCloseLogged;
 
   private final TypeConverter converter;
   private final AgentTracer.TracerAPI tracer;
@@ -40,6 +44,10 @@ public class OTScopeManager implements ScopeManager {
     return converter.toScope(agentScope, finishSpanOnClose);
   }
 
+  /**
+   * Returns a view of the active span. With the non-legacy context manager, closing this view does
+   * nothing; close the scope returned by {@code activate} to restore the previous context.
+   */
   @Deprecated
   @Override
   public Scope active() {
@@ -104,7 +112,13 @@ public class OTScopeManager implements ScopeManager {
     @Override
     public void close() {
       if (agentSpan == tracer.activeSpan()) {
-        tracer.closeActive();
+        if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+          tracer.closeActive();
+        } else if (!unsupportedCloseLogged) {
+          unsupportedCloseLogged = true;
+          log.warn(
+              "ScopeManager.active().close() has no effect; close the Scope returned by activate() instead");
+        }
       } else if (Config.get().isScopeStrictMode()) {
         throw new RuntimeException("Tried to close " + agentSpan + " scope when not on top");
       } else {
