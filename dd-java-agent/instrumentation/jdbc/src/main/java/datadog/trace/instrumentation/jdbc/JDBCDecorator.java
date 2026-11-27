@@ -438,8 +438,12 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     DECORATE.afterStart(instrumentationSpan);
     DECORATE.onConnection(instrumentationSpan, connectionContext);
     try (ContextScope scope = activateSpan(instrumentationSpan)) {
-      final byte samplingDecision =
-          (byte) (instrumentationSpan.forceSamplingDecision() > 0 ? 1 : 0);
+      final Integer priority = instrumentationSpan.forceSamplingDecision();
+      if (priority == null) {
+        // no trace to correlate with, e.g. tracing is muted for this call
+        return spanID;
+      }
+      final byte samplingDecision = (byte) (priority > 0 ? 1 : 0);
       final byte versionAndSamplingDecision =
           (byte) ((VERSION << 4) & 0b11110000 | samplingDecision & 0b00000001);
 
