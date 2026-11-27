@@ -26,26 +26,28 @@ abstract class CallSiteInstrumentationExtension @Inject constructor(
   }
 
   /**
-   * The location of the source code to generate call site ({@code <project>/src/main/java} by default).
+   * The location of the source code to generate call site (`<project>/src/main/java` by default).
    */
   val srcFolder: DirectoryProperty = objectFactory.directoryProperty().convention(
     layout.projectDirectory.dir("src").dir("main").dir("java")
   )
 
   /**
-   * The location to generate call site source code ({@code <project>/build/generated/sources/csi} by default).
+   * The location where call site source code are generated (`<project>/build/generated/sources/csi` by default).
+   *
+   * This directory is cleared before generation.
    */
   val targetFolder: DirectoryProperty = objectFactory.directoryProperty().convention(
     layout.buildDirectory.dir("generated/sources/$CSI_SOURCE_SET")
   )
 
   /**
-   * The generated call site source file suffix (#CALL_SITE_CLASS_SUFFIX by default).
+   * The generated call site source file suffix ([CALL_SITE_CLASS_SUFFIX] by default).
    */
   val suffix: Property<String> = objectFactory.property<String>().convention(CALL_SITE_CLASS_SUFFIX)
 
   /**
-   * The reporters to use after call site instrumenter run (only #CALL_SITE_CONSOLE_REPORTER and #CALL_SITE_ERROR_CONSOLE_REPORTER supported for now).
+   * The reporters to use after call site instrumenter run (only [CALL_SITE_CONSOLE_REPORTER] and [CALL_SITE_ERROR_CONSOLE_REPORTER] supported for now).
    */
   val reporters: ListProperty<String> = objectFactory.listProperty<String>().convention(
     listOf(
