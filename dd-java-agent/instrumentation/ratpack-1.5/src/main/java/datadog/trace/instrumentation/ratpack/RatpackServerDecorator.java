@@ -2,18 +2,27 @@ package datadog.trace.instrumentation.ratpack;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
+import datadog.trace.api.appsec.route.NormalizedRouteHelper;
+import datadog.trace.api.appsec.route.RatpackPresenceResolver;
+import datadog.trace.api.appsec.route.RatpackRouteParser;
+import datadog.trace.api.appsec.route.RouteTemplate;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import javax.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ratpack.handling.Context;
 import ratpack.http.Request;
 import ratpack.http.Response;
 import ratpack.http.Status;
+import ratpack.path.PathBinding;
+import ratpack.path.internal.RootPathBinding;
 
 public class RatpackServerDecorator extends HttpServerDecorator<Request, Request, Response, Void> {
+  private static final Logger log = LoggerFactory.getLogger(RatpackServerDecorator.class);
   public static final CharSequence RATPACK_HANDLER = UTF8BytesString.create("ratpack.handler");
   public static final CharSequence RATPACK = UTF8BytesString.create("ratpack");
   public static final RatpackServerDecorator DECORATE = new RatpackServerDecorator();
@@ -79,8 +88,9 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
   }
 
   public void onContext(final AgentSpan span, final Context ctx) {
-
-    String description = ctx.getPathBinding().getDescription();
+    final PathBinding binding = ctx.getPathBinding();
+    final String rawDescription = binding.getDescription();
+    String description = rawDescription;
     if (description == null || description.isEmpty()) {
       description = "/";
     } else if (!description.startsWith("/")) {
@@ -88,6 +98,37 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
     }
 
     HTTP_RESOURCE_DECORATOR.withRoute(span, ctx.getRequest().getMethod().getName(), description);
+
+    if (NormalizedRouteHelper.isEnabled()) {
+      tagNormalizedRoute(span, binding, rawDescription);
+    }
+  }
+
+  /**
+   * No mount prefix: the description already holds the whole {@code prefix(...)} chain and Ratpack
+   * has no context path. A {@link RootPathBinding} means no route was declared, so no tag.
+   */
+  private static void tagNormalizedRoute(
+      final AgentSpan span, final PathBinding binding, final String rawDescription) {
+    try {
+      if (binding instanceof RootPathBinding) {
+        return;
+      }
+      final String boundTo = binding.getBoundTo();
+      final String remainder = binding.getPastBinding();
+      final boolean hasRemainder = remainder != null && !remainder.isEmpty();
+      final RouteTemplate template =
+          RatpackRouteParser.cached(
+              rawDescription, boundTo == null || boundTo.isEmpty(), hasRemainder);
+      NormalizedRouteHelper.tag(
+          span,
+          template,
+          null,
+          RatpackPresenceResolver.of(
+              template, binding.getAllTokens(), hasRemainder ? remainder : null));
+    } catch (final Throwable t) {
+      log.debug("Failed to compute the normalized route", t);
+    }
   }
 
   @Override

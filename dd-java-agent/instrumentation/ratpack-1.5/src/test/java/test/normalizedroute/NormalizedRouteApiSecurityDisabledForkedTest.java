@@ -1,0 +1,26 @@
+package test.normalizedroute;
+
+import static datadog.trace.api.appsec.route.NormalizedRouteHelper.NORMALIZED_ROUTE_TAG;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
+import datadog.trace.api.config.AppSecConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+
+/** With API Security disabled the normalized route is not set; {@code http.route} still is. */
+@WithConfig(key = AppSecConfig.API_SECURITY_ENABLED, value = "false")
+class NormalizedRouteApiSecurityDisabledForkedTest extends AbstractNormalizedRouteTest {
+
+  @Test
+  void noNormalizedRouteWhenApiSecurityIsDisabled() throws Exception {
+    Map<String, Map<String, Object>> tags = spanTags("/regex/12");
+
+    for (String span : new String[] {NETTY_SPAN, RATPACK_SPAN}) {
+      assertEquals("/regex/:id:\\d+", String.valueOf(tags.get(span).get(HTTP_ROUTE)), span);
+      assertNull(tags.get(span).get(NORMALIZED_ROUTE_TAG), span);
+    }
+  }
+}

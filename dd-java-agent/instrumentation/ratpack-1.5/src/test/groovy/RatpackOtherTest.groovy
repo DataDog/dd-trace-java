@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.appsec.route.NormalizedRouteHelper
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
@@ -78,6 +79,7 @@ class RatpackOtherTest extends InstrumentationSpecification {
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_ROUTE" "/$route"
+            "$NormalizedRouteHelper.NORMALIZED_ROUTE_TAG" normalizedRoute
             "$Tags.HTTP_USER_AGENT" String
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
@@ -100,6 +102,7 @@ class RatpackOtherTest extends InstrumentationSpecification {
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_ROUTE" "/$route"
+            "$NormalizedRouteHelper.NORMALIZED_ROUTE_TAG" normalizedRoute
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
             defaultTags()
@@ -109,17 +112,17 @@ class RatpackOtherTest extends InstrumentationSpecification {
     }
 
     where:
-    path    | route
-    "a"     | "a"
-    "b/123" | "b/::\\d+"
-    "c"     | "c/:val?"
-    "c/123" | "c/:val?"
-    "c/foo" | "c/:val?"
-    "d/123" | "d/:val"
-    "d/foo" | "d/:val"
-    "e"     | "e/:val?:\\d+"
-    "e/123" | "e/:val?:\\d+"
-    "e/foo" | "e/:val?:\\d+"
-    "f/123" | "f/:val:\\d+"
+    path    | route           | normalizedRoute
+    "a"     | "a"             | "/a"
+    "b/123" | "b/::\\d+"      | "/b/{param1}"
+    "c"     | "c/:val?"       | "/c"
+    "c/123" | "c/:val?"       | "/c/{val}"
+    "c/foo" | "c/:val?"       | "/c/{val}"
+    "d/123" | "d/:val"        | "/d/{val}"
+    "d/foo" | "d/:val"        | "/d/{val}"
+    "e"     | "e/:val?:\\d+"  | "/e"
+    "e/123" | "e/:val?:\\d+"  | "/e/{val}"
+    "e/foo" | "e/:val?:\\d+"  | "/e/{param1}" // optional absent, "foo" is the unbound remainder
+    "f/123" | "f/:val:\\d+"   | "/f/{val}"
   }
 }
