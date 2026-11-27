@@ -1,6 +1,6 @@
 # Memory and retention
 
-Checks #3, J5, J6, J13. Unbounded memory is SEV-1 — flag aggressively.
+Checks #3, J5, J6, J13, J15. Unbounded memory is SEV-1 — flag aggressively.
 
 A collection that grows without a bound can kill the customer's container. The tracer shares the
 application heap — there is no isolation. A false positive here is cheap insurance against a
@@ -38,6 +38,16 @@ container kill. Flag aggressively.
   SEV-3**. Fix: `ChunkedBuffer` / `ChunkedStreamingBuffer` (APMLP-2114); off-heap isn't a fix, it
   only moves the bytes to native memory. Trap: a power-of-two 512 KiB size is humongous because of
   its 16-byte header, and `GrowableBuffer` rounds up to a power of two.
+- **J15 — JVM-wide interning of parsed input** *(refines #3)*. `String.intern()`, or Jackson's
+  `JsonFactory.Feature.INTERN_FIELD_NAMES` (on by default), applied to text read from input: a
+  configuration, a payload, a header, a parsed document. The JVM's string table outlives the parse,
+  so it holds that text for the life of the process: it grows with the input's cardinality, and it
+  can retain customer data (targeting ids, user names) that should die with the parse. Literals and
+  a small closed set of names are fine; the JVM interns literals anyway.
+  **flag-with-confidence** when the interned text comes from input — SEV-2 for request or payload
+  data (unbounded cardinality), SEV-3 for configuration. Fix: share strings per parse — a per-parse
+  canonicalizing table dropped when the parse returns — and turn `INTERN_FIELD_NAMES` off on the
+  `JsonFactory`.
 
 ## Patterns
 
