@@ -99,6 +99,8 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
         'META-INF/NOTICE*',
         'META-INF/AL2.0',
         'META-INF/LGPL2.1',
+        // vendored run.endive jars ship it at the jar root
+        'THIRD-PARTY.txt',
         )
     }
 
@@ -485,6 +487,17 @@ dependencies {
   sharedShadowInclude project(':remote-config:remote-config-core'), {
     transitive = false
   }
+  sharedShadowInclude project(':remote-config:remote-config-wasm'), {
+    transitive = false
+    // remote-config-core and the rest come from the bootstrap classloader
+  }
+  // vendored wasm remote-config engine runtime; must stay in sync with the
+  // published AOT artifact's POM (io.github.bantonsson:remote-config-wasm-aot)
+  // and the publishedAot pin in remote-config-wasm/build.gradle.kts
+  sharedShadowInclude 'io.github.bantonsson:remote-config-wasm-aot:0.1.0+b4106c4'
+  sharedShadowInclude 'org.json:json:20250517'
+  sharedShadowInclude 'run.endive:runtime:1.2.0'
+  sharedShadowInclude 'run.endive:wasi:1.2.0'
 
   sharedShadowInclude project(':utils:container-utils'), {
     transitive = false

@@ -3778,6 +3778,14 @@
         "aliases": []
       }
     ],
+    "DD_REMOTE_CONFIG_WASM_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_RESILIENCE4J_MEASURED_ENABLED": [
       {
         "version": "A",

@@ -129,6 +129,11 @@ tasks.jar {
 tasks.named<ShadowJar>("shadowJar") {
   archiveClassifier = ""
 
+  // vendored run.endive jars (wasm remote-config engine) both ship it at the jar root;
+  // excluded rather than merged to keep the FAIL duplicate strategy semantics unchanged
+  // (dd-java-agent's jar carries the merged copy)
+  exclude("THIRD-PARTY.txt")
+
   dependencies {
     // direct dependencies
     exclude(project(":dd-trace-api"))

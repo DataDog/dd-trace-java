@@ -46,4 +46,24 @@ repositories {
       includeGroup "org.gradle"
     }
   }
+  // Prebuilt WASM remote-config AOT artifact (machine classes + host library),
+  // built and published from the libdatadog repository; content-filtered to this one group.
+  // CI has no general maven egress (only the proxy above), so the artifact resolves
+  // from the maven-dist git submodule, delivered by the same git fetch that checks
+  // out the repository; the GitHub Pages URL is the fallback for clones without
+  // submodules. Gradle tries them in order.
+  if (file("$rootDir/remote-config/remote-config-wasm/maven-dist/io").exists()) {
+    maven {
+      url = "$rootDir/remote-config/remote-config-wasm/maven-dist"
+      content {
+        includeGroup "io.github.bantonsson"
+      }
+    }
+  }
+  maven {
+    url = 'https://bantonsson.github.io/dd-remote-config-wasm-aot/'
+    content {
+      includeGroup "io.github.bantonsson"
+    }
+  }
 }
