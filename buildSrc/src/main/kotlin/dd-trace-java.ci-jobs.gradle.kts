@@ -1,5 +1,6 @@
 import datadog.gradle.plugin.ci.CHANGED_FILES_BY_PROJECT
 import datadog.gradle.plugin.ci.isInSelectedSlot
+import datadog.gradle.plugin.ci.registerTestSharding
 import org.gradle.api.tasks.testing.Test
 import java.io.File
 import java.nio.file.FileSystems
@@ -16,11 +17,23 @@ if (project != rootProject) {
   logger.error("This plugin has been applied on a non-root project: ${project.path}")
 }
 
-allprojects {
-  // Enable tests only on the selected slot (if -Pslot=n/t is provided)
-  tasks.withType<Test>().configureEach {
-    onlyIf("Project is in selected slot") {
-      project.isInSelectedSlot.get()
+registerTestSharding().let { sharding ->
+  allprojects {
+    // A deferred callback, so it sees JaCoCo whichever order the plugins are applied in.
+    pluginManager.withPlugin("jacoco") { sharding.jacocoProjects.add(path) }
+  }
+  sharding.slot?.let { slot ->
+    // Tests of projects outside the slot run only when a scheduled root aggregate placed their suite here.
+    val selectedTests = sharding.selectedTests
+    allprojects {
+      if (slot.slotFor(path) != slot.selected) {
+        tasks.withType<Test>().configureEach {
+          val testPath = path
+          onlyIf("Project or test suite is in selected slot") {
+            testPath in selectedTests.get()
+          }
+        }
+      }
     }
   }
 }
