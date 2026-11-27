@@ -1,3 +1,7 @@
+# Pull request checks living in their own file
+include:
+  - local: ".gitlab/check-lockfile-updates.yml"
+
 ci-visibility-tests-check:
   stage: ci-visibility-tests
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
