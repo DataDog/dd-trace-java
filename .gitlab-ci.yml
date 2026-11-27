@@ -866,7 +866,7 @@ muzzle-dep-report:
       junit: results/*.xml
   retry:
     max: 2
-    when:
+    when: &test_job_retry_when
       - unknown_failure
       - stuck_or_timeout_failure
       - runner_system_failure
@@ -877,6 +877,17 @@ muzzle-dep-report:
 .test_job_amd64:
   extends: .test_job_common
   tags: [ "docker-in-docker:amd64" ] # use docker-in-docker runner for testcontainers
+  # A microVM pod scheduled on a node whose kata stack is not ready yet never starts,
+  # and the runner reports it as a job timeout. This also retries tests that hang.
+  retry:
+    when: &microvm_test_job_retry_when
+      - unknown_failure
+      - stuck_or_timeout_failure
+      - runner_system_failure
+      - job_execution_timeout
+      - unmet_prerequisites
+      - scheduler_failure
+      - data_integrity_failure
   needs: [ build_tests ]
   stage: tests
   rules:
@@ -899,6 +910,8 @@ muzzle-dep-report:
 .test_job_arm64:
   extends: .test_job_common
   tags: [ "docker-in-docker:arm64" ]
+  retry:
+    when: *microvm_test_job_retry_when
   stage: tests-arm64
   # Use the amd64 build only as a compilation gate. Do not download its platform-specific artifacts.
   needs:
@@ -1001,6 +1014,8 @@ muzzle-dep-report:
 agent_integration_tests:
   extends: .test_job_amd64
   tags: [ "arch:amd64" ]
+  retry:
+    when: *test_job_retry_when # not a microVM runner, so do not retry job timeouts
   variables:
     testJvm: "8"
     CI_AGENT_HOST: local-agent
@@ -1251,6 +1266,8 @@ test_smoke_graalvm:
   extends: .test_job_amd64
   needs: *needs_build_tests_smoke
   tags: [ "arch:amd64" ]
+  retry:
+    when: *test_job_retry_when # not a microVM runner, so do not retry job timeouts
   variables:
     <<: *tier_xl_variables
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test :dd-smoke-tests:native-image-jmx:test"
@@ -1264,6 +1281,8 @@ test_smoke_graalvm:
 test_smoke_graalvm_arm64:
   extends: .test_job_arm64
   tags: [ "arch:arm64" ]
+  retry:
+    when: *test_job_retry_when # not a microVM runner, so do not retry job timeouts
   variables:
     <<: *tier_xl_variables
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test :dd-smoke-tests:native-image-jmx:test"
@@ -1280,6 +1299,8 @@ test_smoke_semeru8_debugger:
   extends: .test_job_amd64
   needs: *needs_build_tests_smoke
   tags: [ "arch:amd64" ]
+  retry:
+    when: *test_job_retry_when # not a microVM runner, so do not retry job timeouts
   variables:
     GRADLE_TARGET: "stageMainDist dd-smoke-tests:debugger-integration-tests:test"
     CACHE_TYPE: "smoke"
