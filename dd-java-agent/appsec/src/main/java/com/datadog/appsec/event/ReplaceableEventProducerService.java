@@ -5,6 +5,7 @@ import com.datadog.appsec.event.data.DataBundle;
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import com.datadog.appsec.gateway.GatewayContext;
 import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.internal.VisibleForTesting;
 import java.util.Collection;
 
 public class ReplaceableEventProducerService implements EventProducerService {
@@ -12,6 +13,11 @@ public class ReplaceableEventProducerService implements EventProducerService {
 
   public void replaceEventProducerService(EventProducerService ed) {
     this.cur = ed;
+  }
+
+  @VisibleForTesting
+  public EventProducerService getCurrent() {
+    return cur;
   }
 
   @Override
