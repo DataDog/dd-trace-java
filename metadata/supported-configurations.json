@@ -11820,6 +11820,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_WEAVER_ENABLED", "DD_INTEGRATION_WEAVER_ENABLED"]
       }
     ],
+    "DD_TRACE_WEBLOGIC_T3_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_INTEGRATION_WEBLOGIC_T3_ENABLED", "DD_INTEGRATION_WEBLOGIC_T3_ENABLED"]
+      }
+    ],
     "DD_TRACE_WEBSOCKET_ANALYTICS_ENABLED": [
       {
         "version": "A",

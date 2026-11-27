@@ -1,0 +1,25 @@
+# This is a Gradle generated file for dependency locking.
+# Manual edits can break the build and are not advised.
+# This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:weblogic-t3-12.2:dependencies --write-locks
+com.blogspot.mydailyjava:weak-lock-free:0.17=buildTimeInstrumentationPlugin,compileClasspath
+com.datadoghq:dd-instrument-java:0.0.7=buildTimeInstrumentationPlugin,compileClasspath
+com.datadoghq:dd-javac-plugin-client:0.2.2=buildTimeInstrumentationPlugin,compileClasspath
+com.github.spotbugs:spotbugs-annotations:4.10.4=compileClasspath
+com.google.auto.service:auto-service-annotations:1.1.1=annotationProcessor,compileClasspath
+com.google.auto.service:auto-service:1.1.1=annotationProcessor
+com.google.auto:auto-common:1.2.1=annotationProcessor
+com.google.code.findbugs:jsr305:3.0.2=annotationProcessor,compileClasspath
+com.google.errorprone:error_prone_annotations:2.18.0=annotationProcessor
+com.google.guava:failureaccess:1.0.1=annotationProcessor
+com.google.guava:guava:32.0.1-jre=annotationProcessor
+com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava=annotationProcessor
+com.google.j2objc:j2objc-annotations:2.8=annotationProcessor
+de.thetaphi:forbiddenapis:3.11=compileClasspath
+net.bytebuddy:byte-buddy-agent:1.18.17=buildTimeInstrumentationPlugin,compileClasspath
+net.bytebuddy:byte-buddy:1.18.17=buildTimeInstrumentationPlugin,compileClasspath
+org.checkerframework:checker-qual:3.33.0=annotationProcessor
+org.ow2.asm:asm:9.11.1=buildTimeInstrumentationPlugin,compileClasspath
+org.slf4j:slf4j-api:1.7.30=buildTimeInstrumentationPlugin,compileClasspath
+org.snakeyaml:snakeyaml-engine:2.9=buildTimeInstrumentationPlugin
+empty=

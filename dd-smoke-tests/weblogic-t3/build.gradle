@@ -1,0 +1,19 @@
+plugins {
+  id 'dd-trace-java.module.smoke-test'
+  id 'dd-trace-java.testcontainers'
+}
+
+def weblogicImage = providers.environmentVariable('WEBLOGIC_SMOKE_TEST_IMAGE')
+
+dependencies {
+  if (weblogicImage.isPresent()) {
+    testContainerImage(image(weblogicImage.get(), 'test.weblogic.image'))
+  }
+  testImplementation libs.testcontainers
+  testImplementation libs.jackson.databind
+}
+
+tasks.withType(Test).configureEach {
+  onlyIf('WEBLOGIC_SMOKE_TEST_IMAGE is set') { weblogicImage.isPresent() }
+  usesService(testcontainersLimit)
+}
