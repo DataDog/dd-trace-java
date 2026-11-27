@@ -1,5 +1,6 @@
 package testdog.trace.instrumentation.java.lang.jdk21;
 
+import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadState;
@@ -12,7 +13,7 @@ import org.junit.jupiter.api.Test;
  * disabled, so {@code VirtualThreadState} takes the swap path instead of seed-once. Forked because
  * the legacy-context-manager choice is captured once per JVM.
  */
-@WithConfig(key = "legacy.context-manager.enabled", value = "false")
+@WithConfig(key = LEGACY_CONTEXT_MANAGER_ENABLED, value = "false")
 class VirtualThreadApiInstrumentationForkedTest extends VirtualThreadApiInstrumentationTest {
   @DisplayName("test per-mount path is selected for the new context manager")
   @Test

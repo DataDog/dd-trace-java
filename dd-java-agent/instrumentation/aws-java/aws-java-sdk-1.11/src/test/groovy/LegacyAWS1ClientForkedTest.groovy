@@ -45,6 +45,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
+import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 class LegacyAWS1ClientForkedTest extends InstrumentationSpecification {
@@ -456,6 +457,6 @@ class ContextSwapLegacyAWS1ClientForkedTest extends LegacyAWS1ClientForkedTest {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig("legacy.context-manager.enabled", "false")
+    injectSysConfig(LEGACY_CONTEXT_MANAGER_ENABLED, "false")
   }
 }

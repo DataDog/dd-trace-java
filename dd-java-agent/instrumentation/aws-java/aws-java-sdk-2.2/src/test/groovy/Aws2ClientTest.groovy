@@ -1,4 +1,5 @@
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED
 
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
@@ -818,6 +819,6 @@ class ContextSwapAws2ClientForkedTest extends Aws2ClientV0ForkedTest {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    injectSysConfig("legacy.context-manager.enabled", "false")
+    injectSysConfig(LEGACY_CONTEXT_MANAGER_ENABLED, "false")
   }
 }
