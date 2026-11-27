@@ -13,5 +13,9 @@ public interface CIProviderInfo {
   @Nonnull
   PullRequestInfo buildPullRequestInfo();
 
+  default String getMergeCommitSha() {
+    return null;
+  }
+
   Provider getProvider();
 }

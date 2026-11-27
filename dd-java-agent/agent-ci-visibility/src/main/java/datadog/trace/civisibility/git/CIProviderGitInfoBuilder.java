@@ -32,7 +32,7 @@ public class CIProviderGitInfoBuilder implements GitInfoBuilder {
 
   @Override
   public int order() {
-    return 1;
+    return 2;
   }
 
   @Override

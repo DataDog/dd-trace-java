@@ -2,8 +2,10 @@ package datadog.trace.civisibility.ci;
 
 import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
+import static datadog.trace.api.git.GitUtils.normalizeFullCommitSha;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
+import static datadog.trace.util.Strings.isNotBlank;
 
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
@@ -47,11 +49,21 @@ class GitLabInfo implements CIProviderInfo {
   public static final String GITLAB_PULL_REQUEST_COMMIT_HEAD_SHA =
       "CI_MERGE_REQUEST_SOURCE_BRANCH_SHA";
   public static final String GITLAB_PULL_REQUEST_NUMBER = "CI_MERGE_REQUEST_IID";
+  public static final String GITLAB_PULL_REQUEST_EVENT_TYPE = "CI_MERGE_REQUEST_EVENT_TYPE";
 
   private final CiEnvironment environment;
 
   GitLabInfo(CiEnvironment environment) {
     this.environment = environment;
+  }
+
+  @Override
+  public String getMergeCommitSha() {
+    String eventType = environment.get(GITLAB_PULL_REQUEST_EVENT_TYPE);
+    return isNotBlank(environment.get(GITLAB_PULL_REQUEST_NUMBER))
+            && ("merged_result".equals(eventType) || "merge_train".equals(eventType))
+        ? normalizeFullCommitSha(environment.get(GITLAB_GIT_COMMIT))
+        : null;
   }
 
   @Override

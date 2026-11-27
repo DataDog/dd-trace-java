@@ -90,13 +90,22 @@ public class GitDataUploaderImpl implements GitDataUploader {
     try {
       LOGGER.debug("Starting git data upload, {}", gitClient);
 
-      if (!config.isCiVisibilityGitUnshallowDefer()) {
-        gitRepoUnshallow.unshallow();
-      }
-
       GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
       String remoteUrl = gitInfo.getRepositoryURL();
-      List<String> latestCommits = gitClient.getLatestCommits();
+      String selectedCommit = gitInfo.getCommit().getSha();
+
+      boolean unshallowed =
+          !config.isCiVisibilityGitUnshallowDefer() && gitRepoUnshallow.unshallow(selectedCommit);
+      List<String> latestCommits = gitClient.getLatestCommits(selectedCommit);
+      if (latestCommits.isEmpty() && !unshallowed && config.isCiVisibilityGitUnshallowEnabled()) {
+        // DD_GIT_COMMIT_SHA can select a revision that is not in the checkout
+        if (gitClient.isShallow()) {
+          unshallowed = gitRepoUnshallow.unshallow(selectedCommit);
+        } else {
+          gitClient.fetchCommit(selectedCommit);
+        }
+        latestCommits = gitClient.getLatestCommits(selectedCommit);
+      }
       if (latestCommits.isEmpty()) {
         LOGGER.debug("No commits in the last month, skipping git data upload");
         callback.complete(null);
@@ -112,8 +121,10 @@ public class GitDataUploaderImpl implements GitDataUploader {
         return;
       }
 
-      if (config.isCiVisibilityGitUnshallowDefer() && gitRepoUnshallow.unshallow()) {
-        latestCommits = gitClient.getLatestCommits();
+      if (config.isCiVisibilityGitUnshallowDefer()
+          && !unshallowed
+          && gitRepoUnshallow.unshallow(selectedCommit)) {
+        latestCommits = gitClient.getLatestCommits(selectedCommit);
         commitsToSkip = gitDataApi.searchCommits(remoteUrl, latestCommits);
       }
 

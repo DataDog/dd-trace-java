@@ -2,17 +2,20 @@ package datadog.trace.api.git;
 
 import static datadog.trace.api.git.RawParseUtils.decode;
 import static datadog.trace.api.git.RawParseUtils.nextLF;
+import static datadog.trace.util.Strings.isBlank;
 
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
-import datadog.trace.util.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
@@ -43,7 +46,13 @@ public class GitUtils {
               + "|/$" // ends with slash
           );
   private static final Pattern PATH_PATTERN = Pattern.compile("^[a-zA-Z0-9_./-]+$");
+  private static final Pattern PULL_REQUEST_MERGE_REF_PATTERN =
+      Pattern.compile("refs/pull/[0-9]+/merge");
   private static final Pattern SHELL_METACHAR_PATTERN = Pattern.compile(".*[`$&|;<>\n\r#].*");
+  private static final Pattern REMOTE_HELPER_PREFIX_PATTERN =
+      Pattern.compile("[a-zA-Z0-9][a-zA-Z0-9+.-]*::");
+  private static final Pattern AUTHORITY_WITH_USER_INFO_PATTERN =
+      Pattern.compile("[^@]+@[\\p{L}\\p{N}._+~-]+(?::[0-9]+)?");
 
   private static final int SHORT_SHA_LENGTH = 7;
   private static final int FULL_SHA_LENGTH = 40;
@@ -139,8 +148,6 @@ public class GitUtils {
     return ref;
   }
 
-  private static final Pattern SSH_PROTOCOL_AND_USER_INFO = Pattern.compile("^(ssh://).*?@");
-
   /**
    * Removes the user info of a certain URL. E.g: https://user:password@host.com/path ->
    * https://host.com/path
@@ -149,19 +156,60 @@ public class GitUtils {
    * @return url without user info.
    */
   public static String filterSensitiveInfo(final String urlStr) {
+    if (urlStr == null) {
+      return null;
+    }
+    // Git passes a remote helper's address separately from its transport prefix.
+    Matcher helper = REMOTE_HELPER_PREFIX_PATTERN.matcher(urlStr);
+    int addressStart = 0;
+    while (helper.region(addressStart, urlStr.length()).lookingAt()) {
+      addressStart = helper.end();
+    }
+    String address = filterSensitiveInfoAddress(urlStr.substring(addressStart));
+    return address == null ? null : urlStr.substring(0, addressStart) + address;
+  }
+
+  private static String filterSensitiveInfoAddress(final String urlStr) {
     if (urlStr == null || urlStr.isEmpty()) {
       return null;
     }
-    try {
-      if (urlStr.startsWith("http")) {
-        final URI url = new URI(urlStr);
-        final String userInfo = url.getRawUserInfo();
-        return Pattern.compile(userInfo + "@", Pattern.LITERAL).matcher(urlStr).replaceAll("");
-      } else {
-        return SSH_PROTOCOL_AND_USER_INFO.matcher(urlStr).replaceAll("$1");
+    if (!urlStr.contains("://") && !urlStr.startsWith("//")) {
+      // Preserve SCP-style usernames and non-URL CI values, but reject opaque credentials.
+      int colon = urlStr.indexOf(':');
+      if (urlStr.startsWith("[") && urlStr.contains("]:")) {
+        // Everything after a bracketed SCP host is a path, not URI user info.
+        return urlStr;
       }
-    } catch (final Exception ex) {
+      int at = urlStr.indexOf('@');
+      if (colon >= 0 && at > colon) {
+        int pathColon = urlStr.indexOf(':', colon + 1);
+        // A slash before the second colon identifies an SCP path, not opaque user info.
+        int slash = urlStr.indexOf('/', colon + 1);
+        if (pathColon >= 0 && pathColon < at && (slash < 0 || pathColon < slash)) {
+          return null;
+        }
+      }
       return urlStr;
+    }
+    try {
+      URI url = new URI(urlStr);
+      String authority = url.getRawAuthority();
+      if (authority == null) {
+        return null;
+      }
+      String userInfo = url.getRawUserInfo();
+      if (userInfo == null && AUTHORITY_WITH_USER_INFO_PATTERN.matcher(authority).matches()) {
+        // URI's DNS parser rejects valid SSH aliases such as underscores and tildes.
+        userInfo = authority.substring(0, authority.indexOf('@'));
+      }
+      if (userInfo == null) {
+        return authority.indexOf('@') >= 0 ? null : urlStr;
+      }
+      int authorityStart = urlStr.indexOf("//") + 2;
+      return urlStr.substring(0, authorityStart)
+          + urlStr.substring(authorityStart + userInfo.length() + 1);
+    } catch (URISyntaxException ex) {
+      return null;
     }
   }
 
@@ -282,6 +330,27 @@ public class GitUtils {
     return isValidCommitSha(commitSha, FULL_SHA_LENGTH);
   }
 
+  /** Checks whether a value is a full hexadecimal SHA-1 or SHA-256 object ID. */
+  public static boolean isFullLengthCommitSha(@Nullable String sha) {
+    return sha != null && (sha.length() == 40 || sha.length() == 64) && isValidCommitShaFull(sha);
+  }
+
+  /** Lowercases full object IDs; leaves invalid or abbreviated input unchanged. */
+  public static String normalizeCommitSha(@Nullable String sha) {
+    return isFullLengthCommitSha(sha) ? sha.toLowerCase(Locale.ROOT) : sha;
+  }
+
+  /** Lowercases full object IDs; returns null for invalid or abbreviated input. */
+  @Nullable
+  public static String normalizeFullCommitSha(@Nullable String sha) {
+    return isFullLengthCommitSha(sha) ? sha.toLowerCase(Locale.ROOT) : null;
+  }
+
+  /** Checks whether a ref is a pull request merge ref, such as {@code refs/pull/42/merge}. */
+  public static boolean isPullRequestMergeRef(@Nullable String ref) {
+    return ref != null && PULL_REQUEST_MERGE_REF_PATTERN.matcher(ref).matches();
+  }
+
   private static boolean isValidCommitSha(final String commitSha, final int minLength) {
     if (commitSha == null || commitSha.length() < minLength) {
       return false;
@@ -300,7 +369,7 @@ public class GitUtils {
 
   /** Checks if a string that will be used as a Git command argument is valid and safe */
   static boolean isValidArg(@Nullable String arg) {
-    if (Strings.isBlank(arg)) {
+    if (isBlank(arg)) {
       return false;
     }
     return !SHELL_METACHAR_PATTERN.matcher(arg).find();
@@ -308,7 +377,7 @@ public class GitUtils {
 
   /** Checks if the provided string is a valid Git reference (branch, tag, etc.) */
   public static boolean isValidRef(@Nullable String ref) {
-    if (Strings.isBlank(ref)) {
+    if (isBlank(ref) || ref.charAt(0) == '-') {
       return false;
     }
 

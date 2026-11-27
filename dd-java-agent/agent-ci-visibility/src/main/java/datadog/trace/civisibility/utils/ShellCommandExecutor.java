@@ -25,6 +25,8 @@ public class ShellCommandExecutor {
   private static final Logger LOGGER = LoggerFactory.getLogger(ShellCommandExecutor.class);
 
   private static final int NORMAL_TERMINATION_TIMEOUT_MILLIS = 3000;
+  private static final String SENSITIVE_COMMAND_FAILURE_MESSAGE =
+      "Command failed; sensitive output omitted";
 
   private final File executionFolder;
   private final long timeoutMillis;
@@ -74,6 +76,20 @@ public class ShellCommandExecutor {
   public <T> T executeCommand(OutputParser<T> outputParser, byte[] input, String... command)
       throws IOException, InterruptedException, TimeoutException {
     return executeCommand(outputParser, input, false, command);
+  }
+
+  /** Executes a command without retaining sensitive output in failure diagnostics. */
+  public <T> T executeSensitiveCommand(OutputParser<T> parser, String... command)
+      throws IOException, InterruptedException, TimeoutException {
+    try {
+      return executeCommand(parser, command);
+    } catch (ShellCommandFailedException e) {
+      throw new ShellCommandFailedException(e.getExitCode(), SENSITIVE_COMMAND_FAILURE_MESSAGE);
+    } catch (IOException e) {
+      throw new IOException(SENSITIVE_COMMAND_FAILURE_MESSAGE);
+    } catch (TimeoutException e) {
+      throw new TimeoutException("Command timed out; sensitive output omitted");
+    }
   }
 
   /**

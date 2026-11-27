@@ -1,5 +1,7 @@
 package datadog.trace.api.git;
 
+import static datadog.trace.api.git.GitUtils.normalizeCommitSha;
+
 import datadog.trace.util.Strings;
 import java.util.Objects;
 
@@ -21,7 +23,7 @@ public final class CommitInfo {
       final PersonInfo author,
       final PersonInfo committer,
       final String fullMessage) {
-    this.sha = sha;
+    this.sha = normalizeCommitSha(sha);
     this.author = author;
     this.committer = committer;
     this.fullMessage = fullMessage;

@@ -1,15 +1,22 @@
 package datadog.trace.civisibility;
 
+import static datadog.trace.civisibility.Constants.DDCI_PULL_REQUEST_SOURCE_SHA;
+import static datadog.trace.util.Strings.isBlank;
+import static datadog.trace.util.Strings.isNotBlank;
+
 import datadog.communication.BackendApi;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
+import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.api.git.UserSuppliedGitInfoBuilder;
 import datadog.trace.civisibility.ci.CIInfo;
 import datadog.trace.civisibility.ci.CIProviderInfo;
 import datadog.trace.civisibility.ci.CITagsProvider;
+import datadog.trace.civisibility.ci.GitCheckoutInfo;
 import datadog.trace.civisibility.ci.PullRequestInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
 import datadog.trace.civisibility.codeowners.Codeowners;
@@ -37,7 +44,6 @@ import datadog.trace.civisibility.source.NoOpSourcePathResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.index.RepoIndexProvider;
 import datadog.trace.civisibility.source.index.RepoIndexSourcePathResolver;
-import datadog.trace.util.Strings;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
@@ -68,22 +74,55 @@ public class CiVisibilityRepoServices {
     ciProvider = ciProviderInfo.getProvider();
     CIInfo ciInfo = ciProviderInfo.buildCIInfo();
 
-    repoRoot = getRepoRoot(ciInfo, services.gitClientFactory);
+    BazelMode bazelMode = BazelMode.get();
+    String resolvedRoot = getRepoRoot(services.gitClientFactory, path);
+    repoRoot = resolvedRoot != null ? resolvedRoot : ciInfo.getCiWorkspace();
+    String checkoutRoot =
+        bazelMode.isEnabled() && bazelMode.getRepoRoot() != null ? null : resolvedRoot;
     moduleName = getModuleName(services.config, repoRoot, path);
 
     GitClient gitClient = services.gitClientFactory.create(repoRoot);
     GitRepoUnshallow gitRepoUnshallow = new GitRepoUnshallow(services.config, gitClient);
+    PullRequestInfo providerPr = ciProviderInfo.buildPullRequestInfo();
+    GitInfo providerGit = ciProviderInfo.buildCIGitInfo();
+    String mergeSha = ciProviderInfo.getMergeCommitSha();
+    String selectedSha = services.gitInfoProvider.getGitInfo(repoRoot).getCommit().getSha();
+    GitCheckoutInfo checkout =
+        new GitCheckoutInfo(
+            checkoutRoot,
+            ciInfo.getCiWorkspace(),
+            providerGit.getCommit().getSha(),
+            providerPr.getHeadCommit().getSha(),
+            mergeSha,
+            services.environment.get(DDCI_PULL_REQUEST_SOURCE_SHA));
+    // CI pull request data describes the CI revision, so it only applies to the same checkout
+    boolean useCiInfo =
+        !checkout.isCustom()
+            && (checkout.matchesCiRevision(selectedSha)
+                || isBlank(UserSuppliedGitInfoBuilder.getCommitSha(services.config))
+                    && (isBlank(selectedSha) || !checkout.hasCiRevision()));
     PullRequestInfo pullRequestInfo =
         buildPullRequestInfo(
-            services.config, services.environment, ciProviderInfo, gitClient, gitRepoUnshallow);
+            services.config, services.environment, ciProviderInfo, gitClient, useCiInfo);
 
     if (!pullRequestInfo.isEmpty()) {
       LOGGER.info("PR detected: {}", pullRequestInfo);
     }
 
-    ciTags = new CITagsProvider().getCiTags(ciInfo, pullRequestInfo);
+    ciTags =
+        new CITagsProvider()
+            .getCiTags(ciInfo, PullRequestInfo.coalesce(pullRequestInfo, providerPr), repoRoot);
+    if (checkoutRoot != null) {
+      ciTags.put("git.checkout.root", checkoutRoot);
+    }
+    if (checkout.isCustom()) {
+      ciTags.put("git.checkout.is_custom", "true");
+    }
+    if (mergeSha != null) {
+      ciTags.put("ci.git.merge_commit_sha", mergeSha);
+    }
 
-    if (BazelMode.get().isEnabled()) {
+    if (bazelMode.isEnabled()) {
       // bazel rule takes care of the git data upload
       LOGGER.info("[bazel mode] Skipping git data upload");
       gitDataUploader = () -> CompletableFuture.completedFuture(null);
@@ -96,7 +135,7 @@ public class CiVisibilityRepoServices {
               gitClient,
               gitRepoUnshallow,
               services.backendApi,
-              repoRoot);
+              resolvedRoot);
     }
 
     repoIndexProvider = services.repoIndexProviderFactory.create(repoRoot);
@@ -126,18 +165,19 @@ public class CiVisibilityRepoServices {
       CiEnvironment environment,
       CIProviderInfo ciProviderInfo,
       GitClient gitClient,
-      GitRepoUnshallow gitRepoUnshallow) {
-    PullRequestInfo userInfo = buildUserPullRequestInfo(config, environment, gitClient);
-
+      boolean useCiInfo) {
+    PullRequestInfo userInfo = buildUserPullRequestInfo(config, environment, gitClient, useCiInfo);
     if (userInfo.isComplete()) {
       return userInfo;
     }
 
     // complete with CI vars if user didn't provide all information
     PullRequestInfo ciInfo =
-        PullRequestInfo.coalesce(userInfo, ciProviderInfo.buildPullRequestInfo());
+        useCiInfo
+            ? PullRequestInfo.coalesce(userInfo, ciProviderInfo.buildPullRequestInfo())
+            : userInfo;
     String headSha = ciInfo.getHeadCommit().getSha();
-    if (Strings.isNotBlank(headSha)) {
+    if (isNotBlank(headSha)) {
       // if head sha present try to populate author, committer and message info through git client
       try {
         CommitInfo commitInfo = gitClient.getCommitInfo(headSha, true);
@@ -151,7 +191,7 @@ public class CiVisibilityRepoServices {
 
   @Nonnull
   private static PullRequestInfo buildUserPullRequestInfo(
-      Config config, CiEnvironment environment, GitClient gitClient) {
+      Config config, CiEnvironment environment, GitClient gitClient, boolean useCiInfo) {
     PullRequestInfo userInfo =
         new PullRequestInfo(
             config.getGitPullRequestBaseBranch(),
@@ -160,13 +200,13 @@ public class CiVisibilityRepoServices {
             new CommitInfo(config.getGitCommitHeadSha()),
             null);
 
-    if (userInfo.isComplete()) {
+    if (userInfo.isComplete() || !useCiInfo) {
       return userInfo;
     }
 
     // ddci specific vars
     String targetSha = environment.get(Constants.DDCI_PULL_REQUEST_TARGET_SHA);
-    String sourceSha = environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA);
+    String sourceSha = environment.get(DDCI_PULL_REQUEST_SOURCE_SHA);
     String mergeBase = null;
 
     if (!Constants.DDCI_LEGACY_KIND.equals(environment.get(Constants.DDCI_REQUEST_KIND))) {
@@ -182,13 +222,13 @@ public class CiVisibilityRepoServices {
             null,
             mergeBase,
             null,
-            new CommitInfo(environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA)),
+            new CommitInfo(environment.get(DDCI_PULL_REQUEST_SOURCE_SHA)),
             null);
 
     return PullRequestInfo.coalesce(userInfo, ddCiInfo);
   }
 
-  private static String getRepoRoot(CIInfo ciInfo, GitClient.Factory gitClientFactory) {
+  static String getRepoRoot(GitClient.Factory gitClientFactory, Path path) {
     BazelMode bazelMode = BazelMode.get();
     if (bazelMode.isEnabled()) {
       String bazelRepoRoot = bazelMode.getRepoRoot();
@@ -199,24 +239,15 @@ public class CiVisibilityRepoServices {
       }
     }
 
-    String ciWorkspace = ciInfo.getCiWorkspace();
-    if (Strings.isNotBlank(ciWorkspace)) {
-      return ciWorkspace;
-
-    } else {
-      try {
-        return gitClientFactory.create(".").getRepoRoot();
-
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        LOGGER.error("Interrupted while getting repo root", e);
-        return null;
-
-      } catch (Exception e) {
-        LOGGER.error("Error while getting repo root", e);
-        return null;
-      }
+    try {
+      return gitClientFactory.create(path.toString()).getRepoRoot();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      LOGGER.debug("Interrupted while getting repo root", e);
+    } catch (Exception e) {
+      LOGGER.debug("Error while getting repo root", e);
     }
+    return null;
   }
 
   static String getModuleName(Config config, @Nullable String repoRoot, Path path) {

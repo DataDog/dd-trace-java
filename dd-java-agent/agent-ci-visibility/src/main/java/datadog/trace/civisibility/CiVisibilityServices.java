@@ -102,7 +102,8 @@ public class CiVisibilityServices {
     gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder(config, environment));
     gitInfoProvider.registerGitInfoBuilder(
         new CILocalGitInfoBuilder(gitClientFactory, GIT_FOLDER_NAME));
-    gitInfoProvider.registerGitInfoBuilder(new GitClientGitInfoBuilder(config, gitClientFactory));
+    gitInfoProvider.registerGitInfoBuilder(
+        new GitClientGitInfoBuilder(config, gitClientFactory, ciProviderInfoFactory));
 
     if (processHierarchy.isChild()) {
       InetSocketAddress signalServerAddress = processHierarchy.getSignalServerAddress();

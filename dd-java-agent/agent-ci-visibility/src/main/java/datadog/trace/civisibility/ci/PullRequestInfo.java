@@ -1,5 +1,7 @@
 package datadog.trace.civisibility.ci;
 
+import static datadog.trace.api.git.GitUtils.normalizeCommitSha;
+
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.util.Strings;
 import java.util.Objects;
@@ -23,8 +25,8 @@ public class PullRequestInfo {
       @Nonnull CommitInfo headCommit,
       String pullRequestNumber) {
     this.baseBranch = baseBranch;
-    this.baseBranchSha = baseBranchSha;
-    this.baseBranchHeadSha = baseBranchHeadSha;
+    this.baseBranchSha = normalizeCommitSha(baseBranchSha);
+    this.baseBranchHeadSha = normalizeCommitSha(baseBranchHeadSha);
     this.headCommit = headCommit;
     this.pullRequestNumber = pullRequestNumber;
   }

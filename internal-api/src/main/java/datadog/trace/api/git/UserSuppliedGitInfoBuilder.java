@@ -7,6 +7,7 @@ import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.ConfigStrings;
+import datadog.trace.util.Strings;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,10 +51,7 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
       }
     }
 
-    String gitCommitSha = configProvider.getString(DD_GIT_COMMIT_SHA);
-    if (gitCommitSha == null) {
-      gitCommitSha = Config.get().getGlobalTags().get(Tags.GIT_COMMIT_SHA);
-    }
+    String gitCommitSha = getCommitSha(Config.get());
 
     final String gitCommitMessage = configProvider.getString(DD_GIT_COMMIT_MESSAGE);
     final String gitCommitAuthorName = configProvider.getString(DD_GIT_COMMIT_AUTHOR_NAME);
@@ -100,6 +98,13 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
     }
 
     return gitInfo;
+  }
+
+  /** Returns the commit SHA set with DD_GIT_COMMIT_SHA or the git.commit.sha global tag. */
+  @Nullable
+  public static String getCommitSha(Config config) {
+    String sha = ConfigProvider.getInstance().getString(DD_GIT_COMMIT_SHA);
+    return Strings.isNotBlank(sha) ? sha : config.getGlobalTags().get(Tags.GIT_COMMIT_SHA);
   }
 
   @Override

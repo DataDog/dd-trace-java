@@ -2,6 +2,7 @@ package datadog.trace.civisibility.git.tree
 
 import datadog.trace.api.Config
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
+import datadog.trace.api.git.CommitInfo
 import datadog.trace.api.git.GitInfo
 import datadog.trace.api.git.GitInfoProvider
 import datadog.communication.util.IOUtils
@@ -37,7 +38,7 @@ class GitDataUploaderImplTest extends Specification {
     }
     def api = Mock(GitDataApi)
     def gitInfoProvider = Stub(GitInfoProvider)
-    gitInfoProvider.getGitInfo(repoRoot) >> new GitInfo(repoUrl, null, null, null)
+    gitInfoProvider.getGitInfo(repoRoot) >> new GitInfo(repoUrl, null, null, new CommitInfo("5b6f3a6dab5972d73a56dff737bd08d995255c08"))
 
     def gitClient = new ShellGitClient(metricCollector, repoRoot, "25 years ago", 3, TIMEOUT_MILLIS)
     def unshallow = new GitRepoUnshallow(config, gitClient)

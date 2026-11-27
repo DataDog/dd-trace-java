@@ -19,7 +19,11 @@ public class GitRepoUnshallow {
     this.gitClient = gitClient;
   }
 
-  public synchronized boolean unshallow()
+  public boolean unshallow() throws IOException, InterruptedException, TimeoutException {
+    return unshallow(GitClient.HEAD);
+  }
+
+  public synchronized boolean unshallow(String commit)
       throws IOException, InterruptedException, TimeoutException {
     if (!config.isCiVisibilityGitUnshallowEnabled() || !gitClient.isShallow()) {
       return false;
@@ -27,10 +31,14 @@ public class GitRepoUnshallow {
 
     long unshallowStart = System.currentTimeMillis();
     try {
-      gitClient.unshallow(GitClient.HEAD);
+      gitClient.unshallow(commit);
+      if (!GitClient.HEAD.equals(commit)) {
+        return true;
+      }
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
       LOGGER.debug(
-          "Could not unshallow using HEAD - assuming HEAD points to a local commit that does not exist in the remote repo",
+          "Could not unshallow using {} - assuming it points to a local commit that does not exist in the remote repo",
+          commit,
           e);
     }
 

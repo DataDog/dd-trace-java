@@ -348,7 +348,7 @@
       "APPVEYOR_BUILD_NUMBER": "appveyor-pipeline-number",
       "APPVEYOR_PULL_REQUEST_HEAD_COMMIT": "724faca55efebf66fc15bfccc34577c64c5480bd",
       "APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH": "origin/pr",
-      "APPVEYOR_PULL_REQUEST_NUMBER": 42,
+      "APPVEYOR_PULL_REQUEST_NUMBER": "42",
       "APPVEYOR_REPO_BRANCH": "origin/master",
       "APPVEYOR_REPO_COMMIT": "b9f0fb3fdbb94c9d24b2c75b49663122a529e123",
       "APPVEYOR_REPO_COMMIT_AUTHOR": "appveyor-commit-author-name",
@@ -359,6 +359,7 @@
       "APPVEYOR_REPO_PROVIDER": "github"
     },
     {
+      "ci.git.merge_commit_sha": "b9f0fb3fdbb94c9d24b2c75b49663122a529e123",
       "ci.job.url": "https://ci.appveyor.com/project/appveyor-repo-name/builds/appveyor-build-id",
       "ci.pipeline.id": "appveyor-build-id",
       "ci.pipeline.name": "appveyor-repo-name",

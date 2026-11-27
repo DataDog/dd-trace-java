@@ -45,8 +45,15 @@ public interface GitClient {
   CommitInfo getCommitInfo(String commit, boolean fetchIfNotPresent)
       throws IOException, TimeoutException, InterruptedException;
 
+  void fetchCommit(String commitReference)
+      throws IOException, TimeoutException, InterruptedException;
+
   @Nonnull
   List<String> getLatestCommits() throws IOException, TimeoutException, InterruptedException;
+
+  @Nonnull
+  List<String> getLatestCommits(String commit)
+      throws IOException, TimeoutException, InterruptedException;
 
   @Nonnull
   List<String> getObjects(Collection<String> commitsToSkip, Collection<String> commitsToInclude)

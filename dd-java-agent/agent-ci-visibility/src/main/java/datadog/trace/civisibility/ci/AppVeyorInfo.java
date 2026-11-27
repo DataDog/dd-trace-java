@@ -1,6 +1,8 @@
 package datadog.trace.civisibility.ci;
 
+import static datadog.trace.api.git.GitUtils.isFullLengthCommitSha;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
+import static datadog.trace.api.git.GitUtils.normalizeFullCommitSha;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
 
@@ -10,6 +12,7 @@ import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.PersonInfo;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
 import datadog.trace.util.Strings;
+import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 
 class AppVeyorInfo implements CIProviderInfo {
@@ -35,6 +38,8 @@ class AppVeyorInfo implements CIProviderInfo {
       "APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH";
   public static final String APPVEYOR_PR_HEAD_COMMIT = "APPVEYOR_PULL_REQUEST_HEAD_COMMIT";
   public static final String APPVEYOR_PR_NUMBER = "APPVEYOR_PULL_REQUEST_NUMBER";
+
+  private static final Pattern PR_NUMBER_PATTERN = Pattern.compile("[0-9]+");
 
   private final CiEnvironment environment;
 
@@ -81,6 +86,20 @@ class AppVeyorInfo implements CIProviderInfo {
         .ciJobUrl(url)
         .ciWorkspace(expandTilde(environment.get(APPVEYOR_WORKSPACE_PATH)))
         .build();
+  }
+
+  @Override
+  public String getMergeCommitSha() {
+    String prNumber = environment.get(APPVEYOR_PR_NUMBER);
+    String prHeadSha = environment.get(APPVEYOR_PR_HEAD_COMMIT);
+    String buildSha = environment.get(APPVEYOR_REPO_COMMIT);
+    return "github".equals(environment.get(APPVEYOR_REPO_PROVIDER))
+            && prNumber != null
+            && PR_NUMBER_PATTERN.matcher(prNumber).matches()
+            && isFullLengthCommitSha(prHeadSha)
+            && !prHeadSha.equalsIgnoreCase(buildSha)
+        ? normalizeFullCommitSha(buildSha)
+        : null;
   }
 
   @Nonnull
