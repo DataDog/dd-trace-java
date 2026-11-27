@@ -46,8 +46,14 @@ tasks.withType<SpotBugsTask>().configureEach {
       )
     }
 
+    name == "spotbugsTest" || name == "spotbugsJmh" -> {
+      // Catch unclosed streams, readers, writers, and java.sql handles otherwise found in review.
+      // Limit test and benchmark analysis to OBL_UNSATISFIED_OBLIGATION*.
+      enabled = true
+      visitors = listOf("FindUnsatisfiedObligation")
+    }
+
     else -> {
-      // static-analysis-rules skill: enable selected test tasks here with their own detector configuration.
       enabled = false
     }
   }
