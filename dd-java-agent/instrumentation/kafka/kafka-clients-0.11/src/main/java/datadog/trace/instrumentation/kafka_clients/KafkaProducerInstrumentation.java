@@ -28,6 +28,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
@@ -109,9 +110,14 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
+    // The constructor that initialises the producer; the public Map and Properties overloads
+    // delegate to it. It takes a ProducerConfig first, except in 2.1 to 2.7, where it takes the
+    // config Map and six more arguments.
     transformer.applyAdvice(
         isConstructor()
-            .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerConfig")))
+            .and(
+                takesArgument(0, named("org.apache.kafka.clients.producer.ProducerConfig"))
+                    .or(takesArgument(0, named("java.util.Map")).and(takesArguments(7))))
             .and(takesArgument(1, named("org.apache.kafka.common.serialization.Serializer")))
             .and(takesArgument(2, named("org.apache.kafka.common.serialization.Serializer"))),
         KafkaProducerInstrumentation.class.getName() + "$ProducerConstructorAdvice");
@@ -143,9 +149,12 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
+      // getOrCreate: creates the state that the metadata update records the cluster ID on, if the
+      // constructor advice didn't, so the callback can read it for sends before the first update
       MetadataState metadataState =
-          InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
-      String clusterId = metadataState != null ? metadataState.clusterId : null;
+          InstrumentationContext.get(Metadata.class, MetadataState.class)
+              .getOrCreate(metadata, MetadataState::new);
+      String clusterId = metadataState.clusterId;
 
       // Set cluster ID for Schema Registry instrumentation, which only reports to Data Streams
       if (clusterId != null && traceConfig().isDataStreamsEnabled()) {
@@ -173,7 +182,8 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, record, producerConfig, clusterId);
 
-      callback = new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId);
+      callback =
+          new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId, metadataState);
 
       if (record.value() == null) {
         span.setTag(TOMBSTONE, true);
@@ -274,7 +284,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void captureConfiguration(
         @Advice.FieldValue("metadata") Metadata metadata,
-        @Advice.Argument(0) ProducerConfig producerConfig) {
+        @Advice.FieldValue("producerConfig") ProducerConfig producerConfig) {
       MetadataState state =
           InstrumentationContext.get(Metadata.class, MetadataState.class)
               .getOrCreate(metadata, MetadataState::new);

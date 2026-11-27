@@ -61,7 +61,8 @@ class KafkaConsumerInstrumentationHelperTest {
 
   @Test
   void extractClusterIdReturnsNullWhenMetadataIsNull() {
-    KafkaConsumerInfo kafkaConsumerInfo = new KafkaConsumerInfo("test-group", "localhost:9092");
+    KafkaConsumerInfo kafkaConsumerInfo =
+        new KafkaConsumerInfo("test-group", null, "localhost:9092");
     assertNull(
         KafkaConsumerInstrumentationHelper.extractClusterId(
             kafkaConsumerInfo, metadataContextStore));

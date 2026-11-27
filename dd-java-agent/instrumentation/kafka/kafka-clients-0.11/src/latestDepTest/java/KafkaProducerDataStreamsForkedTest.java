@@ -9,6 +9,7 @@ import datadog.trace.api.Pair;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
+import datadog.trace.api.datastreams.KafkaConfigReport;
 import datadog.trace.api.sampling.SamplingRule.SpanSamplingRule;
 import datadog.trace.api.sampling.SamplingRule.TraceSamplingRule;
 import datadog.trace.api.time.SystemTimeSource;
@@ -25,6 +26,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -43,7 +45,7 @@ import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
 
 @WithConfig(key = "data.streams.enabled", value = "true")
-class KafkaProducerFailureDataStreamsForkedTest extends AbstractInstrumentationTest {
+class KafkaProducerDataStreamsForkedTest extends AbstractInstrumentationTest {
   private static final String OK_TOPIC = "ok.topic";
   private static final String REJECTING_TOPIC = "rejecting.topic";
 
@@ -125,6 +127,79 @@ class KafkaProducerFailureDataStreamsForkedTest extends AbstractInstrumentationT
               "topic:" + OK_TOPIC + " partition:" + ok.partition() + " offset:" + ok.offset()),
           produceBacklogs());
     }
+  }
+
+  // In 2.1 to 2.7 these public constructors delegate to a Map-first constructor, not to the
+  // ProducerConfig-first one that other versions use.
+  @Test
+  void producersFromEveryPublicConstructorReportTheirConfiguration() throws Exception {
+    try (KafkaProducer<String, String> mapWithSerializers =
+            new KafkaProducer<>(
+                producerProps("map-with-serializers"),
+                new StringSerializer(),
+                new StringSerializer());
+        KafkaProducer<String, String> map =
+            new KafkaProducer<>(withSerializerClasses(producerProps("map")));
+        KafkaProducer<String, String> propertiesWithSerializers =
+            new KafkaProducer<>(
+                toProperties(producerProps("properties-with-serializers")),
+                new StringSerializer(),
+                new StringSerializer());
+        KafkaProducer<String, String> properties =
+            new KafkaProducer<>(toProperties(withSerializerClasses(producerProps("properties"))))) {
+      for (KafkaProducer<String, String> producer :
+          Arrays.asList(mapWithSerializers, map, propertiesWithSerializers, properties)) {
+        producer.send(new ProducerRecord<>(OK_TOPIC, "hello")).get();
+      }
+
+      assertEquals(
+          Arrays.asList("map", "map-with-serializers", "properties", "properties-with-serializers"),
+          waitForProducerConfigClientIds(4));
+    }
+  }
+
+  private Map<String, Object> producerProps(String clientId) {
+    Map<String, Object> props = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString());
+    props.put(ProducerConfig.CLIENT_ID_CONFIG, clientId);
+    props.remove(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG);
+    props.remove(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG);
+    return props;
+  }
+
+  private static Map<String, Object> withSerializerClasses(Map<String, Object> props) {
+    props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+    props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+    return props;
+  }
+
+  private static Properties toProperties(Map<String, Object> props) {
+    Properties properties = new Properties();
+    properties.putAll(props);
+    return properties;
+  }
+
+  private static List<String> waitForProducerConfigClientIds(int count)
+      throws InterruptedException {
+    long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(10);
+    List<String> clientIds = producerConfigClientIds();
+    while (clientIds.size() < count && System.currentTimeMillis() < deadline) {
+      Thread.sleep(20);
+      clientIds = producerConfigClientIds();
+    }
+    return clientIds;
+  }
+
+  private static List<String> producerConfigClientIds() {
+    List<String> clientIds = new ArrayList<>();
+    for (StatsBucket bucket : dataStreamsPayloads) {
+      for (KafkaConfigReport report : bucket.getKafkaConfigs()) {
+        if ("kafka_producer".equals(report.getType())) {
+          clientIds.add(report.getConfig().get(ProducerConfig.CLIENT_ID_CONFIG));
+        }
+      }
+    }
+    Collections.sort(clientIds);
+    return clientIds;
   }
 
   private KafkaProducer<String, String> newProducer(Map<String, Object> overrides) {
