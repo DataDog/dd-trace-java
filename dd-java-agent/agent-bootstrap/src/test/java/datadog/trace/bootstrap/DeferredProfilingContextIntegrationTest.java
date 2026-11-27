@@ -38,7 +38,6 @@ class DeferredProfilingContextIntegrationTest {
     FakeDatadogProfilingIntegration.constructions.set(0);
     FakeDatadogProfilingIntegration.constructionThread.set(null);
     FakeProcessContext.registrations.set(0);
-    FakeProcessContext.registered = new CountDownLatch(1);
     FakeDatadogProfilingIntegration.gate = new CountDownLatch(0);
     FakeDatadogProfilingIntegration.onAttachCalls.set(0);
     FakeDatadogProfilingIntegration.onDetachCalls.set(0);
@@ -64,10 +63,12 @@ class DeferredProfilingContextIntegrationTest {
     assertSame(ProfilingScope.NO_OP, integration.newScope());
     assertSame(Timing.NoOp.INSTANCE, integration.start(TimerType.QUEUEING));
 
+    // wait for the delegate swap, which follows both registration and construction: the
+    // registration alone does not mean the construction has completed
+    CountDownLatch available = new CountDownLatch(1);
+    integration.whenAvailable(available::countDown);
     FakeDatadogProfilingIntegration.gate.countDown();
-    assertTrue(
-        FakeProcessContext.registered.await(30, TimeUnit.SECONDS),
-        "deferred construction never ran");
+    assertTrue(available.await(30, TimeUnit.SECONDS), "deferred construction never ran");
     // the deferred work happened, and it happened on another thread
     assertEquals(1, FakeDatadogProfilingIntegration.constructions.get());
     assertEquals(1, FakeProcessContext.registrations.get());
@@ -225,11 +226,9 @@ class DeferredProfilingContextIntegrationTest {
 
   public static final class FakeProcessContext {
     static final AtomicInteger registrations = new AtomicInteger();
-    static volatile CountDownLatch registered = new CountDownLatch(1);
 
     public static void register(final ConfigProvider configProvider) {
       registrations.incrementAndGet();
-      registered.countDown();
     }
   }
 
