@@ -34,6 +34,12 @@ configurations {
 
 // Task to extract the CICS SDK and get the required JARs
 abstract class ExtractCicsJars extends DefaultTask {
+  @Inject
+  abstract FileSystemOperations getFileSystemOperations()
+
+  @Inject
+  abstract ArchiveOperations getArchiveOperations()
+
   @InputFiles
   final ConfigurableFileCollection sdkArchive = project.objects.fileCollection()
 
@@ -54,8 +60,8 @@ abstract class ExtractCicsJars extends DefaultTask {
     def tempDir = new File(buildDir, 'temp')
     tempDir.mkdirs()
 
-    project.copy {
-      from project.tarTree(sdkFile)
+    fileSystemOperations.copy {
+      from archiveOperations.tarTree(sdkFile)
       into tempDir
     }
 
@@ -68,8 +74,8 @@ abstract class ExtractCicsJars extends DefaultTask {
     def sdkDir = new File(tempDir, 'sdk')
     sdkDir.mkdirs()
 
-    project.copy {
-      from project.tarTree(multiplatformsSdk)
+    fileSystemOperations.copy {
+      from archiveOperations.tarTree(multiplatformsSdk)
       into sdkDir
     }
 
@@ -79,8 +85,8 @@ abstract class ExtractCicsJars extends DefaultTask {
       throw new GradleException("Could not find cicseci.rar at expected location")
     }
 
-    project.copy {
-      from project.zipTree(cicsEciRar)
+    fileSystemOperations.copy {
+      from archiveOperations.zipTree(cicsEciRar)
       into buildDir
       include 'cicseci.jar'
       include 'ctgclient.jar'
@@ -93,7 +99,7 @@ abstract class ExtractCicsJars extends DefaultTask {
       throw new GradleException("Could not find cicsjee.jar at expected location")
     }
 
-    project.copy {
+    fileSystemOperations.copy {
       from cicsJeeJar
       into buildDir
     }

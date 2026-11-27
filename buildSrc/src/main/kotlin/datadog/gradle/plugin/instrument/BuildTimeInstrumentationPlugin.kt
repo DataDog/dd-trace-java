@@ -118,7 +118,9 @@ class BuildTimeInstrumentationPlugin : Plugin<Project> {
         // Track the ByteBuddy plugins and their dependencies because their implementation
         // affects this compile task's instrumented output. ClasspathNormalizer fingerprints
         // contents while ignoring absolute paths, JAR entry order and timestamps.
-        inputs.files(project.configurations.named(BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION))
+        val pluginClassPath = project.objects.fileCollection()
+          .from(project.configurations.named(BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION))
+        inputs.files(pluginClassPath)
           .withPropertyName(BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION)
           .withNormalizer(ClasspathNormalizer::class)
 
@@ -167,6 +169,7 @@ class BuildTimeInstrumentationPlugin : Plugin<Project> {
           project.objects.newInstance<InstrumentPostProcessingAction>(
             resolvedJavaVersion,
             extension.plugins,
+            pluginClassPath,
             instrumentingClassPath,
             destinationDirectory,
             tmpUninstrumentedClasses,

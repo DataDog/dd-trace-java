@@ -49,8 +49,15 @@ class BuildTimeInstrumentationPluginTest : GradleFixture() {
     writeTestPlugin("ExampleCode")
     writeJavaSource("example.ExampleCode", exampleCode)
 
-    run("build", "--stacktrace", forwardOutput = true)
+    val arguments = arrayOf("build", "--stacktrace", "--configuration-cache", "--rerun-tasks")
+    val stored = run(*arguments, forwardOutput = true)
+    assertTrue(stored.output.contains("Configuration cache entry stored."), stored.output)
 
+    assertInstrumented(buildFile("classes/java/main/example/ExampleCode.class"))
+
+    val reused = run(*arguments, forwardOutput = true)
+    assertTrue(reused.output.contains("Reusing configuration cache."), reused.output)
+    assertEquals(TaskOutcome.SUCCESS, reused.task(":compileJava")?.outcome)
     assertInstrumented(buildFile("classes/java/main/example/ExampleCode.class"))
   }
 
