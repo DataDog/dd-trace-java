@@ -3,9 +3,11 @@ package datadog.trace.bootstrap;
 import datadog.trace.bootstrap.environment.SystemProperties;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Arrays;
 
 /** Entry point when running the agent as a sample application with -jar. */
@@ -37,7 +39,7 @@ public final class AgentJar {
             scanDependencies(args);
             break;
           case "checkProfilerEnv":
-            checkProfilerEnv(args);
+            System.exit(checkProfilerEnv(args));
             break;
           case "--list-integrations":
           case "-li":
@@ -70,7 +72,7 @@ public final class AgentJar {
     System.out.println("  sampleTrace [-c count] [-i interval]");
     System.out.println("  uploadCrash -c configFile crashFile");
     System.out.println("  scanDependencies <path> ...");
-    System.out.println("  checkProfilerEnv [temp]");
+    System.out.println("  checkProfilerEnv [dd.profiling.tempdir]");
     System.out.println("  [-li | --list-integrations]");
     System.out.println("  [-h  | --help]");
     System.out.println("  [-v  | --version]");
@@ -182,9 +184,48 @@ public final class AgentJar {
     return sb.toString().trim();
   }
 
-  private static void checkProfilerEnv(final String[] args) throws Exception {
-    String tmpDir = args.length == 2 ? args[1] : SystemProperties.get("java.io.tmpdir");
+  @SuppressForbidden
+  private static int checkProfilerEnv(final String[] args) {
+    if (args.length > 2) {
+      System.err.println("checkProfilerEnv accepts at most one temp directory");
+      printUsage();
+      return 1;
+    }
 
-    installAgentCLI().getMethod("checkProfilerEnv", String.class).invoke(null, tmpDir);
+    try {
+      if (args.length == 2) {
+        // Set the CLI override before installing classes that may initialize the temp-dir
+        // singleton.
+        if (!SystemProperties.set("dd.profiling.tempdir", args[1])) {
+          System.err.println("Unable to set profiler temporary directory");
+          return 1;
+        }
+      }
+
+      boolean success = (Boolean) installAgentCLI().getMethod("checkProfilerEnv").invoke(null);
+      if (!success) {
+        return 1;
+      }
+
+      if (args.length == 2 && !isSamePath(args[1], SystemProperties.get("java.io.tmpdir"))) {
+        System.out.println(
+            "! Make sure to add '-Ddd.profiling.tempdir="
+                + args[1]
+                + "' to your JVM command line !");
+      }
+      return 0;
+    } catch (Throwable t) {
+      System.err.println("Failed to check profiler environment");
+      t.printStackTrace();
+      return 1;
+    }
+  }
+
+  private static boolean isSamePath(String path, String other) {
+    return other != null && normalize(path).equals(normalize(other));
+  }
+
+  private static Path normalize(String path) {
+    return new File(path).getAbsoluteFile().toPath().normalize();
   }
 }
