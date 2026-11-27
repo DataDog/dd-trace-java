@@ -9,6 +9,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.isBootstrapClassLoader;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -20,6 +21,8 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -39,7 +42,10 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Helpers cannot be injected into the bootstrap class loader, where instrumentation tests load
     // Logback
-    return not(isBootstrapClassLoader());
+    return Config.get().isLogPatternInject()
+            && !isLogsIntakeEnabled()
+        ? any()
+        : not(isBootstrapClassLoader());
   }
 
   @Override
@@ -55,7 +61,18 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {LogsIntakeHelper.class.getName()};
+    // Opt-in bootstrap Logback cannot receive app-classloader helpers. This helper is
+    // referenced only by the logs-intake advice, which is disabled in this case.
+    return Config.get().isLogPatternInject()
+            && !isLogsIntakeEnabled()
+        ? new String[0]
+        : new String[] {LogsIntakeHelper.class.getName()};
+  }
+
+  private static boolean isLogsIntakeEnabled() {
+    InstrumenterConfig config = InstrumenterConfig.get();
+    return config.isAppLogsCollectionEnabled()
+        || (config.isTraceEnabled() && config.isAgentlessLogSubmissionEnabled());
   }
 
   @Override
@@ -67,6 +84,15 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
             .and(takesArguments(1))
             .and(takesArgument(0, named("ch.qos.logback.classic.spi.ILoggingEvent"))),
         LogbackLoggerInstrumentation.class.getName() + "$CallAppendersAdvice");
+    if (isLogsIntakeEnabled()) {
+      transformer.applyAdvice(
+          isMethod()
+              .and(isPublic())
+              .and(named("callAppenders"))
+              .and(takesArguments(1))
+              .and(takesArgument(0, named("ch.qos.logback.classic.spi.ILoggingEvent"))),
+          LogbackLoggerInstrumentation.class.getName() + "$LogsIntakeAdvice");
+    }
   }
 
   public static class CallAppendersAdvice {
@@ -81,8 +107,15 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
         InstrumentationContext.get(ILoggingEvent.class, AgentSpanContext.class)
             .put(event, span.spanContext());
       }
+    }
+  }
 
-      LogsIntakeHelper.log(event);
+  public static class LogsIntakeAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(@Advice.Argument(0) ILoggingEvent event) {
+      if (event != null) {
+        LogsIntakeHelper.log(event);
+      }
     }
   }
 }
