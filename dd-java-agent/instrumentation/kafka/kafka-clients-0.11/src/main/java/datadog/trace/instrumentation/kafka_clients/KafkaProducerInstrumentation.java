@@ -18,6 +18,7 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.JAVA_KA
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
+import static datadog.trace.instrumentation.kafka_common.ConnectInternalTopics.isInternal;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 import static datadog.trace.instrumentation.kafka_common.Utils.DSM_TRANSACTION_SOURCE_READER;
 import static datadog.trace.instrumentation.kafka_common.Utils.hasHeaders;
@@ -97,6 +98,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
       "datadog.trace.instrumentation.kafka_common.MetadataState",
+      "datadog.trace.instrumentation.kafka_common.ConnectInternalTopics",
     };
   }
 
@@ -222,7 +224,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       }
       // With DSM off the DSM propagator injects nothing, so skip building its tags and context.
       DataStreamsTags tags =
-          traceConfig().isDataStreamsEnabled()
+          traceConfig().isDataStreamsEnabled() && !isInternal(record.topic())
               ? createWithClusterId("kafka", OUTBOUND, record.topic(), clusterId)
               : null;
       try {

@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.instrumentation.kafka_connect.SpawningSourceConnector
+import datadog.trace.instrumentation.kafka_connect.SpawningSourceTask
 import datadog.trace.core.datastreams.StatsGroup
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
@@ -14,13 +16,18 @@ import org.apache.kafka.connect.connector.policy.AllConnectorClientConfigOverrid
 import org.apache.kafka.connect.connector.policy.ConnectorClientConfigOverridePolicy
 import org.apache.kafka.connect.runtime.Herder
 import org.apache.kafka.connect.runtime.Worker
+import org.apache.kafka.connect.runtime.TaskStatus
 import org.apache.kafka.connect.runtime.WorkerConfig
+import org.apache.kafka.connect.runtime.distributed.DistributedConfig
 import org.apache.kafka.connect.runtime.isolation.Plugins
 import org.apache.kafka.connect.runtime.rest.entities.ConnectorInfo
 import org.apache.kafka.connect.runtime.standalone.StandaloneConfig
 import org.apache.kafka.connect.runtime.standalone.StandaloneHerder
+import org.apache.kafka.connect.json.JsonConverter
 import org.apache.kafka.connect.storage.FileOffsetBackingStore
+import org.apache.kafka.connect.storage.KafkaStatusBackingStore
 import org.apache.kafka.connect.util.Callback
+import org.apache.kafka.connect.util.ConnectorTaskId
 import org.springframework.kafka.test.EmbeddedKafkaBroker
 import spock.lang.Shared
 
@@ -31,9 +38,20 @@ import java.util.concurrent.TimeUnit
 class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
   private static final String SOURCE_TOPIC = 'source-test-topic'
   private static final String SINK_TOPIC = 'sink-test-topic'
+  private static final String SPAWNED_TOPIC = 'spawned-test-topic'
+  private static final String NORMAL_TOPIC = 'normal-test-topic'
+  private static final String STATUS_TOPIC = 'test-cluster-status'
+  // MirrorMaker 2 and default-named Connect topics that are matched by name, not config
+  private static final List<String> NAMED_INTERNAL_TOPICS = [
+    'mm2-offset-syncs.source.internal',
+    'source.checkpoints.internal',
+    'heartbeats',
+    'source.heartbeats',
+    '_connect-offsets'
+  ]
 
   @Shared
-  EmbeddedKafkaBroker embeddedKafka = new EmbeddedKafkaBroker(1, false, 1, SOURCE_TOPIC, SINK_TOPIC)
+  EmbeddedKafkaBroker embeddedKafka = new EmbeddedKafkaBroker(1, false, 1, [SOURCE_TOPIC, SINK_TOPIC, SPAWNED_TOPIC, NORMAL_TOPIC] + NAMED_INTERNAL_TOPICS as String[])
 
   def setupSpec() {
     embeddedKafka.afterPropertiesSet() // Initializes the broker
@@ -302,6 +320,163 @@ class ConnectWorkerInstrumentationTest extends InstrumentationSpecification {
     worker?.stop()
     sinkFile?.delete()
     offsetFile?.delete()
+  }
+
+  def "test thread spawned by a task reports the connector service name"() {
+    String bootstrapServers = embeddedKafka.getBrokersAsString()
+    String clusterId = getClusterId(bootstrapServers)
+    File offsetFile = File.createTempFile("connect-spawn-offsets", ".txt")
+    offsetFile.deleteOnExit()
+
+    Map<String, String> workerPropsMap = standaloneWorkerProps(bootstrapServers, offsetFile)
+    Plugins plugins = new Plugins(workerPropsMap)
+    plugins.compareAndSwapWithDelegatingLoader()
+    FileOffsetBackingStore offsetBackingStore = new FileOffsetBackingStore()
+    WorkerConfig workerConfig = new StandaloneConfig(workerPropsMap)
+    offsetBackingStore.configure(workerConfig)
+    ConnectorClientConfigOverridePolicy policy = new AllConnectorClientConfigOverridePolicy()
+    Worker worker = new Worker("worker-1", Time.SYSTEM, plugins, workerConfig, offsetBackingStore, policy)
+    Herder herder = new StandaloneHerder(worker, clusterId, policy)
+    worker.start()
+    herder.start()
+
+    Map<String, String> connectorProps = [
+      'name'                                 : 'spawning-connector',
+      'connector.class'                      : SpawningSourceConnector.name,
+      'tasks.max'                            : '1',
+      (SpawningSourceTask.BOOTSTRAP_SERVERS) : bootstrapServers,
+      (SpawningSourceTask.TOPIC)             : SPAWNED_TOPIC
+    ]
+    CountDownLatch connectorAddedLatch = new CountDownLatch(1)
+    Callback<Herder.Created<ConnectorInfo>> callback = new Callback<Herder.Created<ConnectorInfo>>() {
+      @Override
+      void onCompletion(Throwable error, Herder.Created<ConnectorInfo> result) {
+        error?.printStackTrace()
+        connectorAddedLatch.countDown()
+      }
+    }
+
+    when:
+    herder.putConnectorConfig("spawning-connector", connectorProps, false, callback)
+    assert connectorAddedLatch.await(10, TimeUnit.SECONDS) : "Connector was not added in time"
+
+    then:
+    StatsGroup produced = waitForGroup('spawning-connector', "direction:out", "topic:" + SPAWNED_TOPIC, "type:kafka")
+    produced != null
+    TEST_DATA_STREAMS_WRITER.getGroupsForService(null).every {
+      !it.tags.hasAllTags("direction:out", "topic:" + SPAWNED_TOPIC)
+    }
+
+    cleanup:
+    herder?.stop()
+    worker?.stop()
+    offsetFile?.delete()
+  }
+
+  def "test kafka-connect internal topics get no checkpoints"() {
+    String bootstrapServers = embeddedKafka.getBrokersAsString()
+    Map<String, String> distributedProps = [
+      (WorkerConfig.BOOTSTRAP_SERVERS_CONFIG)                    : bootstrapServers,
+      (WorkerConfig.KEY_CONVERTER_CLASS_CONFIG)                  : 'org.apache.kafka.connect.storage.StringConverter',
+      (WorkerConfig.VALUE_CONVERTER_CLASS_CONFIG)                : 'org.apache.kafka.connect.storage.StringConverter',
+      (DistributedConfig.GROUP_ID_CONFIG)                        : 'internal-topics-test',
+      (DistributedConfig.OFFSET_STORAGE_TOPIC_CONFIG)            : 'test-cluster-offsets',
+      (DistributedConfig.CONFIG_TOPIC_CONFIG)                    : 'test-cluster-configs',
+      (DistributedConfig.STATUS_STORAGE_TOPIC_CONFIG)            : STATUS_TOPIC,
+      (DistributedConfig.STATUS_STORAGE_REPLICATION_FACTOR_CONFIG): '1',
+      (DistributedConfig.STATUS_STORAGE_PARTITIONS_CONFIG)       : '1'
+    ]
+    // Reading the worker config registers the configured internal topic names
+    DistributedConfig distributedConfig = new DistributedConfig(distributedProps)
+    JsonConverter internalConverter = new JsonConverter()
+    internalConverter.configure(['schemas.enable': 'false'], false)
+    KafkaStatusBackingStore statusStore = new KafkaStatusBackingStore(Time.SYSTEM, internalConverter)
+    statusStore.configure(distributedConfig)
+    statusStore.start()
+    ConnectorTaskId taskId = new ConnectorTaskId('status-connector', 0)
+
+    Properties producerProps = new Properties()
+    producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)
+    producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
+    producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
+    Properties consumerProps = new Properties()
+    consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)
+    consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "internal-topics-consumer")
+    consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer")
+    consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer")
+    KafkaProducer<String, String> producer = new KafkaProducer<>(producerProps)
+    KafkaConsumer<String, String> consumer = new KafkaConsumer<>(consumerProps)
+
+    when:
+    // Connect writes the status topic and reads it back with its own consumer
+    statusStore.put(new TaskStatus(taskId, TaskStatus.State.RUNNING, 'worker-1', 0))
+    for (int i = 0; i < 100 && statusStore.get(taskId) == null; i++) {
+      Thread.sleep(100)
+    }
+    for (String topic : NAMED_INTERNAL_TOPICS) {
+      producer.send(new ProducerRecord<>(topic, "key", "internal"))
+    }
+    producer.send(new ProducerRecord<>(NORMAL_TOPIC, "key", "normal"))
+    producer.flush()
+
+    consumer.subscribe(NAMED_INTERNAL_TOPICS + [NORMAL_TOPIC])
+    Set<String> consumedTopics = []
+    for (int i = 0; i < 20 && consumedTopics.size() < NAMED_INTERNAL_TOPICS.size() + 1; i++) {
+      consumer.poll(Duration.ofSeconds(1)).each { consumedTopics.add(it.topic()) }
+    }
+    consumer.commitSync()
+
+    then:
+    statusStore.get(taskId) != null
+    consumedTopics == (NAMED_INTERNAL_TOPICS + [NORMAL_TOPIC]) as Set
+    // The normal topic still gets a full pathway, which also means the earlier points were flushed
+    waitForPathway(NORMAL_TOPIC, "internal-topics-consumer").size() == 2
+    List<String> internalTopics = NAMED_INTERNAL_TOPICS + [STATUS_TOPIC]
+    TEST_DATA_STREAMS_WRITER.groups.findAll { group ->
+      internalTopics.any { group.tags.hasAllTags("topic:" + it) }
+    }.isEmpty()
+    TEST_DATA_STREAMS_WRITER.backlogs.findAll { tags ->
+      internalTopics.any { tags.hasAllTags("topic:" + it) }
+    }.isEmpty()
+
+    cleanup:
+    consumer?.close()
+    producer?.close()
+    statusStore?.stop()
+  }
+
+  private static String getClusterId(String bootstrapServers) {
+    Properties adminProps = new Properties()
+    adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)
+    try (AdminClient adminClient = AdminClient.create(adminProps)) {
+      return adminClient.describeCluster().clusterId().get()
+    }
+  }
+
+  private static Map<String, String> standaloneWorkerProps(String bootstrapServers, File offsetFile) {
+    return [
+      (WorkerConfig.BOOTSTRAP_SERVERS_CONFIG)                : bootstrapServers,
+      (WorkerConfig.KEY_CONVERTER_CLASS_CONFIG)              : "org.apache.kafka.connect.storage.StringConverter",
+      (WorkerConfig.VALUE_CONVERTER_CLASS_CONFIG)            : "org.apache.kafka.connect.storage.StringConverter",
+      (StandaloneConfig.OFFSET_STORAGE_FILE_FILENAME_CONFIG) : offsetFile.absolutePath,
+      (WorkerConfig.INTERNAL_KEY_CONVERTER_CLASS_CONFIG)     : "org.apache.kafka.connect.json.JsonConverter",
+      (WorkerConfig.INTERNAL_VALUE_CONVERTER_CLASS_CONFIG)   : "org.apache.kafka.connect.json.JsonConverter",
+      (WorkerConfig.PLUGIN_PATH_CONFIG)                      : "",
+      "plugin.scan.classpath"                                : "true"
+    ]
+  }
+
+  private StatsGroup waitForGroup(String service, String... tags) {
+    long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(10)
+    while (System.currentTimeMillis() < deadline) {
+      StatsGroup group = TEST_DATA_STREAMS_WRITER.getGroupsForService(service).find { it.tags.hasAllTags(tags) }
+      if (group != null) {
+        return group
+      }
+      Thread.sleep(20)
+    }
+    throw new AssertionError("No data-stream group with tags " + tags + " for service " + service)
   }
 
   private List<StatsGroup> waitForPathway(String topic, String group) {

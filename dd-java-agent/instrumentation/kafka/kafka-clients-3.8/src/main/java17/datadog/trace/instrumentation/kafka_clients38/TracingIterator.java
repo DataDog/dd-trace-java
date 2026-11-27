@@ -11,6 +11,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients38.TextMapExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.kafka_clients38.TextMapInjectAdapter.SETTER;
+import static datadog.trace.instrumentation.kafka_common.ConnectInternalTopics.isInternal;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.context.Context;
@@ -123,7 +124,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
 
           // Only build the DSM tags and context when DSM is on: with it off the checkpoint is a
           // no-op, but the arguments were still built (hashed tags, strings) for every record.
-          if (traceConfig().isDataStreamsEnabled()) {
+          if (traceConfig().isDataStreamsEnabled() && !isInternal(val.topic())) {
             DataStreamsTags tags = create("kafka", INBOUND, val.topic(), group, clusterId);
             final long payloadSize = Utils.computePayloadSizeBytes(val);
             if (StreamingContext.STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {

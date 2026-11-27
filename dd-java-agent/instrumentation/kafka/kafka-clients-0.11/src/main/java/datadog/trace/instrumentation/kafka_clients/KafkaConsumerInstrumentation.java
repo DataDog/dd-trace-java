@@ -78,6 +78,7 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
       "datadog.trace.instrumentation.kafka_common.MetadataState",
+      "datadog.trace.instrumentation.kafka_common.ConnectInternalTopics",
     };
   }
 

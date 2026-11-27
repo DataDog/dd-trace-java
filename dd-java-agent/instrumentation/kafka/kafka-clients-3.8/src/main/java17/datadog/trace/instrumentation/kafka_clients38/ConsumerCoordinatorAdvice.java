@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
+import static datadog.trace.instrumentation.kafka_common.ConnectInternalTopics.isInternal;
 
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -49,7 +50,9 @@ public class ConsumerCoordinatorAdvice {
       if (consumerGroup == null) {
         consumerGroup = "";
       }
-      if (entry.getKey() == null || entry.getValue() == null) {
+      if (entry.getKey() == null
+          || entry.getValue() == null
+          || isInternal(entry.getKey().topic())) {
         continue;
       }
       DataStreamsTags tags =

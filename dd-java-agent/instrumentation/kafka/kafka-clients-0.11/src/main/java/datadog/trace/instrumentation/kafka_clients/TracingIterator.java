@@ -14,6 +14,7 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_D
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER;
+import static datadog.trace.instrumentation.kafka_common.ConnectInternalTopics.isInternal;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 import static datadog.trace.instrumentation.kafka_common.Utils.DSM_TRANSACTION_SOURCE_READER;
 import static datadog.trace.instrumentation.kafka_common.Utils.computePayloadSizeBytes;
@@ -126,7 +127,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
 
           // Only build the DSM tags and context when DSM is on: with it off the checkpoint is a
           // no-op, but the arguments were still built (hashed tags, strings) for every record.
-          if (traceConfig().isDataStreamsEnabled()) {
+          if (traceConfig().isDataStreamsEnabled() && !isInternal(val.topic())) {
             DataStreamsTags tags = create("kafka", INBOUND, val.topic(), group, clusterId);
             final long payloadSize = computePayloadSizeBytes(val);
             if (STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {

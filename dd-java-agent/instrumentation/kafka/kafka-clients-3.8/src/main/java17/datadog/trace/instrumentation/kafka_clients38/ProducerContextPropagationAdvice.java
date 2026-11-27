@@ -9,6 +9,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_C
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
+import static datadog.trace.instrumentation.kafka_common.ConnectInternalTopics.isInternal;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 
 import datadog.context.propagation.Propagator;
@@ -44,7 +45,7 @@ public class ProducerContextPropagationAdvice {
     }
     // With DSM off the DSM propagator injects nothing, so skip building its tags and context.
     DataStreamsTags tags =
-        traceConfig().isDataStreamsEnabled()
+        traceConfig().isDataStreamsEnabled() && !isInternal(record.topic())
             ? create("kafka", OUTBOUND, record.topic(), null, clusterId)
             : null;
     try {

@@ -5,6 +5,7 @@ import static datadog.trace.api.KnownTags.PARTITION;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
+import static datadog.trace.instrumentation.kafka_common.ConnectInternalTopics.isInternal;
 
 import datadog.context.ContextScope;
 import datadog.trace.api.datastreams.DataStreamsTags;
@@ -53,7 +54,8 @@ public class KafkaProducerCallback implements Callback {
     if (metadata == null
         || exception != null
         || metadata.partition() < 0
-        || !traceConfig().isDataStreamsEnabled()) {
+        || !traceConfig().isDataStreamsEnabled()
+        || isInternal(metadata.topic())) {
       return;
     }
 
