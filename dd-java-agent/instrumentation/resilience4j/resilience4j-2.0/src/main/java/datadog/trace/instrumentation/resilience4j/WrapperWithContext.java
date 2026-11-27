@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.resilience4j;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.SkipCompletableFutureContextCapture;
 import io.github.resilience4j.core.functions.CheckedConsumer;
 import io.github.resilience4j.core.functions.CheckedFunction;
 import io.github.resilience4j.core.functions.CheckedRunnable;
@@ -14,6 +15,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -215,9 +217,9 @@ public class WrapperWithContext<T> {
       try (ContextScope ignore = activateScope()) {
         return delegate
             .get()
-            .whenComplete((v, e) -> {
-              finishSpanIfNeeded();
-            });
+            .whenComplete(
+                (BiConsumer<Object, Throwable> & SkipCompletableFutureContextCapture)
+                    (value, error) -> finishSpanIfNeeded());
       }
     }
   }
@@ -238,9 +240,9 @@ public class WrapperWithContext<T> {
         Future<?> future = delegate.get();
         if (future instanceof CompletableFuture) {
           ((CompletableFuture<?>) future)
-              .whenComplete((v, e) -> {
-                finishSpanIfNeeded();
-              });
+              .whenComplete(
+                  (BiConsumer<Object, Throwable> & SkipCompletableFutureContextCapture)
+                      (value, error) -> finishSpanIfNeeded());
           return future;
         }
         return new FinishOnGetFuture<>(future, this);
