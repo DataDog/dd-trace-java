@@ -5,6 +5,11 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.context.Context;
 import datadog.trace.api.Config;
+import datadog.trace.api.appsec.route.BoundValuesPresenceResolver;
+import datadog.trace.api.appsec.route.NormalizedRouteHelper;
+import datadog.trace.api.appsec.route.PlayRouteParser;
+import datadog.trace.api.appsec.route.PresenceResolver;
+import datadog.trace.api.appsec.route.RouteTemplate;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -46,7 +51,7 @@ public class PlayHttpServerDecorator
 
   private static final MethodHandle TYPED_KEY_GET_UNDERLYING;
 
-  private static final DDCache<String, CharSequence> PATH_CACHE = DDCaches.newFixedSizeCache(32);
+  private static final DDCache<String, String> PATH_CACHE = DDCaches.newFixedSizeCache(32);
 
   static {
     MethodHandles.Lookup lookup = MethodHandles.publicLookup();
@@ -149,19 +154,61 @@ public class PlayHttpServerDecorator
         }
       }
       if (!defOption.isEmpty()) {
-        CharSequence path =
+        String path =
             PATH_CACHE.computeIfAbsent(
                 defOption.get().path(), p -> addMissingSlash(p, request.path()));
         HTTP_RESOURCE_DECORATOR.withRoute(span, request.method(), path, true);
+        final RouteTemplate template = normalizedRouteTemplate(path);
+        final PresenceResolver presence = presenceOf(template, request);
+        tagNormalizedRoute(span, template, presence);
         if (OTEL_SEMANTICS) {
           final AgentSpan serverSpan = getHttpServerSpan(span);
           if (serverSpan != null && serverSpan != span) {
             // Sampling may run inside the action, so set the server route now.
             HTTP_RESOURCE_DECORATOR.withRoute(serverSpan, request.method(), path, true);
+            tagNormalizedRoute(serverSpan, template, presence);
           }
         }
         dispatchRoute(span, path);
       }
+    }
+  }
+
+  /** Template to tag the route with, or null when the tag must not be set. */
+  private static RouteTemplate normalizedRouteTemplate(final String path) {
+    if (!NormalizedRouteHelper.isEnabled()) {
+      return null;
+    }
+    final RouteTemplate template = PlayRouteParser.cached(path);
+    return template.isExpressible() ? template : null;
+  }
+
+  /** Presence of the route parts from the values Play's router bound, or null when not tagging. */
+  private static PresenceResolver presenceOf(
+      final RouteTemplate template, final Request<?> request) {
+    if (template == null) {
+      return null;
+    }
+    if (template.staticRoute() != null) {
+      // skips the store lookup and the map copy: BoundValuesPresenceResolver.of ignores them here
+      return PresenceResolver.UNKNOWN;
+    }
+    try {
+      return BoundValuesPresenceResolver.of(
+          template, PlayRouteParams.boundValues(PlayRouteParams.capturedFor(request)), null);
+    } catch (final Throwable t) {
+      // request.target() on a custom RequestHeader or a Scala linkage error: fall back to UNKNOWN,
+      // never throw into the app (same as NormalizedRouteHelper)
+      LOG.debug("Failed to read the bound route parameters", t);
+      return PresenceResolver.UNKNOWN;
+    }
+  }
+
+  /** Sets {@code _dd.appsec.normalized_route}; the route already includes the router prefix. */
+  private static void tagNormalizedRoute(
+      final AgentSpan span, final RouteTemplate template, final PresenceResolver presence) {
+    if (template != null) {
+      NormalizedRouteHelper.tag(span, template, "", presence);
     }
   }
 
@@ -204,7 +251,7 @@ public class PlayHttpServerDecorator
 
      https://github.com/playframework/playframework/blob/main/dev-mode/routes-compiler/src/main/twirl/play/routes/compiler/inject/forwardsRouter.scala.twirl#L70
   */
-  private CharSequence addMissingSlash(String routePath, String rawPath) {
+  private String addMissingSlash(String routePath, String rawPath) {
     int i = 0;
     int m = Math.min(routePath.length(), rawPath.length());
     while (i < m && routePath.charAt(i) == rawPath.charAt(i)) {
@@ -215,7 +262,7 @@ public class PlayHttpServerDecorator
       sb.append(routePath, 0, i);
       sb.append('/');
       sb.append(routePath, i, routePath.length());
-      return sb;
+      return sb.toString();
     }
     return routePath;
   }

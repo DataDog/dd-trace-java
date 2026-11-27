@@ -16,6 +16,7 @@ muzzle {
 addTestSuiteForDir('latestDepTest', 'test', false)
 
 dependencies {
+  testImplementation libs.bundles.mockito
   compileOnly group: 'com.openai', name: 'openai-java', version: minVer
   implementation project(':internal-api')
 
