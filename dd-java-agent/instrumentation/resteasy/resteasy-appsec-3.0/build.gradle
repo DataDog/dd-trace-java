@@ -54,6 +54,7 @@ dependencies {
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: jettyVersion
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.6')
   testImplementation project(':dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2.0')
+  testImplementation libs.bundles.mockito
 
   nettyTestImplementation group: 'io.netty', name: 'netty', version: '3.8.0.Final' // upgrade netty to a version we support
   nettyTestImplementation group: 'org.jboss.resteasy', name: 'resteasy-netty', version :'3.0.0.Final'

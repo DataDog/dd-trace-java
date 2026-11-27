@@ -15,6 +15,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -26,6 +27,7 @@ import datadog.trace.api.appsec.route.JaxRsRequestMatch;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import java.lang.annotation.AnnotationFormatError;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -46,6 +48,7 @@ import net.bytebuddy.implementation.FixedValue;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.tabletest.junit.TableTest;
 
 /**
@@ -316,14 +319,52 @@ class JaxRsAnnotationsDecoratorTest {
     verify(span, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), anyString());
   }
 
+  /** A root jax-rs span has no server span, so no capture advice stores a match for it. */
   @Test
-  void tagsTheRootSpanFromTheStoredMatch() throws Exception {
+  void noTagOnARootSpan() throws Exception {
     AgentSpan span = routedSpan();
     store(span, JaxRsRequestMatch.of("/ctx/", singletonMap("path", "/")));
 
     DECORATE.onJaxRsSpan(span, null, Files.class, Files.class.getMethod("get"));
 
-    verify(span).setTag(DD_APPSEC_NORMALIZED_ROUTE, "/ctx/files/");
+    verify(span, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), nullable(String.class));
+  }
+
+  /** The last writer of http.route owns the tag: a previous value never survives a new route. */
+  @Test
+  void aNewRouteWithoutAMatchClearsAPreviousTag() {
+    assertClearedWithoutTag("/users/{id}", null);
+  }
+
+  @Test
+  void aSubResourceLocatorMatchClearsAPreviousTag() {
+    assertClearedWithoutTag("/users/{id}", JaxRsRequestMatch.SUBRESOURCE);
+  }
+
+  @Test
+  void aMalformedRouteClearsAPreviousTag() {
+    assertClearedWithoutTag("/users/{id", JaxRsRequestMatch.of("/ctx/", null));
+  }
+
+  @Test
+  void aNewRouteWithAMatchReplacesAPreviousTag() {
+    AgentSpan span = routedSpan();
+
+    JaxRsAnnotationsDecorator.tagNormalizedRoute(
+        span, "/users/{id}", JaxRsRequestMatch.of("/ctx/", singletonMap("id", "42")));
+
+    InOrder inOrder = inOrder(span);
+    inOrder.verify(span).setTag(DD_APPSEC_NORMALIZED_ROUTE, (String) null);
+    inOrder.verify(span).setTag(DD_APPSEC_NORMALIZED_ROUTE, "/ctx/users/{id}");
+  }
+
+  private static void assertClearedWithoutTag(String route, JaxRsRequestMatch match) {
+    AgentSpan span = routedSpan();
+
+    JaxRsAnnotationsDecorator.tagNormalizedRoute(span, route, match);
+
+    verify(span).setTag(DD_APPSEC_NORMALIZED_ROUTE, (String) null);
+    verify(span, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), anyString());
   }
 
   @Test
@@ -341,22 +382,24 @@ class JaxRsAnnotationsDecoratorTest {
 
   @Test
   void noTagWithoutAStoredMatch() throws Exception {
-    AgentSpan span = routedSpan();
+    AgentSpan localRoot = localRoot();
 
-    DECORATE.onJaxRsSpan(span, null, Files.class, Files.class.getMethod("get"));
+    DECORATE.onJaxRsSpan(
+        mock(AgentSpan.class), localRoot, Files.class, Files.class.getMethod("get"));
 
-    verify(span, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), anyString());
+    verify(localRoot, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), anyString());
   }
 
   @Test
   void noTagWhenAppSecIsInactive() throws Exception {
     ActiveSubsystems.APPSEC_ACTIVE = false;
-    AgentSpan span = routedSpan();
-    store(span, JaxRsRequestMatch.of("/ctx/", null));
+    AgentSpan localRoot = localRoot();
+    store(localRoot, JaxRsRequestMatch.of("/ctx/", null));
 
-    DECORATE.onJaxRsSpan(span, null, Files.class, Files.class.getMethod("get"));
+    DECORATE.onJaxRsSpan(
+        mock(AgentSpan.class), localRoot, Files.class, Files.class.getMethod("get"));
 
-    verify(span, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), anyString());
+    verify(localRoot, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), nullable(String.class));
   }
 
   @Test
@@ -389,25 +432,37 @@ class JaxRsAnnotationsDecoratorTest {
   }
 
   @Test
-  void aRootSubResourceLocatorMarksItsSpan() throws Exception {
-    AgentSpan span = routedSpan();
-    storeKeys.add(span);
-
-    DECORATE.onJaxRsSpan(span, null, Locator.class, locatorMethod());
-
-    assertSame(JaxRsRequestMatch.SUBRESOURCE, REQUEST_MATCHES.get(span));
-    verify(span, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), anyString());
-  }
-
-  @Test
-  void noMarkWhenAppSecIsInactive() throws Exception {
-    ActiveSubsystems.APPSEC_ACTIVE = false;
+  void aRootSubResourceLocatorDoesNotMark() throws Exception {
     AgentSpan span = routedSpan();
     storeKeys.add(span);
 
     DECORATE.onJaxRsSpan(span, null, Locator.class, locatorMethod());
 
     assertNull(REQUEST_MATCHES.get(span));
+  }
+
+  /** The framework already set the route, so the locator does not set it and does not mark. */
+  @Test
+  void noMarkWhenTheFrameworkAlreadySetTheRoute() throws Exception {
+    AgentSpan localRoot = localRoot();
+    when(localRoot.getResourceNamePriority())
+        .thenReturn(ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
+    storeKeys.add(localRoot);
+
+    DECORATE.onJaxRsSpan(mock(AgentSpan.class), localRoot, Locator.class, locatorMethod());
+
+    assertNull(REQUEST_MATCHES.get(localRoot));
+  }
+
+  @Test
+  void noMarkWhenAppSecIsInactive() throws Exception {
+    ActiveSubsystems.APPSEC_ACTIVE = false;
+    AgentSpan localRoot = localRoot();
+    storeKeys.add(localRoot);
+
+    DECORATE.onJaxRsSpan(mock(AgentSpan.class), localRoot, Locator.class, locatorMethod());
+
+    assertNull(REQUEST_MATCHES.get(localRoot));
   }
 
   private static CharSequence route(String expected) {
@@ -425,6 +480,13 @@ class JaxRsAnnotationsDecoratorTest {
 
   private static Method subMethod() throws NoSuchMethodException {
     return SubResource.class.getMethod("get");
+  }
+
+  /** A routed span that is its own local root, as a server span. */
+  private static AgentSpan localRoot() {
+    AgentSpan localRoot = routedSpan();
+    when(localRoot.getLocalRootSpan()).thenReturn(localRoot);
+    return localRoot;
   }
 
   /** A span that already carries {@code http.route}, as after {@code withRoute}. */

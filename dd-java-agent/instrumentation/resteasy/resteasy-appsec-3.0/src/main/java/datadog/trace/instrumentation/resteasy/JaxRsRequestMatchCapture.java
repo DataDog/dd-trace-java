@@ -6,6 +6,8 @@ import static datadog.trace.bootstrap.ContextStores.getContextStoreId;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
 import datadog.trace.api.appsec.route.JaxRsRequestMatch;
+import datadog.trace.api.appsec.route.NormalizedRouteHelper;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.URI;
@@ -37,10 +39,22 @@ public final class JaxRsRequestMatchCapture {
    * @param boundValues the path parameters RESTEasy bound, by name
    */
   public static void capture(URI baseUri, Map<String, ?> boundValues) {
+    capture(baseUri == null ? null : activeSpan(), baseUri, boundValues);
+  }
+
+  /**
+   * Same as {@link #capture(URI, Map)} with {@code span} as the active span. Also stores nothing
+   * without an active span or local root, or when {@link NormalizedRouteHelper#isEnabled()} is
+   * false.
+   */
+  @VisibleForTesting
+  static void capture(AgentSpan span, URI baseUri, Map<String, ?> boundValues) {
     try {
       String rawBasePath = baseUri == null ? null : baseUri.getRawPath();
-      AgentSpan span = rawBasePath == null ? null : activeSpan();
-      AgentSpan localRoot = span == null ? null : span.getLocalRootSpan();
+      AgentSpan localRoot =
+          rawBasePath == null || span == null || !NormalizedRouteHelper.isEnabled()
+              ? null
+              : span.getLocalRootSpan();
       if (localRoot == null || REQUEST_MATCHES.get(localRoot) == JaxRsRequestMatch.SUBRESOURCE) {
         return;
       }

@@ -8,10 +8,13 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
 import static datadog.trace.instrumentation.jakarta3.JakartaRsAnnotationsDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -30,6 +33,7 @@ import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.tabletest.junit.TableTest;
 
 /**
@@ -120,14 +124,65 @@ class JakartaRsNormalizedRouteTest {
     verify(span, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), anyString());
   }
 
+  /** A root jakarta-rs span has no server span, so no capture advice stores a match for it. */
   @Test
-  void tagsTheRootSpan() throws Exception {
+  void noTagOnARootSpan() throws Exception {
     AgentSpan span = routedSpan();
     store(span, "/");
 
     DECORATE.onJakartaRsSpan(span, null, Files.class, get());
 
-    verify(span).setTag(DD_APPSEC_NORMALIZED_ROUTE, "/ctx/files/");
+    verify(span, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), nullable(String.class));
+  }
+
+  @Test
+  void noTagForAMalformedRoute() {
+    AgentSpan span = routedSpan();
+
+    JakartaRsAnnotationsDecorator.tagNormalizedRoute(
+        span, "/users/{id", JaxRsRequestMatch.of("/ctx/", null));
+
+    verify(span, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), anyString());
+  }
+
+  /**
+   * The last writer of http.route owns the tag: a previous value (e.g. from Vert.x on Quarkus)
+   * never survives a new route.
+   */
+  @Test
+  void aNewRouteWithoutAMatchClearsAPreviousTag() {
+    assertClearedWithoutTag("/users/{id}", null);
+  }
+
+  @Test
+  void aSubResourceLocatorMatchClearsAPreviousTag() {
+    assertClearedWithoutTag("/users/{id}", JaxRsRequestMatch.SUBRESOURCE);
+  }
+
+  @Test
+  void aMalformedRouteClearsAPreviousTag() {
+    assertClearedWithoutTag("/users/{id", JaxRsRequestMatch.of("/ctx/", null));
+  }
+
+  @Test
+  void aNewRouteWithAMatchReplacesAPreviousTag() {
+    AgentSpan span = routedSpan();
+
+    JakartaRsAnnotationsDecorator.tagNormalizedRoute(
+        span, "/users/{id}", JaxRsRequestMatch.of("/ctx/", singletonMap("id", "42")));
+
+    InOrder inOrder = inOrder(span);
+    inOrder.verify(span).setTag(DD_APPSEC_NORMALIZED_ROUTE, (String) null);
+    inOrder.verify(span).setTag(DD_APPSEC_NORMALIZED_ROUTE, "/ctx/users/{id}");
+  }
+
+  private static void assertClearedWithoutTag(String route, JaxRsRequestMatch match) {
+    AgentSpan span = routedSpan();
+
+    JakartaRsAnnotationsDecorator.tagNormalizedRoute(span, route, match);
+
+    verify(span).setTag(DD_APPSEC_NORMALIZED_ROUTE, (String) null);
+    verify(span, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), anyString());
   }
 
   @Test
@@ -161,22 +216,22 @@ class JakartaRsNormalizedRouteTest {
 
   @Test
   void noTagWithoutAStoredMatch() throws Exception {
-    AgentSpan span = routedSpan();
+    AgentSpan parent = localRoot();
 
-    DECORATE.onJakartaRsSpan(span, null, Files.class, get());
+    DECORATE.onJakartaRsSpan(mock(AgentSpan.class), parent, Files.class, get());
 
-    verify(span, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), anyString());
+    verify(parent, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), anyString());
   }
 
   @Test
   void noTagWhenAppSecIsInactive() throws Exception {
     ActiveSubsystems.APPSEC_ACTIVE = false;
-    AgentSpan span = routedSpan();
-    store(span, "/");
+    AgentSpan parent = localRoot();
+    store(parent, "/");
 
-    DECORATE.onJakartaRsSpan(span, null, Files.class, get());
+    DECORATE.onJakartaRsSpan(mock(AgentSpan.class), parent, Files.class, get());
 
-    verify(span, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), anyString());
+    verify(parent, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), nullable(String.class));
   }
 
   @Test
@@ -209,14 +264,52 @@ class JakartaRsNormalizedRouteTest {
   }
 
   @Test
-  void aRootSubResourceLocatorMarksItsSpan() throws Exception {
+  void aRootSubResourceLocatorDoesNotMark() throws Exception {
     AgentSpan span = routedSpan();
     storeKeys.add(span);
 
     DECORATE.onJakartaRsSpan(span, null, Locator.class, locatorMethod());
 
-    assertSame(JaxRsRequestMatch.SUBRESOURCE, REQUEST_MATCHES.get(span));
-    verify(span, never()).setTag(eq(DD_APPSEC_NORMALIZED_ROUTE), anyString());
+    assertNull(REQUEST_MATCHES.get(span));
+  }
+
+  /** A nested locator under a server span that is not the local root sets no route: no mark. */
+  @Test
+  void noMarkWhenTheLocatorDoesNotSetTheRoute() throws Exception {
+    AgentSpan localRoot = routedSpan();
+    AgentSpan parent = mock(AgentSpan.class);
+    when(parent.getLocalRootSpan()).thenReturn(localRoot);
+    storeKeys.add(localRoot);
+
+    DECORATE.onJakartaRsSpan(mock(AgentSpan.class), parent, Locator.class, locatorMethod());
+
+    assertNull(REQUEST_MATCHES.get(localRoot));
+  }
+
+  /** On Quarkus the locator keeps the server's catch-all route and marks the request. */
+  @Test
+  void aLocatorUnderACatchAllServerRouteMarks() throws Exception {
+    AgentSpan localRoot = routedSpan();
+    when(localRoot.getTag(HTTP_ROUTE)).thenReturn("/");
+    AgentSpan parent = mock(AgentSpan.class);
+    when(parent.getLocalRootSpan()).thenReturn(localRoot);
+    when(parent.getTag(SPAN_KIND)).thenReturn(SPAN_KIND_SERVER);
+    storeKeys.add(localRoot);
+
+    DECORATE.onJakartaRsSpan(mock(AgentSpan.class), parent, Locator.class, locatorMethod());
+
+    assertSame(JaxRsRequestMatch.SUBRESOURCE, REQUEST_MATCHES.get(localRoot));
+  }
+
+  @Test
+  void noMarkWhenAppSecIsInactive() throws Exception {
+    ActiveSubsystems.APPSEC_ACTIVE = false;
+    AgentSpan parent = localRoot();
+    storeKeys.add(parent);
+
+    DECORATE.onJakartaRsSpan(mock(AgentSpan.class), parent, Locator.class, locatorMethod());
+
+    assertNull(REQUEST_MATCHES.get(parent));
   }
 
   private static CharSequence route(String expected) {
@@ -238,6 +331,13 @@ class JakartaRsNormalizedRouteTest {
 
   private static Method get() throws NoSuchMethodException {
     return Files.class.getMethod("get");
+  }
+
+  /** A routed span that is its own local root, as a server span. */
+  private static AgentSpan localRoot() {
+    AgentSpan localRoot = routedSpan();
+    when(localRoot.getLocalRootSpan()).thenReturn(localRoot);
+    return localRoot;
   }
 
   /** A span that already carries {@code http.route}, as after {@code withRoute}. */

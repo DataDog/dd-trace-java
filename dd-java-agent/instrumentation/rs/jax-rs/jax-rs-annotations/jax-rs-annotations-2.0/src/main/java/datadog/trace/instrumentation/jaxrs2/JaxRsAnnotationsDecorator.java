@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.ContextStores.getContextStoreId;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.api.GenericClassValue;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.Pair;
 import datadog.trace.api.appsec.route.JaxRsRequestMatch;
 import datadog.trace.api.appsec.route.JaxRsRouteParser;
@@ -81,16 +82,14 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
     final boolean isRootScope = parent == null;
     if (isRootScope) {
       if (httpMethodAndRoute.hasRight()) { // no route when no path was readable: keep the name
-        markSubResourceLocator(span, httpMethodAndRoute);
         HTTP_RESOURCE_DECORATOR.withRoute(
             span, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
-        tagNormalizedRoute(span, httpMethodAndRoute.getRight());
+        // No normalized route: without a server span, no capture advice stored a match for it.
       }
     } else {
       span.setResourceName(DECORATE.spanNameForMethod(target, method));
 
       final AgentSpan localRoot = parent.getLocalRootSpan();
-      markSubResourceLocator(localRoot, httpMethodAndRoute);
       if (localRoot.getResourceNamePriority() < ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE) {
         parent.setTag(Tags.COMPONENT, "jax-rs");
 
@@ -104,6 +103,7 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
           return;
         }
 
+        markSubResourceLocator(localRoot, httpMethodAndRoute);
         HTTP_RESOURCE_DECORATOR.withRoute(
             localRoot, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
         tagNormalizedRoute(localRoot, httpMethodAndRoute.getRight());
@@ -114,8 +114,8 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
   /**
    * Marks the request of {@code localRoot} as handled by a sub-resource locator (an annotated
    * method with a route but no http method): the route of its sub-resource methods is truncated, so
-   * they set no normalized route. Runs before the capture advice, which keeps the mark. Never
-   * throws.
+   * they set no normalized route. Only called where the locator sets {@code http.route}; runs
+   * before the capture advice, which keeps the mark. Never throws.
    */
   private static void markSubResourceLocator(
       final AgentSpan localRoot, final Pair<CharSequence, CharSequence> httpMethodAndRoute) {
@@ -136,7 +136,8 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
   /**
    * Sets {@code _dd.appsec.normalized_route} on {@code span}, the span that just received {@code
    * route} as {@code http.route} (the local root), from the request match a capture advice stored
-   * for it. No match (prefix unknown) or a sub-resource locator means no tag. Never throws.
+   * for it. A previous value is cleared first, so the last writer of {@code http.route} owns the
+   * tag. No match (prefix unknown) or a sub-resource locator means no tag. Never throws.
    */
   private static void tagNormalizedRoute(final AgentSpan span, final CharSequence route) {
     if (!NormalizedRouteHelper.isEnabled()) {
@@ -152,6 +153,7 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
   @VisibleForTesting
   static void tagNormalizedRoute(
       final AgentSpan span, final CharSequence route, final JaxRsRequestMatch match) {
+    span.setTag(KnownTags.DD_APPSEC_NORMALIZED_ROUTE, (String) null);
     if (match == null || match == JaxRsRequestMatch.SUBRESOURCE || route == null) {
       return;
     }

@@ -57,6 +57,7 @@ dependencies {
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '8.2.0.v20160908'
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-7.6')
   testImplementation project(':dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2.0')
+  testImplementation libs.bundles.mockito
 }
 
 // tested in grizzly-http-2.3.20
