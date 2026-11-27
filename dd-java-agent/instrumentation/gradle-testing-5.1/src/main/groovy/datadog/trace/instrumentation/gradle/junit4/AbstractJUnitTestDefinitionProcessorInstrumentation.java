@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.gradle.junit4;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.instrumentation.junit4.JUnit4Instrumentation.JUNIT4_INST_PACKAGE;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
-import datadog.trace.instrumentation.junit4.JUnit4Instrumentation;
 import net.bytebuddy.asm.Advice;
 import org.gradle.api.internal.tasks.testing.ClassTestDefinition;
 import org.gradle.api.internal.tasks.testing.TestDefinitionConsumer;
@@ -33,11 +33,11 @@ public class AbstractJUnitTestDefinitionProcessorInstrumentation
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      JUnit4Instrumentation.class.getPackage().getName() + ".SkippedByDatadog",
-      JUnit4Instrumentation.class.getPackage().getName() + ".JUnit4Utils",
-      JUnit4Instrumentation.class.getPackage().getName() + ".TestEventsHandlerHolder",
-      JUnit4Instrumentation.class.getPackage().getName() + ".TracingListener",
-      JUnit4Instrumentation.class.getPackage().getName() + ".order.JUnit4FailFastClassOrderer",
+      JUNIT4_INST_PACKAGE + ".SkippedByDatadog",
+      JUNIT4_INST_PACKAGE + ".JUnit4Utils",
+      JUNIT4_INST_PACKAGE + ".TestEventsHandlerHolder",
+      JUNIT4_INST_PACKAGE + ".TracingListener",
+      JUNIT4_INST_PACKAGE + ".order.JUnit4FailFastClassOrderer",
       packageName + ".DDCollectAllTestDefinitionsExecutor",
     };
   }

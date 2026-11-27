@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.junit4.execution;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.instrumentation.junit4.JUnit4Instrumentation.JUNIT4_INST_PACKAGE;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -15,9 +16,7 @@ import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.junit4.CucumberUtils;
-import datadog.trace.instrumentation.junit4.JUnit4Utils;
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder;
-import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.invoke.MethodHandle;
 import java.util.Collection;
@@ -31,8 +30,6 @@ import org.junit.runners.ParentRunner;
 @AutoService(InstrumenterModule.class)
 public class Cucumber4ExecutionInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  private final String parentPackageName = Strings.getPackageName(JUnit4Utils.class.getName());
 
   public Cucumber4ExecutionInstrumentation() {
     super("ci-visibility", "junit-4", "junit-4-cucumber", "test-retry");
@@ -51,11 +48,11 @@ public class Cucumber4ExecutionInstrumentation extends InstrumenterModule.CiVisi
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      parentPackageName + ".SkippedByDatadog",
-      parentPackageName + ".CucumberUtils",
-      parentPackageName + ".JUnit4Utils",
-      parentPackageName + ".TracingListener",
-      parentPackageName + ".TestEventsHandlerHolder",
+      JUNIT4_INST_PACKAGE + ".SkippedByDatadog",
+      JUNIT4_INST_PACKAGE + ".CucumberUtils",
+      JUNIT4_INST_PACKAGE + ".JUnit4Utils",
+      JUNIT4_INST_PACKAGE + ".TracingListener",
+      JUNIT4_INST_PACKAGE + ".TestEventsHandlerHolder",
       packageName + ".FailureSuppressingNotifier",
     };
   }

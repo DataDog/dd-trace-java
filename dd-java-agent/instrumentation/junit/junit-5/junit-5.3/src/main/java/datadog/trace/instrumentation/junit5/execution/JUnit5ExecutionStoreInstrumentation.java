@@ -11,9 +11,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder;
-import datadog.trace.util.Strings;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -25,9 +23,6 @@ import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTest
 @AutoService(InstrumenterModule.class)
 public class JUnit5ExecutionStoreInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
-  private final String parentPackageName =
-      Strings.getPackageName(JUnitPlatformUtils.class.getName());
 
   public JUnit5ExecutionStoreInstrumentation() {
     super("ci-visibility", "junit-5", "test-retry");

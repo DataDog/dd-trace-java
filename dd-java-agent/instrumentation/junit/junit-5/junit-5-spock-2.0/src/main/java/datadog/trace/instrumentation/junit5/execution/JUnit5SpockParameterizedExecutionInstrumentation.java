@@ -1,13 +1,12 @@
 package datadog.trace.instrumentation.junit5.execution;
 
+import static datadog.trace.instrumentation.junit5.JUnit5Instrumentation.JUNIT5_INST_PACKAGE;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
-import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
-import datadog.trace.util.Strings;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import net.bytebuddy.asm.Advice;
@@ -22,9 +21,6 @@ import org.junit.platform.engine.TestDescriptor;
 public class JUnit5SpockParameterizedExecutionInstrumentation
     extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  private final String parentPackageName =
-      Strings.getPackageName(JUnitPlatformUtils.class.getName());
 
   public JUnit5SpockParameterizedExecutionInstrumentation() {
     super("ci-visibility", "junit-5", "junit-5-spock", "test-retry");
@@ -43,8 +39,8 @@ public class JUnit5SpockParameterizedExecutionInstrumentation
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      parentPackageName + ".JUnitPlatformUtils",
-      parentPackageName + ".TestDataFactory",
+      JUNIT5_INST_PACKAGE + ".JUnitPlatformUtils",
+      JUNIT5_INST_PACKAGE + ".TestDataFactory",
       packageName + ".SpockParameterizedExecutionListener",
     };
   }

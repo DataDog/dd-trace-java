@@ -45,14 +45,14 @@ public final class LegacyKafkaConsumerInfoInstrumentation extends InstrumenterMo
         "org.apache.kafka.clients.Metadata",
         "datadog.trace.instrumentation.kafka_common.MetadataState");
     contextStores.put(
-        "org.apache.kafka.clients.consumer.ConsumerRecords", KafkaConsumerInfo.class.getName());
+        "org.apache.kafka.clients.consumer.ConsumerRecords", packageName + ".KafkaConsumerInfo");
     contextStores.put(
         "org.apache.kafka.clients.consumer.internals.ConsumerCoordinator",
-        KafkaConsumerInfo.class.getName());
+        packageName + ".KafkaConsumerInfo");
     // new - we are storing the ConsumerDelegate instead of the KafkaConsumer
     contextStores.put(
         "org.apache.kafka.clients.consumer.internals.ConsumerDelegate",
-        KafkaConsumerInfo.class.getName());
+        packageName + ".KafkaConsumerInfo");
     return contextStores;
   }
 

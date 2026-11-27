@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.junit4.execution;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.instrumentation.junit4.JUnit4Instrumentation.JUNIT4_INST_PACKAGE;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -16,7 +17,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.junit4.JUnit4Utils;
 import datadog.trace.instrumentation.junit4.MUnitUtils;
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder;
-import datadog.trace.util.Strings;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
@@ -30,8 +30,6 @@ import scala.concurrent.Future;
 @AutoService(InstrumenterModule.class)
 public class MUnitExecutionInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  private final String parentPackageName = Strings.getPackageName(JUnit4Utils.class.getName());
 
   public MUnitExecutionInstrumentation() {
     super("ci-visibility", "junit-4", "junit-4-munit", "test-retry");
@@ -50,11 +48,11 @@ public class MUnitExecutionInstrumentation extends InstrumenterModule.CiVisibili
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      parentPackageName + ".MUnitUtils",
-      parentPackageName + ".SkippedByDatadog",
-      parentPackageName + ".JUnit4Utils",
-      parentPackageName + ".TracingListener",
-      parentPackageName + ".TestEventsHandlerHolder",
+      JUNIT4_INST_PACKAGE + ".MUnitUtils",
+      JUNIT4_INST_PACKAGE + ".SkippedByDatadog",
+      JUNIT4_INST_PACKAGE + ".JUnit4Utils",
+      JUNIT4_INST_PACKAGE + ".TracingListener",
+      JUNIT4_INST_PACKAGE + ".TestEventsHandlerHolder",
       packageName + ".FailureSuppressingNotifier"
     };
   }

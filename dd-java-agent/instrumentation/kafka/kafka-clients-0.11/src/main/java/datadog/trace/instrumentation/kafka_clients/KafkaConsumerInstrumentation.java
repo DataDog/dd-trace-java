@@ -51,7 +51,7 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
         "org.apache.kafka.clients.Metadata",
         "datadog.trace.instrumentation.kafka_common.MetadataState");
     contextStores.put(
-        "org.apache.kafka.clients.consumer.ConsumerRecords", KafkaConsumerInfo.class.getName());
+        "org.apache.kafka.clients.consumer.ConsumerRecords", packageName + ".KafkaConsumerInfo");
     return contextStores;
   }
 

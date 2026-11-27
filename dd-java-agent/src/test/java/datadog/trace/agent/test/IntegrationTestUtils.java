@@ -2,6 +2,7 @@ package datadog.trace.agent.test;
 
 import static datadog.trace.test.util.ForkedTestUtils.getMaxMemoryArgumentForFork;
 import static datadog.trace.test.util.ForkedTestUtils.getMinMemoryArgumentForFork;
+import static java.util.Collections.emptyMap;
 import static java.util.stream.Collectors.toList;
 
 import datadog.trace.bootstrap.BootstrapProxy;
@@ -73,6 +74,15 @@ public class IntegrationTestUtils {
    */
   public static File createJarFileWithClasses(final String mainClassName, final Class<?>... classes)
       throws IOException {
+    return createJarFileWithClasses(mainClassName, emptyMap(), classes);
+  }
+
+  /** Creates a test agent JAR with additional manifest attributes, such as agent capabilities. */
+  public static File createJarFileWithClasses(
+      final String mainClassName,
+      final Map<String, String> manifestAttributes,
+      final Class<?>... classes)
+      throws IOException {
     final File tmpJar = File.createTempFile(UUID.randomUUID() + "-", ".jar");
     tmpJar.deleteOnExit();
 
@@ -82,6 +92,9 @@ public class IntegrationTestUtils {
       mainAttributes.put(Attributes.Name.MANIFEST_VERSION, "1.0");
       mainAttributes.put(Attributes.Name.MAIN_CLASS, mainClassName);
       mainAttributes.put(new Attributes.Name("Premain-Class"), mainClassName);
+    }
+    for (Map.Entry<String, String> attribute : manifestAttributes.entrySet()) {
+      manifest.getMainAttributes().putValue(attribute.getKey(), attribute.getValue());
     }
 
     try (final JarOutputStream target =
@@ -154,7 +167,8 @@ public class IntegrationTestUtils {
     throw new RuntimeException("Agent jar not found");
   }
 
-  private static String getAgentJarLocation() {
+  /** Returns the packaged Datadog agent JAR attached to this test JVM. */
+  public static String getAgentJarLocation() {
     return getAgentArgument().replace("-javaagent:", "");
   }
 

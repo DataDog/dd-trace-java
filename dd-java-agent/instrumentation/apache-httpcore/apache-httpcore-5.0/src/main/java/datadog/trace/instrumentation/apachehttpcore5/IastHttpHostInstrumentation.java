@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.apachehttpcore5;
 
+import static net.bytebuddy.matcher.ElementMatchers.hasDescriptor;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -9,7 +9,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
-import java.net.InetAddress;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -29,7 +28,7 @@ public class IastHttpHostInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(takesArguments(String.class, InetAddress.class, String.class, int.class)),
+            .and(hasDescriptor("(Ljava/lang/String;Ljava/net/InetAddress;Ljava/lang/String;I)V")),
         IastHttpHostInstrumentation.class.getName() + "$CtorAdvice");
   }
 

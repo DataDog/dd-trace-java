@@ -1,13 +1,12 @@
 package datadog.trace.instrumentation.java.lang;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
+import static net.bytebuddy.matcher.ElementMatchers.hasDescriptor;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Platform;
-import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class ProcessImplInstrumentation extends InstrumenterModule.Tracing
@@ -33,12 +32,8 @@ public class ProcessImplInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(
         named("start")
             .and(
-                takesArguments(
-                    String[].class,
-                    Map.class,
-                    String.class,
-                    ProcessBuilder.Redirect[].class,
-                    boolean.class)),
+                hasDescriptor(
+                    "([Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;[Ljava/lang/ProcessBuilder$Redirect;Z)Ljava/lang/Process;")),
         packageName + ".ProcessImplStartAdvice");
   }
 }

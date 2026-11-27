@@ -26,6 +26,9 @@ import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTest
 public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
+  /** Package containing shared instrumentation helpers. */
+  public static final String JUNIT5_INST_PACKAGE = "datadog.trace.instrumentation.junit5";
+
   public JUnit5Instrumentation() {
     super("ci-visibility", "junit-5");
   }

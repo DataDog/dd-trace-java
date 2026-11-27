@@ -40,7 +40,7 @@ public class ChatCompletionServiceAsyncInstrumentation
             .and(
                 takesArgument(
                     0, named("com.openai.models.chat.completions.ChatCompletionCreateParams")))
-            .and(returns(named(CompletableFuture.class.getName()))),
+            .and(returns(named("java.util.concurrent.CompletableFuture"))),
         getClass().getName() + "$CreateAdvice");
 
     transformer.applyAdvice(
@@ -49,7 +49,7 @@ public class ChatCompletionServiceAsyncInstrumentation
             .and(
                 takesArgument(
                     0, named("com.openai.models.chat.completions.ChatCompletionCreateParams")))
-            .and(returns(named(CompletableFuture.class.getName()))),
+            .and(returns(named("java.util.concurrent.CompletableFuture"))),
         getClass().getName() + "$CreateStreamingAdvice");
   }
 

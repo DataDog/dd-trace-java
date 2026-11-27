@@ -22,6 +22,9 @@ import org.testng.annotations.DataProvider;
 public class TestNGInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
+  /** Package containing shared instrumentation helpers. */
+  public static final String TESTNG_INST_PACKAGE = "datadog.trace.instrumentation.testng";
+
   public static final int ORDER = 0;
 
   public TestNGInstrumentation() {

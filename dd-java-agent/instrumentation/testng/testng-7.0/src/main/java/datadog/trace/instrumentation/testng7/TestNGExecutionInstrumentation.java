@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.testng7;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.instrumentation.testng.TestNGInstrumentation.TESTNG_INST_PACKAGE;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -10,7 +11,6 @@ import datadog.trace.api.Config;
 import datadog.trace.instrumentation.testng.TestNGUtils;
 import datadog.trace.instrumentation.testng.TracingListener;
 import datadog.trace.instrumentation.testng.execution.RetryAnalyzer;
-import datadog.trace.util.Strings;
 import java.util.Collections;
 import net.bytebuddy.asm.Advice;
 import org.testng.IRetryAnalyzer;
@@ -22,8 +22,6 @@ import org.testng.internal.TestListenerHelper;
 @AutoService(InstrumenterModule.class)
 public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  private final String commonPackageName = Strings.getPackageName(TestNGUtils.class.getName());
 
   public TestNGExecutionInstrumentation() {
     super("ci-visibility", "testng", "test-retry");
@@ -53,11 +51,11 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      commonPackageName + ".TestNGUtils",
-      commonPackageName + ".TestEventsHandlerHolder",
-      commonPackageName + ".TestNGClassListener",
-      commonPackageName + ".execution.RetryAnalyzer",
-      commonPackageName + ".TracingListener",
+      TESTNG_INST_PACKAGE + ".TestNGUtils",
+      TESTNG_INST_PACKAGE + ".TestEventsHandlerHolder",
+      TESTNG_INST_PACKAGE + ".TestNGClassListener",
+      TESTNG_INST_PACKAGE + ".execution.RetryAnalyzer",
+      TESTNG_INST_PACKAGE + ".TracingListener",
     };
   }
 
