@@ -10,6 +10,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
+import datadog.trace.agent.tooling.bytebuddy.FieldAccessors;
 import datadog.trace.agent.tooling.context.FieldBackedContextInjector;
 import datadog.trace.agent.tooling.context.FieldBackedContextMatcher;
 import datadog.trace.agent.tooling.context.FieldBackedContextRequestRewriter;
@@ -23,6 +24,7 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -80,6 +82,10 @@ public final class CombiningTransformerBuilder
   private AgentBuilder.Transformer contextRequestRewriter;
   private AdviceShader adviceShader;
   private HelperTransformer helperTransformer;
+  // the module's helper settings, for helpers a member adds itself (see installFieldAccessors)
+  private boolean useAgentCodeSource;
+  private String requestingName;
+  private Set<String> moduleHelperClassNames;
   private Advice.PostProcessor.Factory postProcessor;
   private MuzzleCheck muzzle;
   private String instrumentationClass;
@@ -146,6 +152,9 @@ public final class CombiningTransformerBuilder
                 module.getClass().getSimpleName(),
                 helperClassNames)
             : null;
+    useAgentCodeSource = module.useAgentCodeSource();
+    requestingName = module.getClass().getSimpleName();
+    moduleHelperClassNames = new HashSet<>(Arrays.asList(helperClassNames));
 
     postProcessor = module.postProcessor();
 
@@ -292,6 +301,23 @@ public final class CombiningTransformerBuilder
   @Override
   public void applyAdvice(Instrumenter.TransformingAdvice typeAdvice) {
     advice.add(typeAdvice::transform);
+  }
+
+  /**
+   * Also injects the accessor interface into the instrumented class's loader, unless it's on the
+   * bootstrap class path or already one of the module's helpers. The injection is added to the same
+   * advice stack, just ahead of the accessors, so the interface is defined before the class that
+   * implements it, wherever the structural change ends up.
+   */
+  @Override
+  public void installFieldAccessors(Class<?> accessorInterface) {
+    if (accessorInterface.getClassLoader() != null
+        && !moduleHelperClassNames.contains(accessorInterface.getName())) {
+      advice.add(
+          new HelperTransformer(
+              useAgentCodeSource, adviceShader, requestingName, accessorInterface.getName()));
+    }
+    applyAdvice(new FieldAccessors(accessorInterface));
   }
 
   @Override
