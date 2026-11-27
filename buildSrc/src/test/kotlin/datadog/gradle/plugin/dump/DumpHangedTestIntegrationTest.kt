@@ -1,6 +1,7 @@
 package datadog.gradle.plugin.dump
 
 import datadog.gradle.plugin.GradleFixture
+import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -20,12 +21,17 @@ class DumpHangedTestIntegrationTest : GradleFixture() {
 
   @Test
   fun `should not take dumps`() {
-    val output = runGradleTest(testSleepMillis = 1000)
+    val arguments = listOf("--rerun", "--configuration-cache", "--info")
+    val output = runGradleTest(testSleepMillis = 1000, arguments = arguments)
 
-    // Assert Gradle output has no evidence of taking dumps.
+    assertTrue(output.contains("Configuration cache entry stored."))
     assertFalse(output.contains("Taking dumps after 15 seconds delay for :test"))
     assertFalse(output.contains("Requesting stop of task ':test' as it has exceeded its configured timeout of 20s."))
 
+    val reused = run("test", *arguments.toTypedArray())
+    assertTrue(reused.output.contains("Reusing configuration cache."), reused.output)
+    assertEquals(TaskOutcome.SUCCESS, reused.task(":test")?.outcome)
+    assertTrue(reused.output.contains("Taking dump canceled with remaining delay"))
     assertTrue(buildDir.exists()) // Assert build happened.
     assertFalse(buildFile("dumps").exists()) // Assert no dumps created.
   }
@@ -95,10 +101,15 @@ class DumpHangedTestIntegrationTest : GradleFixture() {
 
   @Test
   fun `should start dumps three minutes before timeout by default`() {
-    val output = runGradleTest(testSleepMillis = 10_000, timeoutSeconds = 185, dumpOffset = null)
+    val arguments = listOf("--rerun", "--configuration-cache")
+    val first = runGradleTest(testSleepMillis = 10_000, timeoutSeconds = 185, dumpOffset = null, arguments = arguments)
+    assertTrue(first.contains("Configuration cache entry stored."))
 
-    assertTrue(output.contains("Taking dumps after 5 seconds delay for :test"))
-    assertFalse(output.any { it.contains("has exceeded its configured timeout") })
+    val reused = run("test", *arguments.toTypedArray())
+    assertTrue(reused.output.contains("Reusing configuration cache."), reused.output)
+    assertEquals(TaskOutcome.SUCCESS, reused.task(":test")?.outcome)
+    assertTrue(reused.output.contains("Taking dumps after 5 seconds delay for :test"))
+    assertFalse(reused.output.contains("has exceeded its configured timeout"))
   }
 
   @Test
@@ -154,7 +165,8 @@ class DumpHangedTestIntegrationTest : GradleFixture() {
     timeoutSeconds: Long = 20,
     dumpOffset: Long? = 5,
     ibmJdk: IbmJdk? = null,
-    assertNoIbmJavaCoreDir: Boolean = false
+    assertNoIbmJavaCoreDir: Boolean = false,
+    arguments: List<String> = emptyList(),
   ): List<String> {
     val javaCoreDirImport = if (assertNoIbmJavaCoreDir) {
       "import static org.junit.jupiter.api.Assertions.assertNull;"
@@ -247,7 +259,7 @@ class DumpHangedTestIntegrationTest : GradleFixture() {
       sourceSet = "test"
     )
 
-    return run("test", env = env, forwardOutput = true).output.lines()
+    return run("test", *arguments.toTypedArray(), env = env, forwardOutput = true).output.lines()
   }
 
   /** Names of the test cases the generated project reported, from its JUnit XML report. */

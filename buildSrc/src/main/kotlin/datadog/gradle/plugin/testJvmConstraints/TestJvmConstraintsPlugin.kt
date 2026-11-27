@@ -129,19 +129,20 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
     testJvmSpec: TestJvmSpec,
     extension: TestJvmConstraintsExtension
   ) {
-    // If `testJvm` is present
-    if (testJvmSpec.requestedTestJvmLauncher.isPresent) {
+    val requestedLauncher = testJvmSpec.requestedTestJvmLauncher.orNull
+    if (requestedLauncher != null) {
       // Only set Test.javaLauncher when required, i.e. when override is present,
       // it is redundant when `testJvm` and the project toolchain both select the Gradle daemon JVM.
       if (testJvmSpec.javaTestLauncherOverride.isPresent) {
         javaLauncher.set(testJvmSpec.javaTestLauncherOverride)
       }
       // Constraints still use the explicit testJvm selection when no override is needed.
+      val testJvmName = testJvmSpec.normalizedTestJvm.get()
       onlyIf("Test JDK is allowed or forced JDK") {
-        extension.isTestJvmAllowed(testJvmSpec)
+        extension.isTestJvmAllowed(testJvmName, requestedLauncher)
       }
       onlyIf("Test JDK is native-image capable") {
-        extension.isNativeImageCapableTestJvm(testJvmSpec.requestedTestJvmLauncher.get())
+        extension.isNativeImageCapableTestJvm(requestedLauncher)
       }
     } else {
       onlyIf("Current Daemon JVM within allowed version range") {

@@ -19,8 +19,9 @@ if (project != rootProject) {
 allprojects {
   // Enable tests only on the selected slot (if -Pslot=n/t is provided)
   tasks.withType<Test>().configureEach {
+    val inSelectedSlot = project.isInSelectedSlot.get()
     onlyIf("Project is in selected slot") {
-      project.isInSelectedSlot.get()
+      inSelectedSlot
     }
   }
 }

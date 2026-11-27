@@ -11,12 +11,12 @@ import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.toolchain.JvmVendorSpec
-import org.gradle.kotlin.dsl.extra
 import org.gradle.kotlin.dsl.withType
 import java.io.File
 import java.io.IOException
 import java.lang.ProcessBuilder.Redirect
 import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
@@ -29,9 +29,6 @@ import kotlin.jvm.optionals.getOrElse
  */
 @Suppress("unused")
 class DumpHangedTestPlugin : Plugin<Project> {
-  companion object {
-    private const val DUMP_FUTURE_KEY = "dumping_future"
-  }
 
   /** Plugin properties */
   abstract class DumpHangedTestProperties @Inject constructor(objects: ObjectFactory) {
@@ -46,8 +43,13 @@ class DumpHangedTestPlugin : Plugin<Project> {
     AutoCloseable {
     private val executor: ScheduledExecutorService =
       Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "hanged-test-dump").apply { isDaemon = true } }
+    private val scheduled = ConcurrentHashMap<String, ScheduledFuture<*>>()
 
-    fun schedule(task: () -> Unit, delay: Duration): ScheduledFuture<*> = executor.schedule(task, delay.toMillis(), TimeUnit.MILLISECONDS)
+    fun schedule(taskPath: String, delay: Duration, task: () -> Unit) {
+      scheduled.computeIfAbsent(taskPath) { executor.schedule(task, delay.toMillis(), TimeUnit.MILLISECONDS) }
+    }
+
+    fun remove(taskPath: String): ScheduledFuture<*>? = scheduled.remove(taskPath)
 
     override fun close() {
       executor.shutdownNow()
@@ -62,23 +64,34 @@ class DumpHangedTestPlugin : Plugin<Project> {
     val scheduler = project.gradle.sharedServices
       .registerIfAbsent("dumpHangedTestScheduler", DumpSchedulerService::class.java)
 
-    val props = project.extensions.create("dumpHangedTest", DumpHangedTestProperties::class.java)
+    val dumpOffset = project.extensions.create("dumpHangedTest", DumpHangedTestProperties::class.java).dumpOffset
+    val isCI = project.providers.environmentVariable("CI").isPresent
 
     // Configure test tasks per project from the root plugin instance, only once the `java`
     // plugin (which registers the `Test` tasks) has been applied to a given project.
     project.allprojects {
+      val dumpDirectory = layout.buildDirectory.dir("dumps").map { dir ->
+        if (isCI) {
+          // Move reports into the folder collected by the collect_reports.sh script.
+          File(dir.asFile.absolutePath.replace("dd-trace-java/dd-java-agent", "dd-trace-java/workspace/dd-java-agent"))
+        } else {
+          dir.asFile
+        }
+      }
       pluginManager.withPlugin("java") {
         tasks.withType<Test>().configureEach {
+          usesService(scheduler)
           doFirst {
             // Single source of truth for "is this an IBM JVM", shared with `collectThreadDump`.
             val ibmJvm = isIbmJvmVendor(javaLauncher.get().metadata.vendor)
+            val dumpsDir = dumpDirectory.get()
             if (ibmJvm) {
               // Where IBM/OpenJ9 writes the javacore on SIGQUIT; read at JVM startup, inherited by children.
-              environment("IBM_JAVACOREDIR", dumpDirectory(this).absolutePath)
+              environment("IBM_JAVACOREDIR", dumpsDir.absolutePath)
             }
-            schedule(this, ibmJvm, scheduler, props)
+            schedule(this, ibmJvm, dumpsDir, scheduler, dumpOffset.getOrElse(180))
           }
-          doLast { cleanup(this) }
+          doLast { cleanup(this, scheduler) }
         }
       }
     }
@@ -87,17 +100,12 @@ class DumpHangedTestPlugin : Plugin<Project> {
   private fun schedule(
     t: Task,
     ibmJvm: Boolean,
+    dumpsDir: File,
     scheduler: Provider<DumpSchedulerService>,
-    props: DumpHangedTestProperties
+    dumpOffset: Long
   ) {
     val taskName = t.path
 
-    if (t.extra.has(DUMP_FUTURE_KEY)) {
-      t.logger.info("Taking dumps already scheduled for $taskName")
-      return
-    }
-
-    val dumpOffset = props.dumpOffset.getOrElse(180)
     val delay = t.timeout.map { it.minusSeconds(dumpOffset) }.orNull
 
     if (delay == null || delay.seconds < 0) {
@@ -105,19 +113,15 @@ class DumpHangedTestPlugin : Plugin<Project> {
       return
     }
 
-    val future = scheduler.get().schedule({
+    scheduler.get().schedule(taskName, delay) {
       t.logger.quiet("Taking dumps after ${delay.seconds} seconds delay for $taskName")
 
-      takeDump(t, ibmJvm)
-    }, delay)
-
-    t.extra.set(DUMP_FUTURE_KEY, future)
+      takeDump(t, ibmJvm, dumpsDir)
+    }
   }
 
-  private fun takeDump(t: Task, ibmJvm: Boolean) {
+  private fun takeDump(t: Task, ibmJvm: Boolean, dumpsDir: File) {
     try {
-      val dumpsDir = dumpDirectory(t)
-
       if (!dumpsDir.isDirectory && !dumpsDir.mkdirs()) {
         throw IOException("Could not create dump directory $dumpsDir")
       }
@@ -155,27 +159,8 @@ class DumpHangedTestPlugin : Plugin<Project> {
 
   private fun file(baseDir: File, name: String, ext: String = "log") = File(baseDir, "$name-${System.currentTimeMillis()}.$ext")
 
-  private fun dumpDirectory(t: Task): File = t.project.layout.buildDirectory
-    .dir("dumps")
-    .map { dir ->
-      if (t.project.providers.environmentVariable("CI").isPresent) {
-        // Move reports into the folder collected by the collect_reports.sh script.
-        File(
-          dir.asFile.absolutePath.replace(
-            "dd-trace-java/dd-java-agent",
-            "dd-trace-java/workspace/dd-java-agent"
-          )
-        )
-      } else {
-        dir.asFile
-      }
-    }
-    .get()
-
-  private fun cleanup(t: Task) {
-    val future = t.extra
-      .takeIf { it.has(DUMP_FUTURE_KEY) }
-      ?.get(DUMP_FUTURE_KEY) as? ScheduledFuture<*>
+  private fun cleanup(t: Task, scheduler: Provider<DumpSchedulerService>) {
+    val future = scheduler.get().remove(t.path)
 
     if (future != null && !future.isDone) {
       t.logger.info("Taking dump canceled with remaining delay of ${future.getDelay(TimeUnit.SECONDS)} seconds for ${t.path}")

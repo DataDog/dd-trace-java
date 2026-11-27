@@ -60,19 +60,22 @@ tasks.withType<Test>().configureEach {
   useJUnitPlatform()
 
   // Disable all tests if skipTests property was specified
-  onlyIf("skipTests are undefined or false") { !skipTestsProvider.isPresent }
+  val skipTests = skipTestsProvider.isPresent
+  onlyIf("skipTests are undefined or false") { !skipTests }
 
   // Keep running tests on master even with the S3 build cache to keep
   // steady flaky-tests signals. Successful results still populate the cache.
-  outputs.upToDateWhen { task ->
-    val reason = when {
-      isMasterBranch.get() -> "CI_COMMIT_BRANCH=master"
-      rerunAllTestsProvider.isPresent -> "rerun.tests is set"
-      rerunTestsProvider.isPresent -> "$rerunTestsProperty is set"
-      else -> return@upToDateWhen true
+  val rerunReason = when {
+    isMasterBranch.get() -> "CI_COMMIT_BRANCH=master"
+    rerunAllTestsProvider.isPresent -> "rerun.tests is set"
+    rerunTestsProvider.isPresent -> "$rerunTestsProperty is set"
+    else -> null
+  }
+  if (rerunReason != null) {
+    outputs.upToDateWhen { task ->
+      task.logger.info("Disabling output reuse for {}: {}", task.path, rerunReason)
+      false
     }
-    task.logger.info("Disabling output reuse for {}: {}", task.path, reason)
-    false
   }
 
   // Trick to avoid on CI: "Couldn't flush user prefs: java.util.prefs.BackingStoreException: Couldn't get file lock."
@@ -94,7 +97,8 @@ tasks.withType<Test>().configureEach {
     }
     // Limit the number of concurrent forked tests
     usesService(forkedTestLimit)
-    onlyIf("skipForkedTests are undefined or false") { !skipForkedTestsProvider.isPresent }
+    val skipForkedTests = skipForkedTestsProvider.isPresent
+    onlyIf("skipForkedTests are undefined or false") { !skipForkedTests }
   } else {
     exclude("**/*ForkedTest*")
     // Gradle fails a test task that discovers no tests, which catches misconfigured tasks.

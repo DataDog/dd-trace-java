@@ -14,9 +14,9 @@ internal val TEST_JVM_NAME = Regex("([a-zA-Z]*)([0-9]+)")
 
 internal fun TestJvmConstraintsExtension.isJavaVersionAllowed(version: JavaVersion): Boolean = isWithinAllowedRange(version, minJavaVersion.orNull, maxJavaVersion.orNull)
 
-internal fun TestJvmConstraintsExtension.isTestJvmAllowed(testJvmSpec: TestJvmSpec): Boolean = isTestJvmAllowed(
-  testJvmSpec.normalizedTestJvm.get(),
-  { JavaVersion.toVersion(testJvmSpec.requestedTestJvmLauncher.get().metadata.languageVersion.asInt()) },
+internal fun TestJvmConstraintsExtension.isTestJvmAllowed(testJvmName: String, launcher: JavaLauncher): Boolean = isTestJvmAllowed(
+  testJvmName,
+  { JavaVersion.toVersion(launcher.metadata.languageVersion.asInt()) },
   includeJdk.get(),
   excludeJdk.get(),
   forceJdk.get(),
