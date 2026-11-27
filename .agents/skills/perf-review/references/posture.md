@@ -94,11 +94,16 @@ mechanism is certain or the severity is catastrophic.
   **routine adoption of a known-better idiom** (migrating to a lower-overhead builder / API /
   toolkit primitive — no visible downside); or a change that **ships a benchmark/JFR**
   (well-evidenced — recognize it). One line; a nudge, not a code-pattern finding.
-- **Shipped core code is stricter — see the core performance rules in `AGENTS.md`.**
-  For changes to `dd-trace-core/src/main/` or `internal-api/src/main/`: a performance claim
-  (in the title, description, or commits) without JMH before/after numbers is a finding, not
-  a soft nudge. Elsewhere, including those modules' tests, benchmarks and build files, keep
-  the softer posture above.
+- **Shipped core code is stricter.** For changes to `dd-trace-core/src/main/` or
+  `internal-api/src/main/`, check each performance claim (in the title, description, or
+  commits) against the evidence `AGENTS.md` ("Measure performance claims") requires for that
+  kind of claim; the full rule lives there, so apply it as written. A claim missing its
+  evidence is one finding, not a soft nudge, but scope it to the part that's unsupported
+  (e.g. "allocation claim is supported; timing claim isn't") and label it **advisory, not
+  merge-blocking**: the fix is to add the matching numbers *or* narrow the claim to what the
+  evidence shows. Don't give it a severity level or code-defect weight: in the report's
+  **Severity** field, write *advisory*. Elsewhere, including those modules' tests, benchmarks
+  and build files, keep the softer posture above.
 
 ## Severity
 

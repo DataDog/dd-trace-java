@@ -81,7 +81,12 @@ docs/                     Developer documentation (see below)
 
 These rules are strict for shipped runtime code in `dd-trace-core/src/main/` and `internal-api/src/main/`. Elsewhere, including those modules' tests, benchmarks and build files, treat them as advice.
 
-- **Measure performance claims.** A PR that claims to be faster or to allocate less must include JMH before/after results from the same machine, JDK, JVM flags and benchmark settings, with time and allocation (`-Pjmh.profilers=gc`). Without them, reviewers should flag the claim as unmeasured and the author should either add numbers or drop the claim.
+- **Measure performance claims.** Both sides of a before/after use the same JDK, JVM flags, benchmark settings and workload (the same `@Param` values, for example), and name both commit SHAs. Match the rest of the evidence to the claim:
+  - *Allocates less*: a JMH `-Pjmh.profilers=gc` before/after. One run of each is enough, since `gc.alloc.rate.norm` is stable when both runs measure the same work.
+  - *Faster*: a JMH before/after on the same machine, with enough forks that JMH reports error bars. A gain smaller than the run-to-run variance (an unchanged control drifting more than the claimed gain, say) doesn't support the claim.
+  - *Structural* changes that only remove work (an allocation, a lookup, a re-encode) may claim the reduction without numbers, but not a speedup.
+
+  Reviewers should flag a claim that lacks its matching evidence as advisory, not merge-blocking. The author either adds the numbers or narrows the claim to what the evidence shows.
 
 ## Critical constraints
 
