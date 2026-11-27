@@ -319,6 +319,7 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
             : null;
     assertAll(
         resource,
+        () -> assertNamesOrPlaceholders(resource, db),
         () -> assertEquals("cosmosdb", span.getSpanType()),
         () -> assertEquals("azure-cosmos", String.valueOf(span.getTag(Tags.COMPONENT))),
         () -> assertEquals(Tags.SPAN_KIND_CLIENT, span.getTag(Tags.SPAN_KIND)),
@@ -335,6 +336,26 @@ class AzureCosmosEmulatorForkedTest extends AbstractInstrumentationTest {
                   || userAgent.toString().contains("cosmosdb-java-sdk/"),
               userAgent.toString());
         });
+  }
+
+  /**
+   * The ids after {@code dbs} and {@code colls} are the names the test chose, or {@code ?} for the
+   * SDK's own metadata requests addressed by resource id: resources never carry resource ids.
+   */
+  private static void assertNamesOrPlaceholders(String resource, String db) {
+    String[] segments = resource.substring(resource.indexOf(' ') + 1).split("/");
+    for (int i = 1; i + 1 < segments.length; i++) {
+      String id = segments[i + 1];
+      if ("dbs".equals(segments[i])) {
+        assertTrue(
+            db.equals(id) || "?".equals(id),
+            "database " + id + " in " + resource + ", expected " + db + " or ?");
+      } else if ("colls".equals(segments[i])) {
+        assertTrue(
+            CONTAINER.equals(id) || "?".equals(id),
+            "container " + id + " in " + resource + ", expected " + CONTAINER + " or ?");
+      }
+    }
   }
 
   /** The SDK's own account discovery requests ({@code DatabaseAccount}) must not be traced. */

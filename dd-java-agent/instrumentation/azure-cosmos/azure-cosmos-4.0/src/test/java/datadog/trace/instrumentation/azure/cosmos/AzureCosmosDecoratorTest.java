@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.azure.cosmos;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_INSTANCE;
+import static datadog.trace.instrumentation.azure.cosmos.AzureCosmosDecorator.CONTAINER;
 import static datadog.trace.instrumentation.azure.cosmos.AzureCosmosDecorator.DECORATE;
 import static datadog.trace.instrumentation.azure.cosmos.AzureCosmosDecorator.STATUS_CODE;
 import static datadog.trace.instrumentation.azure.cosmos.AzureCosmosDecorator.SUB_STATUS_CODE;
@@ -11,14 +13,20 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.azure.cosmos.CosmosException;
+import com.azure.cosmos.implementation.OperationType;
+import com.azure.cosmos.implementation.ResourceType;
+import com.azure.cosmos.implementation.RxDocumentServiceRequest;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 /**
- * Documents which Cosmos failures mark the request span as an error.
+ * Documents how request spans are named and tagged, and which Cosmos failures mark them as errors.
  *
  * <p>Each span covers one request, under the SDK's retry policy, so an attempt the SDK retries gets
  * its own span. Throttling (429), retry-with (449) and partition key range gone (410 with
@@ -72,6 +80,65 @@ class AzureCosmosDecoratorTest extends AbstractInstrumentationTest {
     assertEquals(IllegalStateException.class.getName(), span.getTag(DDTags.ERROR_TYPE));
     assertNull(span.getTag(STATUS_CODE));
     assertNull(span.getTag(SUB_STATUS_CODE));
+  }
+
+  @Test
+  void resourceIdRequestsDontExposeIds() throws Exception {
+    // how the SDK reads the partition key ranges of a container, by resource ids
+    RxDocumentServiceRequest request =
+        request(
+            OperationType.ReadFeed,
+            ResourceType.PartitionKeyRange,
+            "dbs/qh1MAA==/colls/qh1MAJ5C0DA=/pkranges");
+    AgentSpan span = startSpan("azure-cosmos", "cosmosdb.query");
+    DECORATE.onRequest(span, request, null);
+    span.finish();
+
+    assertEquals("ReadFeed /dbs/?/colls/?/pkranges", span.getResourceName().toString());
+    assertNull(span.getTag(DB_INSTANCE));
+    assertNull(span.getTag(CONTAINER));
+  }
+
+  @Test
+  void nameBasedRequestsKeepNames() throws Exception {
+    RxDocumentServiceRequest request =
+        request(OperationType.Read, ResourceType.Document, "dbs/myDb/colls/myColl/docs/item1");
+    AgentSpan span = startSpan("azure-cosmos", "cosmosdb.query");
+    DECORATE.onRequest(span, request, null);
+    span.finish();
+
+    assertEquals("Read /dbs/myDb/colls/myColl/docs/?", span.getResourceName().toString());
+    assertEquals("myDb", span.getTag(DB_INSTANCE));
+    assertEquals("myColl", span.getTag(CONTAINER));
+  }
+
+  /**
+   * Creates a request for a path, which the SDK parses into resource ids or names. Later SDK
+   * versions add a leading {@code DiagnosticsClientContext} parameter, which the request doesn't
+   * need here.
+   */
+  private static RxDocumentServiceRequest request(
+      OperationType operationType, ResourceType resourceType, String path) throws Exception {
+    Map<String, String> headers = new HashMap<>();
+    for (Method create : RxDocumentServiceRequest.class.getMethods()) {
+      if (!"create".equals(create.getName())) {
+        continue;
+      }
+      Class<?>[] types = create.getParameterTypes();
+      int offset = types.length - 4;
+      if ((offset == 0
+              || (offset == 1 && "DiagnosticsClientContext".equals(types[0].getSimpleName())))
+          && types[offset] == OperationType.class
+          && types[offset + 1] == ResourceType.class
+          && types[offset + 2] == String.class
+          && types[offset + 3] == Map.class) {
+        return (RxDocumentServiceRequest)
+            (offset == 0
+                ? create.invoke(null, operationType, resourceType, path, headers)
+                : create.invoke(null, null, operationType, resourceType, path, headers));
+      }
+    }
+    throw new NoSuchMethodException("RxDocumentServiceRequest.create");
   }
 
   /** {@code CosmosException} constructors are protected. */

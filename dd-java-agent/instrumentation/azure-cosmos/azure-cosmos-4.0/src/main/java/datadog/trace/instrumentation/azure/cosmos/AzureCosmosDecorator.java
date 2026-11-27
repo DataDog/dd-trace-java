@@ -100,13 +100,13 @@ public class AzureCosmosDecorator
   void onRequest(AgentSpan span, RxDocumentServiceRequest request, CosmosClientInfo info) {
     OperationType operationType = request.getOperationType();
     String path = requestPath(request);
-    span.setResourceName(
-        (operationType == null ? "" : operationType.name()) + " " + normalize(path));
-
     // the SDK addresses some of its own metadata requests, such as partition key range reads, by
     // internal resource ids rather than by name, so only name based paths carry the names
-    Pair<String, String> databaseAndContainer =
-        request.getIsNameBased() ? databaseAndContainer(path) : NO_NAMES;
+    boolean nameBased = request.getIsNameBased();
+    span.setResourceName(
+        (operationType == null ? "" : operationType.name()) + " " + normalize(path, nameBased));
+
+    Pair<String, String> databaseAndContainer = nameBased ? databaseAndContainer(path) : NO_NAMES;
     String database = databaseAndContainer.getLeft();
     if (database == null
         && operationType == OperationType.Create

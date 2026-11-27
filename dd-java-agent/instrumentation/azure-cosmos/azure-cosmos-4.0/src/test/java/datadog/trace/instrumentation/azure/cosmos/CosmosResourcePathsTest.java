@@ -24,7 +24,22 @@ class CosmosResourcePathsTest {
     "collections feed          | /dbs/myDb/colls/                        | /dbs/myDb/colls/               "
   })
   void normalize(String path, String expected) {
-    assertEquals(expected, CosmosResourcePaths.normalize(path));
+    assertEquals(expected, CosmosResourcePaths.normalize(path, true));
+  }
+
+  @TableTest({
+    "Scenario                   | Path                                          | Expected                ",
+    "empty                      | ''                                            | ''                      ",
+    "null                       |                                               |                         ",
+    "partition key ranges       | /dbs/qh1MAA==/colls/qh1MAJ5C0DA=/pkranges     | /dbs/?/colls/?/pkranges ",
+    "partition key ranges slash | /dbs/qh1MAA==/colls/qh1MAJ5C0DA=/pkranges/    | /dbs/?/colls/?/pkranges/",
+    "container                  | /dbs/qh1MAA==/colls/qh1MAJ5C0DA=              | /dbs/?/colls/?          ",
+    "document                   | /dbs/qh1MAA==/colls/qh1MAJ5C0DA=/docs/qh1MAJ5 | /dbs/?/colls/?/docs/?   ",
+    "databases feed             | /dbs                                          | /dbs                    ",
+    "no leading slash           | dbs/qh1MAA==/colls/qh1MAJ5C0DA=/pkranges      | dbs/?/colls/?/pkranges  "
+  })
+  void normalizeResourceIdPath(String path, String expected) {
+    assertEquals(expected, CosmosResourcePaths.normalize(path, false));
   }
 
   @TableTest({
