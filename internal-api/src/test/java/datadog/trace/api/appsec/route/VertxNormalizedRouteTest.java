@@ -77,7 +77,12 @@ class VertxNormalizedRouteTest {
     "same params with empty mount              | '/users/:id'                | DEFAULT  | ''            | '/users/1'                 | [tenant: acme, id: '1'] | '/users/{id}'             ",
     "same params with root mount               | '/users/:id'                | DEFAULT  | '/'           | '/users/1'                 | [tenant: acme, id: '1'] | '/users/{id}'             ",
     "mount: rest param ignored                 | '/users/:id'                | DEFAULT  | '/sub/'       | '/sub/users/1'             | [id: '1', '*': x]       | '/sub/users/{id}'         ",
-    "mount: no params                          | '/users/:id'                | DEFAULT  | '/sub/'       | '/sub/users/1'             |                         | '/sub/users/{id}'         "
+    "mount: no params                          | '/users/:id'                | DEFAULT  | '/sub/'       | '/sub/users/1'             |                         | '/sub/users/{id}'         ",
+    "mount: encoded slash                      | '/users/:id'                | DEFAULT  | '/a%2Fb/'     | '/a%2Fb/users/1'           |                         |                           ",
+    "mount: encoded slash, lower case          | '/users/:id'                | DEFAULT  | '/a%2fb/'     | '/a%2fb/users/1'           |                         |                           ",
+    "mount: other escape kept                  | '/users/:id'                | DEFAULT  | '/a%20b/'     | '/a%20b/users/1'           |                         | '/a%20b/users/{id}'       ",
+    "mount: unreserved escape                  | '/users/:id'                | DEFAULT  | '/a%41b/'     | '/aAb/users/1'             |                         | '/aAb/users/{id}'         ",
+    "mount: trailing percent                   | '/users/:id'                | DEFAULT  | '/a%2'        | '/a%2/users/1'             |                         | '/a%252/users/{id}'       "
   })
   void rendersTheNormalizedRoute(
       String declared,

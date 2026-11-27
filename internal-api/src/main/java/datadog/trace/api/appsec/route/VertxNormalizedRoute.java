@@ -128,12 +128,14 @@ public final class VertxNormalizedRoute {
    * point holds request values. A mount with parameters returns the concrete matched prefix and
    * shares its {@code pathParams()} with the sub-router, so a bound parameter that the route does
    * not declare means a parameter mount (conservative: a middleware route may also have left it). A
-   * root mount ({@code /}) never holds request values, so it skips that check.
+   * root mount ({@code /}) never holds request values, so it skips that check. A mount point with
+   * an encoded {@code /} gives no tag either: the prefix is rendered decoded, which would turn it
+   * into a separator.
    */
   private static RouteTemplate template(
       String declaredPath, Grammar grammar, String mountPoint, Map<String, String> pathParams) {
     RouteTemplate template = VertxRouteParser.cached(declaredPath, grammar);
-    if (!template.isExpressible()) {
+    if (!template.isExpressible() || hasEncodedSlash(mountPoint)) {
       return null;
     }
     if (pathParams != null && !isRootMount(mountPoint)) {
@@ -145,6 +147,22 @@ public final class VertxNormalizedRoute {
       }
     }
     return template;
+  }
+
+  /** Whether the mount point holds {@code %2F} (any case), which Vert.x matches as a literal. */
+  private static boolean hasEncodedSlash(String mountPoint) {
+    if (mountPoint == null) {
+      return false;
+    }
+    for (int i = mountPoint.indexOf('%');
+        i >= 0 && i + 2 < mountPoint.length();
+        i = mountPoint.indexOf('%', i + 1)) {
+      char c = mountPoint.charAt(i + 2);
+      if (mountPoint.charAt(i + 1) == '2' && (c == 'F' || c == 'f')) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Whether there is no mount, or the mount is {@code /} (empty once its trailing '/' is gone). */
