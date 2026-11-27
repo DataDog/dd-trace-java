@@ -9,13 +9,21 @@ import static datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator.INST
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.ContextScope;
+import datadog.trace.api.appsec.route.NormalizedRouteHelper;
+import datadog.trace.api.appsec.route.VertxNormalizedRoute;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.vertx.core.Handler;
+import io.vertx.ext.web.Route;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.impl.RouteImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RouteHandlerWrapper implements Handler<RoutingContext> {
+  private static final Logger log = LoggerFactory.getLogger(RouteHandlerWrapper.class);
+
   static final String PARENT_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".parent";
   static final String HANDLER_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".handler";
   static final String ROUTE_CONTEXT_KEY = "dd." + Tags.HTTP_ROUTE;
@@ -23,8 +31,13 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
   private final Handler<RoutingContext> actual;
   private final boolean spanStarter;
 
-  public RouteHandlerWrapper(final Handler<RoutingContext> handler) {
+  /** Declared path of each route. */
+  private final ContextStore<Route, String> declaredPaths;
+
+  public RouteHandlerWrapper(
+      final Handler<RoutingContext> handler, final ContextStore<Route, String> declaredPaths) {
     actual = handler;
+    this.declaredPaths = declaredPaths;
     // When mounting a sub router, the handler is a method reference to the routers handleContext
     // method this skips that. This prevents routers from creating a span during handling. In the
     // event a route is not found, without this code, a span would be created for the router when
@@ -114,6 +127,24 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     if (method != null && path != null && shouldUpdateRoute(routingContext, parentSpan, path)) {
       routingContext.put(ROUTE_CONTEXT_KEY, path);
       HTTP_RESOURCE_DECORATOR.withRoute(parentSpan, method, path, true);
+      if (NormalizedRouteHelper.isEnabled()) {
+        tagNormalizedRoute(routingContext, parentSpan);
+      }
+    }
+  }
+
+  private void tagNormalizedRoute(final RoutingContext routingContext, final AgentSpan span) {
+    try {
+      final String declared = declaredPaths.get(routingContext.currentRoute());
+      VertxNormalizedRoute.tag(
+          span,
+          declared,
+          VertxNormalizedRoute.vertx4Grammar(),
+          routingContext.mountPoint(),
+          routingContext.normalizedPath(),
+          routingContext.pathParams());
+    } catch (Throwable t) {
+      log.debug("Failed to collect the Vert.x normalized route", t);
     }
   }
 

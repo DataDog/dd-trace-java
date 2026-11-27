@@ -202,6 +202,12 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   }
 
   @Override
+  Serializable expectedNormalizedRoute(ServerEndpoint endpoint) {
+    def route = endpoint == PATH_PARAM ? routerBasePath() + "path/{id}/param" : expectedServerSpanRoute(endpoint)
+    normalizedRouteOf('', route)
+  }
+
+  @Override
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     if (endpoint == NOT_FOUND) {
       return

@@ -23,6 +23,11 @@ muzzle {
 
 addTestSuiteForDir('latestDepTest', 'latestDepTest')
 
+// The normalized route tests use APIs shared by Vert.x 4.0.0 and 4.x latest, so both suites compile them
+sourceSets.matching { it.name == 'test' || it.name == 'latestDepTest' }.configureEach {
+  java.srcDir 'src/testNormalizedRoute/java'
+}
+
 configurations {
   testArtifacts
 }
