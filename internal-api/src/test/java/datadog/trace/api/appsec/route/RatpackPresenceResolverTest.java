@@ -1,5 +1,10 @@
 package datadog.trace.api.appsec.route;
 
+import static datadog.trace.api.appsec.route.RoutePart.catchAll;
+import static datadog.trace.api.appsec.route.RoutePart.group;
+import static datadog.trace.api.appsec.route.RoutePart.literal;
+import static datadog.trace.api.appsec.route.RoutePart.optionalParam;
+import static datadog.trace.api.appsec.route.RoutePart.param;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -31,34 +36,30 @@ class RatpackPresenceResolverTest {
   @Test
   void catchAllPresenceComesFromTheRemainder() {
     PresenceResolver resolver = resolver(null, "a");
-    assertEquals(RoutePresence.PRESENT, resolver.presenceOf(RoutePart.catchAll(null)));
+    assertEquals(RoutePresence.PRESENT, resolver.presenceOf(catchAll(null)));
     assertEquals(
-        RoutePresence.ABSENT_TRAILING_SLASH,
-        resolver(null, "/").presenceOf(RoutePart.catchAll(null)));
-    assertEquals(RoutePresence.ABSENT, resolver(null, null).presenceOf(RoutePart.catchAll(null)));
+        RoutePresence.ABSENT_TRAILING_SLASH, resolver(null, "/").presenceOf(catchAll(null)));
+    assertEquals(RoutePresence.ABSENT, resolver(null, null).presenceOf(catchAll(null)));
   }
 
   @Test
   void namedParamPresenceComesFromTheTokens() {
     assertEquals(
         RoutePresence.PRESENT,
-        resolver(singletonMap("x", "1"), null).presenceOf(RoutePart.optionalParam("x")));
+        resolver(singletonMap("x", "1"), null).presenceOf(optionalParam("x")));
+    assertEquals(
+        RoutePresence.ABSENT, resolver(singletonMap("x", ""), null).presenceOf(optionalParam("x")));
     assertEquals(
         RoutePresence.ABSENT,
-        resolver(singletonMap("x", ""), null).presenceOf(RoutePart.optionalParam("x")));
-    assertEquals(
-        RoutePresence.ABSENT,
-        resolver(singletonMap("y", "1"), null).presenceOf(RoutePart.optionalParam("x")));
-    assertEquals(
-        RoutePresence.UNKNOWN, resolver(null, "a").presenceOf(RoutePart.optionalParam("x")));
+        resolver(singletonMap("y", "1"), null).presenceOf(optionalParam("x")));
+    assertEquals(RoutePresence.UNKNOWN, resolver(null, "a").presenceOf(optionalParam("x")));
   }
 
   @Test
   void unnamedParamsAndGroupsAreUnknown() {
     PresenceResolver resolver = resolver(singletonMap("x", "1"), "a");
-    assertEquals(RoutePresence.UNKNOWN, resolver.presenceOf(RoutePart.param(null)));
-    assertEquals(
-        RoutePresence.UNKNOWN, resolver.presenceOf(RoutePart.group(RoutePart.literal("a"))));
+    assertEquals(RoutePresence.UNKNOWN, resolver.presenceOf(param(null)));
+    assertEquals(RoutePresence.UNKNOWN, resolver.presenceOf(group(literal("a"))));
   }
 
   private static PresenceResolver resolver(Map<String, ?> tokens, String remainder) {
