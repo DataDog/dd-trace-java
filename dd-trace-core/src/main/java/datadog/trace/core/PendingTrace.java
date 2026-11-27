@@ -10,8 +10,6 @@ import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -40,6 +38,11 @@ import org.slf4j.LoggerFactory;
  * <p>When the long-running traces feature is enabled, periodic writes are triggered by the
  * PendingTraceBuffer in addition to the other write conditions. Running spans are also written in
  * that case. <br>
+ *
+ * <p>By default a trace holds its finished spans in a lock-free stack threaded through the spans
+ * themselves ({@link DDSpan#nextFinished}): finishing a span is one compare-and-set and allocates
+ * nothing, and a write takes every finished span with a single atomic swap. Long-running traces
+ * also hold running spans, which a write keeps, so they use {@link LongRunningSpans} instead.
  */
 public class PendingTrace extends TraceCollector implements PendingTraceBuffer.Element {
 
@@ -91,10 +94,16 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   private final HealthMetrics healthMetrics;
 
   /**
-   * Contains finished spans. If the long-running trace feature is enabled it also contains running
-   * spans that can be written.
+   * The most recently finished span not yet written, the top of a stack linked through {@link
+   * DDSpan#nextFinished}; null if none. Unused when {@link #longRunningSpans} is set.
    */
-  private final ConcurrentLinkedDeque<DDSpan> spans;
+  private volatile DDSpan finishedSpans;
+
+  private static final AtomicReferenceFieldUpdater<PendingTrace, DDSpan> FINISHED_SPANS =
+      AtomicReferenceFieldUpdater.newUpdater(PendingTrace.class, DDSpan.class, "finishedSpans");
+
+  /** The running and finished spans if the long-running traces feature is enabled, else null. */
+  private final LongRunningSpans longRunningSpans;
 
   private volatile int completedSpanCount = 0;
   private static final AtomicIntegerFieldUpdater<PendingTrace> COMPLETED_SPAN_COUNT =
@@ -154,7 +163,8 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     this.pendingTraceBuffer = pendingTraceBuffer;
     this.strictTraceWrites = strictTraceWrites;
     this.healthMetrics = healthMetrics;
-    this.spans = new ConcurrentLinkedDeque<>();
+    this.longRunningSpans =
+        pendingTraceBuffer.longRunningSpansEnabled() ? new LongRunningSpans() : null;
   }
 
   /**
@@ -192,8 +202,8 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     }
     PENDING_REFERENCE_COUNT.incrementAndGet(this);
     healthMetrics.onCreateSpan(span);
-    if (pendingTraceBuffer.longRunningSpansEnabled()) {
-      spans.addFirst(span);
+    if (longRunningSpans != null) {
+      longRunningSpans.add(span);
       trackRunningTrace(span);
     }
   }
@@ -211,7 +221,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
 
   Integer evaluateSamplingPriority() {
     @SuppressWarnings("resource")
-    DDSpan span = spans.peek();
+    DDSpan span = longRunningSpans != null ? longRunningSpans.peek() : finishedSpans;
     if (span == null) {
       return null;
     }
@@ -271,8 +281,8 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   }
 
   PublishState onPublish(final DDSpan span) {
-    if (!pendingTraceBuffer.longRunningSpansEnabled()) {
-      spans.addFirst(span);
+    if (longRunningSpans == null) {
+      pushFinished(span);
     }
     // There is a benign race here where the span added above can get written out by a writer in
     // progress before the count has been incremented. It's being taken care of in the internal
@@ -286,6 +296,14 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     return decrementRefAndMaybeWrite(span == rootSpan, true);
   }
 
+  private void pushFinished(DDSpan span) {
+    DDSpan top;
+    do {
+      top = finishedSpans;
+      span.nextFinished = top;
+    } while (!FINISHED_SPANS.compareAndSet(this, top, span));
+  }
+
   @Override
   public DDSpan getRootSpan() {
     return rootSpan;
@@ -296,11 +314,13 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
    */
   @Override
   public long oldestFinishedTime() {
+    if (longRunningSpans != null) {
+      return longRunningSpans.oldestFinishedTime();
+    }
+    // A concurrent write may cut the walk short by clearing links; the result is approximate anyway
     long oldest = Long.MAX_VALUE;
-    for (DDSpan span : spans) {
-      if (span.isFinished()) {
-        oldest = Math.min(oldest, span.getStartTime() + span.getDurationNano());
-      }
+    for (DDSpan span = finishedSpans; span != null; span = span.nextFinished) {
+      oldest = Math.min(oldest, span.getStartTime() + span.getDurationNano());
     }
     return oldest;
   }
@@ -373,7 +393,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   }
 
   private int write(boolean isPartial) {
-    if (!spans.isEmpty()) {
+    if (hasSpans()) {
       try (Recording recording = tracer.writeTimer()) {
         // Only one writer at a time
         final SpanList trace;
@@ -412,40 +432,35 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     return 0;
   }
 
-  int enqueueSpansToWrite(List<DDSpan> trace, boolean writeRunningSpans) {
-    int completedSpans = 0;
-    boolean runningSpanSeen = false;
-    long firstRunningSpanID = 0;
-    long nowNano = 0;
-    if (writeRunningSpans) {
-      nowNano = getCurrentTimeNano();
-      setLastWriteTime(nowNano);
-    }
+  private boolean hasSpans() {
+    return longRunningSpans != null ? !longRunningSpans.isEmpty() : finishedSpans != null;
+  }
 
-    DDSpan span = spans.pollFirst();
-    while (null != span) {
-      if (runningSpanSeen && span.getSpanId() == firstRunningSpanID) {
-        // we iterated on all spans as we circled back to the first running span
-        spans.addFirst(span);
-        break;
+  /**
+   * Moves the spans to write to {@code trace}: every finished span, plus the running ones of a
+   * long-running trace with {@code writeRunningSpans}.
+   *
+   * @return the number of finished spans moved
+   */
+  int enqueueSpansToWrite(List<DDSpan> trace, boolean writeRunningSpans) {
+    if (longRunningSpans != null) {
+      long nowNano = 0;
+      if (writeRunningSpans) {
+        nowNano = getCurrentTimeNano();
+        setLastWriteTime(nowNano);
       }
-      if (span.isFinished()) {
-        trace.add(span);
-        completedSpans++;
-      } else {
-        // keep the running span in the list
-        spans.add(span);
-        if (!runningSpanSeen) {
-          runningSpanSeen = true;
-          firstRunningSpanID = span.getSpanId();
-        }
-        if (writeRunningSpans) {
-          span.setLongRunningVersion(
-              (int) TimeUnit.NANOSECONDS.toMillis(nowNano - span.getStartTime()));
-          trace.add(span);
-        }
-      }
-      span = spans.pollFirst();
+      return longRunningSpans.drainTo(trace, writeRunningSpans, nowNano);
+    }
+    // Take the whole stack at once; spans finishing meanwhile start a new one. Clear each link, so
+    // a written span kept alive elsewhere (the root, by this trace) doesn't keep the others alive
+    int completedSpans = 0;
+    DDSpan span = FINISHED_SPANS.getAndSet(this, null);
+    while (span != null) {
+      DDSpan next = span.nextFinished;
+      span.nextFinished = null;
+      trace.add(span);
+      completedSpans++;
+      span = next;
     }
     return completedSpans;
   }
@@ -511,7 +526,17 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     return trace.getLastWriteTime() - span.getStartTime();
   }
 
+  /**
+   * The spans held: a live view for a long-running trace, else a snapshot of the finished spans.
+   */
   Collection<DDSpan> getSpans() {
-    return spans;
+    if (longRunningSpans != null) {
+      return longRunningSpans.spans();
+    }
+    List<DDSpan> snapshot = new ArrayList<>();
+    for (DDSpan span = finishedSpans; span != null; span = span.nextFinished) {
+      snapshot.add(span);
+    }
+    return snapshot;
   }
 }

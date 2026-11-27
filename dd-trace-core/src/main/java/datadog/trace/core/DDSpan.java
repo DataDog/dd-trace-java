@@ -124,6 +124,14 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
    */
   private volatile int longRunningVersion = 0;
 
+  /**
+   * The next older finished span of this span's trace, while the trace holds it as finished but not
+   * yet written: the span is its own node in the trace's stack of finished spans, so finishing a
+   * span allocates nothing (see {@link PendingTrace}). Written before the span is published to the
+   * stack, and cleared when the stack is drained. Unused when long-running traces are enabled.
+   */
+  DDSpan nextFinished;
+
   private static final List<AgentSpanLink> NO_LINK = emptyList();
   protected volatile List<AgentSpanLink> links;
 

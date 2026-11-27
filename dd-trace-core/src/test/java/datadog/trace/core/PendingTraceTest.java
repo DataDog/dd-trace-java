@@ -24,7 +24,9 @@ import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.propagation.PropagationTags;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
@@ -305,5 +307,118 @@ public class PendingTraceTest extends PendingTraceTestBase {
     assertTrue(
         new ArrayList<>(trace.getSpans())
             .containsAll(Arrays.asList(unfinishedSpan, unfinishedSpan2)));
+  }
+
+  private PendingTrace defaultModeTrace(CoreTracer stubTracer) {
+    CoreTracer.ConfigSnapshot traceConfig = mock(CoreTracer.ConfigSnapshot.class);
+    PendingTraceBuffer buffer = mock(PendingTraceBuffer.class);
+    when(stubTracer.captureTraceConfig()).thenReturn(traceConfig);
+    when(traceConfig.getServiceMapping()).thenReturn(emptyMap());
+    when(buffer.longRunningSpansEnabled()).thenReturn(false);
+    return new PendingTrace(
+        stubTracer,
+        DDTraceId.from(0),
+        buffer,
+        mock(TimeSource.class),
+        null,
+        false,
+        mock(HealthMetrics.class));
+  }
+
+  @Test
+  void finishedSpansWrittenMostRecentFirstWithLinksCleared() {
+    CoreTracer stubTracer = mock(CoreTracer.class);
+    PendingTrace trace = defaultModeTrace(stubTracer);
+    DDSpan root = createSimpleSpanWithID(trace, 1);
+    trace.registerSpan(root);
+    DDSpan child1 = createSimpleSpanWithID(trace, 2);
+    trace.registerSpan(child1);
+    DDSpan child2 = createSimpleSpanWithID(trace, 3);
+    trace.registerSpan(child2);
+
+    assertEquals(TraceCollector.PublishState.PENDING, trace.onPublish(child1));
+    assertEquals(TraceCollector.PublishState.PENDING, trace.onPublish(child2));
+    assertEquals(Arrays.asList(child2, child1), new ArrayList<>(trace.getSpans()));
+
+    assertEquals(TraceCollector.PublishState.WRITTEN, trace.onPublish(root));
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<SpanList> written = ArgumentCaptor.forClass(SpanList.class);
+    verify(stubTracer).write(written.capture());
+    assertEquals(Arrays.asList(root, child2, child1), written.getValue());
+    // a written span the trace keeps (the root) must not keep the other written spans alive
+    assertEquals(null, root.nextFinished);
+    assertEquals(null, child2.nextFinished);
+    assertEquals(null, child1.nextFinished);
+    assertTrue(trace.getSpans().isEmpty());
+  }
+
+  @Test
+  void finishedSpansReadInPlace() {
+    PendingTrace trace = defaultModeTrace(mock(CoreTracer.class));
+    DDSpan root = createSimpleSpanWithID(trace, 1);
+    trace.registerSpan(root);
+    assertEquals(null, trace.evaluateSamplingPriority());
+    assertEquals(Long.MAX_VALUE, trace.oldestFinishedTime());
+
+    DDSpan early = createSimpleSpanWithID(trace, 2);
+    early.setDurationNano(10);
+    trace.registerSpan(early);
+    DDSpan late = createSimpleSpanWithID(trace, 3);
+    late.setDurationNano(500);
+    late.setSamplingPriority(USER_KEEP);
+    trace.registerSpan(late);
+    trace.onPublish(early);
+    trace.onPublish(late);
+
+    // the most recently finished span decides, as the deque's head did
+    assertEquals(USER_KEEP, trace.evaluateSamplingPriority());
+    assertEquals(10, trace.oldestFinishedTime());
+  }
+
+  @Test
+  void concurrentlyFinishedSpansEachWrittenOnce() throws Exception {
+    PendingTrace trace = defaultModeTrace(mock(CoreTracer.class));
+    DDSpan root = createSimpleSpanWithID(trace, 1);
+    trace.registerSpan(root);
+    int threads = 4;
+    int perThread = 2_000;
+    List<DDSpan> all = new ArrayList<>();
+    for (int i = 0; i < threads * perThread; i++) {
+      DDSpan span = createSimpleSpanWithID(trace, 2 + i);
+      trace.registerSpan(span);
+      all.add(span);
+    }
+
+    CountDownLatch start = new CountDownLatch(1);
+    List<Thread> finishers = new ArrayList<>();
+    for (int t = 0; t < threads; t++) {
+      List<DDSpan> mine = all.subList(t * perThread, (t + 1) * perThread);
+      Thread thread =
+          new Thread(() -> {
+            try {
+              start.await();
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+            for (DDSpan span : mine) {
+              trace.onPublish(span);
+            }
+          });
+      thread.start();
+      finishers.add(thread);
+    }
+    List<DDSpan> drained = new ArrayList<>();
+    start.countDown();
+    // drain while the spans are being finished, then once more after
+    while (finishers.stream().anyMatch(Thread::isAlive)) {
+      trace.enqueueSpansToWrite(drained, false);
+    }
+    for (Thread thread : finishers) {
+      thread.join();
+    }
+    trace.enqueueSpansToWrite(drained, false);
+
+    assertEquals(all.size(), drained.size());
+    assertEquals(new HashSet<>(all), new HashSet<>(drained));
   }
 }
