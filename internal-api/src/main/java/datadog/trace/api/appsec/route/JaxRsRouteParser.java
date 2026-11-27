@@ -9,7 +9,10 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.internal.VisibleForTesting;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -207,12 +210,14 @@ public final class JaxRsRouteParser {
 
   /**
    * True when {@code regex} may match a {@code /}, found by a static scan (the regex is never
-   * compiled). Outside a character class: an unescaped {@code .} or {@code /}, or an escape that
-   * may match {@code /} (see {@link #escape}). Inside a class: a member or a range that holds
-   * {@code /} (e.g. {@code !-~}), or a negated class without it. A class with a nested class or an
-   * intersection counts as accepting {@code /}, since nesting can negate or narrow its members.
-   * Invalid constructs (unterminated class, unknown letter escape, malformed {@code \x}, <code>
-   * &#92;u</code> or octal escape) count as accepting {@code /}.
+   * compiled). Each element is classified as {@link Slash#YES}, {@link Slash#NO} or {@link
+   * Slash#UNKNOWN}, and anything but NO counts as accepting {@code /}: a wrong yes only keeps the
+   * catch-all, a wrong no would make the parameter mandatory. Outside a character class: an
+   * unescaped {@code .} or {@code /}, or an escape that may match {@code /} (see {@link #escape}).
+   * Inside a class: a member or a range that holds {@code /} (e.g. {@code !-~}), or a negated class
+   * without it (negation swaps YES and NO but keeps UNKNOWN). A class with a nested class or an
+   * intersection, a class starting with {@code ]}, an unterminated class, invalid escapes and the
+   * comments flag {@code (?x)} are UNKNOWN.
    */
   @VisibleForTesting
   static boolean acceptsSlash(String regex) {
@@ -221,18 +226,18 @@ public final class JaxRsRouteParser {
     while (i < len) {
       char c = regex.charAt(i);
       if (c == '\\') {
-        Atom escape = escape(regex, i);
-        if (escape.mayMatchSlash()) {
+        Atom escape = escape(regex, i, false);
+        if (escape.slash != Slash.NO) {
           return true;
         }
         i = escape.end;
       } else if (c == '[') {
         int end = classEnd(regex, i);
-        if (end < 0 || classAcceptsSlash(regex, i, end)) {
+        if (end < 0 || classSlash(regex, i, end) != Slash.NO) {
           return true;
         }
         i = end + 1;
-      } else if (c == '.' || c == '/') {
+      } else if (c == '.' || c == '/' || (c == '(' && setsCommentsFlag(regex, i))) {
         return true;
       } else {
         i++;
@@ -241,10 +246,40 @@ public final class JaxRsRouteParser {
     return false;
   }
 
-  /** Index of the {@code ]} closing the class opened at {@code open}, or -1. */
+  /**
+   * Whether the group opened at {@code open} sets inline flags with {@code x}: comments mode
+   * ignores whitespace inside classes too ({@code [! - ~]} is the range {@code !-~}), which the
+   * scan does not model.
+   */
+  private static boolean setsCommentsFlag(String regex, int open) {
+    int i = open + 1;
+    if (i >= regex.length() || regex.charAt(i) != '?') {
+      return false;
+    }
+    for (i++; i < regex.length(); i++) {
+      char c = regex.charAt(i);
+      if (c == 'x') {
+        return true;
+      }
+      if (!Character.isLetter(c) && c != '-') {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Index of the {@code ]} closing the class opened at {@code open}, or -1 when unterminated or
+   * when the class starts with {@code ]} (Java takes it as a member, so the end is not known).
+   */
   private static int classEnd(String regex, int open) {
+    int len = regex.length();
+    int first = open + 1 < len && regex.charAt(open + 1) == '^' ? open + 2 : open + 1;
+    if (first < len && regex.charAt(first) == ']') {
+      return -1;
+    }
     int depth = 0;
-    for (int i = open; i < regex.length(); i++) {
+    for (int i = open; i < len; i++) {
       char c = regex.charAt(i);
       if (c == '\\') {
         i++;
@@ -259,7 +294,7 @@ public final class JaxRsRouteParser {
 
   /**
    * True when the class between {@code open} and {@code end} holds an unescaped nested class
-   * ({@code [}) or an intersection ({@code &&}).
+   * ({@code [}) or an intersection ({@code &&}). A lone {@code &} is a plain member.
    */
   private static boolean hasNestedClassOrIntersection(String regex, int open, int end) {
     for (int i = open + 1; i < end; i++) {
@@ -274,75 +309,74 @@ public final class JaxRsRouteParser {
   }
 
   /** Whether the class between {@code open} ({@code [}) and {@code end} ({@code ]}) admits '/'. */
-  private static boolean classAcceptsSlash(String regex, int open, int end) {
+  private static Slash classSlash(String regex, int open, int end) {
     if (hasNestedClassOrIntersection(regex, open, end)) {
-      // a nested class or an intersection can negate or narrow its members: be conservative
-      return true;
+      // a nested class or an intersection can negate or narrow its members
+      return Slash.UNKNOWN;
     }
     int i = open + 1;
     boolean negated = i < end && regex.charAt(i) == '^';
     if (negated) {
       i++;
     }
-    boolean hasSlash = false;
-    int previous = Atom.NONE; // the last member, the possible start of a range
-    while (i < end && !hasSlash) {
+    Slash members = Slash.NO;
+    Atom previous = null; // the last member, the possible start of a range
+    while (i < end && members != Slash.YES) {
       Atom member;
       if (isRangeDash(regex, i, end, previous)) {
         member = classMember(regex, i + 1);
-        hasSlash = rangeHasSlash(previous, member.code);
-        previous = Atom.NONE;
+        members = members.or(rangeSlash(previous, member));
+        previous = null;
       } else {
         member = classMember(regex, i);
-        hasSlash = member.mayMatchSlash();
-        previous = member.code;
+        members = members.or(member.slash);
+        previous = member;
       }
       i = member.end;
     }
-    return negated != hasSlash;
+    return negated ? members.negate() : members;
   }
 
   /** Whether the {@code -} at {@code i} joins {@code previous} and the next member into a range. */
-  private static boolean isRangeDash(String regex, int i, int end, int previous) {
-    return regex.charAt(i) == '-'
-        && (previous >= 0 || previous == Atom.UNKNOWN_CHAR)
-        && i + 1 < end
-        && regex.charAt(i + 1) != '[';
+  private static boolean isRangeDash(String regex, int i, int end, Atom previous) {
+    return regex.charAt(i) == '-' && previous != null && previous.mayBoundRange() && i + 1 < end;
   }
 
-  /** A range admits '/' when it spans it; a bound that is not a known character counts as yes. */
-  private static boolean rangeHasSlash(int from, int to) {
-    return from < 0 || to < 0 || (from <= '/' && '/' <= to);
-  }
-
-  /** The class member at {@code at}: an escape, a syntax character or a plain character. */
-  private static Atom classMember(String regex, int at) {
-    char c = regex.charAt(at);
-    if (c == '\\') {
-      return escape(regex, at);
+  /** A range admits '/' when it spans it; UNKNOWN when a bound is not a known character. */
+  private static Slash rangeSlash(Atom from, Atom to) {
+    if (from.code < 0 || to.code < 0) {
+      return Slash.UNKNOWN;
     }
-    boolean syntax = c == '[' || c == ']' || c == '^' || c == '&';
-    return new Atom(at + 1, syntax ? Atom.NONE : c);
+    return from.code <= '/' && '/' <= to.code ? Slash.YES : Slash.NO;
   }
 
   /**
-   * The escape starting with the backslash at {@code at}, shared by the scans inside and outside
-   * classes. The character escapes {@code \/}, {@code \x2F}, {@code \x{2F}}, <code>&#92;u002F
-   * </code>, octal {@code \057} / {@code \0057}, {@code \co} and {@code \N{SOLIDUS}} are a {@code
-   * /}; {@code \S}, {@code \W}, {@code \D}, {@code \H}, {@code \V} and {@code \X} accept it; {@code
-   * \p{..}} accepts it for a property that holds it (see {@link #propertyHasSlash}) and {@code
-   * \P{..}} for one that does not; a {@code \Q..\E} quote accepts it when the quoted text holds it.
+   * The class member at {@code at}: an escape or a plain character ({@code &} and {@code ^} too).
    */
-  private static Atom escape(String regex, int at) {
+  private static Atom classMember(String regex, int at) {
+    char c = regex.charAt(at);
+    return c == '\\' ? escape(regex, at, true) : Atom.character(at + 1, c);
+  }
+
+  /**
+   * The escape starting with the backslash at {@code at}, shared by the scans inside ({@code
+   * inClass}) and outside classes. The character escapes {@code \/}, {@code \x2F}, {@code \x{2F}},
+   * <code>&#92;u002F</code>, octal {@code \057} / {@code \0057}, {@code \co} and {@code
+   * \N{SOLIDUS}} are a {@code /}; {@code \S}, {@code \W}, {@code \D}, {@code \H}, {@code \V} and
+   * {@code \X} accept it; {@code \p{..}} and {@code \P{..}} follow {@link #propertySlash}. A {@code
+   * \Q..\E} quote accepts it when the quoted text holds it. Inside a class, a quote and a named
+   * character other than {@code SOLIDUS} are UNKNOWN, since they may bound a range.
+   */
+  private static Atom escape(String regex, int at, boolean inClass) {
     int len = regex.length();
     if (at + 1 >= len) {
-      return new Atom(len, Atom.NONE); // trailing backslash
+      return Atom.of(len, Slash.NO); // trailing backslash
     }
     char e = regex.charAt(at + 1);
     int from = at + 2;
     switch (e) {
       case 'Q':
-        return quote(regex, from);
+        return quote(regex, from, inClass);
       case 'p':
       case 'P':
         return property(regex, from, e == 'P');
@@ -355,68 +389,59 @@ public final class JaxRsRouteParser {
       case '0':
         return octal(regex, from);
       case 'c':
-        return from < len ? new Atom(from + 1, regex.charAt(from) ^ 0x40) : Atom.invalid(len);
+        return from < len ? Atom.character(from + 1, regex.charAt(from) ^ 0x40) : Atom.invalid(len);
       case 'N':
-        return named(regex, from);
+        return named(regex, from, inClass);
       case 'k':
         int close = regex.indexOf('>', from);
-        return new Atom(close < 0 ? len : close + 1, Atom.NONE); // back reference
+        return Atom.of(close < 0 ? len : close + 1, Slash.NO); // back reference
       default:
-        return new Atom(from, simpleEscape(e));
+        return simpleEscape(e, from);
     }
   }
 
-  /** The code of a one-character escape {@code \e}: a character, {@link Atom#ANY} or NONE. */
-  private static int simpleEscape(char e) {
-    switch (e) {
-      case 'S':
-      case 'W':
-      case 'D':
-      case 'H':
-      case 'V':
-      case 'X':
-        return Atom.ANY;
-      case 's':
-      case 'w':
-      case 'd':
-      case 'h':
-      case 'v':
-      case 'R':
-      case 'b':
-      case 'B':
-      case 'A':
-      case 'z':
-      case 'Z':
-      case 'G':
-      case 'E':
-        return Atom.NONE; // classes without '/' and zero-width assertions
-      case 't':
-        return '\t';
-      case 'n':
-        return '\n';
-      case 'r':
-        return '\r';
-      case 'f':
-        return '\f';
-      case 'a':
-        return 0x07;
-      case 'e':
-        return 0x1B;
-      default:
-        if (e >= '1' && e <= '9') {
-          return Atom.NONE; // back reference: its group is scanned where it is declared
-        }
-        // an unknown letter escape is invalid in Java: count it as accepting anything
-        return (e >= 'a' && e <= 'z') || (e >= 'A' && e <= 'Z') ? Atom.ANY : e;
+  /** Escapes of a class that may match '/'. */
+  private static final String SLASH_CLASS_ESCAPES = "SWDHVX";
+
+  /** Escapes of a class without '/', zero-width assertions and the quote end. */
+  private static final String SLASH_FREE_ESCAPES = "swdhvRbBAzZGE";
+
+  /** Control character escapes and, at the same index, their characters. */
+  private static final String CONTROL_ESCAPES = "tnrfae";
+
+  private static final String CONTROL_CHARACTERS = "\t\n\r\f\u0007\u001B";
+
+  /** The one-character escape {@code \e}, ending at {@code end}. */
+  private static Atom simpleEscape(char e, int end) {
+    if (SLASH_CLASS_ESCAPES.indexOf(e) >= 0) {
+      return Atom.of(end, Slash.YES);
     }
+    if (SLASH_FREE_ESCAPES.indexOf(e) >= 0 || (e >= '1' && e <= '9')) {
+      // a back reference's group is scanned where it is declared
+      return Atom.of(end, Slash.NO);
+    }
+    int control = CONTROL_ESCAPES.indexOf(e);
+    if (control >= 0) {
+      return Atom.character(end, CONTROL_CHARACTERS.charAt(control));
+    }
+    // an unknown letter escape is invalid in Java; any other escaped character is itself
+    boolean letter = (e >= 'a' && e <= 'z') || (e >= 'A' && e <= 'Z');
+    return letter ? Atom.invalid(end) : Atom.character(end, e);
   }
 
-  /** {@code \Q..\E} quote whose text starts at {@code from}; unterminated runs to the end. */
-  private static Atom quote(String regex, int from) {
-    int end = regex.indexOf("\\E", from);
-    int stop = end < 0 ? regex.length() : end;
+  /**
+   * {@code \Q..\E} quote whose text starts at {@code from}; unterminated runs to the end. Inside a
+   * class it is UNKNOWN, since its last character may start a range.
+   */
+  private static Atom quote(String regex, int from, boolean inClass) {
+    int close = regex.indexOf("\\E", from);
+    int stop = close < 0 ? regex.length() : close;
+    int end = close < 0 ? stop : close + 2;
+    if (inClass) {
+      return Atom.of(end, Slash.UNKNOWN);
+    }
     int slash = regex.indexOf('/', from);
-    return new Atom(end < 0 ? stop : end + 2, slash >= 0 && slash < stop ? Atom.ANY : Atom.NONE);
+    return Atom.of(end, slash >= 0 && slash < stop ? Slash.YES : Slash.NO);
   }
 
   /** {@code \x{h..h}} with its brace at {@code open}. */
@@ -426,7 +451,7 @@ public final class JaxRsRouteParser {
       return Atom.invalid(close < 0 ? regex.length() : close + 1);
     }
     Atom atom = hex(regex, open + 1, close);
-    return new Atom(close + 1, atom.code);
+    return atom.code < 0 ? Atom.invalid(close + 1) : Atom.character(close + 1, atom.code);
   }
 
   /**
@@ -444,7 +469,7 @@ public final class JaxRsRouteParser {
       }
       code = code * 16 + digit;
     }
-    return code > Character.MAX_CODE_POINT ? Atom.invalid(to) : new Atom(to, code);
+    return code > Character.MAX_CODE_POINT ? Atom.invalid(to) : Atom.character(to, code);
   }
 
   /**
@@ -459,26 +484,30 @@ public final class JaxRsRouteParser {
       code = code * 8 + regex.charAt(i) - '0';
       i++;
     }
-    return i == from ? Atom.invalid(i) : new Atom(i, code);
+    return i == from ? Atom.invalid(i) : Atom.character(i, code);
   }
 
   /**
-   * {@code \N{name}}: only {@code SOLIDUS} is resolved, any other name is a character but not '/'.
+   * {@code \N{name}}: only {@code SOLIDUS} (the one name Java resolves to '/') is resolved. Any
+   * other name is a character other than '/', UNKNOWN inside a class where it may bound a range.
    */
-  private static Atom named(String regex, int from) {
+  private static Atom named(String regex, int from, boolean inClass) {
     int close = from < regex.length() && regex.charAt(from) == '{' ? regex.indexOf('}', from) : -1;
     if (close < 0) {
       return Atom.invalid(regex.length());
     }
     String name = regex.substring(from + 1, close).trim();
-    return new Atom(close + 1, "SOLIDUS".equalsIgnoreCase(name) ? '/' : Atom.UNKNOWN_CHAR);
+    if ("SOLIDUS".equalsIgnoreCase(name)) {
+      return Atom.character(close + 1, '/');
+    }
+    return Atom.of(close + 1, inClass ? Slash.UNKNOWN : Slash.NO);
   }
 
   /** {@code \p{..}} or, when {@code negated}, {@code \P{..}}, with the name at {@code from}. */
   private static Atom property(String regex, int from, boolean negated) {
     int end = propertyEnd(regex, from);
-    boolean hasSlash = propertyHasSlash(regex, from, end);
-    return new Atom(end, hasSlash != negated ? Atom.ANY : Atom.NONE);
+    Slash slash = propertySlash(regex, from, end);
+    return Atom.of(end, negated ? slash.negate() : slash);
   }
 
   /**
@@ -492,72 +521,139 @@ public final class JaxRsRouteParser {
     return Math.min(from + 1, regex.length());
   }
 
+  /** Properties known to exclude '/' (letters, digits, marks, whitespace). */
+  private static final Set<String> SLASH_FREE_PROPERTIES =
+      new HashSet<>(
+          Arrays.asList(
+              "L",
+              "Lu",
+              "Ll",
+              "Lt",
+              "Lm",
+              "Lo",
+              "N",
+              "Nd",
+              "Nl",
+              "No",
+              "M",
+              "Alpha",
+              "Digit",
+              "Alnum",
+              "Upper",
+              "Lower",
+              "IsAlphabetic",
+              "IsLetter",
+              "IsDigit",
+              "IsUppercase",
+              "IsLowercase",
+              "javaLetter",
+              "javaDigit",
+              "javaLetterOrDigit",
+              "javaUpperCase",
+              "javaLowerCase",
+              "XDigit",
+              "Space",
+              "IsWhite_Space"));
+
+  /** Properties known to include '/' (punctuation Po, script Common, block Basic Latin). */
+  private static final Set<String> SLASH_PROPERTIES =
+      new HashSet<>(
+          Arrays.asList(
+              "P",
+              "Po",
+              "IsP",
+              "IsPo",
+              "gc=P",
+              "gc=Po",
+              "general_category=P",
+              "general_category=Po",
+              "Punct",
+              "IsPunctuation",
+              "Graph",
+              "Print",
+              "ASCII",
+              "InBasicLatin",
+              "InBasic_Latin",
+              "IsCommon",
+              "sc=Common",
+              "script=Common",
+              "IsAssigned",
+              "javaDefined",
+              "all"));
+
   /**
-   * Whether the {@code \p} property in {@code [from, end)} includes '/' (category Po, script
-   * Common, block Basic Latin). Other names are taken as without it, so {@code \P} of an unlisted
-   * name counts as accepting '/'.
+   * Whether the {@code \p} property in {@code [from, end)} includes '/': YES or NO for the names in
+   * {@link #SLASH_PROPERTIES} and {@link #SLASH_FREE_PROPERTIES}, UNKNOWN for any other name or
+   * alias.
    */
-  private static boolean propertyHasSlash(String regex, int from, int end) {
+  private static Slash propertySlash(String regex, int from, int end) {
     String name = regex.substring(from, end);
     if (name.startsWith("{")) {
       name = name.substring(1, name.length() - (name.endsWith("}") ? 1 : 0));
     }
-    switch (name) {
-      case "P":
-      case "Po":
-      case "IsP":
-      case "IsPo":
-      case "gc=P":
-      case "gc=Po":
-      case "general_category=P":
-      case "general_category=Po":
-      case "Punct":
-      case "IsPunctuation":
-      case "Graph":
-      case "Print":
-      case "ASCII":
-      case "InBasicLatin":
-      case "InBasic_Latin":
-      case "IsCommon":
-      case "sc=Common":
-      case "script=Common":
-      case "IsAssigned":
-      case "javaDefined":
-      case "all":
-        return true;
-      default:
-        return false;
+    if (SLASH_PROPERTIES.contains(name)) {
+      return Slash.YES;
+    }
+    return SLASH_FREE_PROPERTIES.contains(name) ? Slash.NO : Slash.UNKNOWN;
+  }
+
+  /** Whether a regex element may match '/'; UNKNOWN when the scan cannot tell. */
+  private enum Slash {
+    YES,
+    NO,
+    UNKNOWN;
+
+    /** The answer for the complement: YES and NO swap, UNKNOWN stays UNKNOWN. */
+    Slash negate() {
+      if (this == UNKNOWN) {
+        return UNKNOWN;
+      }
+      return this == YES ? NO : YES;
+    }
+
+    /** The answer for the union with {@code other}: YES if either is YES, then UNKNOWN, then NO. */
+    Slash or(Slash other) {
+      if (this == YES || other == YES) {
+        return YES;
+      }
+      return this == UNKNOWN || other == UNKNOWN ? UNKNOWN : NO;
     }
   }
 
   /**
-   * One element of a regex: where it ends and what it matches, a single character (its code) or one
-   * of the negative codes.
+   * One element of a regex: where it ends, its character code when it is a single known character
+   * ({@link #NO_CODE} otherwise) and whether it may match '/'.
    */
   private static final class Atom {
-    /** Matches no '/' and is not a character (a class without '/' or an assertion). */
-    static final int NONE = -1;
-
-    /** May match '/' (a class or quote that holds it, or an invalid construct). */
-    static final int ANY = -2;
-
-    /** A single character that is not '/' but whose code is unknown (a named character). */
-    static final int UNKNOWN_CHAR = -3;
+    /** Not a single known character. */
+    static final int NO_CODE = -1;
 
     final int end;
     final int code;
+    final Slash slash;
 
-    Atom(int end, int code) {
+    private Atom(int end, int code, Slash slash) {
       this.end = end;
       this.code = code;
+      this.slash = slash;
     }
 
+    static Atom character(int end, int code) {
+      return new Atom(end, code, code == '/' ? Slash.YES : Slash.NO);
+    }
+
+    static Atom of(int end, Slash slash) {
+      return new Atom(end, NO_CODE, slash);
+    }
+
+    /** An invalid construct: UNKNOWN, so that a negated class does not flip it. */
     static Atom invalid(int end) {
-      return new Atom(end, ANY);
+      return of(end, Slash.UNKNOWN);
     }
 
-    boolean mayMatchSlash() {
-      return code == '/' || code == ANY;
+    /** A single character, known or UNKNOWN, may start a range; a class escape may not. */
+    boolean mayBoundRange() {
+      return code >= 0 || slash == Slash.UNKNOWN;
     }
   }
 
