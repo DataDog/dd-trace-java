@@ -1,3 +1,5 @@
+import org.gradle.internal.os.OperatingSystem
+
 pluginManagement {
   repositories {
     mavenLocal()
@@ -20,7 +22,7 @@ pluginManagement {
     if (mavenRepositoryProxy == null) {
       mavenCentral()
     }
-    // Hosts gradle-tooling-api, a transitive dep of the build-logic:smoke-test plugin used
+    // Hosts gradle-tooling-api, a transitive dep of the build-logic:smoke-test-app plugin used
     // to run nested Gradle builds for smoke-test applications pinned to older Gradle versions.
     maven {
       url = uri("https://repo.gradle.org/gradle/libs-releases")
@@ -33,11 +35,13 @@ pluginManagement {
 }
 
 plugins {
+  id("com.github.burrunan.s3-build-cache") version "1.9.11"
   id("com.gradle.develocity") version "4.6.1"
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
 val isCI = providers.environmentVariable("CI")
+val isGitLabCI = providers.environmentVariable("GITLAB_CI")
 val skipBuildscan = providers.environmentVariable("SKIP_BUILDSCAN").map { it.toBoolean() }.orElse(false)
 
 develocity {
@@ -53,6 +57,46 @@ if (isCI.isPresent) {
   buildCache {
     local {
       directory = File(rootDir, "workspace/build-cache")
+    }
+    // Only GitLab CI provides the S3 build cache configuration and credentials.
+    if (isGitLabCI.isPresent) {
+      val defaultCachePrefix = providers.provider {
+        val os = OperatingSystem.current().familyName.replace(' ', '-')
+        val arch = providers.systemProperty("os.arch").get()
+        // Non-tag pipelines share a cache per architecture/OS so that all jobs contribute
+        // outputs and reuse them across jobs and pipelines. Release prefixes can use:
+        // - Pipeline ID (default): jobs share within one pipeline; new pipelines start fresh.
+        // - Tag: pipelines for the same tag share cached outputs.
+        // - Commit hash: pipelines for the same commit share cached outputs.
+        // Pipeline IDs keep separate release runs independent, even for the same tag or commit.
+        if (providers.environmentVariable("CI_COMMIT_TAG").orNull.isNullOrBlank()) {
+          "v1/$arch/$os"
+        } else {
+          val pipelineId = providers.environmentVariable("CI_PIPELINE_ID").orNull
+          require(!pipelineId.isNullOrBlank()) {
+            "CI_PIPELINE_ID must be set for release cache isolation"
+          }
+          "v1/release/$pipelineId/$arch/$os"
+        }
+      }
+      val cachePrefix = providers.environmentVariable("S3_BUILD_CACHE_PREFIX")
+        .map { it.trim().trim('/') }
+        .orElse(defaultCachePrefix)
+        .get()
+      require(cachePrefix.isNotBlank()) {
+        "S3_BUILD_CACHE_PREFIX must be set to a non-empty path in GitLab CI"
+      }
+      remote<com.github.burrunan.s3cache.AwsS3BuildCache> {
+        region = providers.environmentVariable("S3_BUILD_CACHE_REGION").get()
+        bucket = providers.environmentVariable("S3_BUILD_CACHE_BUCKET").get()
+        prefix = "$cachePrefix/"
+        // Trusted CI jobs populate matching cache entries for reuse.
+        isPush = true
+        lookupDefaultAwsCredentials = true
+        isReducedRedundancy = false
+        // Smoke application build entries exceed the plugin's 50 MiB default limit.
+        maximumCachedObjectLength = 256L * 1024 * 1024
+      }
     }
   }
 }
@@ -188,8 +232,10 @@ include(
 
 // smoke tests
 include(
+  ":dd-smoke-tests:smoke-test-common",
   ":dd-smoke-tests:apm-tracing-disabled",
   ":dd-smoke-tests:armeria-grpc",
+  ":dd-smoke-tests:azure-cosmos",
   ":dd-smoke-tests:backend-mock",
   ":dd-smoke-tests:cli",
   ":dd-smoke-tests:concurrent:java-8",
@@ -212,6 +258,7 @@ include(
   ":dd-smoke-tests:lib-injection",
   ":dd-smoke-tests:log-injection",
   ":dd-smoke-tests:maven",
+  ":dd-smoke-tests:native-image-jmx",
   ":dd-smoke-tests:openfeature",
   ":dd-smoke-tests:openfeature-legacy",
   ":dd-smoke-tests:opentracing",
@@ -269,6 +316,7 @@ include(
   ":dd-smoke-tests:websphere-jmx",
   ":dd-smoke-tests:wildfly",
   ":dd-smoke-tests:appsec",
+  ":dd-smoke-tests:appsec:dropwizard-5",
   ":dd-smoke-tests:appsec:spring-tomcat7",
   ":dd-smoke-tests:appsec:lambda-sca",
   ":dd-smoke-tests:appsec:springboot",
@@ -298,10 +346,12 @@ include(
 // instrumentation:
 include(
   ":dd-java-agent:instrumentation:aerospike-4.0",
+  ":dd-java-agent:instrumentation:aerospike-6.0",
   ":dd-java-agent:instrumentation:akka:akka-actor-2.5",
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0",
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.2-iast",
   // dd-java-agent:instrumentation:akka:akka-http:akka-http-10.6 will be included when `akkaRepositoryToken` is present, see next `include` block.
+  ":dd-java-agent:instrumentation:apache-camel:apache-camel-4.2",
   ":dd-java-agent:instrumentation:apache-httpclient:apache-httpasyncclient-4.0",
   ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0",
   ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-5.0",
@@ -323,6 +373,7 @@ include(
   ":dd-java-agent:instrumentation:aws-java:aws-java-sqs-2.0",
   ":dd-java-agent:instrumentation:axis2-1.3",
   ":dd-java-agent:instrumentation:axway-api-7.5",
+  ":dd-java-agent:instrumentation:azure-cosmos:azure-cosmos-4.0",
   ":dd-java-agent:instrumentation:azure-functions-1.2.2",
   ":dd-java-agent:instrumentation:azure-functions-worker-2.7",
   ":dd-java-agent:instrumentation:beanshell-2.0",
@@ -566,7 +617,6 @@ include(
   ":dd-java-agent:instrumentation:resteasy:filter-resteasy:filter-resteasy-3.1",
   ":dd-java-agent:instrumentation:resteasy:resteasy-3.0",
   ":dd-java-agent:instrumentation:resteasy:resteasy-appsec-3.0",
-  ":dd-java-agent:instrumentation:restlet-2.2",
   ":dd-java-agent:instrumentation:rs:jakarta-rs-annotations-3.0",
   ":dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-1.1.1",
   ":dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2.0",
@@ -667,6 +717,13 @@ include(
   ":dd-java-agent:instrumentation:ws:jax-ws:jax-ws-annotations-2.0",
   ":dd-java-agent:instrumentation:zio:zio-2.0",
 )
+
+// Restlet's public repository is unavailable; CI can use artifacts cached by the Maven proxy.
+if (isCI.isPresent) {
+  include(":dd-java-agent:instrumentation:restlet-2.2")
+} else {
+  logger.quiet("Omitting :dd-java-agent:instrumentation:restlet-2.2 outside CI: public artifact repository unavailable")
+}
 
 // Optional `akka-http-10.6` instrumentation (see BUILDING.md for how to enable it):
 if (providers.gradleProperty("akkaRepositoryToken").getOrElse("").isNotBlank()) {

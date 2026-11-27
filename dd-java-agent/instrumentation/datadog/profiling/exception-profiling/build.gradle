@@ -34,7 +34,3 @@ dependencies {
     it.options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'])
   }
 }
-
-tasks.named("test", Test) {
-  useJUnitPlatform()
-}

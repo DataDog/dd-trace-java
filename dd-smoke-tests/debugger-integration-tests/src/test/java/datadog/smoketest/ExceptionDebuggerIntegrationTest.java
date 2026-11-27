@@ -84,8 +84,7 @@ public class ExceptionDebuggerIntegrationTest extends ServerAppDebuggerIntegrati
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "we cannot get local variable debug info")
   void testNoSubsequentCaptureAfterFirst() throws Exception {
-    appUrl = startAppAndAndGetUrl();
-    testSimpleSingleFrameException();
+    testSimpleSingleFrameException(); // start app
     resetSnapshotsAndTraces();
     // we should not receive any more snapshots after the first one
     execute(appUrl, TRACED_METHOD_NAME, "oops"); // no snapshot should be sent

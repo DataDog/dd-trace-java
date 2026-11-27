@@ -13,6 +13,7 @@ import static net.bytebuddy.asm.Advice.Origin;
 import static net.bytebuddy.asm.Advice.This;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
@@ -20,6 +21,7 @@ import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -27,6 +29,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.config.inversion.ConfigHelper;
+import java.io.InputStream;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -68,6 +71,9 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(
         isMethod()
             .and(named("handleRequest"))
+            .and(takesArguments(3))
+            // arg0 must be exactly InputStream so the advice can write it back.
+            .and(takesArgument(0, InputStream.class))
             .and(takesArgument(2, named("com.amazonaws.services.lambda.runtime.Context"))),
         getClass().getName() + "$ExtensionCommunicationAdvice");
   }
@@ -76,16 +82,23 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
     @OnMethodEnter
     static ContextScope enter(
         @This final Object that,
-        @Advice.Argument(0) final Object in,
+        @Advice.Argument(value = 0, readOnly = false) InputStream in,
         @Advice.Argument(1) final Object out,
         @Advice.Argument(2) final Context awsContext,
         @Origin("#m") final String methodName) {
-
       if (CallDepthThreadLocalMap.incrementCallDepth(RequestHandler.class) > 0) {
         return null;
       }
       String lambdaRequestId = awsContext.getAwsRequestId();
       AgentSpanContext lambdaContext = AgentTracer.get().notifyLambdaStart(in, lambdaRequestId);
+      // Skip the strip pass entirely (extra read/parse/re-serialize) unless explicitly enabled.
+      if (Config.get().isLambdaStripInjectedContextEnabled()) {
+        InputStream stripped = StripInjectedContext.replaceInputStream(in);
+        if (stripped != null) {
+          in = stripped;
+        }
+      }
+
       final AgentSpan span;
       if (null == lambdaContext) {
         span = startSpan("java-aws-sdk", INVOCATION_SPAN_NAME);

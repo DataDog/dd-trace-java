@@ -1,3 +1,5 @@
+import static org.gradle.api.JavaVersion.VERSION_25
+
 plugins {
   id 'dd-trace-java.module.instrumentation'
   // Use slf4j-simple as default; logback has a high chance of getting stuck in a deadlock on CI.
@@ -5,15 +7,55 @@ plugins {
 }
 
 testJvmConstraints {
-  minJavaVersion = JavaVersion.VERSION_25
-}
-
-tasks.named('compileTestJava', JavaCompile) {
-  configureCompiler(it, 25, JavaVersion.VERSION_25)
+  minJavaVersion = VERSION_25
 }
 
 muzzle {
   pass {
     coreJdk('25')
   }
+}
+
+/*
+ * Declare default tests.
+ */
+tasks.named('compileTestJava', JavaCompile) {
+  configureCompiler(it, 25, VERSION_25)
+}
+
+/*
+ * Declare previewTest, the Structured Concurrency test suite. The API is a preview feature before
+ * JDK 28, and --enable-preview class files are version-locked to the compiling JDK, so the suite is
+ * compiled with the SAME JDK that runs it (the selected test JVM, clamped to >= 25).
+ */
+addTestSuite('previewTest')
+
+def previewTestJvm = tasks.named("previewTest", Test)
+  .flatMap { it.javaLauncher }
+  .map { Math.max(25, it.metadata.languageVersion.asInt()) }
+  .orElse(25)
+
+// Add the tests of the selected JDK Joiner API, which last changed in JDK 27 before JDK 28 made it final
+def moduleDir = layout.projectDirectory
+sourceSets.named('previewTest') {
+  java.srcDir(previewTestJvm.map { version ->
+    moduleDir.dir("src/previewJdk${Math.min(version, 27)}Test/java")
+  })
+}
+
+// Structured Concurrency is final from JDK 28, earlier JDKs need the preview flag
+def previewFlag = previewTestJvm.map { it < 28 ? ['--enable-preview'] : [] }
+def previewFlagProvider = { previewFlag.get() } as CommandLineArgumentProvider
+
+tasks.named("compilePreviewTestJava", JavaCompile) {
+  javaCompiler = javaToolchains.compilerFor {
+    languageVersion = previewTestJvm.map {
+      JavaLanguageVersion.of(it)
+    }
+  }
+  options.release = previewTestJvm
+  options.compilerArgumentProviders.add(previewFlagProvider)
+}
+tasks.named("previewTest", Test) {
+  jvmArgumentProviders.add(previewFlagProvider)
 }

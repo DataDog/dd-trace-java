@@ -5,8 +5,8 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.error
-import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
@@ -17,9 +17,10 @@ from typing import Any, Callable
 
 
 GRADLE_VERSIONS_URL = "https://services.gradle.org/versions/all"
-MAVEN_SEARCH_URL = "https://search.maven.org/solrsearch/select"
 MAVEN_REPO_URL = "https://repo1.maven.org/maven2"
 DEFAULT_MIN_AGE_HOURS = 48
+# Seconds to wait before each retry of a JSON URL fetch
+URL_RETRY_DELAYS = (10, 30)
 # Oldest Gradle major release we track a latest-patch for. The legacy Gradle instrumentation
 # targets Gradle 3.0+ (the `gradle-3.0` module), so older majors are never exercised.
 OLDEST_TRACKED_GRADLE_MAJOR = 3
@@ -48,8 +49,7 @@ def parse_args() -> argparse.Namespace:
     add_common_selection_args(maven)
     maven.add_argument("--group-id", required=True)
     maven.add_argument("--artifact-id", required=True)
-    maven.add_argument("--search-url", default=MAVEN_SEARCH_URL)
-    maven.add_argument("--search-response-file")
+    maven.add_argument("--repo-url", default=MAVEN_REPO_URL)
     maven.add_argument(
         "--prerelease-pattern",
         action="append",
@@ -152,8 +152,17 @@ def load_json(file_path: str | None, url: str | None) -> Any:
         return json.loads(text)
     if not url:
         raise ValueError("either file_path or url is required")
-    with urllib.request.urlopen(url, timeout=30) as response:
-        return json.load(response)
+    for delay in (*URL_RETRY_DELAYS, None):
+        try:
+            with urllib.request.urlopen(url, timeout=30) as response:
+                return json.load(response)
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+            # HTTPError is a URLError: only retry throttling and server errors, not e.g. a 404
+            retryable = not isinstance(exc, urllib.error.HTTPError) or exc.code == 429 or exc.code >= 500
+            if delay is None or not retryable:
+                raise
+            print(f"Fetching {url} failed ({exc!r}), retrying in {delay}s", file=sys.stderr)
+            time.sleep(delay)
 
 
 # select latest Gradle release that is at least MIN_DEPENDENCY_AGE_HOURS hours old
@@ -206,28 +215,32 @@ def select_gradle_release(args: argparse.Namespace) -> int:
 
 
 # select latest Maven artifact release that is at least MIN_DEPENDENCY_AGE_HOURS hours old
+# versions come from maven-metadata.xml and publish times from the POM Last-Modified header
 def select_maven_release(args: argparse.Namespace) -> int:
     cutoff = now_utc(args.now) - timedelta(hours=args.min_age_hours)
     pattern = combine_patterns(args.prerelease_pattern)
+    label = f"{args.group_id}:{args.artifact_id}"
+    versions = fetch_available_versions(args.group_id, args.artifact_id, [args.repo_url])
+    if not versions:
+        print(f"::error::Could not list versions of {label} from {args.repo_url}.")
+        return 1
+
+    group_path = args.group_id.replace(".", "/")
     candidates: list[Candidate] = []
-    for document in load_maven_documents(
-        group_id=args.group_id,
-        artifact_id=args.artifact_id,
-        search_url=args.search_url,
-        response_file=args.search_response_file,
-    ):
-        version = document.get("v")
-        timestamp = document.get("timestamp")
-        if not version or timestamp is None:
-            continue
+    for version in versions:
         if pattern and pattern.search(version):
             continue
-        published_at = parse_datetime(timestamp)
+        pom_url = f"{args.repo_url}/{group_path}/{args.artifact_id}/{version}/{args.artifact_id}-{version}.pom"
+        published_at = _head_pom_timestamp(pom_url)
+        if published_at is None:
+            print(f"::error::Could not determine publish time for {label}:{version} from {pom_url}.")
+            return 1
         if published_at <= cutoff:
             candidates.append(Candidate(version=version, published_at=published_at))
+            break  # versions are sorted newest-first
 
     return emit_selection_result(
-        label=f"{args.group_id}:{args.artifact_id}",
+        label=label,
         github_output=args.github_output,
         candidates=candidates,
         not_found_reason=(
@@ -244,44 +257,6 @@ def combine_patterns(patterns: list[str]) -> re.Pattern[str] | None:
     if not non_empty:
         return None
     return re.compile("|".join(f"(?:{pattern})" for pattern in non_empty), re.IGNORECASE)
-
-
-# load all Maven Central versions for given group:artifact
-def load_maven_documents(
-    *,
-    group_id: str,
-    artifact_id: str,
-    search_url: str,
-    response_file: str | None,
-) -> list[dict[str, Any]]:
-    if response_file:
-        payload = load_json(response_file, None)
-        return list(payload.get("response", {}).get("docs", []))
-
-    docs: list[dict[str, Any]] = []
-    start = 0
-    rows = 200
-    total = None
-    while total is None or start < total:
-        query = urllib.parse.urlencode(
-            {
-                "q": f'g:"{group_id}" AND a:"{artifact_id}"',
-                "core": "gav",
-                "rows": rows,
-                "start": start,
-                "wt": "json",
-                "sort": "timestamp desc",
-            }
-        )
-        payload = load_json(None, f"{search_url}?{query}")
-        response = payload.get("response", {})
-        total = int(response.get("numFound", 0))
-        batch = list(response.get("docs", []))
-        docs.extend(batch)
-        if not batch:
-            break
-        start += len(batch)
-    return docs
 
 
 # parse a version string into a sortable tuple for comparison; numeric segments sort before non-numeric

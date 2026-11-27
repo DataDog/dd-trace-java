@@ -25,6 +25,7 @@ import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
+import datadog.context.ContextHandle;
 import datadog.context.ContextScope;
 import datadog.context.propagation.Propagators;
 import datadog.environment.ThreadSupport;
@@ -98,10 +99,12 @@ import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DataStreamsTransactionExtractors;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.core.datastreams.DisabledDataStreamsMonitoring;
+import datadog.trace.core.monitor.CompositeHealthMetrics;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.TracerHealthMetrics;
 import datadog.trace.core.otlp.logs.OtlpLogsService;
 import datadog.trace.core.otlp.metrics.OtlpMetricsService;
+import datadog.trace.core.otlp.sdk.OtelSdkSelfMonitoring;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.InferredProxyPropagator;
@@ -146,6 +149,9 @@ import org.slf4j.LoggerFactory;
  */
 public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private static final Logger log = LoggerFactory.getLogger(CoreTracer.class);
+
+  /** Temporary development gate; remove together with the legacy Lambda path. */
+  private static final boolean NATIVE_LAMBDA_TRACING_ENABLED = false;
 
   public static CoreTracerBuilder builder() {
     return new CoreTracerBuilder();
@@ -233,7 +239,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   private final Monitoring performanceMonitoring;
 
-  private final HealthMetrics healthMetrics;
+  @VisibleForTesting final HealthMetrics healthMetrics;
   private final Recording traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
   private final TraceCollector.Factory traceCollectorFactory;
@@ -763,12 +769,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
             ? Config.get().getIdGenerationStrategy()
             : idGenerationStrategy;
 
-    this.healthMetrics =
-        healthMetrics != null
-            ? healthMetrics
-            : (config.isHealthMetricsEnabled()
-                ? new TracerHealthMetrics(AgentMeter.statsDClient())
-                : HealthMetrics.NO_OP);
+    this.healthMetrics = healthMetrics != null ? healthMetrics : createHealthMetrics(config);
     this.healthMetrics.start();
 
     performanceMonitoring =
@@ -933,7 +934,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     registerClassLoader(ClassLoader.getSystemClassLoader());
 
-    StatusLogger.logStatus(config);
+    StatusLogger.logStatus(config, initialSampler);
 
     this.profilingContextIntegration = profilingContextIntegration;
     this.injectBaggageAsTags = injectBaggageAsTags;
@@ -1268,16 +1269,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public boolean isAsyncPropagationEnabled() {
-    return scopeManager.isAsyncPropagationEnabled();
-  }
-
-  @Override
-  public void setAsyncPropagationEnabled(boolean asyncPropagationEnabled) {
-    scopeManager.setAsyncPropagationEnabled(asyncPropagationEnabled);
-  }
-
-  @Override
   public void closePrevious(boolean finishSpan) {
     if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
       throw new IllegalStateException(
@@ -1332,6 +1323,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     if (activeScope != null) {
       activeScope.close();
     }
+  }
+
+  @Override
+  public boolean isNativeLambdaTracingEnabled() {
+    return NATIVE_LAMBDA_TRACING_ENABLED;
   }
 
   @Override
@@ -1677,6 +1673,23 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       inverted.put(entry.getValue(), entry.getKey());
     }
     return Collections.unmodifiableMap(inverted);
+  }
+
+  /** Combines the enabled health metrics sinks: DD health metrics and OTel SDK self-monitoring. */
+  private static HealthMetrics createHealthMetrics(Config config) {
+    HealthMetrics dd =
+        config.isHealthMetricsEnabled() ? new TracerHealthMetrics(AgentMeter.statsDClient()) : null;
+    HealthMetrics otel = OtelSdkSelfMonitoring.healthMetrics(config);
+    if (dd != null && otel != null) {
+      return new CompositeHealthMetrics(dd, otel);
+    }
+    if (dd != null) {
+      return dd;
+    }
+    if (otel != null) {
+      return otel;
+    }
+    return HealthMetrics.NO_OP;
   }
 
   /** Spans are built using this builder */
@@ -2309,13 +2322,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final TagMap mergedTracerTags = traceConfig.mergedTracerTags;
       boolean mergedTracerTagsNeedsIntercept = traceConfig.mergedTracerTagsNeedsIntercept;
 
-      final int tagsSize =
-          mergedTracerTags.size()
-              + (null == tagLedger ? 0 : tagLedger.estimateSize())
-              + (null == coreTags ? 0 : coreTags.size())
-              + (null == rootSpanTags ? 0 : rootSpanTags.size())
-              + (null == contextualTags ? 0 : contextualTags.size());
-
       if (builderRequestContextDataAppSec != null) {
         requestContextDataAppSec = builderRequestContextDataAppSec;
       }
@@ -2324,6 +2330,16 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       }
       if (builderRequestContextDataIast != null) {
         requestContextDataIast = builderRequestContextDataIast;
+      }
+
+      // a parent span ID implies a resolved parent; extracted contexts report themselves as remote
+      final byte parentOrigin;
+      if (parentSpanId == DDSpanId.ZERO) {
+        parentOrigin = DDSpanContext.PARENT_ORIGIN_NONE;
+      } else if (resolvedParentSpanContext.isRemote()) {
+        parentOrigin = DDSpanContext.PARENT_ORIGIN_REMOTE;
+      } else {
+        parentOrigin = DDSpanContext.PARENT_ORIGIN_LOCAL;
       }
 
       // some attributes are inherited from the parent
@@ -2343,7 +2359,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               w3cBaggage,
               errorFlag,
               spanType,
-              tagsSize,
               parentTraceCollector,
               requestContextDataAppSec,
               requestContextDataIast,
@@ -2354,7 +2369,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               tracer.profilingContextIntegration,
               tracer.injectBaggageAsTags,
               tracer.injectLinksAsTags,
-              mergedTracerTagsNeedsIntercept ? null : mergedTracerTags);
+              mergedTracerTagsNeedsIntercept ? null : mergedTracerTags,
+              parentOrigin);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. The `mergedTracerTags` are always applied first (the precedence floor:
@@ -2723,6 +2739,16 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
+  public boolean isCaptureEnabled() {
+    return scopeManager.isCaptureEnabled();
+  }
+
+  @Override
+  public void setCaptureEnabled(boolean enabled) {
+    scopeManager.setCaptureEnabled(enabled);
+  }
+
+  @Override
   public Context currentContext() {
     return scopeManager.currentContext();
   }
@@ -2733,7 +2759,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public Context swap(Context context) {
+  public ContextHandle checkpoint(Context context) {
+    return scopeManager.checkpoint(context);
+  }
+
+  @Override
+  public ContextHandle swap(ContextHandle context) {
     return scopeManager.swap(context);
   }
 

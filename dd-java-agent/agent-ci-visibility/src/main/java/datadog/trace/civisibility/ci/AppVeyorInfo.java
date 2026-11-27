@@ -65,7 +65,7 @@ class AppVeyorInfo implements CIProviderInfo {
     if (messageBody == null) {
       return messageSubject;
     }
-    return String.format("%s%n%s", messageSubject, messageBody);
+    return Strings.format("%s%n%s", messageSubject, messageBody);
   }
 
   @Override
@@ -126,13 +126,13 @@ class AppVeyorInfo implements CIProviderInfo {
 
   private String buildGitRepositoryUrl(final String repoProvider, final String repoName) {
     if ("github".equals(repoProvider) && (repoName != null && !repoName.isEmpty())) {
-      return String.format("https://github.com/%s.git", repoName);
+      return Strings.format("https://github.com/%s.git", repoName);
     }
     return null;
   }
 
   private String buildPipelineUrl(final String repoName, final String buildId) {
-    return String.format("https://ci.appveyor.com/project/%s/builds/%s", repoName, buildId);
+    return Strings.format("https://ci.appveyor.com/project/%s/builds/%s", repoName, buildId);
   }
 
   private PersonInfo buildGitCommitAuthor() {

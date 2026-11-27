@@ -1,0 +1,62 @@
+import java.util.regex.Pattern
+
+plugins {
+  id 'dd-trace-java.smoke-test-app'
+  id 'dd-trace-java.module.smoke-test'
+}
+
+description = 'Native-image build-time JMX regression reproducer'
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_21
+  nativeImageCapable = true
+}
+
+def graalvmVersion = providers.gradleProperty('testJvm').map { testJvm ->
+  def matcher = Pattern.compile('graalvm([0-9]+)').matcher(testJvm.toLowerCase(Locale.ROOT))
+  matcher.matches() ? Integer.parseInt(matcher.group(1)) : -1
+}.orElse(-1)
+def supportedGraalvm = graalvmVersion.map { it >= 21 }
+def graalvmHome = graalvmVersion.map { version ->
+  if (version < 21) {
+    throw new GradleException('Set -PtestJvm=graalvm<N> (N >= 21) to build the JMX native images.')
+  }
+  getLazyJavaHomeFor(version, true).toString()
+}
+
+smokeTestApp {
+  gradleApp {
+    taskName = 'jmxNativeBuild'
+    nestedTasks = ['writeNativeImageManifest']
+    artifactPath = 'native-images.properties'
+    sysProperty = 'datadog.smoketest.jmx.native.manifest'
+    buildArguments.add('--max-workers=1')
+    environment.put('GRAALVM_HOME', graalvmHome)
+    inputs {
+      property('graalvmRelease', fileContent(graalvmHome, 'release'))
+      property('operatingSystem', System.getProperty('os.name'))
+      property('architecture', System.getProperty('os.arch'))
+    }
+  }
+  projectJar('agentJar', project(':dd-java-agent'), 'shadow')
+}
+
+def nativeBuild = tasks.named('jmxNativeBuild') {
+  onlyIf('Requires -PtestJvm=graalvm<N> (N >= 21)') { supportedGraalvm.get() }
+}
+
+tasks.withType(Test).configureEach {
+  inputs.dir(nativeBuild.flatMap { it.applicationBuildDir }).withPropertyName('nativeImages').withPathSensitivity(PathSensitivity.RELATIVE)
+  onlyIf('Requires -PtestJvm=graalvm<N> (N >= 21)') { supportedGraalvm.get() }
+  javaLauncher = javaToolchains.launcherFor(java.toolchain)
+  maxParallelForks = 1
+}
+
+spotless {
+  java {
+    target '**/*.java'
+  }
+  groovyGradle {
+    target '*.gradle', 'application/*.gradle'
+  }
+}

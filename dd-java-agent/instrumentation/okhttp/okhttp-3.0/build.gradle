@@ -12,6 +12,23 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
+// OkHttp 4 matches the same muzzle range and instrumentation (e.g. RetryAndFollowUpInterceptor)
+addTestSuiteForDir('okhttp4Test', 'test')
+
+tasks.named('okhttp4Test', Test) {
+  filter {
+    // APPSEC-72003: IAST HttpUrl taint propagation does not cover the Kotlin HttpUrl of OkHttp 4
+    excludeTestsMatching 'IastOkHttp3InstrumentationTest'
+  }
+}
+
+configurations.matching { it.name.startsWith('okhttp4Test') }.configureEach {
+  resolutionStrategy {
+    // override the strict OkHttp 3 / okio 1 versions inherited from the test suite
+    force 'com.squareup.okhttp3:okhttp:4.12.0'
+    force 'com.squareup.okio:okio:3.6.0'
+  }
+}
 
 dependencies {
   compileOnly(group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.0.0')
@@ -37,6 +54,8 @@ dependencies {
 
   latestDepTestImplementation group: 'com.squareup.okhttp3', name: 'okhttp', version: '[3.11.0, 4)'
   latestDepTestImplementation group: 'com.squareup.okio', name: 'okio', version: '1.+'
+
+  okhttp4TestImplementation group: 'com.squareup.okhttp3', name: 'okhttp', version: '4.12.0'
 
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito

@@ -37,6 +37,11 @@ public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
   public void setThreadServiceName(String serviceName) {}
 
   @Override
+  public String getThreadServiceName() {
+    return null;
+  }
+
+  @Override
   public void clearThreadServiceName() {}
 
   @Override

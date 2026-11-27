@@ -17,6 +17,10 @@ excludedClassesCoverage += [
   'com.datadog.profiling.controller.ddprof.DatadogProfilerOngoingRecording',
 ]
 
+// TODO: Cover these classes, then remove them from the coverage baseline (APMLP-2263)
+excludedClassesBranchCoverage += ['com.datadog.profiling.controller.ddprof.DatadogProfilerSettings']
+excludedClassesInstructionCoverage += ['com.datadog.profiling.controller.ddprof.DatadogProfilerSettings']
+
 dependencies {
   api libs.slf4j
   api project(':internal-api')

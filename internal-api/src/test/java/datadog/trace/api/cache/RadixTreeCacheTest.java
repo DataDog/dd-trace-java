@@ -4,13 +4,12 @@ import static datadog.trace.test.util.ThreadUtils.runConcurrently;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.test.util.DDJavaSpecification;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-class RadixTreeCacheTest extends DDJavaSpecification {
+class RadixTreeCacheTest {
 
   @ParameterizedTest
   @ValueSource(ints = {-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17})

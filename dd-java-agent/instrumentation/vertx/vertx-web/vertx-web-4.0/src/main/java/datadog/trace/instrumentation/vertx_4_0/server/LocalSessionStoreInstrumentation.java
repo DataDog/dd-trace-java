@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.vertx_4_0.server;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.isContextCaptureEnabled;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.setContextCaptureEnabled;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -44,17 +44,17 @@ public final class LocalSessionStoreInstrumentation extends InstrumenterModule.C
             .and(takesArguments(2))
             .and(takesArgument(0, named("io.vertx.core.Vertx")))
             .and(takesArgument(1, named("io.vertx.core.json.JsonObject"))),
-        getClass().getName() + "$DisablePropagationAdvice");
+        getClass().getName() + "$DisableAsyncPropagation");
     transformer.applyAdvice(
         named("setTimer").and(isPrivate()).and(takesNoArguments()).and(returns(void.class)),
-        getClass().getName() + "$DisablePropagationAdvice");
+        getClass().getName() + "$DisableAsyncPropagation");
   }
 
-  public static final class DisablePropagationAdvice {
+  public static final class DisableAsyncPropagation {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean before() {
-      if (isAsyncPropagationEnabled()) {
-        setAsyncPropagationEnabled(false);
+      if (isContextCaptureEnabled()) {
+        setContextCaptureEnabled(false);
         return true;
       }
       return false;
@@ -63,7 +63,7 @@ public final class LocalSessionStoreInstrumentation extends InstrumenterModule.C
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(@Advice.Enter boolean wasEnabled) {
       if (wasEnabled) {
-        setAsyncPropagationEnabled(true);
+        setContextCaptureEnabled(true);
       }
     }
   }

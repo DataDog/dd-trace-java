@@ -2,20 +2,12 @@ plugins {
   id 'dd-trace-java.module.instrumentation'
 }
 
-muzzle {
-  extraRepository("restlet", "https://maven.restlet.talend.com/")
-
-  pass {
-    group = "org.restlet.jse"
-    module = "org.restlet"
-    versions = "[2.2.0,)"
-    assertInverse = false
-  }
-}
+// TODO (IDM): Restore local builds and version-range Muzzle checks once Restlet artifacts and
+// version metadata are reliably available. For now, CI uses cached artifacts and Muzzle checks
+// only the compile-time dependency.
 
 repositories {
   maven {
-    // only place that has 'org.restlet.jse:org.restlet' publicly accessible
     name = 'talend-restlet'
     url = 'https://maven.restlet.talend.com/'
   }
@@ -27,6 +19,8 @@ addTestSuite('latestDepTest')
 
 tasks.named("test", Test) {
   dependsOn "baseForkedTest"
+  // The test source set only holds the abstract base and resources shared with baseForkedTest and latestDepTest
+  failOnNoDiscoveredTests = false
 }
 
 dependencies {

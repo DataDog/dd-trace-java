@@ -4,8 +4,6 @@ import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
@@ -48,7 +46,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
     if (!moreMessages) {
       // no more messages, use this as a signal to close the last iteration scope
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-        closePrevious(true);
+        AgentTracer.get().closePrevious(true);
       } else {
         final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
         if (previousSpan != null) {
@@ -69,7 +67,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
   protected void startNewMessageSpan(Message message) {
     try {
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-        closePrevious(true);
+        AgentTracer.get().closePrevious(true);
       } else if (message == null) { // previous message span was the last
         final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
         if (previousSpan != null) {
@@ -116,7 +114,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onConsume(span, queueUrl);
         if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-          activateNext(span);
+          AgentTracer.get().activateNext(span);
         } else {
           final AgentSpan previousSpan = AgentSpan.fromContext(span.swap());
           if (previousSpan != null) {

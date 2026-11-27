@@ -395,6 +395,14 @@
         "aliases": []
       }
     ],
+    "_DD_APPSEC_SCA_CVE_FILE": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_APPSEC_SCA_ENABLED": [
       {
         "version": "B",
@@ -597,9 +605,9 @@
     ],
     "DD_CIVISIBILITY_COMPILER_PLUGIN_VERSION": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
-        "default": "0.2.4",
+        "default": "0.2.5",
         "aliases": []
       }
     ],
@@ -789,9 +797,9 @@
     ],
     "DD_CIVISIBILITY_JACOCO_PLUGIN_VERSION": [
       {
-        "version": "B",
+        "version": "C",
         "type": "string",
-        "default": "0.8.15",
+        "default": "0.8.16",
         "aliases": []
       }
     ],
@@ -4300,6 +4308,14 @@
         "aliases": []
       }
     ],
+    "DD_TEST_OPTIMIZATION_RUNTIME_TAGS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_TEST_SESSION_NAME": [
       {
         "version": "A",
@@ -4570,6 +4586,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_AKKA_HTTP_ENABLED", "DD_INTEGRATION_AKKA_HTTP_ENABLED"]
+      }
+    ],
+    "DD_TRACE_AKKA_HTTP_ROUTE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_INTEGRATION_AKKA_HTTP_ROUTE_ENABLED", "DD_INTEGRATION_AKKA_HTTP_ROUTE_ENABLED"]
       }
     ],
     "DD_TRACE_AKKA_HTTP_SERVER_ANALYTICS_ENABLED": [
@@ -4988,6 +5012,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_AWS_LAMBDA_ENABLED", "DD_INTEGRATION_AWS_LAMBDA_ENABLED"]
       }
     ],
+    "DD_TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_AWS_PROPAGATION_ENABLED": [
       {
         "version": "A",
@@ -5124,6 +5156,30 @@
         "aliases": ["DD_AXWAY_HTTP_ANALYTICS_SAMPLE_RATE"]
       }
     ],
+    "DD_TRACE_AZURE_COSMOS_ANALYTICS_ENABLED": [
+      {
+        "version": "B",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_AZURE_COSMOS_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_AZURE_COSMOS_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_AZURE_COSMOS_ANALYTICS_SAMPLE_RATE"]
+      }
+    ],
+    "DD_TRACE_AZURE_COSMOS_ENABLED": [
+      {
+        "version": "B",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_AZURE_COSMOS_ENABLED", "DD_INTEGRATION_AZURE_COSMOS_ENABLED"]
+      }
+    ],
     "DD_TRACE_AZURE_FUNCTIONS_ANALYTICS_ENABLED": [
       {
         "version": "A",
@@ -5194,6 +5250,45 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_CAFFEINE_ENABLED", "DD_INTEGRATION_CAFFEINE_ENABLED"]
+      }
+    ],
+    "DD_TRACE_CAMEL_4_2_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_CAMEL_4_2_ENABLED", "DD_INTEGRATION_CAMEL_4_2_ENABLED"]
+      }
+    ],
+    "DD_TRACE_CAMEL_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_CAMEL_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_CAMEL_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_CAMEL_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_CAMEL_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": [
+          "DD_TRACE_INTEGRATION_CAMEL_ENABLED",
+          "DD_INTEGRATION_CAMEL_ENABLED"
+        ]
       }
     ],
     "DD_TRACE_CASSANDRA_ANALYTICS_ENABLED": [
@@ -5861,6 +5956,14 @@
       }
     ],
     "DD_TRACE_EXECUTORS_ALL": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_EXPERIMENTAL_DENSE_TAGS_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
@@ -8908,6 +9011,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_OTEL_SDK_SELF_MONITORING_METRICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_OTEL_SEMANTICS_ENABLED": [
       {
         "version": "A",
@@ -8918,9 +9029,9 @@
     ],
     "DD_OTEL_TRACES_SPAN_METRICS_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
-        "default": null,
+        "default": "false",
         "aliases": []
       }
     ],
@@ -9098,6 +9209,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_PEKKO_HTTP_ENABLED", "DD_INTEGRATION_PEKKO_HTTP_ENABLED"]
+      }
+    ],
+    "DD_TRACE_PEKKO_HTTP_ROUTE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_INTEGRATION_PEKKO_HTTP_ROUTE_ENABLED", "DD_INTEGRATION_PEKKO_HTTP_ROUTE_ENABLED"]
       }
     ],
     "DD_TRACE_PEKKO_HTTP_SERVER_ANALYTICS_ENABLED": [
@@ -9450,6 +9569,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_R2DBC_ENABLED", "DD_INTEGRATION_R2DBC_ENABLED"]
+      }
+    ],
+    "DD_TRACE_RDS_TAGS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
       }
     ],
     "DD_TRACE_REACTIVE_STREAMS_1_ENABLED": [
@@ -12046,9 +12173,9 @@
     ],
     "OTEL_TRACES_SPAN_METRICS_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
-        "default": null,
+        "default": "false",
         "aliases": []
       }
     ],
@@ -12089,7 +12216,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_HEADERS": [

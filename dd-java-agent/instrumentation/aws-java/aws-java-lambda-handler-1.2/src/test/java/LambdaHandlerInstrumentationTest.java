@@ -8,6 +8,7 @@ import static datadog.trace.test.junit.utils.assertions.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -15,9 +16,13 @@ import com.amazonaws.services.lambda.runtime.ClientContext;
 import com.amazonaws.services.lambda.runtime.CognitoIdentity;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
+import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
+import datadog.trace.agent.test.server.http.JavaTestHttpServer;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
+import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.Flow;
@@ -30,15 +35,19 @@ import datadog.trace.bootstrap.InstrumentationErrors;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.lambda.LambdaHandler;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -515,6 +524,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
                     tag("request_id", is(REQUEST_ID)),
                     tag("_dd.appsec.serverless.tracer", is(1)),
                     tag(Tags.HTTP_METHOD, is("GET")),
+                    tag(Tags.HTTP_CLIENT_IP, is("127.0.0.1")),
                     // The tracer tags http.url without the query string; QueryObfuscator
                     // obfuscates http.query.string and re-appends it as the trace is serialised
                     tag(Tags.HTTP_URL, is("https://api.example.com/api/users/123?q=hello")),
@@ -636,6 +646,129 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
                     tag(Tags.HTTP_METHOD, is("GET")),
                     tag(Tags.COMPONENT, is("aws-lambda")),
                     error(Error.class, "Some error"))));
+  }
+
+  @WithConfig(key = GeneralConfig.TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED, value = "true")
+  @Test
+  void stripsInjectedDatadogContextFromEventBridgeDetail() throws IOException {
+    String eventJson =
+        "{"
+            + "\"detail-type\": \"order.created\","
+            + "\"detail\": {"
+            + "  \"orderId\":42,"
+            + "  \"_datadog\":{\"x-datadog-trace-id\": \"123\"}"
+            + "}"
+            + "}";
+
+    ByteArrayInputStream input =
+        new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8));
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+    CapturingHandler handler = new CapturingHandler();
+    handler.handleRequest(input, output, newContext());
+
+    assertFalse(handler.capturedBody.contains("_datadog"));
+    assertTrue(handler.capturedBody.contains("\"orderId\":42"));
+  }
+
+  @Test
+  void keepsOriginalStreamWhenStripIsDisabled() throws IOException {
+    String eventJson =
+        "{\"detail\":{\"orderId\":42,\"_datadog\":{\"x-datadog-trace-id\":\"123\"}}}";
+    ByteArrayInputStream input =
+        new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8));
+    CapturingHandler handler = new CapturingHandler();
+
+    handler.handleRequest(input, new ByteArrayOutputStream(), newContext());
+
+    assertSame(input, handler.capturedStream);
+    assertEquals(eventJson, handler.capturedBody);
+  }
+
+  @WithConfig(key = GeneralConfig.TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED, value = "true")
+  @Test
+  void keepsOriginalStreamWhenThereIsNoCarrier() throws IOException {
+    String eventJson = "{\"detail\":{\"orderId\":42}}";
+    ByteArrayInputStream input =
+        new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8));
+    CapturingHandler handler = new CapturingHandler();
+
+    handler.handleRequest(input, new ByteArrayOutputStream(), newContext());
+
+    assertSame(input, handler.capturedStream);
+    assertEquals(eventJson, handler.capturedBody);
+  }
+
+  @WithConfig(key = GeneralConfig.TRACE_AWS_LAMBDA_STRIP_CONTEXT_ENABLED, value = "true")
+  @Test
+  void extractsTraceContextBeforeStripping() throws IOException {
+    AtomicReference<String> startBody = new AtomicReference<>();
+    JavaTestHttpServer extension =
+        JavaTestHttpServer.httpServer(s ->
+            s.handlers(h -> {
+              h.post(
+                  "/lambda/start-invocation",
+                  api -> {
+                    startBody.set(api.getRequest().getText());
+                    api.getResponse()
+                        .status(200)
+                        .addHeader("x-datadog-trace-id", "123")
+                        .addHeader("x-datadog-parent-id", "456")
+                        .addHeader("x-datadog-sampling-priority", "1")
+                        .send();
+                  });
+              h.post("/lambda/end-invocation", api -> api.getResponse().status(200).send());
+            }));
+    LambdaHandler.setExtensionBaseUrl(extension.getAddress().toString());
+    try {
+      String eventJson =
+          "{\"detail\":{\"orderId\":42,\"_datadog\":{\"x-datadog-trace-id\":\"123\"}}}";
+      CapturingHandler handler = new CapturingHandler();
+
+      handler.handleRequest(
+          new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8)),
+          new ByteArrayOutputStream(),
+          newContext());
+
+      assertTrue(startBody.get().contains("_datadog"));
+      assertFalse(handler.capturedBody.contains("_datadog"));
+      assertTraces(
+          trace(span().type(DDSpanTypes.SERVERLESS).traceId(DDTraceId.from(123)).childOf(456)));
+    } finally {
+      LambdaHandler.setExtensionBaseUrl("http://127.0.0.1:8124");
+      extension.close();
+    }
+  }
+
+  @Test
+  void nullInputDoesNotLeaveCallDepthSetForLaterInvocations() throws IOException {
+    new HandlerStreaming().handleRequest(null, new ByteArrayOutputStream(), newContext());
+
+    ByteArrayInputStream input = new ByteArrayInputStream("Hello".getBytes(StandardCharsets.UTF_8));
+    new HandlerStreaming().handleRequest(input, new ByteArrayOutputStream(), newContext());
+
+    assertTraces(
+        trace(span().type(DDSpanTypes.SERVERLESS).error(false)),
+        trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+  }
+
+  static final class CapturingHandler implements RequestStreamHandler {
+    InputStream capturedStream;
+    String capturedBody;
+
+    @Override
+    public void handleRequest(InputStream in, OutputStream out, Context context)
+        throws IOException {
+      capturedStream = in;
+      ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+      byte[] chunk = new byte[8192];
+      int n;
+      while ((n = in.read(chunk)) != -1) {
+        buffer.write(chunk, 0, n);
+      }
+      capturedBody = new String(buffer.toByteArray(), StandardCharsets.UTF_8);
+      out.write("{}".getBytes(StandardCharsets.UTF_8));
+    }
   }
 
   private static final class TestContext implements Context {

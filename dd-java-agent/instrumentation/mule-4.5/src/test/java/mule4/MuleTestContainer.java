@@ -2,26 +2,21 @@ package mule4;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Properties;
-import org.mule.runtime.api.exception.MuleException;
+import org.apache.commons.io.FileUtils;
 import org.mule.runtime.api.util.MuleSystemProperties;
 import org.mule.runtime.core.api.config.MuleProperties;
 import org.mule.runtime.module.launcher.DefaultMuleContainer;
 
-/**
- * A Mule test container where it is possible to deploy and undeploy mule applications.
- *
- * <p>This code assumes that the services needed by the mule applications are already present in the
- * mule directory.
- */
+/** Runs a Mule application in a private runtime home seeded with the suite's extracted services. */
 public class MuleTestContainer {
-  DefaultMuleContainer container;
+  private final DefaultMuleContainer container;
+  private final String appName;
 
-  public MuleTestContainer(File muleBaseDirectory) throws IOException {
-    if (!muleBaseDirectory.exists()) {
-      muleBaseDirectory.mkdirs();
-    }
+  private MuleTestContainer(File muleBaseDirectory, String appName) throws IOException {
+    this.appName = appName;
     String basePath = muleBaseDirectory.getCanonicalPath();
     // Makes sure that Mule doesn't try to configure its own logging
     System.setProperty(MuleSystemProperties.MULE_SIMPLE_LOG, "true");
@@ -30,40 +25,54 @@ public class MuleTestContainer {
     System.setProperty(MuleProperties.MULE_HOME_DIRECTORY_PROPERTY, basePath);
     System.setProperty("mule.classloader.container.jpmsModuleLayer", "false");
     // Mule is a bit picky with some directories existing, so let's create them
-    for (String dirName : new String[] {"domains/default", "apps"}) {
-      File dir = new File(muleBaseDirectory, dirName);
-      if (!dir.exists()) {
-        dir.mkdirs();
-      }
-    }
+    Path muleBasePath = muleBaseDirectory.toPath();
+    Files.createDirectories(muleBasePath.resolve("domains/default"));
+    Files.createDirectories(muleBasePath.resolve("apps"));
+    container = newContainer();
+  }
+
+  private static DefaultMuleContainer newContainer() {
     try {
-      this.container = DefaultMuleContainer.class.newInstance();
+      return DefaultMuleContainer.class.newInstance();
     } catch (Throwable t) {
       t.printStackTrace();
       try {
-        this.container =
-            DefaultMuleContainer.class
-                .getDeclaredConstructor(String[].class)
-                .newInstance((Object) new String[0]);
+        return DefaultMuleContainer.class
+            .getDeclaredConstructor(String[].class)
+            .newInstance((Object) new String[0]);
       } catch (Throwable t2) {
         throw new RuntimeException("Unable to instantiate MuleContainer", t2);
       }
     }
   }
 
-  public void start() throws MuleException {
-    container.start(false);
-  }
-
-  public void deploy(URI app, Properties appProperties) throws IOException {
-    container.getDeploymentService().deploy(app, appProperties);
-  }
-
-  public void undeploy(String appName) {
-    container.getDeploymentService().undeploy(appName);
+  public static MuleTestContainer start(
+      File home, File template, File application, String appName, Properties appProperties)
+      throws Exception {
+    FileUtils.copyDirectory(new File(template, "services"), new File(home, "services"));
+    FileUtils.copyFileToDirectory(application, home);
+    MuleTestContainer mule = new MuleTestContainer(home, appName);
+    try {
+      mule.container.start(false);
+      mule.container
+          .getDeploymentService()
+          .deploy(new File(home, application.getName()).toURI(), appProperties);
+      return mule;
+    } catch (Exception | Error failure) {
+      try {
+        mule.container.shutdown();
+      } catch (Exception | Error cleanupFailure) {
+        failure.addSuppressed(cleanupFailure);
+      }
+      throw failure;
+    }
   }
 
   public void stop() throws Exception {
-    container.shutdown();
+    try {
+      container.getDeploymentService().undeploy(appName);
+    } finally {
+      container.shutdown();
+    }
   }
 }

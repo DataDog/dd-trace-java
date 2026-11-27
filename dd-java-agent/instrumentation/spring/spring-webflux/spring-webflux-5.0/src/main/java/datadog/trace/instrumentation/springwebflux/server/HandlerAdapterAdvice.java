@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.springwebflux.server;
 
+import static datadog.trace.api.KnownTags.HANDLER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
@@ -7,6 +8,7 @@ import static datadog.trace.instrumentation.springwebflux.server.AdviceUtils.con
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DECORATE;
 
 import datadog.context.ContextScope;
+import datadog.trace.api.appsec.route.NormalizedRouteHelper;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
@@ -44,7 +46,7 @@ public class HandlerAdapterAdvice {
       }
 
       span.setSpanName(operationName);
-      span.setTag("handler.type", handlerType);
+      span.setTag(HANDLER_TYPE, handlerType);
 
       scope = activateSpan(span);
     }
@@ -58,6 +60,9 @@ public class HandlerAdapterAdvice {
       final HttpMethod method = exchange.getRequest().getMethod();
       HTTP_RESOURCE_DECORATOR.withRoute(
           parentSpan, method != null ? method.name() : null, bestPattern.getPatternString());
+      if (NormalizedRouteHelper.isEnabled()) {
+        WebfluxNormalizedRoute.tagAnnotated(parentSpan, exchange, bestPattern, handler);
+      }
     }
 
     return scope;

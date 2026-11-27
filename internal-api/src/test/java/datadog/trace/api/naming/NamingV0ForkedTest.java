@@ -7,10 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import datadog.trace.test.junit.utils.config.WithConfig;
-import datadog.trace.test.util.DDJavaSpecification;
 import org.junit.jupiter.api.Test;
 
-class NamingV0ForkedTest extends DDJavaSpecification {
+class NamingV0ForkedTest {
 
   @Test
   @WithConfig(key = TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, value = "true")

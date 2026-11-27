@@ -1,11 +1,13 @@
 package com.datadog.debugger.sink;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.matches;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -173,6 +175,25 @@ public class SnapshotSinkTest {
     snapshotSink.highRateFlush(null);
     verify(snapshotUploader).upload(any(), matches(EXPECTED_SNAPSHOT_TAGS));
     verify(logUploader).upload(any(), matches(EXPECTED_SNAPSHOT_TAGS));
+  }
+
+  @Test
+  public void lowRateFlushDoesNotThrowWhenUploadFails() {
+    doThrow(new RuntimeException("upload failed")).when(snapshotUploader).upload(any(), any());
+    SnapshotSink snapshotSink = createSnapshotSink();
+    snapshotSink.addLowRate(createSnapshot());
+    assertDoesNotThrow(
+        () -> snapshotSink.lowRateFlush(DebuggerAgent.getDefaultTagsMergedWithGlobalTags(config)));
+    verify(snapshotUploader).upload(any(), any());
+  }
+
+  @Test
+  public void highRateFlushDoesNotThrowWhenUploadFails() {
+    doThrow(new RuntimeException("upload failed")).when(logUploader).upload(any(), any());
+    SnapshotSink snapshotSink = createSnapshotSink();
+    snapshotSink.addHighRate(createSnapshot());
+    assertDoesNotThrow(() -> snapshotSink.highRateFlush(null));
+    verify(logUploader).upload(any(), any());
   }
 
   private SnapshotSink createSnapshotSink() {

@@ -59,6 +59,35 @@ public class StableConfigSourceTest extends DDJavaSpecification {
     }
   }
 
+  @Test
+  void testMalformedYamlLogsError() throws IOException {
+    Logger logbackLogger = (Logger) LoggerFactory.getLogger(StableConfigSource.class);
+    ListAppender<ILoggingEvent> listAppender = new ListAppender<>();
+    listAppender.start();
+    logbackLogger.addAppender(listAppender);
+
+    Path filePath = Files.createTempFile("testFile_", ".yaml");
+    try {
+      Files.write(filePath, "apm_configuration_default: [unclosed".getBytes());
+      StableConfigSource config =
+          new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG);
+
+      assertEquals(0, config.getKeys().size());
+      assertNull(config.getConfigId());
+      boolean hasErrorLog =
+          listAppender.list.stream()
+              .anyMatch(event ->
+                  "ERROR".equals(event.getLevel().toString())
+                      && event
+                          .getFormattedMessage()
+                          .contains("Unexpected error while reading stable configuration file"));
+      assertTrue(hasErrorLog, "Expected ERROR log for malformed YAML");
+    } finally {
+      Files.delete(filePath);
+      logbackLogger.detachAppender(listAppender);
+    }
+  }
+
   @TableTest({
     "scenario       | configId | data                    ",
     "corrupt yaml   |          | not_valid_stable_config ",

@@ -1,12 +1,11 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
+import static datadog.trace.api.KnownTags.TOMBSTONE;
 import static datadog.trace.api.datastreams.DataStreamsContext.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.JAVA_KAFKA;
@@ -25,7 +24,6 @@ import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.instrumentation.kafka_common.StreamingContext;
 import datadog.trace.instrumentation.kafka_common.Utils;
 import java.util.Iterator;
@@ -65,7 +63,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
     if (!moreRecords) {
       // no more records, use this as a signal to close the last iteration scope
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-        closePrevious(true);
+        AgentTracer.get().closePrevious(true);
       } else {
         final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
         if (previousSpan != null) {
@@ -86,7 +84,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
   protected void startNewRecordSpan(ConsumerRecord<?, ?> val) {
     try {
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-        closePrevious(true);
+        AgentTracer.get().closePrevious(true);
       } else if (val == null) { // previous message span was the last
         final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
         if (previousSpan != null) {
@@ -96,10 +94,17 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
       AgentSpan span, queueSpan = null;
       if (val != null) {
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
+          // A record without headers has no context to extract
           final AgentSpanContext spanContext =
-              extractContextAndGetSpanContext(val.headers(), GETTER);
-          long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
-          if (timeInQueueStart == 0 || !KafkaDecorator.TIME_IN_QUEUE_ENABLED) {
+              Utils.hasHeaders(val.headers())
+                  ? extractContextAndGetSpanContext(val.headers(), GETTER)
+                  : null;
+          // Check the flag first, as finding the produce time scans the record's headers
+          long timeInQueueStart =
+              KafkaDecorator.TIME_IN_QUEUE_ENABLED
+                  ? GETTER.extractTimeInQueueStart(val.headers())
+                  : 0;
+          if (timeInQueueStart == 0) {
             span = startSpan(JAVA_KAFKA.toString(), operationName, spanContext);
           } else {
             queueSpan =
@@ -142,12 +147,12 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           span = startSpan(JAVA_KAFKA.toString(), operationName, null);
         }
         if (val.value() == null) {
-          span.setTag(InstrumentationTags.TOMBSTONE, true);
+          span.setTag(TOMBSTONE, true);
         }
         decorator.afterStart(span);
         decorator.onConsume(span, val, group, clusterId, bootstrapServers);
         if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-          activateNext(span);
+          AgentTracer.get().activateNext(span);
         } else {
           final AgentSpan previousSpan = AgentSpan.fromContext(span.swap());
           if (previousSpan != null) {

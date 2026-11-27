@@ -15,7 +15,6 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 addTestSuiteForDir('lettuce51Test', 'test')
 addTestSuiteForDir('lettuce60Test', 'test')
 addTestSuiteForDir('lettuce61Test', 'test')

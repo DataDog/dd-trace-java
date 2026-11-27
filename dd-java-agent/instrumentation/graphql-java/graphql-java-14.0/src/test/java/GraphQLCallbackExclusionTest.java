@@ -1,0 +1,3 @@
+import datadog.trace.instrumentation.graphqljava.AbstractGraphQLCallbackExclusionTest;
+
+class GraphQLCallbackExclusionTest extends AbstractGraphQLCallbackExclusionTest {}

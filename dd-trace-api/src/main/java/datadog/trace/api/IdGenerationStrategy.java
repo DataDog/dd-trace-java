@@ -3,6 +3,7 @@ package datadog.trace.api;
 import static java.lang.Long.MAX_VALUE;
 
 import java.security.SecureRandom;
+import java.util.Locale;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -33,7 +34,7 @@ public abstract class IdGenerationStrategy {
   }
 
   public static IdGenerationStrategy fromName(String name, boolean traceId128BitGenerationEnabled) {
-    switch (name.toUpperCase()) {
+    switch (name.toUpperCase(Locale.ROOT)) {
       case "RANDOM":
         return new Random(traceId128BitGenerationEnabled);
       case "SEQUENTIAL":
