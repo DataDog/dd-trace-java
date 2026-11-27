@@ -2,7 +2,9 @@ plugins {
   id 'dd-trace-java.module.instrumentation'
 }
 
-// Muzzle falls back to compile-time dependencies until Restlet's version metadata is available again.
+// TODO (IDM): Restore local builds and version-range Muzzle checks once Restlet artifacts and
+// version metadata are reliably available. For now, CI uses cached artifacts and Muzzle checks
+// only the compile-time dependency.
 
 repositories {
   maven {
