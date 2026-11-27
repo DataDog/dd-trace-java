@@ -30,13 +30,15 @@ public class EnableWallclockProfilingInstrumentation extends InstrumenterModule.
   private static final String[] RUNNABLE_EVENT_LOOPS = {
     // regular netty
     "io.netty.channel.ThreadPerChannelEventLoop",
+    "io.netty.channel.SingleThreadIoEventLoop",
     "io.netty.channel.nio.NioEventLoop",
-    "io.netty.channel.epoll.EPollEventLoop",
+    "io.netty.channel.epoll.EpollEventLoop",
     "io.netty.channel.kqueue.KQueueEventLoop",
     // gRPC shades the same classes
     "io.grpc.netty.shaded.io.netty.channel.ThreadPerChannelEventLoop",
+    "io.grpc.netty.shaded.io.netty.channel.SingleThreadIoEventLoop",
     "io.grpc.netty.shaded.io.netty.channel.nio.NioEventLoop",
-    "io.grpc.netty.shaded.io.netty.channel.epoll.EPollEventLoop",
+    "io.grpc.netty.shaded.io.netty.channel.epoll.EpollEventLoop",
     "io.grpc.netty.shaded.io.netty.channel.kqueue.KQueueEventLoop"
   };
 
