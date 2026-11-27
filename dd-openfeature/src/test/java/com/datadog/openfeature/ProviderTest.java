@@ -567,7 +567,7 @@ public class ProviderTest {
   public void testGetProviderHooksReturnsFlagEvalMetricsHook() {
     Provider provider =
         new Provider(new Options().initTimeout(10, MILLISECONDS), mock(Evaluator.class));
-    List<Hook> hooks = provider.getProviderHooks();
+    List<Hook<Object>> hooks = provider.registeredHooks();
     // Three hooks: OTel FlagEvalMetricsHook (index 0) + FlagEvalLoggingHook (index 1) +
     // ExposureLoggingHook (index 2)
     assertThat(hooks.size(), equalTo(3));
@@ -626,7 +626,7 @@ public class ProviderTest {
     assertHasFlagEvalMetricsHook(providerWithSpanEnrichment);
     assertExposureLoggingHookIsLast(providerWithoutSpanEnrichment);
     assertExposureLoggingHookIsLast(providerWithSpanEnrichment);
-    assertThat(providerWithSpanEnrichment.getProviderHooks().size(), equalTo(4));
+    assertThat(providerWithSpanEnrichment.registeredHooks().size(), equalTo(4));
   }
 
   @Test
@@ -643,11 +643,11 @@ public class ProviderTest {
     verify(evaluator).shutdown();
     // After shutdown, getProviderHooks still returns a list with the OTel, logging and exposure
     // hooks
-    assertThat(provider.getProviderHooks().size(), equalTo(3));
+    assertThat(provider.registeredHooks().size(), equalTo(3));
   }
 
   private static void assertExposureLoggingHookIsLast(final Provider provider) {
-    final List<Hook> hooks = provider.getProviderHooks();
+    final List<Hook<Object>> hooks = provider.registeredHooks();
     assertTrue(
         hooks.get(hooks.size() - 1) instanceof ExposureLoggingHook,
         "the exposure logging hook should run last");
@@ -655,7 +655,7 @@ public class ProviderTest {
 
   private static void assertHasFlagEvalMetricsHook(final Provider provider) {
     assertTrue(
-        provider.getProviderHooks().stream().anyMatch(FlagEvalMetricsHook.class::isInstance),
+        provider.registeredHooks().stream().anyMatch(FlagEvalMetricsHook.class::isInstance),
         "flag evaluation metrics hook should be registered");
   }
 

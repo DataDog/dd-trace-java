@@ -206,7 +206,7 @@ class SpanEnrichmentHookTest {
   void gateOffConstructsNoHook() {
     final Provider provider = new Provider(new Provider.Options(), null, Boolean.FALSE);
     assertNull(provider.spanEnrichmentHook(), "gate off => no span-enrichment hook");
-    for (final Hook hook : provider.getProviderHooks()) {
+    for (final Hook hook : provider.registeredHooks()) {
       assertFalse(
           hook instanceof SpanEnrichmentHook, "gate off => SpanEnrichmentHook never registered");
     }
@@ -217,7 +217,7 @@ class SpanEnrichmentHookTest {
     final Provider provider = new Provider(new Provider.Options(), null, Boolean.TRUE);
     assertTrue(provider.spanEnrichmentHook() != null, "gate on => hook constructed");
     boolean registered = false;
-    for (final Hook hook : provider.getProviderHooks()) {
+    for (final Hook hook : provider.registeredHooks()) {
       if (hook instanceof SpanEnrichmentHook) {
         registered = true;
       }

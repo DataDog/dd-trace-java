@@ -62,13 +62,16 @@ class ProviderTest {
         new Provider(
             new Provider.Options().evaluationTelemetryEnabled(false).exposuresEnabled(false));
 
-    // The hook classes are package-private in com.datadog.openfeature.
+    // The hook classes are package-private in com.datadog.openfeature, and the provider's hooks
+    // run behind one composite hook, whose toString names them.
     final Set<String> hooks = new HashSet<>();
     for (final Hook<?> hook : provider.getProviderHooks()) {
       hooks.add(hook.getClass().getSimpleName());
+      hooks.add(hook.toString());
     }
-    assertFalse(hooks.contains("FlagEvalLoggingHook"), hooks::toString);
-    assertFalse(hooks.contains("FlagEvalMetricsHook"), hooks::toString);
-    assertFalse(hooks.contains("ExposureLoggingHook"), hooks::toString);
+    final String names = hooks.toString();
+    assertFalse(names.contains("FlagEvalLoggingHook"), names);
+    assertFalse(names.contains("FlagEvalMetricsHook"), names);
+    assertFalse(names.contains("ExposureLoggingHook"), names);
   }
 }
