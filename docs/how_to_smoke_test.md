@@ -590,6 +590,13 @@ Repository-wide known-flaky messages are excluded centrally in [`KnownLogExclusi
 > A fixture that needs a build of its own (a Spring Boot `bootJar`, a Maven project, a native image) is built by a nested build instead of being shaded in place.
 > Apply `dd-trace-java.smoke-test-app`, put the application under `<name>/application`, and declare `smokeTestApp { gradleApp { taskName, artifactPath, sysProperty } }`, or `mavenApp { ... }` for Maven.
 
+Nested Gradle builds retain their installations under `<outer Gradle user home>/nested-gradle-distributions/<version>`.
+Each task uses a disposable execution home and stops its daemon before deleting that home.
+Gradle downloads through `MASS_READ_URL` when set and verifies the distribution against the pinned SHA-256.
+When overriding `smokeTestApp.gradleVersion`, also set `smokeTestApp.gradleDistributionSha256Sum` to the
+selected binary distribution's published checksum. Distribution download failures fail the task.
+Installation homes are excluded from task outputs and the CI dependency-cache paths.
+
 The `dd-trace-java.module.smoke-test` convention supplies the agent jar (`datadog.smoketest.agent.shadowJar.path`) and the module's build directory (`datadog.smoketest.builddir`).
 
 ## Running and debugging

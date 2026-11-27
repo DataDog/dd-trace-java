@@ -28,6 +28,7 @@ import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.kotlin.dsl.newInstance
 import org.gradle.tooling.GradleConnector
 import java.io.File
+import java.util.Properties
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import javax.inject.Inject
@@ -54,6 +55,12 @@ abstract class NestedGradleBuild @Inject constructor(
 
   init {
     gradleVersion.convention(DEFAULT_NESTED_GRADLE_VERSION)
+    gradleDistributionSha256Sum.convention(DEFAULT_NESTED_GRADLE_SHA256_SUM)
+    gradleDistributionUserHome.convention(
+      objects.directoryProperty().fileValue(
+        project.gradle.gradleUserHomeDir.resolve("nested-gradle-distributions"),
+      ),
+    )
     gradleDistributionBaseUrl.convention(
       project.providers.environmentVariable(MASS_READ_URL_ENV),
     )
@@ -94,6 +101,14 @@ abstract class NestedGradleBuild @Inject constructor(
   @get:Input
   @get:Optional
   abstract val gradleDistributionBaseUrl: Property<String>
+
+  /** Expected distribution SHA-256. Override together with [gradleVersion]. */
+  @get:Input
+  abstract val gradleDistributionSha256Sum: Property<String>
+
+  /** Retained installation homes, separated by Gradle version; excluded from task outputs. */
+  @get:Internal
+  abstract val gradleDistributionUserHome: DirectoryProperty
 
   @get:Input
   abstract val initScripts: ListProperty<String>
@@ -187,6 +202,7 @@ abstract class NestedGradleBuild @Inject constructor(
     val appBuildDirFile = applicationBuildDir.get().asFile
     val daemonJavaHome = javaLauncher.get().metadata.installationPath.asFile
     val gradleUserHomeDir = createGradleUserHome()
+    val distributionUserHome = gradleDistributionUserHome.get().asFile.resolve(gradleVersion.get())
     val declaredProperties = gradleProperties.get()
     val proxyProperties = proxyProperties(declaredProperties)
     val initScriptFiles = writeInitScripts(proxyProperties.isNotEmpty())
@@ -210,21 +226,14 @@ abstract class NestedGradleBuild @Inject constructor(
         add("-P${entry.propertyName.get()}=${entry.file.get().asFile.absolutePath}")
       }
       addAll(buildArguments.get())
+      addAll(listOf("--project-dir", appDir.absolutePath, "--gradle-user-home", gradleUserHomeDir.absolutePath))
     }
 
+    // Wrapper properties let Gradle verify and retain the distribution independently of daemon state.
     val connector = GradleConnector.newConnector()
-      .forProjectDirectory(appDir)
-      .useGradleUserHomeDir(gradleUserHomeDir)
-      .apply {
-        val distributionBaseUrl = gradleDistributionBaseUrl.orNull
-        if (distributionBaseUrl.isNullOrBlank()) {
-          useGradleVersion(gradleVersion.get())
-        } else {
-          useDistribution(
-            gradleDistributionUri(distributionBaseUrl, gradleVersion.get()),
-          )
-        }
-      }
+      .forProjectDirectory(writeDistributionProject())
+      .useGradleUserHomeDir(distributionUserHome)
+      .useBuildDistribution()
 
     val mergedEnv =
       System.getenv() +
@@ -247,15 +256,30 @@ abstract class NestedGradleBuild @Inject constructor(
           .run()
       }
     } finally {
-      stopGradleDaemon(appDir, gradleUserHomeDir, daemonJavaHome, mergedEnv)?.let { daemons ->
+      stopGradleDaemon(appDir, gradleUserHomeDir, distributionUserHome, daemonJavaHome, mergedEnv)?.let { daemons ->
         deleteGradleUserHome(gradleUserHomeDir, daemons)
       }
     }
   }
 
+  private fun writeDistributionProject(): File {
+    val directory = temporaryDir.resolve("distribution").apply { mkdirs() }
+    directory.resolve("settings.gradle").writeText("rootProject.name = 'nested-gradle-bootstrap'\n")
+    val propertiesFile = directory.resolve("gradle/wrapper/gradle-wrapper.properties")
+    propertiesFile.parentFile.mkdirs()
+    propertiesFile.outputStream().use { output ->
+      Properties().apply {
+        setProperty("distributionUrl", gradleDistributionUri(gradleDistributionBaseUrl.orNull, gradleVersion.get()).toString())
+        setProperty("distributionSha256Sum", gradleDistributionSha256Sum.get())
+      }.store(output, null)
+    }
+    return directory
+  }
+
   private fun stopGradleDaemon(
     appDir: File,
     gradleUserHomeDir: File,
+    distributionUserHome: File,
     daemonJavaHome: File,
     environment: Map<String, String>,
   ): List<ProcessHandle>? {
@@ -271,17 +295,17 @@ abstract class NestedGradleBuild @Inject constructor(
         )
         null
       }
-      val gradleExecutable = findGradleExecutable(gradleUserHomeDir)
+      val gradleExecutable = findGradleExecutable(distributionUserHome)
       if (gradleExecutable == null) {
         if (daemons?.isEmpty() == true) return daemons
         logger.warn(
           "Could not find nested Gradle executable under {} to stop its daemon",
-          gradleUserHomeDir.absolutePath,
+          distributionUserHome.absolutePath,
         )
         return null
       }
 
-      val processBuilder = ProcessBuilder(gradleExecutable.absolutePath, "--stop")
+      val processBuilder = ProcessBuilder(gradleExecutable.absolutePath, "--stop", "--gradle-user-home", gradleUserHomeDir.absolutePath)
         .directory(appDir)
         .redirectOutput(ProcessBuilder.Redirect.INHERIT)
         .redirectError(ProcessBuilder.Redirect.INHERIT)
