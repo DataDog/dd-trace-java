@@ -26,8 +26,7 @@ import datadog.trace.test.util.DDJavaSpecification;
 import java.net.URI;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 @WithConfig(key = LEGACY_CONTEXT_MANAGER_ENABLED, value = "false")
 class AwsContextRestorationTest extends DDJavaSpecification {
@@ -70,8 +69,11 @@ class AwsContextRestorationTest extends DDJavaSpecification {
     AgentTracer.installLegacyContextManager();
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
+  @TableTest({
+    "scenario        | requestExecutor",
+    "AWSHttpClient   | false          ",
+    "RequestExecutor | true           "
+  })
   void nestedRequestsRestoreTheirOwnContexts(boolean requestExecutor) {
     Context parent = Context.current();
     Context.setCaptureEnabled(false);
@@ -92,8 +94,11 @@ class AwsContextRestorationTest extends DDJavaSpecification {
     finish(inner);
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
+  @TableTest({
+    "scenario        | requestExecutor",
+    "AWSHttpClient   | false          ",
+    "RequestExecutor | true           "
+  })
   void requestFailureRestoresTheParentAndFinishesTheRequestSpan(boolean requestExecutor) {
     Context parent = Context.current();
     Request<?> request = request();
@@ -110,8 +115,11 @@ class AwsContextRestorationTest extends DDJavaSpecification {
     assertTrue(span.isError());
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
+  @TableTest({
+    "scenario        | requestExecutor",
+    "AWSHttpClient   | false          ",
+    "RequestExecutor | true           "
+  })
   void failureBeforeTheHandlerLeavesTheCallerContextIntact(boolean requestExecutor) {
     Context parent = Context.current();
     Context.setCaptureEnabled(false);
@@ -121,8 +129,11 @@ class AwsContextRestorationTest extends DDJavaSpecification {
     assertFalse(Context.isCaptureEnabled());
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
+  @TableTest({
+    "scenario        | requestExecutor",
+    "AWSHttpClient   | false          ",
+    "RequestExecutor | true           "
+  })
   void restorationDoesNotRequireARequest(boolean requestExecutor) {
     Context parent = Context.current();
     Context.setCaptureEnabled(false);

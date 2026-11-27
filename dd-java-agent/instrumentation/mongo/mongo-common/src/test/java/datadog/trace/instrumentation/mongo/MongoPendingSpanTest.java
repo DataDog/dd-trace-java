@@ -24,8 +24,7 @@ import org.bson.BsonReader;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 @WithConfig(key = LEGACY_CONTEXT_MANAGER_ENABLED, value = "false")
 class MongoPendingSpanTest extends DDJavaSpecification {
@@ -163,8 +162,11 @@ class MongoPendingSpanTest extends DDJavaSpecification {
     assertTrue(span.isFinished());
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
+  @TableTest({
+    "scenario                                    | sameOperationName",
+    "caller has an unrelated operation name      | false            ",
+    "caller already has the Mongo operation name | true             "
+  })
   void commandListenerWithoutPendingSpanCreatesAChildOfTheCaller(boolean sameOperationName)
       throws Exception {
     if (sameOperationName) {

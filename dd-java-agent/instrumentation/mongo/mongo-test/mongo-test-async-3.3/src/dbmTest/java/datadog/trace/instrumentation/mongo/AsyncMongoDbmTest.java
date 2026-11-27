@@ -37,8 +37,7 @@ import org.bson.BsonString;
 import org.bson.Document;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -61,8 +60,11 @@ abstract class AsyncMongoDbmTest extends AbstractInstrumentationTest {
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
+  @TableTest({
+    "scenario          | warmConnection",
+    "cold connection   | false         ",
+    "warmed connection | true          "
+  })
   void asyncCommandRetainsCorrelationAndListenerParenting(boolean warmConnection) throws Exception {
     String marker = UUID.randomUUID().toString();
     AtomicReference<String> commandComment = new AtomicReference<>();

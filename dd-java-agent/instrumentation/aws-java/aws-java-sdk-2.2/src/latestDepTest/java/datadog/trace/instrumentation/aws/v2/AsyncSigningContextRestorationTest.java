@@ -20,8 +20,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
@@ -39,8 +38,11 @@ import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 
 @WithConfig(key = LEGACY_CONTEXT_MANAGER_ENABLED, value = "false")
 class AsyncSigningContextRestorationTest extends AbstractInstrumentationTest {
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
+  @TableTest({
+    "scenario                             | delayedSigning",
+    "signing completes immediately        | false         ",
+    "signing completes on a worker thread | true          "
+  })
   void signingAndHttpFailureRestoreTheSubmittingThread(boolean delayedSigning) throws Exception {
     DelayedSigner signer = new DelayedSigner(delayedSigning);
     AtomicReference<Context> submissionContext = new AtomicReference<>();
