@@ -43,10 +43,20 @@ public final class CamelTracingStrategy extends EventNotifierSupport
     context.getManagementStrategy().addEventNotifier(strategy);
   }
 
+  private volatile Boolean nativeTracingPresent;
+
   private boolean nativeTracingPresent() {
+    Boolean present = nativeTracingPresent;
+    if (present != null) {
+      return present;
+    }
     // Camel's tracing adapters register their Tracer as a context service before routing.
     try {
-      return context.hasService(CamelTracingService.class) != null;
+      boolean found = context.hasService(CamelTracingService.class) != null;
+      if (context.isStarted()) {
+        nativeTracingPresent = found;
+      }
+      return found;
     } catch (Throwable ignored) {
       return true;
     }
