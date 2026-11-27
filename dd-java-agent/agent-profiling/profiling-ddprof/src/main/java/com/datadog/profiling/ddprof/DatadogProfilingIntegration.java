@@ -1,3 +1,4 @@
+// Copyright 2026 Datadog, Inc.
 package com.datadog.profiling.ddprof;
 
 import datadog.context.Context;
@@ -79,6 +80,21 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   @Override
   public String name() {
     return "ddprof";
+  }
+
+  @Override
+  public boolean parkEnter() {
+    return DDPROF.parkEnter();
+  }
+
+  @Override
+  public void parkExit(long blocker, long unblockingSpanId) {
+    DDPROF.parkExit(blocker, unblockingSpanId);
+  }
+
+  @Override
+  public boolean isUnparkAttributionEnabled() {
+    return DDPROF.isUnparkAttributionEnabled();
   }
 
   /** Rebinds ddprof's carrier-thread context to the span contained in {@code context}. */

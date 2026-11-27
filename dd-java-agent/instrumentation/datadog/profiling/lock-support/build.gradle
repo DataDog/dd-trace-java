@@ -1,0 +1,14 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+muzzle {
+  pass {
+    coreJdk()
+  }
+}
+
+dependencies {
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
+}

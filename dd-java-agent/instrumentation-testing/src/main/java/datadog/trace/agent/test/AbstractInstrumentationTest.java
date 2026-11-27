@@ -68,6 +68,12 @@ public abstract class AbstractInstrumentationTest {
   static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(20);
 
   protected static final InstrumentationTestConfig testConfig = new InstrumentationTestConfig();
+  // Mirrors InstrumentationSpecification.TEST_PROFILING_CONTEXT_INTEGRATION: the Groovy base class
+  // already installs this recording integration for every instrumentation spec, so the JUnit base
+  // class does the same to keep both harnesses behaviourally identical. Not a mock, because that
+  // would break exhaustive interaction-verifying tests.
+  protected static final TestProfilingContextIntegration testProfilingContextIntegration =
+      new TestProfilingContextIntegration();
 
   protected static TracerAPI tracer;
   protected static ListWriter writer;
@@ -89,6 +95,7 @@ public abstract class AbstractInstrumentationTest {
             .writer(writer)
             .idGenerationStrategy(IdGenerationStrategy.fromName(testConfig.idGenerationStrategy))
             .strictTraceWrites(true)
+            .profilingContextIntegration(testProfilingContextIntegration)
             .build();
     TracerInstaller.forceInstallGlobalTracer(coreTracer);
     tracer = coreTracer;
