@@ -68,7 +68,10 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
   public void onConnection(
       final AgentSpan span, final Node node, final Cluster cluster, final Partition partition) {
 
-    onPeerConnection(span, node.getAddress());
+    // the advice also runs when getNode throws, in which case there is no node
+    if (node != null) {
+      onPeerConnection(span, node.getAddress());
+    }
 
     if (cluster != null && cluster.getUser() != null) {
       span.setTag(Tags.DB_USER, UTF8BytesString.create(cluster.getUser()));
