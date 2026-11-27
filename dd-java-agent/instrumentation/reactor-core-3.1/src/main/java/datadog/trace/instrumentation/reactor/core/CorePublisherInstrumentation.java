@@ -60,22 +60,30 @@ public class CorePublisherInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope before(
         @Advice.This final Publisher<?> self,
-        @Advice.Argument(0) final CoreSubscriber<?> subscriber) {
-      // Hands the explicit context recorded for a context-writing subscriber to the publisher store
-      // (for the reactive-streams hand-off) and attaches it. The subscriber wrapping for
-      // context-reading operators lives in ContextReadingPublisherInstrumentation.
-      return ReactorContextBridge.captureOnSubscribe(
-          self,
-          subscriber,
-          InstrumentationContext.get(Publisher.class, HandoffContext.class),
-          InstrumentationContext.get(Subscriber.class, Context.class));
+        @Advice.Argument(0) final CoreSubscriber<?> subscriber,
+        @Advice.Local("handoff") HandoffContext handoff) {
+      // Hands the context recorded for the subscriber to the publisher store (for the
+      // reactive-streams hand-off) and attaches it. The subscriber wrapping for context-reading
+      // operators lives in ContextReadingPublisherInstrumentation.
+      handoff =
+          ReactorContextBridge.depositOnSubscribe(
+              self,
+              subscriber,
+              InstrumentationContext.get(Publisher.class, HandoffContext.class),
+              InstrumentationContext.get(Subscriber.class, Context.class));
+      return ReactorContextBridge.attachDeposit(handoff);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(@Advice.Enter final ContextScope scope) {
+    public static void after(
+        @Advice.This final Publisher<?> self,
+        @Advice.Enter final ContextScope scope,
+        @Advice.Local("handoff") final HandoffContext handoff) {
       if (scope != null) {
         scope.close();
       }
+      ReactorContextBridge.releaseOnSubscribeExit(
+          self, handoff, InstrumentationContext.get(Publisher.class, HandoffContext.class));
     }
   }
 }

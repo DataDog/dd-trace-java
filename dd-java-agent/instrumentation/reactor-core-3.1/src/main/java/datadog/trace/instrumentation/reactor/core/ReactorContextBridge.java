@@ -47,12 +47,15 @@ public final class ReactorContextBridge {
   }
 
   /**
-   * On subscribe, hands the explicit context recorded for {@code subscriber} (a context-writing
-   * subscriber) to the publisher store so the reactive-streams layer can propagate it, and attaches
-   * it. The deposit is {@linkplain HandoffContext#threadConfined thread-confined} since the
-   * subscribed publisher may be a concurrently-subscribed shared sink.
+   * On subscribe, hands the context recorded for {@code subscriber} to the publisher store so the
+   * reactive-streams layer can propagate it within this subscribe call, and returns the deposit, or
+   * {@code null} if the subscriber has no context. The subscriber has one when it carries an
+   * explicit {@code dd.span}, or when the reactive-streams advice already ran for this call under
+   * an active context. The deposit is {@linkplain HandoffContext#threadConfined thread-confined}
+   * since the subscribed publisher may be a concurrently-subscribed shared sink. The caller must
+   * pass it to {@link #releaseOnSubscribeExit} when the call returns.
    */
-  public static ContextScope captureOnSubscribe(
+  public static HandoffContext depositOnSubscribe(
       final Publisher<?> publisher,
       final Subscriber<?> subscriber,
       final ContextStore<Publisher, HandoffContext> publisherContexts,
@@ -62,8 +65,34 @@ public final class ReactorContextBridge {
       return null;
     }
 
-    publisherContexts.put(publisher, HandoffContext.threadConfined(context));
-    return attachIfRequired(context, Context.current());
+    final HandoffContext handoff = HandoffContext.threadConfined(context);
+    publisherContexts.put(publisher, handoff);
+    return handoff;
+  }
+
+  /**
+   * Attaches the context of a deposit made by {@link #depositOnSubscribe}, unless already active.
+   */
+  public static ContextScope attachDeposit(final HandoffContext handoff) {
+    return handoff == null
+        ? null
+        : attachIfRequired(handoff.contextForCurrentThread(), Context.current());
+  }
+
+  /**
+   * Removes a deposit made by {@link #depositOnSubscribe} that is still unconsumed when the
+   * subscribe call returns. Its readers (the reactive-streams subscribe advice and the optimized
+   * subscribe loop) run within that call, and {@code block*} reads the store before it subscribes.
+   * A deposit left behind on a long-lived publisher would be adopted by its next subscription on
+   * this thread, even one without an active context.
+   */
+  public static void releaseOnSubscribeExit(
+      final Publisher<?> publisher,
+      final HandoffContext handoff,
+      final ContextStore<Publisher, HandoffContext> publisherContexts) {
+    if (handoff != null && publisherContexts.get(publisher) == handoff) {
+      publisherContexts.remove(publisher);
+    }
   }
 
   public static ContextScope activateForBlocking(
