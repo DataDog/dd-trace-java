@@ -351,6 +351,7 @@ include(
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0",
   ":dd-java-agent:instrumentation:akka:akka-http:akka-http-10.2-iast",
   // dd-java-agent:instrumentation:akka:akka-http:akka-http-10.6 will be included when `akkaRepositoryToken` is present, see next `include` block.
+  ":dd-java-agent:instrumentation:apache-camel:apache-camel-4.2",
   ":dd-java-agent:instrumentation:apache-httpclient:apache-httpasyncclient-4.0",
   ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0",
   ":dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-5.0",
@@ -616,7 +617,6 @@ include(
   ":dd-java-agent:instrumentation:resteasy:filter-resteasy:filter-resteasy-3.1",
   ":dd-java-agent:instrumentation:resteasy:resteasy-3.0",
   ":dd-java-agent:instrumentation:resteasy:resteasy-appsec-3.0",
-  ":dd-java-agent:instrumentation:restlet-2.2",
   ":dd-java-agent:instrumentation:rs:jakarta-rs-annotations-3.0",
   ":dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-1.1.1",
   ":dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2.0",
@@ -717,6 +717,13 @@ include(
   ":dd-java-agent:instrumentation:ws:jax-ws:jax-ws-annotations-2.0",
   ":dd-java-agent:instrumentation:zio:zio-2.0",
 )
+
+// Restlet's public repository is unavailable; CI can use artifacts cached by the Maven proxy.
+if (isCI.isPresent) {
+  include(":dd-java-agent:instrumentation:restlet-2.2")
+} else {
+  logger.quiet("Omitting :dd-java-agent:instrumentation:restlet-2.2 outside CI: public artifact repository unavailable")
+}
 
 // Optional `akka-http-10.6` instrumentation (see BUILDING.md for how to enable it):
 if (providers.gradleProperty("akkaRepositoryToken").getOrElse("").isNotBlank()) {
