@@ -1,5 +1,6 @@
 package com.datadog.profiling.ddprof;
 
+import static com.datadog.profiling.controller.ProfilingSupport.isAllocationSamplerSafe;
 import static com.datadog.profiling.controller.ProfilingSupport.isOldObjectSampleAvailable;
 import static datadog.environment.JavaVirtualMachine.isJ9;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
@@ -131,11 +132,20 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean isWallClockProfilerEnabled(ConfigProvider configProvider) {
+    return getBoolean(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_WALL_ENABLED,
+        isWallClockProfilerEnabledByDefault(configProvider));
+  }
+
+  /**
+   * @return whether wall clock profiling is enabled unless the configuration disables it: it is
+   *     disabled unless opted in on J9, in ultra minimal mode, and when tracing is disabled
+   */
+  public static boolean isWallClockProfilerEnabledByDefault(ConfigProvider configProvider) {
     boolean isUltraMinimal = getBoolean(configProvider, PROFILING_ULTRA_MINIMAL, false);
     boolean isTracingEnabled = configProvider.getBoolean(TRACE_ENABLED, true);
-    boolean disableUnlessOptedIn = isUltraMinimal || !isTracingEnabled || isJ9();
-    boolean enabledByDefault = !disableUnlessOptedIn;
-    return getBoolean(configProvider, PROFILING_DATADOG_PROFILER_WALL_ENABLED, enabledByDefault);
+    return !(isUltraMinimal || !isTracingEnabled || isJ9());
   }
 
   public static int getWallInterval(ConfigProvider configProvider) {
@@ -189,16 +199,23 @@ public class DatadogProfilerConfig {
     return ProfilingSupport.isLiveHeapProfilingSafe();
   }
 
+  /**
+   * @return the value of the allocation profiling setting, whether the Datadog profiler can do it
+   *     or not, see {@link #isAllocationProfilingEnabled(ConfigProvider)}
+   */
+  public static boolean getAllocationProfilingSetting(ConfigProvider configProvider) {
+    return getBoolean(
+        configProvider,
+        PROFILING_ALLOCATION_ENABLED,
+        isJmethodIDSafe(),
+        PROFILING_DATADOG_PROFILER_ALLOC_ENABLED);
+  }
+
   public static boolean isAllocationProfilingEnabled(ConfigProvider configProvider) {
     // JVMTI Allocation Sampler is available since Java 11
     if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
       boolean dflt = isJmethodIDSafe();
-      boolean enableDdprofAlloc =
-          getBoolean(
-              configProvider,
-              PROFILING_ALLOCATION_ENABLED,
-              dflt,
-              PROFILING_DATADOG_PROFILER_ALLOC_ENABLED);
+      boolean enableDdprofAlloc = getAllocationProfilingSetting(configProvider);
 
       if (!dflt && enableDdprofAlloc) {
         log.warn(
@@ -224,15 +241,21 @@ public class DatadogProfilerConfig {
     return getAllocationInterval(ConfigProvider.getInstance());
   }
 
+  /**
+   * @return the value of the live heap profiling setting, whichever profiler does it, see {@link
+   *     #isMemoryLeakProfilingEnabled(ConfigProvider)} for the Datadog profiler
+   */
+  public static boolean getHeapProfilingSetting(ConfigProvider configProvider) {
+    return configProvider.getBoolean(PROFILING_HEAP_ENABLED, isMemoryLeakProfilingSafe());
+  }
+
   public static boolean isMemoryLeakProfilingEnabled(ConfigProvider configProvider) {
-    boolean unifiedEnabled =
-        configProvider.getBoolean(PROFILING_HEAP_ENABLED, isMemoryLeakProfilingSafe());
+    boolean unifiedEnabled = getHeapProfilingSetting(configProvider);
     if (!unifiedEnabled) {
       return false;
     }
-    // JVMTI Allocation Sampler is required for ddprof live heap and is available since Java 11.
     // isJmethodIDSafe() alone is not sufficient — Java 8 is jmethodID-safe but lacks the sampler.
-    boolean isSafe = JavaVirtualMachine.isJavaVersionAtLeast(11) && isJmethodIDSafe();
+    boolean isSafe = isAllocationSamplerSafe();
     boolean enableDdprofMemleak =
         getBoolean(
             configProvider,

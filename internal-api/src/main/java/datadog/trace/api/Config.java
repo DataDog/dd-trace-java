@@ -4308,6 +4308,11 @@ public class Config {
     return profilingEnabled.isActive() && instrumenterConfig.isProfilingEnabled();
   }
 
+  /** The profiling enablement as configured, e.g. {@code auto} vs an explicit {@code true}. */
+  public ProfilingEnablement getProfilingEnablement() {
+    return profilingEnabled;
+  }
+
   public boolean isProfilingTimelineEventsEnabled() {
     return timelineEventsEnabled;
   }

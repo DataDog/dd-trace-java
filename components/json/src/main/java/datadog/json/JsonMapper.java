@@ -181,7 +181,7 @@ public final class JsonMapper {
    *
    * @param json The JSON string to parse.
    * @return A {@link Map} containing the parsed JSON object's key-value pairs.
-   * @throws IOException If the JSON is invalid or a reader error occurs.
+   * @throws IOException If the JSON is invalid, is not a single object, or a reader error occurs.
    */
   @SuppressWarnings("unchecked")
   public static Map<String, Object> fromJsonToMap(String json) throws IOException {
@@ -191,7 +191,12 @@ public final class JsonMapper {
     try (JsonReader reader = new JsonReader(json)) {
       Object value = reader.nextValue();
       if (!(value instanceof Map)) {
-        throw new IOException("Expected JSON object but was " + value.getClass().getSimpleName());
+        throw new IOException(
+            "Expected JSON object but was "
+                + (value == null ? "null" : value.getClass().getSimpleName()));
+      }
+      if (!reader.isEndOfDocument()) {
+        throw new IOException("Unexpected content after the JSON object");
       }
       return (Map<String, Object>) value;
     }

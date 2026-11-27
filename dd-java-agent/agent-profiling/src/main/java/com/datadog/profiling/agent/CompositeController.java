@@ -11,6 +11,7 @@ import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.controller.ddprof.DatadogProfilerController;
 import com.datadog.profiling.controller.openjdk.OpenJdkController;
 import com.datadog.profiling.controller.oracle.OracleJdkController;
+import com.datadog.profiling.utils.ProfilingMode;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
@@ -30,6 +31,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -56,16 +58,43 @@ public class CompositeController implements Controller {
     return Collections.unmodifiableList(controllers);
   }
 
+  /**
+   * Starts a recording with each controller. If one of them fails to, the recordings that the
+   * previous ones already started are closed before the failure is thrown: the caller gets no
+   * recording to stop, so they would otherwise keep running, e.g. a JFR recording when the Datadog
+   * profiler fails to start, and a retry would start another one.
+   */
   @Nonnull
   @Override
   public OngoingRecording createRecording(
       @Nonnull String recordingName, ControllerContext.Snapshot context)
       throws UnsupportedEnvironmentException {
     List<OngoingRecording> recordings = new ArrayList<>(controllers.size());
-    for (Controller controller : controllers) {
-      recordings.add(controller.createRecording(recordingName, context));
+    try {
+      for (Controller controller : controllers) {
+        recordings.add(controller.createRecording(recordingName, context));
+      }
+    } catch (Throwable failure) {
+      try {
+        // closes every started recording, even when closing one of them fails
+        new CompositeOngoingRecording(recordings).close();
+      } catch (RuntimeException closeFailure) {
+        failure.addSuppressed(closeFailure);
+      }
+      throw failure;
     }
     return new CompositeOngoingRecording(recordings);
+  }
+
+  @Override
+  public void configure(ControllerContext context) {
+    controllers.forEach(controller -> controller.configure(context));
+  }
+
+  @Override
+  public void reconfigure(
+      ConfigProvider configProvider, Map<ProfilingMode, Boolean> modeOverrides) {
+    controllers.forEach(controller -> controller.reconfigure(configProvider, modeOverrides));
   }
 
   private static class CompositeOngoingRecording implements OngoingRecording {
@@ -79,7 +108,26 @@ public class CompositeController implements Controller {
     @Nonnull
     @Override
     public RecordingData stop() {
-      return compose(OngoingRecording::stop);
+      // every recording must be stopped, even when another one fails to: a ddprof recording that
+      // stays running would keep the profiler from starting again
+      List<RecordingData> data = new ArrayList<>(recordings.size());
+      RuntimeException failure = null;
+      for (OngoingRecording recording : recordings) {
+        try {
+          data.add(recording.stop());
+        } catch (RuntimeException e) {
+          if (failure == null) {
+            failure = e;
+          } else {
+            failure.addSuppressed(e);
+          }
+        }
+      }
+      if (failure != null) {
+        data.forEach(RecordingData::release);
+        throw failure;
+      }
+      return new CompositeRecordingData(data);
     }
 
     @Nonnull
@@ -90,7 +138,22 @@ public class CompositeController implements Controller {
 
     @Override
     public void close() {
-      recordings.forEach(OngoingRecording::close);
+      // like stop(), every recording must be closed, even when another one fails to
+      RuntimeException failure = null;
+      for (OngoingRecording recording : recordings) {
+        try {
+          recording.close();
+        } catch (RuntimeException e) {
+          if (failure == null) {
+            failure = e;
+          } else {
+            failure.addSuppressed(e);
+          }
+        }
+      }
+      if (failure != null) {
+        throw failure;
+      }
     }
 
     private RecordingData compose(Function<OngoingRecording, RecordingData> recorder) {

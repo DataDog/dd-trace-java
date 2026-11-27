@@ -15,6 +15,9 @@
  */
 package com.datadog.profiling.controller;
 
+import com.datadog.profiling.utils.ProfilingMode;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.util.Map;
 import javax.annotation.Nonnull;
 
 /**
@@ -34,4 +37,15 @@ public interface Controller {
       throws UnsupportedEnvironmentException;
 
   default void configure(ControllerContext context) {}
+
+  /**
+   * Applies a new configuration to the recordings created from now on. Only called while no
+   * recording is running.
+   *
+   * @param configProvider the new configuration
+   * @param modeOverrides the Datadog profiler modes to switch on ({@code true}) or off ({@code
+   *     false}) over what the configuration enables, e.g. by remote config
+   */
+  default void reconfigure(
+      ConfigProvider configProvider, Map<ProfilingMode, Boolean> modeOverrides) {}
 }

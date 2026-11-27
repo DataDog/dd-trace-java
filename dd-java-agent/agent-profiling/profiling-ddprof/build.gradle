@@ -1,3 +1,5 @@
+import datadog.gradle.plugin.HostPlatform
+
 plugins {
   id 'com.gradleup.shadow'
   id 'dd-trace-java.module.internal-library'
@@ -7,10 +9,10 @@ plugins {
 ext {
 }
 
-def osName = System.getProperty('os.name', '').toLowerCase()
 // currently, only linux binaries are included
-minimumInstructionCoverage = osName.contains("linux") ? 0.5 : 0
-minimumBranchCoverage = osName.contains("linux") ? 0.4 : 0
+def coverageEnabled = HostPlatform.isLinux()
+minimumInstructionCoverage = coverageEnabled ? 0.5 : 0
+minimumBranchCoverage = coverageEnabled ? 0.4 : 0
 
 excludedClassesCoverage += [
   // enums with no additional functionality

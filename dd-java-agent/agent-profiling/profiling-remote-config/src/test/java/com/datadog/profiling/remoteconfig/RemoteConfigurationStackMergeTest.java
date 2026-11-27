@@ -1,0 +1,167 @@
+package com.datadog.profiling.remoteconfig;
+
+import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.ALLOCATIONS;
+import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.CPU_TIME;
+import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.HEAP_OBJECTS;
+import static com.datadog.profiling.remoteconfig.RemoteConfiguration.Feature.WALL_TIME;
+import static com.datadog.profiling.remoteconfig.TestConfigKey.configKey;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+
+import org.junit.jupiter.api.Test;
+
+class RemoteConfigurationStackMergeTest {
+  private final RemoteConfigurationStack stack = new RemoteConfigurationStack();
+
+  @Test
+  void emptyStackSetsNothing() {
+    assertSame(RemoteConfiguration.EMPTY, stack.merged());
+  }
+
+  @Test
+  void singleConfigurationIsUnchanged() {
+    stack.push(configKey("a"), 0, config("\"cpuTime\":true,\"wallTime\":false"));
+
+    RemoteConfiguration merged = stack.merged();
+
+    assertEquals(true, merged.get(CPU_TIME));
+    assertEquals(false, merged.get(WALL_TIME));
+    assertNull(merged.get(ALLOCATIONS));
+  }
+
+  @Test
+  void highestPriorityValueWinsWhateverTheOrderItWasPushedIn() {
+    // by push order, the lower priority one would overwrite the other in the first stack
+    stack.push(configKey("a"), 3001, config("\"cpuTime\":true"));
+    stack.push(configKey("z"), 0, config("\"cpuTime\":false"));
+    assertEquals(true, stack.merged().get(CPU_TIME));
+
+    RemoteConfigurationStack reversed = new RemoteConfigurationStack();
+    reversed.push(configKey("a"), 0, config("\"cpuTime\":false"));
+    reversed.push(configKey("z"), 3001, config("\"cpuTime\":true"));
+    assertEquals(true, reversed.merged().get(CPU_TIME));
+  }
+
+  @Test
+  void disablingWithAHigherPriorityOverridesEnabling() {
+    stack.push(configKey("general"), 0, config("\"cpuTime\":true,\"wallTime\":true"));
+    stack.push(configKey("specific"), 3001, config("\"cpuTime\":false"));
+
+    RemoteConfiguration merged = stack.merged();
+
+    assertEquals(false, merged.get(CPU_TIME));
+    assertEquals(true, merged.get(WALL_TIME));
+  }
+
+  @Test
+  void equalPriorityGivesTheValueOfTheLatestPushed() {
+    stack.push(configKey("c"), 2001, config("\"cpuTime\":true"));
+    stack.push(configKey("a"), 2001, config("\"cpuTime\":true"));
+    stack.push(configKey("b"), 2001, config("\"cpuTime\":false"));
+
+    assertEquals(false, stack.merged().get(CPU_TIME), "b is the latest");
+  }
+
+  @Test
+  void updatedConfigurationBecomesTheLatestOfItsPriority() {
+    stack.push(configKey("a"), 2001, config("\"cpuTime\":true"));
+    stack.push(configKey("b"), 2001, config("\"cpuTime\":false"));
+    stack.push(configKey("a"), 2001, config("\"cpuTime\":true"));
+
+    assertEquals(true, stack.merged().get(CPU_TIME), "a was updated after b");
+  }
+
+  @Test
+  void latestOfAPriorityReplacesTheEarlierOnesEntirely() {
+    stack.push(configKey("a"), 2001, config("\"cpuTime\":true,\"wallTime\":true"));
+    stack.push(configKey("b"), 2001, config("\"cpuTime\":false"));
+
+    RemoteConfiguration merged = stack.merged();
+
+    assertEquals(false, merged.get(CPU_TIME));
+    assertNull(merged.get(WALL_TIME), "a doesn't count, b being later with the same priority");
+  }
+
+  @Test
+  void earlierConfigurationCountsAgainWhenTheLatestOfItsPriorityIsRemoved() {
+    stack.push(configKey("a"), 2001, config("\"cpuTime\":true,\"wallTime\":true"));
+    stack.push(configKey("b"), 2001, config("\"cpuTime\":false"));
+    stack.remove(configKey("b"));
+
+    RemoteConfiguration merged = stack.merged();
+
+    assertEquals(true, merged.get(CPU_TIME));
+    assertEquals(true, merged.get(WALL_TIME));
+  }
+
+  @Test
+  void lowerPriorityStillCountsForTheFeaturesTheLatestDoesNotSet() {
+    stack.push(configKey("general"), 0, config("\"wallTime\":false"));
+    stack.push(configKey("a"), 2001, config("\"cpuTime\":true"));
+    stack.push(configKey("b"), 2001, config("\"allocations\":true"));
+
+    RemoteConfiguration merged = stack.merged();
+
+    assertEquals(false, merged.get(WALL_TIME), "from the lower priority");
+    assertNull(merged.get(CPU_TIME), "a doesn't count");
+    assertEquals(true, merged.get(ALLOCATIONS));
+  }
+
+  @Test
+  void configurationsAreMergedFeatureByFeature() {
+    stack.push(
+        configKey("general"),
+        0,
+        config("\"cpuTime\":true,\"wallTime\":false,\"heapObjects\":true"));
+    stack.push(configKey("specific"), 2001, config("\"wallTime\":true,\"allocations\":true"));
+
+    RemoteConfiguration merged = stack.merged();
+
+    assertEquals(true, merged.get(CPU_TIME), "only set by the general one");
+    assertEquals(true, merged.get(WALL_TIME), "overwritten by the specific one");
+    assertEquals(true, merged.get(HEAP_OBJECTS), "only set by the general one");
+    assertEquals(true, merged.get(ALLOCATIONS), "only set by the specific one");
+  }
+
+  @Test
+  void featureThatTheHigherPriorityDoesNotSetKeepsTheLowerPriorityValue() {
+    stack.push(configKey("general"), 0, config("\"wallTime\":false"));
+    stack.push(configKey("specific"), 3001, config("\"cpuTime\":true"));
+
+    assertEquals(false, stack.merged().get(WALL_TIME));
+  }
+
+  @Test
+  void configurationWithoutFeaturesChangesNothing() {
+    stack.push(configKey("general"), 0, config("\"cpuTime\":true"));
+    stack.push(configKey("specific"), 7001, RemoteConfiguration.EMPTY);
+
+    assertEquals(true, stack.merged().get(CPU_TIME));
+  }
+
+  @Test
+  void replacedConfigurationNoLongerCounts() {
+    stack.push(configKey("a"), 3001, config("\"cpuTime\":false"));
+    stack.push(configKey("b"), 0, config("\"cpuTime\":true"));
+    stack.push(configKey("a"), 3001, config("\"wallTime\":true"));
+
+    RemoteConfiguration merged = stack.merged();
+
+    assertEquals(true, merged.get(CPU_TIME));
+    assertEquals(true, merged.get(WALL_TIME));
+  }
+
+  @Test
+  void removedConfigurationNoLongerCounts() {
+    stack.push(configKey("general"), 0, config("\"cpuTime\":true"));
+    stack.push(configKey("specific"), 3001, config("\"cpuTime\":false"));
+    stack.remove(configKey("specific"));
+
+    assertEquals(true, stack.merged().get(CPU_TIME));
+  }
+
+  private static RemoteConfiguration config(String profilers) {
+    return RemoteConfiguration.parse("{\"profilers\":{" + profilers + "}}");
+  }
+}

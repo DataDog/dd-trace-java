@@ -1,3 +1,5 @@
+import datadog.gradle.plugin.HostPlatform
+
 plugins {
   // Tests load the native profiler selected for the image's libc variant.
   id 'dd-trace-java.ci-builder-inputs'
@@ -9,8 +11,11 @@ testJvmConstraints {
   excludeJdk = ['SEMERU11', 'SEMERU17']
 }
 
-minimumBranchCoverage = 0.5
-minimumInstructionCoverage = 0.7
+// The tests need the native profiler, which is only available on Linux, so they are skipped
+// elsewhere and can't provide any coverage there.
+def coverageEnabled = HostPlatform.isLinux()
+minimumBranchCoverage = coverageEnabled ? 0.5 : 0
+minimumInstructionCoverage = coverageEnabled ? 0.7 : 0
 
 excludedClassesCoverage += [
   'com.datadog.profiling.controller.ddprof.DatadogProfilerController',

@@ -9,7 +9,13 @@ public enum ProfilingMode {
   ALLOCATION(1 << 2),
   MEMLEAK(1 << 3),
   NATIVEMEM(1 << 4),
-  NATIVESOCKET(1 << 5);
+  NATIVESOCKET(1 << 5),
+  /**
+   * Tracks the size of the live heap. The Datadog profiler only tracks it as part of live heap
+   * profiling, so enabling it also enables live heap profiling, which samples the live objects as
+   * {@link #MEMLEAK} does.
+   */
+  LIVEHEAP_SIZE(1 << 6);
 
   public final int bitmask;
 

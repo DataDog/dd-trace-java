@@ -245,6 +245,19 @@ public class JsonReader implements AutoCloseable {
   }
 
   /**
+   * Checks whether the document is over, i.e. only whitespace is left after what was read.
+   *
+   * @return {@code true} if there is nothing else to read, {@code false} otherwise.
+   * @throws IOException If an I/O error occurs.
+   */
+  public boolean isEndOfDocument() throws IOException {
+    consumeWhitespace();
+    // peek() gives '\0' at the end, which can also be a character of the document
+    peek();
+    return this.position >= this.limit;
+  }
+
+  /**
    * Reads the next value and automatically detects its type.
    *
    * <p>Supported types are:
@@ -286,7 +299,10 @@ public class JsonReader implements AutoCloseable {
       case 'f':
         return nextBoolean();
       case 'n':
-        readLiteral(4); // Skip "null"
+        String literal = readLiteral(4);
+        if (!"null".equals(literal)) {
+          throw unexpectedSyntaxError("'null'", literal);
+        }
         return null;
       case '-':
       case '0':

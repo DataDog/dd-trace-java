@@ -20,8 +20,10 @@ import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.ddprof.DatadogProfiler;
+import com.datadog.profiling.utils.ProfilingMode;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.EnumSet;
+import java.util.Map;
 import javax.annotation.Nonnull;
 
 /** This is the implementation of the controller for DD profiler. */
@@ -47,6 +49,12 @@ public final class DatadogProfilerController implements Controller {
       @Nonnull String recordingName, ControllerContext.Snapshot context)
       throws UnsupportedEnvironmentException {
     return new DatadogProfilerOngoingRecording(datadogProfiler, recordingName);
+  }
+
+  @Override
+  public void reconfigure(
+      ConfigProvider configProvider, Map<ProfilingMode, Boolean> modeOverrides) {
+    datadogProfiler.reconfigure(configProvider, modeOverrides);
   }
 
   @Override
