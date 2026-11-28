@@ -2,6 +2,7 @@ package datadog.trace.civisibility.coverage.probe;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.internal.VisibleForTesting;
+import datadog.trace.util.PidHelper;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -11,6 +12,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.io.UncheckedIOException;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -29,6 +33,7 @@ import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -65,6 +70,9 @@ public final class ProbeClassCache {
    * A build directory this old was left by a build that did not end, and the next build deletes it.
    */
   private static final long STALE_BUILD_DIRECTORY_MILLIS = TimeUnit.HOURS.toMillis(24);
+
+  /** The most digits a process id in a build directory name has, so that it fits in a long. */
+  private static final int MAX_PID_DIGITS = 18;
 
   private static final int MAGIC = 0x44444C50;
   private static final int FORMAT = 1;
@@ -511,8 +519,9 @@ public final class ProbeClassCache {
   /**
    * Creates the directory that the test JVMs of a build share as their cache, or returns {@code
    * null} if it cannot, which is logged at warn level. It is a new directory in the temporary
-   * directory that only the user can use. Directories left by builds that did not end, a day ago or
-   * earlier, are deleted.
+   * directory that only the user can use, named after the process id of this JVM. Directories that
+   * other builds of the user left are deleted: those whose JVM no longer runs, and any that is a
+   * day old.
    */
   @Nullable
   public static File createBuildDirectory() {
@@ -524,12 +533,14 @@ public final class ProbeClassCache {
    */
   @Nullable
   static File createBuildDirectory(@Nullable Path parent) {
+    String pid = PidHelper.getPid();
+    String prefix = pid.isEmpty() ? BUILD_DIRECTORY_PREFIX : BUILD_DIRECTORY_PREFIX + pid + "-";
     Path directory;
     try {
       directory =
           parent != null
-              ? Files.createTempDirectory(parent, BUILD_DIRECTORY_PREFIX)
-              : Files.createTempDirectory(BUILD_DIRECTORY_PREFIX);
+              ? Files.createTempDirectory(parent, prefix)
+              : Files.createTempDirectory(prefix);
     } catch (IOException | RuntimeException e) {
       log.warn(
           "Per-test line coverage could not create a class cache directory for the build, so each"
@@ -553,17 +564,93 @@ public final class ProbeClassCache {
       if (directories == null) {
         return;
       }
+      RunningProcesses processes = new RunningProcesses();
       for (File stale : directories) {
         Path path = stale.toPath();
         if (!path.equals(created)
-            && stale.lastModified() < staleBefore
             && Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)
-            && user.equals(Files.getOwner(path, LinkOption.NOFOLLOW_LINKS))) {
+            && user.equals(Files.getOwner(path, LinkOption.NOFOLLOW_LINKS))
+            && (stale.lastModified() < staleBefore
+                || processes.hasEnded(ownerPid(stale.getName())))) {
           deleteBuildDirectory(stale);
         }
       }
     } catch (IOException | RuntimeException e) {
       log.debug("Could not look for stale class cache directories", e);
+    }
+  }
+
+  /**
+   * The process id in the name of a build directory, or -1 if it has none, as in the names of
+   * directories that earlier agent builds created.
+   */
+  static long ownerPid(String directoryName) {
+    int start = BUILD_DIRECTORY_PREFIX.length();
+    int end = directoryName.indexOf('-', start);
+    if (!directoryName.startsWith(BUILD_DIRECTORY_PREFIX)
+        || end <= start
+        || end - start > MAX_PID_DIGITS) {
+      return -1;
+    }
+    long pid = 0;
+    for (int i = start; i < end; i++) {
+      char c = directoryName.charAt(i);
+      if (c < '0' || c > '9') {
+        return -1;
+      }
+      pid = pid * 10 + (c - '0');
+    }
+    return pid;
+  }
+
+  /**
+   * Tells whether the process that created a build directory has ended. On Java 9 and later it asks
+   * {@code ProcessHandle}. Before that it reads the list of running JVMs that tools such as jps
+   * read, and trusts the list only if this JVM is on it. When it cannot tell, it answers that the
+   * process runs, so that only the age of the directory can make it stale.
+   */
+  static final class RunningProcesses {
+
+    @Nullable private static final MethodHandle PROCESS_HANDLE_OF = findProcessHandleOf();
+
+    private final long ownPid = PidHelper.getPidAsLong();
+    @Nullable private Set<String> javaPids;
+
+    @Nullable
+    private static MethodHandle findProcessHandleOf() {
+      try {
+        return MethodHandles.publicLookup()
+            .findStatic(
+                Class.forName("java.lang.ProcessHandle"),
+                "of",
+                MethodType.methodType(Optional.class, long.class));
+      } catch (Throwable e) {
+        // before Java 9
+        return null;
+      }
+    }
+
+    /** Whether this JVM can tell that a process has ended. */
+    @VisibleForTesting
+    static boolean canTell() {
+      return PROCESS_HANDLE_OF != null || PidHelper.getJavaPids().contains(PidHelper.getPid());
+    }
+
+    boolean hasEnded(long pid) {
+      if (pid < 0 || pid == ownPid) {
+        return false;
+      }
+      if (PROCESS_HANDLE_OF != null) {
+        try {
+          return !((Optional<?>) PROCESS_HANDLE_OF.invoke(pid)).isPresent();
+        } catch (Throwable e) {
+          return false;
+        }
+      }
+      if (javaPids == null) {
+        javaPids = PidHelper.getJavaPids();
+      }
+      return javaPids.contains(Long.toString(ownPid)) && !javaPids.contains(Long.toString(pid));
     }
   }
 

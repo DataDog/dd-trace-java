@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.coverage.probe;
 
+import static datadog.trace.test.util.ForkedTestUtils.childJvmArguments;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -25,10 +26,13 @@ import static org.objectweb.asm.Opcodes.V1_8;
 import datadog.trace.api.civisibility.coverage.InstrumentedClass;
 import datadog.trace.api.civisibility.coverage.ProbeRecorder;
 import datadog.trace.api.civisibility.coverage.SharedPart;
+import datadog.trace.util.PidHelper;
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.StringWriter;
 import java.net.JarURLConnection;
 import java.net.URL;
@@ -36,6 +40,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,6 +54,7 @@ import java.util.jar.JarFile;
 import java.util.jar.JarOutputStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -336,17 +342,18 @@ class ProbeClassCacheTest {
     List<Thread> writers = new ArrayList<>();
     for (int t = 0; t < 8; t++) {
       Thread writer =
-          new Thread(() -> {
-            try {
-              start.await();
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-              return;
-            }
-            for (int k = 0; k < 50; k++) {
-              cache.write(file, source, NAME, emptyList(), patched);
-            }
-          });
+          new Thread(
+              () -> {
+                try {
+                  start.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                  return;
+                }
+                for (int k = 0; k < 50; k++) {
+                  cache.write(file, source, NAME, emptyList(), patched);
+                }
+              });
       writer.start();
       writers.add(writer);
     }
@@ -472,6 +479,70 @@ class ProbeClassCacheTest {
     assertTrue(Files.exists(other));
     assertTrue(Files.exists(link, LinkOption.NOFOLLOW_LINKS));
     assertTrue(Files.exists(kept), "a link was followed");
+  }
+
+  @Test
+  void aBuildDirectoryIsNamedAfterTheProcessThatCreatedIt() {
+    File directory = ProbeClassCache.createBuildDirectory(temporaryDirectory);
+
+    assertNotNull(directory);
+    assertEquals(PidHelper.getPidAsLong(), ProbeClassCache.ownerPid(directory.getName()));
+    assertEquals(12, ProbeClassCache.ownerPid("dd-line-probes-12-345"));
+    // the names that earlier agent builds gave, and names of other kinds
+    assertEquals(-1, ProbeClassCache.ownerPid("dd-line-probes-345"));
+    assertEquals(-1, ProbeClassCache.ownerPid("dd-line-probes--345"));
+    assertEquals(-1, ProbeClassCache.ownerPid("dd-line-probes-1x-345"));
+    assertEquals(-1, ProbeClassCache.ownerPid("dd-line-probes-1234567890123456789-345"));
+    assertEquals(-1, ProbeClassCache.ownerPid("other-12-345"));
+  }
+
+  @Test
+  @Timeout(value = 3, unit = TimeUnit.MINUTES)
+  void theNextBuildDeletesTheDirectoryOfABuildThatWasKilled() throws Exception {
+    assumeTrue(ProbeClassCache.RunningProcesses.canTell(), "this JVM cannot tell which run");
+    Process killed = startBuild("wait");
+    Process running = startBuild("wait");
+    try {
+      Path killedDirectory = Paths.get(firstLine(killed));
+      Path runningDirectory = Paths.get(firstLine(running));
+      assertTrue(Files.isDirectory(killedDirectory));
+      assertTrue(Files.isDirectory(runningDirectory));
+
+      killed.destroyForcibly();
+      assertTrue(killed.waitFor(1, TimeUnit.MINUTES));
+      assertTrue(Files.isDirectory(killedDirectory), "a killed build leaves its directory");
+
+      Process next = startBuild();
+      Path nextDirectory = Paths.get(firstLine(next));
+      assertTrue(next.waitFor(1, TimeUnit.MINUTES));
+
+      assertFalse(Files.exists(killedDirectory), "the next build deletes it");
+      assertTrue(Files.isDirectory(runningDirectory), "the directory of a running build is kept");
+      assertTrue(Files.isDirectory(nextDirectory));
+    } finally {
+      killed.destroyForcibly();
+      running.destroyForcibly();
+    }
+  }
+
+  private Process startBuild(String... arguments) throws IOException {
+    List<String> command = new ArrayList<>();
+    command.add(Paths.get(System.getProperty("java.home"), "bin", "java").toString());
+    command.addAll(childJvmArguments());
+    command.add("-cp");
+    command.add(System.getProperty("java.class.path"));
+    command.add(BuildDirectoryProcess.class.getName());
+    command.add(temporaryDirectory.toString());
+    command.addAll(Arrays.asList(arguments));
+    return new ProcessBuilder(command).redirectError(ProcessBuilder.Redirect.INHERIT).start();
+  }
+
+  private static String firstLine(Process process) throws IOException {
+    String line =
+        new BufferedReader(new InputStreamReader(process.getInputStream(), UTF_8)).readLine();
+    assertNotNull(line, "the build process printed nothing");
+    assertNotEquals("null", line, "the build process created no directory");
+    return line;
   }
 
   private ProbeClassCache open(File agentJar) throws IOException {

@@ -191,19 +191,21 @@ public class BuildSystemSessionImpl<T extends CoverageProcessor> extends Abstrac
         coverageProcessor,
         executionSettings,
         settings,
-        classCacheDirectory(),
+        classCacheDirectory(executionSettings),
         this::onModuleFinish);
   }
 
   /**
    * The directory that the test JVMs of the build share as their line probe class cache, created
-   * with the first module, or {@code null} if there is none to create.
+   * with the first module that collects per-test coverage, or {@code null} if there is none to
+   * create.
    */
   @Nullable
-  private String classCacheDirectory() {
+  private String classCacheDirectory(ExecutionSettings executionSettings) {
     String explicitDirectory = config.getCiVisibilityCoverageLineProbesClassCacheDir();
     if (!config.isCiVisibilityCoverageLineProbesEnabled()
         || !config.isCiVisibilityCoverageLineProbesClassCacheEnabled()
+        || !executionSettings.isCodeCoverageEnabled()
         || (explicitDirectory != null && !explicitDirectory.isEmpty())) {
       return null;
     }

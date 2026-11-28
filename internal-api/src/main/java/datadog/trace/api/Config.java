@@ -2890,8 +2890,7 @@ public class Config {
     ciVisibilityCoverageLineProbesEnabled =
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_ENABLED, false);
     ciVisibilityCoverageLineProbesClassCacheEnabled =
-        configProvider.getBoolean(
-            CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_CLASS_CACHE_ENABLED, false);
+        configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_CLASS_CACHE_ENABLED, true);
     ciVisibilityCoverageLineProbesClassCacheDir =
         configProvider.getString(CIVISIBILITY_CODE_COVERAGE_LINE_PROBES_CLASS_CACHE_DIR);
     ciVisibilityCodeCoverageReportDumpDir =
